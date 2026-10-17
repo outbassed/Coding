@@ -1,6 +1,6 @@
 /* Coding — service worker (funciona offline).
    Ao alterar qualquer arquivo do app, aumente o número de CACHE_VERSION. */
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 const CACHE = "coding-cache-v" + CACHE_VERSION;
 const ASSETS = [
   "./",

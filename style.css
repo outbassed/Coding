@@ -140,14 +140,13 @@ select { cursor: pointer; }
 .switch-text small { font-size: 11px; color: var(--muted); }
 
 /* Pré-visualização */
-.preview { min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: 16px clamp(10px, 2vw, 28px) 10px; padding-right: calc(clamp(10px, 2vw, 28px) + var(--safe-right)); background: radial-gradient(ellipse at 55% 0%, #202c3d, #111823 72%); }
+.preview { --pad: clamp(10px, 2vw, 28px); min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: 16px calc(var(--pad) + var(--safe-right)) 0 var(--pad); background: radial-gradient(ellipse at 55% 0%, #202c3d, #111823 72%); }
 .preview-bar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .preview-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .preview-title strong { font-size: 14px; }
 .preview-title span { font-size: 11px; color: var(--muted); }
 .preview-controls { display: flex; align-items: center; gap: 5px; }
 .indicator { min-width: 44px; text-align: center; font-size: 12px; color: #d8e1ef; font-variant-numeric: tabular-nums; }
-.divider { width: 1px; height: 18px; background: #526076; margin: 0 6px; }
 .warning { flex: none; display: flex; gap: 9px; align-items: flex-start; margin-bottom: 12px; padding: 11px 12px; border: 1px solid #ac7758; border-radius: 10px; background: #60432955; color: #ffddb4; font-size: 12px; line-height: 1.5; }
 .warning .icon { color: #ffd398; }
 .sheets-area { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
@@ -162,7 +161,11 @@ select { cursor: pointer; }
 .entry .code { line-height: 1.14; }
 .entry .desc { line-height: 1.2; }
 .entry .code + .desc { margin-top: 4mm; }
-.preview-foot { flex: none; display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 22px; padding-top: 8px; font-size: 11px; color: #8fa2bc; }
+.statusbar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 34px; margin: 6px calc(-1 * (var(--pad) + var(--safe-right))) 0 calc(-1 * var(--pad)); padding: 0 calc(max(var(--pad), 12px) + var(--safe-right)) 0 max(var(--pad), 12px); background: #0e141d; border-top: 1px solid var(--line-soft); font-size: 12px; color: #aab7cc; }
+.zoom-controls { display: flex; align-items: center; gap: 4px; }
+.statusbar .icon-btn { width: 26px; height: 26px; border-color: transparent; background: transparent; }
+.statusbar .icon-btn .icon { width: 14px; height: 14px; }
+.statusbar .indicator { min-width: 40px; font-size: 12px; }
 #measureHost { position: fixed; left: -99999px; top: 0; visibility: hidden; pointer-events: none; background: #fff; color: #101010; }
 #measureHost .entry { margin: 0; }
 
@@ -187,7 +190,7 @@ select { cursor: pointer; }
 /* Tablet e celular: preview em cima, editor embaixo */
 @media (max-width: 899px) {
   .workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
-  .preview { order: 1; padding: 10px 0 0; }
+  .preview { order: 1; --pad: 0px; padding: 10px 0 0; }
   .panel { order: 2; border-right: 0; border-top: 1px solid #4e5d74; border-radius: 18px 18px 0 0; box-shadow: 0 -8px 25px #0005; height: min(48dvh, 440px); min-height: 250px; padding-left: 0; position: relative; }
   .panel.collapsed { height: auto; min-height: 0; }
   .panel.collapsed .panel-body { display: none; }
@@ -201,7 +204,11 @@ select { cursor: pointer; }
   .sheets-area { padding: 6px 0 12px; }
   .pages { gap: 0; padding: 0 0 6px; }
   .page-frame.mobile-inactive { display: none; }
-  .preview-foot { display: none; }
+  .statusbar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 34px; margin: 6px calc(-1 * (var(--pad) + var(--safe-right))) 0 calc(-1 * var(--pad)); padding: 0 calc(max(var(--pad), 12px) + var(--safe-right)) 0 max(var(--pad), 12px); background: #0e141d; border-top: 1px solid var(--line-soft); font-size: 12px; color: #aab7cc; }
+.zoom-controls { display: flex; align-items: center; gap: 4px; }
+.statusbar .icon-btn { width: 26px; height: 26px; border-color: transparent; background: transparent; }
+.statusbar .icon-btn .icon { width: 14px; height: 14px; }
+.statusbar .indicator { min-width: 40px; font-size: 12px; }
   .toast { bottom: calc(min(48dvh, 440px) + 12px); }
   .toast.sheet-collapsed { bottom: calc(90px + var(--safe-bottom)); }
 }
@@ -223,7 +230,6 @@ select { cursor: pointer; }
   .top-actions .btn.primary { border-radius: 9px; margin-left: 2px; }
   .preview-title strong { font-size: 12px; }
   .indicator { min-width: 32px; font-size: 11px; }
-  .divider { margin: 0 2px; }
   .icon-btn { width: 32px; height: 32px; border-color: transparent; background: transparent; }
   .item-fields { grid-template-columns: minmax(0, 1fr); }
   .tab span:not(.tab-count) { font-size: 12px; }
@@ -262,7 +268,7 @@ select { cursor: pointer; }
   @page { size: A4 portrait; margin: 0; }
   html, body { width: 210mm !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; background: #fff !important; }
   .app, .workspace, .preview { display: block !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; background: #fff !important; box-shadow: none !important; }
-  .topbar, .panel, .preview-bar, .preview-foot, .warning, .dialog, #measureHost, .toast { display: none !important; }
+  .topbar, .panel, .preview-bar, .statusbar, .warning, .dialog, #measureHost, .toast { display: none !important; }
   .sheets-area, .pages { display: block !important; width: 210mm !important; min-width: 0 !important; height: auto !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
   .page-frame, .page-frame.mobile-inactive { display: block !important; position: relative !important; width: 210mm !important; height: 297mm !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; break-after: page; page-break-after: always; }
   .page-frame:last-child { break-after: auto; page-break-after: auto; }
