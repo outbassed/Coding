@@ -28,6 +28,7 @@
     <symbol id="ic-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
     <symbol id="ic-type" viewBox="0 0 24 24"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></symbol>
     <symbol id="ic-page" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></symbol>
+    <symbol id="ic-sidebar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
     <symbol id="ic-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
     <symbol id="ic-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
     <symbol id="ic-up" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></symbol>
@@ -113,21 +114,19 @@
       </aside>
 
       <main class="preview" aria-label="Pré-visualização">
-        <div class="preview-bar">
-          <div class="preview-title"><strong>Pré-visualização</strong><span id="pageSummary">A4 · 1 página</span></div>
-          <div class="preview-controls">
-            <button id="previousPage" class="icon-btn" type="button" aria-label="Página anterior"><svg class="icon"><use href="#ic-left"/></svg></button>
-            <span id="pageIndicator" class="indicator">1 / 1</span>
-            <button id="nextPage" class="icon-btn" type="button" aria-label="Próxima página"><svg class="icon"><use href="#ic-right"/></svg></button>
-            </div>
-        </div>
         <div id="warning" class="warning" role="alert" hidden><svg class="icon"><use href="#ic-alert"/></svg><span id="warningText"></span></div>
         <div class="sheets-area" id="sheetsArea"><div id="pages" class="pages" aria-live="polite"></div></div>
         <div class="statusbar">
-          <span id="blockSummary">1 etiqueta</span>
+          <div class="status-left">
+            <button id="panelToggle" class="icon-btn is-on" type="button" aria-pressed="true" aria-label="Mostrar ou ocultar o editor" title="Mostrar/ocultar o editor"><svg class="icon"><use href="#ic-sidebar"/></svg></button>
+            <button id="previousPage" class="icon-btn" type="button" aria-label="Página anterior"><svg class="icon"><use href="#ic-left"/></svg></button>
+            <span id="pageIndicator" class="indicator">Página 1 de 1</span>
+            <button id="nextPage" class="icon-btn" type="button" aria-label="Próxima página"><svg class="icon"><use href="#ic-right"/></svg></button>
+            <span id="blockSummary" class="muted">1 etiqueta</span>
+          </div>
           <div class="zoom-controls">
             <button id="zoomOut" class="icon-btn" type="button" aria-label="Diminuir zoom"><svg class="icon"><use href="#ic-minus"/></svg></button>
-            <span id="zoomIndicator" class="indicator">100%</span>
+            <button id="zoomIndicator" class="zoom-reset" type="button" title="Ajustar à largura" aria-label="Ajustar à largura">100%</button>
             <button id="zoomIn" class="icon-btn" type="button" aria-label="Aumentar zoom"><svg class="icon"><use href="#ic-plus"/></svg></button>
           </div>
         </div>

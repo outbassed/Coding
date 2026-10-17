@@ -16,6 +16,7 @@ Cada etiqueta (código + descrição) é indivisível: se não couber no fim de 
 - Vários itens, com cópias de 1 a 500 por item (até 200 itens e 2000 etiquetas por documento)
 - Reordenar, duplicar e excluir itens; importar lista colada
 - 1 ou 2 colunas por folha, com linha de corte opcional
+- Prévia ampla: o editor pode ser ocultado (botão na barra inferior) e o zoom ajusta a folha à largura da tela
 - Layout responsivo: painel lateral no computador, painel inferior recolhível no celular e no tablet, e lado a lado com o celular deitado
 - PWA instalável, com funcionamento offline
 - Salvamento automático no aparelho e exportação/importação de projetos `.coding.json`
@@ -40,4 +41,4 @@ A instalação exige HTTPS (o GitHub Pages já oferece) ou `localhost`.
 - Os projetos ficam salvos apenas neste navegador/dispositivo. Use **Salvar** para baixar um backup `.json`.
 - Para o tamanho fiel ao imprimir: A4, escala 100%, margens nenhuma e sem cabeçalhos/rodapés.
 - As fontes disponíveis variam conforme o sistema operacional.
-- **Ao alterar qualquer arquivo do app**, aumente `CACHE_VERSION` em `sw.js`, senão quem já instalou continua vendo a versão em cache.
+- O app busca a versão mais nova quando há internet e usa o cache apenas offline. Se criar arquivos novos, inclua-os em `ASSETS` no `sw.js`.

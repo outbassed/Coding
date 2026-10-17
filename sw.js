@@ -1,6 +1,6 @@
 /* Coding — service worker (funciona offline).
-   Ao alterar qualquer arquivo do app, aumente o número de CACHE_VERSION. */
-const CACHE_VERSION = 3;
+   O app busca sempre a versão mais nova quando há internet e usa o cache só offline. */
+const CACHE_VERSION = 4;
 const CACHE = "coding-cache-v" + CACHE_VERSION;
 const ASSETS = [
   "./",
@@ -49,19 +49,16 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Demais arquivos: responde do cache e atualiza em segundo plano.
+  // Demais arquivos: rede primeiro (sempre a versão mais nova); sem internet, usa o cache.
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request)
-        .then((response) => {
-          if (response && response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(request)
+      .then((response) => {
+        if (response && response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(request))
   );
 });

@@ -4,6 +4,7 @@
 
   const STORAGE_KEY = "coding-document-v2";
   const LEGACY_KEY = "coding-document-v1";
+  const PANEL_KEY = "coding-panel-hidden";
   const FONTS = ["Arial", "Arial Black", "Impact", "Verdana", "Georgia", "Times New Roman", "Courier New", "Trebuchet MS", "Tahoma"];
   const MAX_ITEMS = 200;
   const MAX_COPIES = 500;
@@ -460,7 +461,6 @@
     byId("warningText").textContent = message;
     printButton.disabled = Boolean(printBlockedReason);
 
-    byId("pageSummary").textContent = "A4 · " + pageCount + (pageCount === 1 ? " página" : " páginas");
     byId("blockSummary").textContent = sequence.length + (sequence.length === 1 ? " etiqueta" : " etiquetas") + " · " + active.length + (active.length === 1 ? " item" : " itens");
     applyZoom();
     updatePages(false);
@@ -479,8 +479,8 @@
     if (!first) return;
     const naturalWidth = first.offsetWidth;
     const naturalHeight = first.offsetHeight;
-    const available = Math.max(180, area.clientWidth - (mobileQuery.matches ? 16 : 40));
-    const fit = Math.min(0.95, available / naturalWidth);
+    const available = Math.max(180, area.clientWidth - (mobileQuery.matches ? 16 : 28));
+    const fit = Math.min(1.8, available / naturalWidth);
     const scale = fit * zoomLevels[zoomIndex];
     pagesEl.querySelectorAll(".page-frame").forEach((frame) => {
       frame.style.width = naturalWidth * scale + "px";
@@ -496,7 +496,7 @@
     pagesEl.querySelectorAll(".page-frame").forEach((frame, index) => {
       frame.classList.toggle("mobile-inactive", mobileQuery.matches && index !== currentPage);
     });
-    byId("pageIndicator").textContent = (currentPage + 1) + " / " + pageCount;
+    byId("pageIndicator").textContent = "Página " + (currentPage + 1) + " de " + pageCount;
     byId("previousPage").disabled = currentPage === 0;
     byId("nextPage").disabled = currentPage >= pageCount - 1;
     if (scrollToPage) {
@@ -676,6 +676,17 @@
     });
     window.addEventListener("beforeprint", () => { if (renderPending) render(); });
 
+    byId("zoomIndicator").addEventListener("click", () => { zoomIndex = 2; applyZoom(); });
+    const togglePanel = (hide) => {
+      document.querySelector(".app").classList.toggle("panel-hidden", hide);
+      const toggle = byId("panelToggle");
+      toggle.classList.toggle("is-on", !hide);
+      toggle.setAttribute("aria-pressed", String(!hide));
+      try { localStorage.setItem(PANEL_KEY, hide ? "1" : "0"); } catch (_) { /* ignorado */ }
+    };
+    byId("panelToggle").addEventListener("click", () => togglePanel(!document.querySelector(".app").classList.contains("panel-hidden")));
+    try { if (localStorage.getItem(PANEL_KEY) === "1") togglePanel(true); } catch (_) { /* ignorado */ }
+    if ("ResizeObserver" in window) new ResizeObserver(() => applyZoom()).observe(area);
     window.addEventListener("resize", () => { applyZoom(); updatePages(false); });
     if (mobileQuery.addEventListener) mobileQuery.addEventListener("change", () => { applyZoom(); updatePages(false); });
     window.addEventListener("pagehide", () => { clearTimeout(saveTimer); persist(); });
