@@ -2,15 +2,16 @@
 (() => {
   "use strict";
 
-  const STORAGE_KEY = "coding-document-v2";
-  const LEGACY_KEY = "coding-document-v1";
+  const LIB_KEY = "coding-library-v1";
   const PANEL_KEY = "coding-panel-hidden";
   const FONTS = ["Arial", "Arial Black", "Impact", "Verdana", "Georgia", "Times New Roman", "Courier New", "Trebuchet MS", "Tahoma"];
   const MAX_ITEMS = 200;
   const MAX_COPIES = 500;
   const MAX_BLOCKS = 2000;
-  const CONTENT_WIDTH_MM = 182;   // 210 mm − 2 × 14 mm
-  const CONTENT_HEIGHT_MM = 267;  // 297 mm − 2 × 15 mm
+  const MAX_DOCS = 30;
+  const PAPER = { portrait: { w: 210, h: 297 }, landscape: { w: 297, h: 210 } };
+  const MARGIN_X_MM = 14;
+  const MARGIN_Y_MM = 15;
 
   const byId = (id) => document.getElementById(id);
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -26,12 +27,13 @@
 
   function defaults() {
     return {
-      name: "Meu documento",
-      items: [{ id: uid(), code: "190847", description: "ARVORE NATAL CANADA\n1350TIPS 240CM VERDE\nGRILLO 66439004", copies: 3 }],
+      name: "Documento sem título",
+      items: [{ id: uid(), code: "123", description: "Sua descrição aqui", copies: 3 }],
       prefix: "COD: ",
+      orientation: "portrait",
       cols: 1,
-      gap: 8,
-      border: false,
+      gap: 1,
+      border: true,
       codeFont: "Arial", codeSize: 40, codeBold: true, codeItalic: false, codeAlign: "center",
       descFont: "Arial", descSize: 34, descBold: false, descItalic: false, descAlign: "center"
     };
@@ -50,6 +52,7 @@
   function normalize(source) {
     const base = defaults();
     const o = source && typeof source === "object" && !Array.isArray(source) ? source : {};
+    const legacy = !Array.isArray(o.items);
     let items;
     if (Array.isArray(o.items)) {
       items = o.items.slice(0, MAX_ITEMS).map(normalizeItem);
@@ -64,9 +67,10 @@
       name: toText(o.name, base.name, 80),
       items,
       prefix: toText(o.prefix, base.prefix, 30),
-      cols: toInt(o.cols, base.cols, 1, 2),
+      orientation: o.orientation === "landscape" ? "landscape" : "portrait",
+      cols: toInt(o.cols, base.cols, 1, 3),
       gap: toInt(o.gap, base.gap, 0, 25),
-      border: toBool(o.border, base.border),
+      border: toBool(o.border, legacy ? false : base.border),
       codeFont: toFont(o.codeFont, base.codeFont),
       codeSize: toInt(o.codeSize, base.codeSize, 8, 96),
       codeBold: toBool(o.codeBold, base.codeBold),
@@ -80,17 +84,33 @@
     };
   }
 
-  function loadState() {
+  function loadLibrary() {
     try {
-      const current = localStorage.getItem(STORAGE_KEY);
-      if (current) return normalize(JSON.parse(current));
-      const legacy = localStorage.getItem(LEGACY_KEY);
-      if (legacy) return normalize(JSON.parse(legacy));
-    } catch (_) { /* usa o padrão */ }
-    return normalize(defaults());
+      const raw = localStorage.getItem(LIB_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && parsed.docs && typeof parsed.docs === "object") {
+          const docs = {};
+          Object.values(parsed.docs).slice(0, MAX_DOCS).forEach((d) => {
+            if (d && typeof d.id === "string") docs[d.id] = { id: d.id, updatedAt: Number(d.updatedAt) || Date.now(), state: normalize(d.state) };
+          });
+          const newest = Object.values(docs).sort((a, b) => b.updatedAt - a.updatedAt)[0];
+          return { currentId: docs[parsed.currentId] ? parsed.currentId : (newest ? newest.id : null), docs };
+        }
+      }
+      // Migra o documento único das versões anteriores.
+      const old = localStorage.getItem("coding-document-v2") || localStorage.getItem("coding-document-v1");
+      if (old) {
+        const id = uid();
+        return { currentId: id, docs: { [id]: { id, updatedAt: Date.now(), state: normalize(JSON.parse(old)) } } };
+      }
+    } catch (_) { /* biblioteca vazia */ }
+    return { currentId: null, docs: {} };
   }
 
-  let state = loadState();
+  const lib = loadLibrary();
+  let currentId = lib.currentId;
+  let state = currentId ? lib.docs[currentId].state : normalize(defaults());
 
   const pagesEl = byId("pages");
   const area = byId("sheetsArea");
@@ -102,27 +122,35 @@
   const mobileQuery = window.matchMedia("(max-width: 899px)");
   const zoomLevels = [0.5, 0.75, 1, 1.25, 1.5, 2];
   let zoomIndex = 2;
+  let fitMode = mobileQuery.matches ? "width" : "page"; // "page" = folha inteira visível
   let currentPage = 0;
   let pageCount = 1;
   let printBlockedReason = "";
   let renderPending = false;
   let saveTimer;
   let toastTimer;
+  let dirty = false;
 
   /* ---------- Utilidades de interface ---------- */
 
   function setSaved(message) { byId("saveText").textContent = message; }
 
   function persist() {
+    if (!currentId || !lib.docs[currentId]) return;
+    if (dirty) { lib.docs[currentId].updatedAt = Date.now(); dirty = false; }
+    lib.currentId = currentId;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem(LIB_KEY, JSON.stringify(lib));
       setSaved("Salvo neste aparelho");
     } catch (_) {
       setSaved("Armazenamento indisponível");
     }
   }
 
+  function flushSave() { clearTimeout(saveTimer); persist(); }
+
   function scheduleSave() {
+    dirty = true;
     setSaved("Salvando...");
     clearTimeout(saveTimer);
     saveTimer = setTimeout(persist, 300);
@@ -185,6 +213,11 @@
     });
   }
 
+  function applyOrientation() {
+    document.documentElement.dataset.paper = state.orientation;
+    byId("pageStyle").textContent = "@page { size: A4 " + state.orientation + "; margin: 0; }";
+  }
+
   function refreshFields() {
     byId("documentName").value = state.name;
     byId("prefixInput").value = state.prefix;
@@ -209,6 +242,13 @@
       button.classList.toggle("is-active", on);
       button.setAttribute("aria-pressed", String(on));
     });
+    byId("orientGroup").querySelectorAll("[data-orient]").forEach((button) => {
+      const on = button.dataset.orient === state.orientation;
+      button.classList.toggle("is-active", on);
+      button.setAttribute("aria-pressed", String(on));
+    });
+    byId("paperDims").textContent = state.orientation === "landscape" ? "A4 · 297 × 210 mm" : "A4 · 210 × 297 mm";
+    applyOrientation();
     renderItemList();
   }
 
@@ -374,10 +414,13 @@
 
   function render() {
     renderPending = false;
+    applyOrientation();
     const cols = state.cols;
     const gapMm = state.gap;
     const pxPerMm = mmInPixels();
-    const colWidth = cols === 1 ? CONTENT_WIDTH_MM : (CONTENT_WIDTH_MM - gapMm * (cols - 1)) / cols;
+    const contentWidth = PAPER[state.orientation].w - 2 * MARGIN_X_MM;
+    const contentHeight = PAPER[state.orientation].h - 2 * MARGIN_Y_MM;
+    const colWidth = cols === 1 ? contentWidth : (contentWidth - gapMm * (cols - 1)) / cols;
     measureHost.style.width = colWidth + "mm";
 
     const active = state.items.filter(hasContent);
@@ -386,7 +429,7 @@
     const heights = probes.map((el) => el.getBoundingClientRect().height);
     measureHost.replaceChildren();
 
-    const capacity = CONTENT_HEIGHT_MM * pxPerMm - 3; // tolerância contra arredondamento
+    const capacity = contentHeight * pxPerMm - 3; // tolerância contra arredondamento
     const gap = gapMm * pxPerMm;
 
     let total = 0;
@@ -453,7 +496,7 @@
       printBlockedReason = message = "Preencha o código ou a descrição de ao menos um item para imprimir.";
     } else if (oversized.length) {
       printBlockedReason = message = (oversized.length === 1 ? "A etiqueta do item " : "As etiquetas dos itens ") + oversized.join(", ") +
-        (oversized.length === 1 ? " é maior" : " são maiores") + " que a área imprimível. Reduza a fonte ou o texto" + (cols === 2 ? ", ou use 1 coluna" : "") + ".";
+        (oversized.length === 1 ? " é maior" : " são maiores") + " que a área imprimível. Reduza a fonte ou o texto" + (cols > 1 ? ", ou use menos colunas" : "") + ".";
     } else if (total > MAX_BLOCKS) {
       printBlockedReason = message = "O documento tem " + total + " etiquetas. O limite é " + MAX_BLOCKS + "; reduza as cópias.";
     }
@@ -479,8 +522,9 @@
     if (!first) return;
     const naturalWidth = first.offsetWidth;
     const naturalHeight = first.offsetHeight;
-    const available = Math.max(180, area.clientWidth - (mobileQuery.matches ? 16 : 28));
-    const fit = Math.min(1.8, available / naturalWidth);
+    const fitWidth = Math.max(180, area.clientWidth - (mobileQuery.matches ? 16 : 28)) / naturalWidth;
+    const fitHeight = Math.max(180, area.clientHeight - 26) / naturalHeight;
+    const fit = Math.min(1.8, fitMode === "page" ? Math.min(fitWidth, fitHeight) : fitWidth);
     const scale = fit * zoomLevels[zoomIndex];
     pagesEl.querySelectorAll(".page-frame").forEach((frame) => {
       frame.style.width = naturalWidth * scale + "px";
@@ -488,6 +532,7 @@
       frame.firstElementChild.style.transform = "scale(" + scale + ")";
     });
     byId("zoomIndicator").textContent = Math.round(scale * 100) + "%";
+    byId("zoomIndicator").title = fitMode === "page" ? "Página inteira. Clique para ajustar à largura" : "Ajustado à largura. Clique para ver a página inteira";
     byId("zoomOut").disabled = zoomIndex === 0;
     byId("zoomIn").disabled = zoomIndex === zoomLevels.length - 1;
   }
@@ -532,15 +577,93 @@
       if (!loaded || typeof loaded !== "object" || loaded.format !== "coding-document" || ![1, 2].includes(loaded.version)) {
         throw new Error("Formato inválido");
       }
-      if (!window.confirm("Substituir o documento atual pelo arquivo selecionado?")) return;
-      state = normalize(loaded);
-      currentPage = 0;
-      refreshFields();
-      scheduleRender();
-      toast("Projeto aberto com sucesso.");
+      if (createDoc(loaded)) toast("Projeto aberto como um novo documento.");
     } catch (_) {
       toast("Não foi possível abrir este arquivo do Coding.");
     }
+  }
+
+  /* ---------- Documentos salvos e tela inicial ---------- */
+
+  function openDoc(id) {
+    if (!lib.docs[id]) return;
+    flushSave();
+    currentId = id;
+    state = lib.docs[id].state;
+    currentPage = 0;
+    refreshFields();
+    render();
+    persist();
+    hideHome();
+    setTab("itens");
+  }
+
+  function createDoc(source) {
+    if (Object.keys(lib.docs).length >= MAX_DOCS) {
+      toast("Limite de " + MAX_DOCS + " documentos. Exclua algum na tela inicial.");
+      return false;
+    }
+    flushSave();
+    const id = uid();
+    lib.docs[id] = { id, updatedAt: Date.now(), state: normalize(source) };
+    openDoc(id);
+    return true;
+  }
+
+  const homeEl = byId("home");
+  const appEl = document.querySelector(".app");
+
+  function docInfo(doc) {
+    let labels = 0;
+    doc.state.items.forEach((item) => { if (hasContent(item)) labels += item.copies; });
+    const when = new Date(doc.updatedAt).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+    return labels + (labels === 1 ? " etiqueta" : " etiquetas") + " · " + when;
+  }
+
+  function showHome() {
+    flushSave();
+    const current = currentId ? lib.docs[currentId] : null;
+    byId("homeContinue").hidden = !current;
+    if (current) {
+      byId("homeContinueName").textContent = current.state.name.trim() || "Documento sem título";
+      byId("homeContinueInfo").textContent = docInfo(current);
+    }
+    const others = Object.values(lib.docs).filter((d) => d.id !== currentId).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 8);
+    byId("homeRecent").hidden = others.length === 0;
+    byId("recentList").replaceChildren(...others.map((d) => {
+      const name = d.state.name.trim() || "Documento sem título";
+      const li = document.createElement("li");
+      li.className = "recent-item";
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "recent-open";
+      open.dataset.open = d.id;
+      const title = document.createElement("strong");
+      title.textContent = name;
+      const info = document.createElement("small");
+      info.textContent = docInfo(d);
+      open.append(title, info);
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "icon-btn danger";
+      del.dataset.del = d.id;
+      del.setAttribute("aria-label", "Excluir " + name);
+      del.title = "Excluir";
+      del.innerHTML = '<svg class="icon"><use href="#ic-trash"/></svg>';
+      li.append(open, del);
+      return li;
+    }));
+    homeEl.hidden = false;
+    appEl.inert = true;
+    appEl.setAttribute("aria-hidden", "true");
+    (current ? byId("homeContinue") : byId("homeNew")).focus({ preventScroll: true });
+  }
+
+  function hideHome() {
+    homeEl.hidden = true;
+    appEl.inert = false;
+    appEl.removeAttribute("aria-hidden");
+    requestAnimationFrame(applyZoom);
   }
 
   /* ---------- Ligações dos controles ---------- */
@@ -585,7 +708,14 @@
     byId("colsGroup").addEventListener("click", (e) => {
       const button = e.target.closest("[data-cols]");
       if (!button) return;
-      state.cols = toInt(button.dataset.cols, 1, 1, 2);
+      state.cols = toInt(button.dataset.cols, 1, 1, 3);
+      refreshFields();
+      scheduleRender();
+    });
+    byId("orientGroup").addEventListener("click", (e) => {
+      const button = e.target.closest("[data-orient]");
+      if (!button) return;
+      state.orientation = button.dataset.orient === "landscape" ? "landscape" : "portrait";
       refreshFields();
       scheduleRender();
     });
@@ -653,15 +783,24 @@
     byId("zoomIn").addEventListener("click", () => { zoomIndex = Math.min(zoomLevels.length - 1, zoomIndex + 1); applyZoom(); });
 
     // Documento
-    byId("newButton").addEventListener("click", () => {
-      if (!window.confirm("Criar um novo documento? Salve o atual em arquivo se quiser guardar uma cópia.")) return;
-      state = normalize({ ...defaults(), name: "Documento sem título", items: [{ code: "", description: "", copies: 1 }] });
-      currentPage = 0;
-      refreshFields();
-      scheduleRender();
-      setTab("itens");
-      toast("Novo documento criado.");
+    byId("newButton").addEventListener("click", () => { if (createDoc(defaults())) toast("Novo documento criado. O anterior continua salvo."); });
+    byId("homeButton").addEventListener("click", showHome);
+    byId("homeContinue").addEventListener("click", hideHome);
+    byId("homeNew").addEventListener("click", () => createDoc(defaults()));
+    byId("homeImport").addEventListener("click", () => byId("importInput").click());
+    byId("recentList").addEventListener("click", (e) => {
+      const open = e.target.closest("[data-open]");
+      const del = e.target.closest("[data-del]");
+      if (open) { openDoc(open.dataset.open); return; }
+      if (del) {
+        const doc = lib.docs[del.dataset.del];
+        if (!doc || !window.confirm("Excluir o documento “" + (doc.state.name.trim() || "Documento sem título") + "”? Esta ação não pode ser desfeita.")) return;
+        delete lib.docs[del.dataset.del];
+        flushSave();
+        showHome();
+      }
     });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !homeEl.hidden && currentId) hideHome(); });
     byId("exportButton").addEventListener("click", exportProject);
     byId("importButton").addEventListener("click", () => byId("importInput").click());
     byId("importInput").addEventListener("change", (e) => {
@@ -676,7 +815,12 @@
     });
     window.addEventListener("beforeprint", () => { if (renderPending) render(); });
 
-    byId("zoomIndicator").addEventListener("click", () => { zoomIndex = 2; applyZoom(); });
+    byId("zoomIndicator").addEventListener("click", () => {
+      fitMode = fitMode === "page" ? "width" : "page";
+      zoomIndex = 2;
+      applyZoom();
+      toast(fitMode === "page" ? "Mostrando a página inteira." : "Ajustado à largura da tela.");
+    });
     const togglePanel = (hide) => {
       document.querySelector(".app").classList.toggle("panel-hidden", hide);
       const toggle = byId("panelToggle");
@@ -689,13 +833,14 @@
     if ("ResizeObserver" in window) new ResizeObserver(() => applyZoom()).observe(area);
     window.addEventListener("resize", () => { applyZoom(); updatePages(false); });
     if (mobileQuery.addEventListener) mobileQuery.addEventListener("change", () => { applyZoom(); updatePages(false); });
-    window.addEventListener("pagehide", () => { clearTimeout(saveTimer); persist(); });
-    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") { clearTimeout(saveTimer); persist(); } });
+    window.addEventListener("pagehide", flushSave);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushSave(); });
 
     setupInstall();
     setTab("itens");
     render();
     persist();
+    showHome();
   }
 
   /* ---------- PWA ---------- */

@@ -18,11 +18,14 @@
   --accent-soft: #a7c2ff;
   --danger: #ff9b9b;
   --ok: #83c9a7;
+  --pw: 210mm;
+  --ph: 297mm;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
 }
+html[data-paper="landscape"] { --pw: 297mm; --ph: 210mm; }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); overscroll-behavior: none; }
 body { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -41,6 +44,8 @@ button:disabled { cursor: not-allowed; opacity: .35; }
 /* Barra superior */
 .topbar { flex: none; display: flex; align-items: center; gap: 22px; min-height: 54px; padding: calc(8px + var(--safe-top)) calc(clamp(12px, 2.4vw, 28px) + var(--safe-right)) 8px calc(clamp(12px, 2.4vw, 28px) + var(--safe-left)); background: var(--bar); border-bottom: 1px solid var(--line-soft); }
 .brand { display: flex; align-items: center; gap: 11px; }
+button.brand { padding: 0; border: 0; background: none; color: inherit; text-align: left; border-radius: 12px; }
+button.brand:hover .brand-icon { border-color: #8fb0ee; }
 .brand-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; border: 1px solid #5a79b0; background: linear-gradient(135deg, #36558d, #27354b); color: #e1edff; }
 .brand-icon .icon { width: 21px; height: 21px; }
 .brand-copy { display: flex; flex-direction: column; gap: 1px; line-height: 1.1; }
@@ -147,7 +152,7 @@ select { cursor: pointer; }
 .sheets-area { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .pages { display: flex; flex-direction: column; align-items: center; align-items: safe center; gap: 22px; min-width: min-content; padding: 2px 0 22px; }
 .page-frame { flex: none; position: relative; }
-.paper { width: 210mm; height: 297mm; padding: 15mm 14mm; background: #fff; color: #101010; transform-origin: top left; box-shadow: 0 12px 33px #0005; overflow: hidden; }
+.paper { width: var(--pw); height: var(--ph); padding: 15mm 14mm; background: #fff; color: #101010; transform-origin: top left; box-shadow: 0 12px 33px #0005; overflow: hidden; }
 .paper-body { width: 100%; height: 100%; display: flex; flex-direction: column; }
 .row { flex: none; display: grid; align-items: stretch; }
 .entry { min-width: 0; break-inside: avoid; page-break-inside: avoid; }
@@ -169,6 +174,39 @@ select { cursor: pointer; }
 .zoom-reset:hover { background: #2a384e; }
 #measureHost { position: fixed; left: -99999px; top: 0; visibility: hidden; pointer-events: none; background: #fff; color: #101010; }
 #measureHost .entry { margin: 0; }
+
+/* Tela inicial */
+.home { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: calc(20px + var(--safe-top)) 20px calc(20px + var(--safe-bottom)); overflow-y: auto; background: radial-gradient(ellipse at 50% 0%, #22304a, #0f141d 70%); }
+.home-card { width: min(520px, 100%); display: flex; flex-direction: column; gap: 24px; }
+.home-brand { display: flex; align-items: center; gap: 14px; }
+.home-brand .brand-icon { width: 56px; height: 56px; border-radius: 17px; }
+.home-brand .brand-icon .icon { width: 28px; height: 28px; }
+.home-brand h1 { margin: 0; font-size: 30px; letter-spacing: -.9px; }
+.home-brand p { margin: 3px 0 0; font-size: 13px; color: var(--muted); }
+.home-actions { display: flex; flex-direction: column; gap: 12px; }
+.home-option { display: flex; align-items: center; gap: 14px; width: 100%; padding: 18px; text-align: left; border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--text); transition: background-color .15s, border-color .15s, transform .1s; }
+.home-option:hover { background: #29374e; border-color: #6786c0; }
+.home-option:active { transform: translateY(1px); }
+.home-option.primary { background: linear-gradient(135deg, #3d63ad, #2a4272); border-color: #7da2ec; }
+.home-option.primary:hover { background: linear-gradient(135deg, #4a72bf, #324e86); }
+.home-ic { flex: none; width: 48px; height: 48px; display: grid; place-items: center; border-radius: 14px; background: #ffffff1c; }
+.home-ic .icon { width: 24px; height: 24px; }
+.home-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.home-txt strong { font-size: 18px; }
+.home-txt .home-name { font-size: 14px; font-weight: 650; color: #e6eeff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-txt small { font-size: 12.5px; color: #b9c7de; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-go { color: #c9d8f5; }
+.home-recent h2 { margin: 0 0 8px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+#recentList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.recent-item { display: flex; align-items: center; gap: 4px; border: 1px solid var(--line-soft); border-radius: 12px; background: #17202e; }
+.recent-open { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 0; background: none; text-align: left; }
+.recent-open strong { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-open small { font-size: 11.5px; color: var(--muted); }
+.recent-item:hover { border-color: #4a5f85; }
+.recent-item .icon-btn { width: 34px; height: 34px; margin-right: 6px; border-color: transparent; background: transparent; }
+.recent-item .icon-btn.danger:hover { background: #5a2f38; color: var(--danger); }
+.home-foot { display: flex; justify-content: center; }
+.link-btn { padding: 8px; border: 0; background: none; color: var(--accent-soft); font-size: 13px; text-decoration: underline; }
 
 /* Diálogo */
 .dialog { width: min(560px, calc(100vw - 24px)); padding: 0; border: 1px solid #4a5b77; border-radius: 16px; background: #1a2332; color: var(--text); }
@@ -271,12 +309,12 @@ select { cursor: pointer; }
 /* Impressão A4 */
 @media print {
   @page { size: A4 portrait; margin: 0; }
-  html, body { width: 210mm !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; background: #fff !important; }
+  html, body { width: var(--pw) !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; background: #fff !important; }
   .app, .workspace, .preview { display: block !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; background: #fff !important; box-shadow: none !important; }
-  .topbar, .panel, .statusbar, .warning, .dialog, #measureHost, .toast { display: none !important; }
-  .sheets-area, .pages { display: block !important; width: 210mm !important; min-width: 0 !important; height: auto !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
-  .page-frame, .page-frame.mobile-inactive { display: block !important; position: relative !important; width: 210mm !important; height: 297mm !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; break-after: page; page-break-after: always; }
+  #home, .topbar, .panel, .statusbar, .warning, .dialog, #measureHost, .toast { display: none !important; }
+  .sheets-area, .pages { display: block !important; width: var(--pw) !important; min-width: 0 !important; height: auto !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+  .page-frame, .page-frame.mobile-inactive { display: block !important; position: relative !important; width: var(--pw) !important; height: var(--ph) !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; break-after: page; page-break-after: always; }
   .page-frame:last-child { break-after: auto; page-break-after: auto; }
-  .paper { transform: none !important; width: 210mm !important; height: 297mm !important; margin: 0 !important; box-shadow: none !important; background: #fff !important; color: #000 !important; overflow: hidden !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .paper { transform: none !important; width: var(--pw) !important; height: var(--ph) !important; margin: 0 !important; box-shadow: none !important; background: #fff !important; color: #000 !important; overflow: hidden !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .entry { break-inside: avoid !important; page-break-inside: avoid !important; }
 }
