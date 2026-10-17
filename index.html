@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101722">
+  <meta name="description" content="Coding: crie documentos A4 com códigos e descrições de produtos, prontos para imprimir.">
+  <title>Coding | Editor de documentos</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <svg class="svg-sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="ic-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></symbol>
+    <symbol id="ic-print" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6zM18 12h.01"/></symbol>
+    <symbol id="ic-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM7 3v6h10V3"/><path d="M7 21v-9h10v9"/></symbol>
+    <symbol id="ic-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 17v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></symbol>
+    <symbol id="ic-upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 17v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></symbol>
+    <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="ic-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="ic-hash" viewBox="0 0 24 24"><path d="M5 9h14M4 15h14M11 3 7 21M17 3l-4 18"/></symbol>
+    <symbol id="ic-text" viewBox="0 0 24 24"><path d="M4 6h16M4 12h12M4 18h9"/></symbol>
+    <symbol id="ic-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4M3 11V8a2 2 0 0 1 2-2h16M7 22l-4-4 4-4M21 13v3a2 2 0 0 1-2 2H3"/></symbol>
+    <symbol id="ic-page" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></symbol>
+    <symbol id="ic-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="ic-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
+    <symbol id="ic-alert" viewBox="0 0 24 24"><path d="M10.3 3.6 1.8 18.2A2 2 0 0 0 3.6 21h16.8a2 2 0 0 0 1.8-2.8L13.7 3.6a2 2 0 0 0-3.4 0zM12 9v5M12 18h.01"/></symbol>
+    <symbol id="ic-center" viewBox="0 0 24 24"><path d="M5 6h14M3 10h18M5 14h14M7 18h10"/></symbol>
+    <symbol id="ic-alignleft" viewBox="0 0 24 24"><path d="M3 6h18M3 10h12M3 14h18M3 18h12"/></symbol>
+    <symbol id="ic-alignright" viewBox="0 0 24 24"><path d="M3 6h18M9 10h12M3 14h18M9 18h12"/></symbol>
+    <symbol id="ic-zoom" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></symbol>
+  </svg>
+
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="branding">
+        <div class="brand-icon"><svg class="icon"><use href="#ic-file"/></svg></div>
+        <div class="brand-copy"><strong>Coding</strong><span>Seu editor de documentos</span></div>
+      </div>
+      <div class="file-name-wrap">
+        <label for="documentName">Nome do documento</label>
+        <input id="documentName" type="text" maxlength="80" placeholder="Documento sem título" autocomplete="off">
+        <span class="save-status" id="saveStatus"><svg class="icon"><use href="#ic-check"/></svg> Salvo no navegador</span>
+      </div>
+      <div class="header-actions">
+        <button id="newButton" class="btn subtle" type="button" title="Novo documento"><svg class="icon"><use href="#ic-plus"/></svg><span class="desktop-label">Novo</span></button>
+        <button id="exportButton" class="btn subtle" type="button" title="Baixar projeto .json"><svg class="icon"><use href="#ic-download"/></svg><span class="desktop-label">Projeto</span></button>
+        <button id="importButton" class="btn subtle" type="button" title="Importar projeto .json"><svg class="icon"><use href="#ic-upload"/></svg><span class="desktop-label">Abrir</span></button>
+        <button id="printButton" class="btn primary" type="button"><svg class="icon"><use href="#ic-print"/></svg><span>Imprimir / PDF</span></button>
+      </div>
+    </header>
+
+    <div class="editor-layout">
+      <section class="ribbon" aria-label="Configurações do documento">
+        <div class="ribbon-heading"><span class="eyebrow">EDITOR</span><strong>Formatar documento</strong><span class="keyboard-note">Prévia atualizada em tempo real</span></div>
+        <nav class="tool-tabs" aria-label="Categorias de edição">
+          <button class="tool-tab is-active" data-tab="codigo" type="button" aria-selected="true"><svg class="icon"><use href="#ic-hash"/></svg><span>Código</span></button>
+          <button class="tool-tab" data-tab="descricao" type="button" aria-selected="false"><svg class="icon"><use href="#ic-text"/></svg><span>Descrição</span></button>
+          <button class="tool-tab" data-tab="repetir" type="button" aria-selected="false"><svg class="icon"><use href="#ic-repeat"/></svg><span>Repetir</span></button>
+          <button class="tool-tab" data-tab="pagina" type="button" aria-selected="false"><svg class="icon"><use href="#ic-page"/></svg><span>Página</span></button>
+        </nav>
+        <div class="tool-content">
+          <div class="tool-panel is-active" data-panel="codigo">
+            <div class="field text-field"><label for="codeInput">Código do produto</label><input id="codeInput" type="text" autocomplete="off" spellcheck="false" placeholder="Ex.: 190847"></div>
+            <div class="field font-field"><label for="codeFont">Fonte</label><select id="codeFont"></select></div>
+            <div class="field size-field"><label for="codeSize">Tamanho (pt)</label><div class="number-step"><button class="stepper" data-step="codeSize:-1" type="button" aria-label="Diminuir tamanho do código"><svg class="icon"><use href="#ic-minus"/></svg></button><input id="codeSize" type="number" min="8" max="96" step="1"><button class="stepper" data-step="codeSize:1" type="button" aria-label="Aumentar tamanho do código"><svg class="icon"><use href="#ic-plus"/></svg></button></div></div>
+            <div class="field style-field"><span class="field-label">Estilo</span><div class="toggle-group"><button id="codeBold" class="format-toggle bold-toggle" type="button" aria-pressed="false" title="Negrito">B</button><button id="codeItalic" class="format-toggle italic-toggle" type="button" aria-pressed="false" title="Itálico">I</button></div></div>
+            <div class="field align-field"><span class="field-label">Alinhamento</span><div class="toggle-group" id="codeAlignButtons">
+              <button data-align="left" type="button" title="À esquerda" aria-label="À esquerda"><svg class="icon"><use href="#ic-alignleft"/></svg></button>
+              <button data-align="center" type="button" title="Centralizado" aria-label="Centralizado"><svg class="icon"><use href="#ic-center"/></svg></button>
+              <button data-align="right" type="button" title="À direita" aria-label="À direita"><svg class="icon"><use href="#ic-alignright"/></svg></button>
+            </div></div>
+          </div>
+
+          <div class="tool-panel" data-panel="descricao" hidden>
+            <div class="field description-field"><label for="descriptionInput">Descrição do produto</label><textarea id="descriptionInput" rows="3" spellcheck="false" placeholder="Digite a descrição (pode usar várias linhas)"></textarea></div>
+            <div class="field font-field"><label for="descFont">Fonte</label><select id="descFont"></select></div>
+            <div class="field size-field"><label for="descSize">Tamanho (pt)</label><div class="number-step"><button class="stepper" data-step="descSize:-1" type="button" aria-label="Diminuir tamanho da descrição"><svg class="icon"><use href="#ic-minus"/></svg></button><input id="descSize" type="number" min="8" max="96" step="1"><button class="stepper" data-step="descSize:1" type="button" aria-label="Aumentar tamanho da descrição"><svg class="icon"><use href="#ic-plus"/></svg></button></div></div>
+            <div class="field style-field"><span class="field-label">Estilo</span><div class="toggle-group"><button id="descBold" class="format-toggle bold-toggle" type="button" aria-pressed="false" title="Negrito">B</button><button id="descItalic" class="format-toggle italic-toggle" type="button" aria-pressed="false" title="Itálico">I</button></div></div>
+            <div class="field align-field"><span class="field-label">Alinhamento</span><div class="toggle-group" id="descAlignButtons">
+              <button data-align="left" type="button" title="À esquerda" aria-label="À esquerda"><svg class="icon"><use href="#ic-alignleft"/></svg></button>
+              <button data-align="center" type="button" title="Centralizado" aria-label="Centralizado"><svg class="icon"><use href="#ic-center"/></svg></button>
+              <button data-align="right" type="button" title="À direita" aria-label="À direita"><svg class="icon"><use href="#ic-alignright"/></svg></button>
+            </div></div>
+          </div>
+
+          <div class="tool-panel" data-panel="repetir" hidden>
+            <div class="field repeat-field"><label for="repeatCount">Quantas vezes repetir o bloco?</label><div class="number-step larger"><button class="stepper" data-step="repeatCount:-1" type="button" aria-label="Menos uma repetição"><svg class="icon"><use href="#ic-minus"/></svg></button><input id="repeatCount" type="number" min="1" max="500" step="1"><button class="stepper" data-step="repeatCount:1" type="button" aria-label="Mais uma repetição"><svg class="icon"><use href="#ic-plus"/></svg></button></div></div>
+            <p class="help-copy"><svg class="icon"><use href="#ic-check"/></svg> Cada repetição mantém o código e a descrição juntos, mesmo na virada de página.</p>
+          </div>
+
+          <div class="tool-panel" data-panel="pagina" hidden>
+            <div class="page-details"><div><span class="detail-label">Papel</span><strong>A4 · 210 × 297 mm</strong></div><div><span class="detail-label">Orientação</span><strong>Retrato</strong></div></div>
+            <div class="field spacing-field"><label for="blockGap">Espaço entre repetições (mm)</label><div class="number-step larger"><button class="stepper" data-step="blockGap:-1" type="button" aria-label="Diminuir espaçamento"><svg class="icon"><use href="#ic-minus"/></svg></button><input id="blockGap" type="number" min="0" max="25" step="1"><button class="stepper" data-step="blockGap:1" type="button" aria-label="Aumentar espaçamento"><svg class="icon"><use href="#ic-plus"/></svg></button></div></div>
+            <p class="help-copy">Margens de 15 mm (superior/inferior) e 14 mm (laterais). A prévia representa a paginação de impressão.</p>
+          </div>
+        </div>
+      </section>
+
+      <main class="preview-workspace" aria-label="Pré-visualização das folhas">
+        <div class="preview-toolbar">
+          <div class="preview-title"><span class="preview-mark"><svg class="icon"><use href="#ic-page"/></svg></span><div><strong>Pré-visualização</strong><span id="pageSummary">A4 · 1 página</span></div></div>
+          <div class="preview-controls"><button id="previousPage" class="icon-button" type="button" aria-label="Página anterior"><svg class="icon"><use href="#ic-left"/></svg></button><span id="pageIndicator" class="page-indicator">1 / 1</span><button id="nextPage" class="icon-button" type="button" aria-label="Próxima página"><svg class="icon"><use href="#ic-right"/></svg></button><span class="toolbar-divider"></span><button id="zoomOut" class="icon-button" type="button" aria-label="Diminuir zoom"><svg class="icon"><use href="#ic-minus"/></svg></button><span id="zoomIndicator" class="zoom-indicator">100%</span><button id="zoomIn" class="icon-button" type="button" aria-label="Aumentar zoom"><svg class="icon"><use href="#ic-plus"/></svg></button></div>
+        </div>
+        <div id="warning" class="warning" role="alert" hidden><svg class="icon"><use href="#ic-alert"/></svg><span id="warningText"></span></div>
+        <div class="sheets-area" id="sheetsArea"><div id="pages" class="pages" aria-live="polite"></div></div>
+        <div class="workspace-footer"><span><svg class="icon"><use href="#ic-check"/></svg> Código e descrição nunca são separados entre folhas.</span><span id="blockSummary">3 repetições</span></div>
+      </main>
+    </div>
+  </div>
+
+  <div id="measureHost" aria-hidden="true"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <input id="importInput" type="file" accept=".json,application/json" hidden>
+</body>
+</html>
