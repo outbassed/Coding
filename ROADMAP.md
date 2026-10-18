@@ -14,6 +14,7 @@ Tabelas, exportar para `.docx`, cabeçalho/rodapé, comentários, corretor ortog
 - Contador "faltam X etiquetas" para completar a última folha.
 
 ## Feito
+- **Ferramentas como documentos completos**: QR e barras, Etiquetas por planilha, Editor de PDF e Imagens agora têm nome, histórico e favoritos por tipo, links próprios (`#/qr/ID`…), barra do topo igual (Novo, Salvar .json, Abrir, Link), menu de clique direito com submenus e atalhos. PDF e imagens ficam guardados no aparelho e vão dentro do .json.
 - **Editor de PDF** (abrir, juntar, girar, mover/arrastar, excluir, extrair, dividir em .zip, anotar com texto/realce/cobrir, assinatura desenhada e imagem) e **Imagens** (redimensionar, cortar por proporção, girar, comprimir, converter JPG/PNG/WebP, baixar em .zip).
 - **Ícones coloridos** próprios para cada programa e **interruptores** na página Ferramentas que mostram/ocultam cada programa na barra lateral (Início e Ferramentas sempre fixos).
 - **Ferramentas: QR e código de barras** (QR, Code 128 e EAN-13 em folha A4, colunas, tamanho, legenda, linha de corte, impressão/PDF) e **Etiquetas por planilha** (.xlsx, .csv ou colar do Excel; escolhe as colunas e cria um documento de Etiquetas). Rotas `#/ferramentas/codigos` e `#/ferramentas/planilha`.

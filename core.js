@@ -279,15 +279,25 @@
   const appEl = document.querySelector(".app");
   const toolsEl = byId("tools");
   const navEl = byId("mainNav");
-  const toolViews = { codes: byId("codesView"), sheet: byId("sheetView"), pdf: byId("pdfView"), images: byId("imagesView") };
-  const TOOL_ROUTES = { codes: "codigos", sheet: "planilha", pdf: "pdf", images: "imagens" };
+  const TYPES = ["labels", "texts", "codes", "sheet", "pdf", "images"];
+  const ROUTE_ALIASES = {
+    labels: ["label", "labels", "etiqueta", "etiquetas"],
+    texts: ["texts", "text", "texto", "textos"],
+    codes: ["qr", "codigos", "codigo", "barras", "codes"],
+    sheet: ["planilha", "sheet", "planilhas"],
+    pdf: ["pdf"],
+    images: ["imagens", "imagem", "images"]
+  };
+  const ROUTE_NAME = { labels: "label", texts: "texts", codes: "qr", sheet: "planilha", pdf: "pdf", images: "imagens" };
+  const typeFromRoute = (name) => TYPES.find((t) => ROUTE_ALIASES[t].includes(name)) || null;
+  const asType = (t) => (TYPES.includes(t) ? t : "labels");
   const PROGRAMS = [
-    { id: "labels", group: "editors", short: "Etiquetas", name: "Coding Etiquetas", desc: "Códigos e descrições em A4, prontos para colar nas caixas" },
-    { id: "texts", group: "editors", short: "Textos", name: "Coding Textos", desc: "Textos e imagens, como no Word" },
-    { id: "codes", group: "tools", short: "QR e barras", name: "QR e código de barras", desc: "Em folha A4, vários por página" },
-    { id: "sheet", group: "tools", short: "Planilha", name: "Etiquetas por planilha", desc: "Uma etiqueta por linha do CSV ou Excel" },
-    { id: "pdf", group: "tools", short: "PDF", name: "Editor de PDF", desc: "Anotar, assinar, juntar, dividir e reordenar" },
-    { id: "images", group: "tools", short: "Imagens", name: "Imagens", desc: "Redimensionar, cortar, comprimir e converter" }
+    { id: "labels", group: "editors", short: "Etiquetas", name: "Coding Etiquetas", desc: "Códigos e descrições em A4, prontos para colar nas caixas", primary: ["Imprimir / PDF", "#ic-print"] },
+    { id: "texts", group: "editors", short: "Textos", name: "Coding Textos", desc: "Textos e imagens, como no Word", primary: ["Imprimir / PDF", "#ic-print"] },
+    { id: "codes", group: "tools", short: "QR e barras", name: "QR e código de barras", desc: "Em folha A4, vários por página", primary: ["Imprimir / PDF", "#ic-print"] },
+    { id: "sheet", group: "tools", short: "Planilha", name: "Etiquetas por planilha", desc: "Uma etiqueta por linha do CSV ou Excel", primary: ["Criar etiquetas", "#ic-tag"] },
+    { id: "pdf", group: "tools", short: "PDF", name: "Editor de PDF", desc: "Anotar, assinar, juntar, dividir e reordenar", primary: ["Baixar PDF", "#ic-download"] },
+    { id: "images", group: "tools", short: "Imagens", name: "Imagens", desc: "Redimensionar, cortar, comprimir e converter", primary: ["Baixar tudo", "#ic-download"] }
   ];
   const NAV_KEY = "coding-nav-v1";
   const navPrefs = (() => {
@@ -336,23 +346,29 @@
       list.append(h, grid);
     });
   }
-  const anyToolView = () => Object.values(toolViews).some((v) => !v.hidden);
-  const hideToolViews = () => Object.values(toolViews).forEach((v) => { v.hidden = true; });
-  const TYPE_META = {
-    labels: { icon: "#ic-tag", name: "Coding Etiquetas", sub: "Etiquetas A4", title: "Coding Etiquetas" },
-    texts: { icon: "#ic-text", name: "Coding Textos", sub: "Textos", title: "Coding Textos" }
-  };
+  const TYPE_META = {};
+  PROGRAMS.forEach((p) => { TYPE_META[p.id] = { icon: "#pi-" + p.id, name: p.name, short: p.short, sub: p.short, title: p.name, primary: p.primary }; });
 
   function showWorkspace(type) {
-    byId("labelsWs").hidden = type !== "labels";
-    byId("textsWs").hidden = type !== "texts";
+    TYPES.forEach((t) => { byId(t + "Ws").hidden = t !== type; });
     document.documentElement.dataset.mode = type || "";
     const meta = TYPE_META[type];
     if (meta) {
       byId("brandSub").textContent = meta.sub;
       document.title = meta.title;
+      const btn = byId("printButton");
+      btn.querySelector(".btn-label").textContent = meta.primary[0];
+      btn.title = meta.primary[0];
+      btn.querySelector("use").setAttribute("href", meta.primary[1]);
+      btn.disabled = false;
     }
     byId("shareButton").hidden = !type;
+  }
+
+  function setPrimary(label, disabled) {
+    const btn = byId("printButton");
+    if (typeof label === "string") { btn.querySelector(".btn-label").textContent = label; btn.title = label; }
+    if (typeof disabled === "boolean") btn.disabled = disabled;
   }
 
   async function openDoc(id, opts = {}) {
@@ -386,7 +402,7 @@
   function docHash(id) {
     const d = lib.docs && lib.docs[id];
     const t = d ? d.type : (cur() && cur().id === id ? cur().type : "labels");
-    return "#/" + (t === "texts" ? "texts" : "label") + "/" + id;
+    return "#/" + ROUTE_NAME[asType(t)] + "/" + id;
   }
 
   async function createDoc(type, source, opts = {}) {
@@ -435,7 +451,8 @@
 
   function renderTabs(container, kind) {
     container.dataset.kind = kind;
-    container.replaceChildren(...["labels", "texts"].map((type) => {
+    const shown = TYPES.filter((type) => type === tabState[kind] || docsOf(kind, type).length > 0);
+    container.replaceChildren(...shown.map((type) => {
       const button = document.createElement("button");
       button.type = "button";
       button.setAttribute("role", "tab");
@@ -443,7 +460,7 @@
       const on = type === tabState[kind];
       button.className = "htab" + (on ? " is-active" : "");
       button.setAttribute("aria-selected", String(on));
-      button.textContent = TYPE_META[type].name.replace("Coding ", "") + " (" + docsOf(kind, type).length + ")";
+      button.textContent = TYPE_META[type].short + " (" + docsOf(kind, type).length + ")";
       return button;
     }));
   }
@@ -451,7 +468,7 @@
   function emptyItem(kind) {
     const li = document.createElement("li");
     li.className = "list-empty";
-    li.textContent = "Nenhum documento de " + (tabState[kind] === "labels" ? "etiquetas " : "textos ") + SECTIONS[kind].noun + ".";
+    li.textContent = "Nenhum documento de " + TYPE_META[tabState[kind]].short.toLowerCase() + " " + SECTIONS[kind].noun + ".";
     return li;
   }
 
@@ -492,7 +509,7 @@
   }
 
   function setHistoryTab(kind, type) {
-    tabState[kind] = type === "texts" ? "texts" : "labels";
+    tabState[kind] = asType(type);
     renderHistory();
     byId("allList").scrollTop = 0;
   }
@@ -508,7 +525,7 @@
     const typeIcon = document.createElement("span");
     typeIcon.className = "recent-type";
     typeIcon.title = TYPE_META[d.type].name;
-    typeIcon.innerHTML = '<svg class="icon"><use href="' + TYPE_META[d.type].icon + '"/></svg>';
+    typeIcon.innerHTML = '<svg class="pi"><use href="' + TYPE_META[d.type].icon + '"/></svg>';
     const text = document.createElement("span");
     text.className = "recent-text";
     const title = document.createElement("strong");
@@ -555,25 +572,23 @@
     if (current) {
       byId("homeContinueName").textContent = current.state.name.trim() || "Documento sem título";
       byId("homeContinueInfo").textContent = TYPE_META[current.type].name + " · " + docInfo(current);
-      byId("homeContinueIcon").innerHTML = '<svg class="icon"><use href="' + TYPE_META[current.type].icon + '"/></svg>';
+      byId("homeContinueIcon").innerHTML = '<svg class="pi"><use href="' + TYPE_META[current.type].icon + '"/></svg>';
     }
     if (!opts.keepTab && current) { tabState.favs = current.type; tabState.history = current.type; }
     renderHistory();
     toolsEl.hidden = true;
-    hideToolViews();
     homeEl.hidden = false;
     appEl.inert = true;
     appEl.setAttribute("aria-hidden", "true");
     updateNav();
-    (current ? byId("homeContinue") : byId("homeNewLabels")).focus({ preventScroll: true });
+    (current ? byId("homeContinue") : byId("homeTypes").querySelector("button")).focus({ preventScroll: true });
   }
 
   function updateNav() {
-    const inDoc = homeEl.hidden && toolsEl.hidden && !anyToolView();
+    const inDoc = homeEl.hidden && toolsEl.hidden;
     document.body.classList.toggle("in-doc", inDoc);
     const doc = cur();
-    const visibleTool = Object.keys(toolViews).find((k) => !toolViews[k].hidden);
-    let active = !homeEl.hidden ? "home" : !toolsEl.hidden ? "tools" : visibleTool ? visibleTool : (doc ? doc.type : "home");
+    let active = !homeEl.hidden ? "home" : !toolsEl.hidden ? "tools" : (doc ? doc.type : "home");
     if (active !== "home" && active !== "tools" && !navPrefs[active]) active = "tools";
     navEl.querySelectorAll("[data-nav]").forEach((b) => {
       if (b.dataset.nav === active && b.dataset.nav !== "menu" && b.dataset.nav !== "new") b.setAttribute("aria-current", "page");
@@ -585,7 +600,6 @@
     flushSave();
     setRoute("#/ferramentas", opts.replace);
     homeEl.hidden = true;
-    hideToolViews();
     toolsEl.hidden = false;
     appEl.inert = true;
     appEl.setAttribute("aria-hidden", "true");
@@ -593,31 +607,13 @@
     byId("toolsTitle").focus({ preventScroll: true });
   }
 
-  function showToolView(name, opts = {}) {
-    const view = toolViews[name];
-    if (!view) { showTools(opts); return; }
-    flushSave();
-    setRoute("#/ferramentas/" + TOOL_ROUTES[name], opts.replace);
-    homeEl.hidden = true;
-    toolsEl.hidden = true;
-    hideToolViews();
-    view.hidden = false;
-    appEl.inert = true;
-    appEl.setAttribute("aria-hidden", "true");
-    updateNav();
-    window.dispatchEvent(new CustomEvent("coding:tool", { detail: name }));
-    const title = view.querySelector("h1");
-    if (title) title.focus({ preventScroll: true });
-  }
-
-  function openLatest(type) {
+  function openLatest(type, opts) {
     const latest = Object.values(lib.docs).filter((d) => d.type === type).sort((a, b) => b.updatedAt - a.updatedAt)[0];
-    if (latest) return openDoc(latest.id);
-    return newDoc(type);
+    if (latest) return openDoc(latest.id, opts || {});
+    return createDoc(type, null, opts || {});
   }
 
   function hideHome() {
-    hideToolViews();
     toolsEl.hidden = true;
     homeEl.hidden = true;
     appEl.inert = false;
@@ -629,7 +625,7 @@
   function continueEditing() {
     const doc = cur();
     if (!doc) return;
-    const wsVisible = !byId(doc.type === "texts" ? "textsWs" : "labelsWs").hidden;
+    const wsVisible = !byId(asType(doc.type) + "Ws").hidden;
     if (wsVisible) { hideHome(); setRoute(docHash(doc.id)); return; }
     openDoc(doc.id);
   }
@@ -699,7 +695,7 @@
 
   async function importData(data, opts = {}) {
     if (!data || typeof data !== "object" || data.format !== "coding-document" || ![1, 2, 3].includes(data.version)) throw new Error("Formato inválido");
-    const type = data.type === "texts" ? "texts" : "labels";
+    const type = asType(data.type);
     const mode = modes[type];
     const prepared = mode.prepareImport ? await mode.prepareImport(data) : { state: data, images: [] };
     return createDoc(type, prepared.state, { images: prepared.images, replace: Boolean(opts.replace) });
@@ -760,6 +756,16 @@
     if (!doc) return;
     flushSave();
     const mode = modes[doc.type];
+    if (mode.shareable === false) {
+      const local = location.origin + location.pathname + docHash(doc.id);
+      try {
+        await navigator.clipboard.writeText(local);
+        toast("Link copiado. Ele abre este documento só neste aparelho; para enviar a outra pessoa, use Salvar (.json).");
+      } catch (_) {
+        window.prompt("Copie o link do documento (abre só neste aparelho):", local);
+      }
+      return;
+    }
     const images = mode.imageCount ? mode.imageCount(doc) : 0;
     if (images > 0 && !window.confirm("Este documento tem " + images + (images === 1 ? " imagem" : " imagens") + ". O link não leva imagens (elas aparecem como “Imagem indisponível” para quem abrir). Para levar as imagens, use Salvar (.json).\n\nCopiar o link mesmo assim?")) return;
     try {
@@ -785,17 +791,16 @@
       const name = parts[0];
       const arg = decodeURIComponent(parts.slice(1).join("/"));
       if (name === "novo") {
-        const kind = slug(arg);
-        await createDoc(["texts", "text", "texto", "textos"].includes(kind) ? "texts" : "labels", null, { replace: true });
+        await createDoc(typeFromRoute(slug(arg)) || "labels", null, { replace: true });
       } else if (name === "continuar") {
         if (cur()) await openDoc(lib.currentId, { replace: true }); else showHome({ replace: true });
-      } else if (name === "doc" || name === "label" || name === "labels" || name === "etiqueta" || name === "texts" || name === "texto" || name === "textos") {
+      } else if (name === "doc" || typeFromRoute(name)) {
         const id = findDocId(arg);
         if (id) await openDoc(id, { replace: true });
         else { showHome({ replace: true }); toast("Documento não encontrado neste aparelho."); }
       } else if (name === "ferramentas") {
-        const tool = Object.keys(TOOL_ROUTES).find((k) => TOOL_ROUTES[k] === slug(arg));
-        if (tool) showToolView(tool, { replace: true }); else showTools({ replace: true });
+        const type = typeFromRoute(slug(arg));
+        if (type) await openLatest(type, { replace: true }); else showTools({ replace: true });
       } else if (name === "importar") {
         await importFromLink(arg);
       } else {
@@ -875,7 +880,7 @@
       const t = e.target.closest("[data-open]");
       if (!t) return;
       const k = t.dataset.open;
-      if (k === "labels" || k === "texts") openLatest(k); else showToolView(k);
+      openLatest(k);
     });
     toolsEl.addEventListener("change", (e) => {
       const sw = e.target.closest("[data-switch]");
@@ -884,7 +889,6 @@
       saveNavPrefs();
       renderNavPrograms();
     });
-    Object.values(toolViews).forEach((v) => v.addEventListener("click", (e) => { if (e.target.closest("[data-tool-back]")) showTools(); }));
     const sheet = byId("newSheet");
     const closeSheet = () => { sheet.hidden = true; };
     navEl.addEventListener("click", (e) => {
@@ -893,8 +897,7 @@
       const k = b.dataset.nav;
       if (k === "home") goHome();
       else if (k === "tools") showTools();
-      else if (k === "labels" || k === "texts") openLatest(k);
-      else if (toolViews[k]) showToolView(k);
+      else if (TYPES.includes(k)) openLatest(k);
       else if (k === "new") { sheet.hidden = false; const f = sheet.querySelector("[data-new]"); if (f) f.focus({ preventScroll: true }); }
     });
     sheet.addEventListener("click", (e) => {
@@ -902,13 +905,30 @@
       const b = e.target.closest("[data-new]");
       if (!b) return;
       closeSheet();
-      if (b.dataset.new === "labels" || b.dataset.new === "texts") newDoc(b.dataset.new);
+      if (TYPES.includes(b.dataset.new)) newDoc(b.dataset.new);
       else if (b.dataset.new === "file") byId("importInput").click();
     });
     sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); closeSheet(); } });
     byId("homeContinue").addEventListener("click", continueEditing);
-    byId("homeNewLabels").addEventListener("click", () => newDoc("labels"));
-    byId("homeNewTexts").addEventListener("click", () => newDoc("texts"));
+    const typeButtons = (host, attr) => {
+      host.replaceChildren(...PROGRAMS.map((p) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "home-option";
+        b.setAttribute(attr, p.id);
+        b.innerHTML = '<span class="home-ic pi-wrap">' + piIcon(p.id) + '</span><span class="home-txt"><strong></strong><small></small></span>';
+        b.querySelector("strong").textContent = p.name;
+        b.querySelector("small").textContent = p.desc;
+        return b;
+      }));
+    };
+    typeButtons(byId("homeTypes"), "data-newtype");
+    byId("homeTypes").addEventListener("click", (e) => { const b = e.target.closest("[data-newtype]"); if (b) newDoc(b.dataset.newtype); });
+    typeButtons(byId("newSheetList"), "data-new");
+    const fileOpt = document.createElement("button");
+    fileOpt.type = "button"; fileOpt.className = "home-option"; fileOpt.dataset.new = "file";
+    fileOpt.innerHTML = '<span class="home-ic"><svg class="icon"><use href="#ic-upload"/></svg></span><span class="home-txt"><strong>Abrir arquivo .json</strong><small>Projeto salvo antes</small></span>';
+    byId("newSheetList").append(fileOpt);
     byId("homeImport").addEventListener("click", () => byId("importInput").click());
     const rowClick = (e) => {
       const open = e.target.closest("[data-open]");
@@ -960,7 +980,8 @@
     const docs = {};
     loaded.docs.slice(0, MAX_DOCS).forEach((d) => {
       if (!d || typeof d.id !== "string") return;
-      const type = d.type === "texts" ? "texts" : "labels";
+      const type = asType(d.type);
+      if (!modes[type]) return;
       try {
         docs[d.id] = { id: d.id, type, fav: d.fav === true, updatedAt: Number(d.updatedAt) || Date.now(), state: modes[type].normalize(d.state) };
       } catch (_) { /* documento corrompido é ignorado */ }
@@ -978,7 +999,7 @@
     lib, store, modes,
     register(mode) { modes[mode.type] = mode; },
     toast, setSaved, scheduleSave, flushSave, busy,
-    showToolView, cur, curMode, toggleFav, isFav, openDoc, createDoc, newDoc, goHome, print, exportProject, copyShareLink,
+    setPrimary, asType, programs: PROGRAMS, primaryLabel() { const d = cur(); return d ? TYPE_META[d.type].primary[0] : "Imprimir / PDF"; }, cur, curMode, toggleFav, isFav, openDoc, createDoc, newDoc, goHome, print, exportProject, copyShareLink,
     openImport() { byId("importInput").click(); },
     PANEL_KEY
   };

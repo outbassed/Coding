@@ -155,164 +155,13 @@
     </div>
   </div>
 
-  <section id="codesView" class="tool-view" aria-labelledby="codesTitle" hidden>
-    <header class="tv-head">
-      <button class="btn subtle" type="button" data-tool-back><svg class="icon"><use href="#ic-left"/></svg><span class="btn-label">Ferramentas</span></button>
-      <h1 id="codesTitle" tabindex="-1">QR e código de barras</h1>
-      <button id="codesPrint" class="btn primary" type="button"><svg class="icon"><use href="#ic-print"/></svg><span class="btn-label">Imprimir / PDF</span></button>
-    </header>
-    <div class="tv-body">
-      <div class="tv-form">
-        <label class="tv-field"><span>Tipo</span>
-          <select id="codesType"><option value="qr">QR Code</option><option value="code128">Código de barras (Code 128)</option><option value="ean13">Código de barras EAN-13</option></select>
-        </label>
-        <label class="tv-field"><span>Lista <small>uma linha por código: conteúdo ; legenda ; cópias</small></span>
-          <textarea id="codesText" rows="9" spellcheck="false" placeholder="123456789012 ; Caixa 1 ; 2"></textarea>
-        </label>
-        <p id="codesMsg" class="tv-msg" role="status"></p>
-        <div class="tv-row">
-          <label class="tv-field"><span>Colunas</span><select id="codesCols"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
-          <label class="tv-field"><span>Folha</span><select id="codesOrient"><option value="portrait">Retrato</option><option value="landscape">Paisagem</option></select></label>
-        </div>
-        <label class="tv-field"><span>Tamanho do código: <b id="codesSizeVal">35 mm</b></span><input id="codesSize" type="range" min="15" max="90" step="1" value="35"></label>
-        <label class="tv-check"><input id="codesShowText" type="checkbox" checked> Mostrar o texto embaixo</label>
-        <label class="tv-check"><input id="codesCut" type="checkbox" checked> Linha de corte</label>
-        <p class="tv-info" id="codesInfo"></p>
-      </div>
-      <div class="tv-preview" id="codesPreviewBox"><div id="codesPreview" class="codes-preview"></div></div>
-    </div>
-  </section>
 
-  <section id="sheetView" class="tool-view" aria-labelledby="sheetTitle" hidden>
-    <header class="tv-head">
-      <button class="btn subtle" type="button" data-tool-back><svg class="icon"><use href="#ic-left"/></svg><span class="btn-label">Ferramentas</span></button>
-      <h1 id="sheetTitle" tabindex="-1">Etiquetas por planilha</h1>
-      <span></span>
-    </header>
-    <div class="tv-body tv-single">
-      <div class="tv-form">
-        <p class="tv-info">Escolha um arquivo <b>.xlsx</b> ou <b>.csv</b> — ou cole as células copiadas do Excel. Cada linha vira uma etiqueta.</p>
-        <div class="tv-row">
-          <button id="sheetPick" class="btn primary" type="button"><svg class="icon"><use href="#ic-upload"/></svg><span class="btn-label">Escolher arquivo</span></button>
-          <input id="sheetFile" type="file" accept=".xlsx,.csv,.tsv,.txt,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
-        </div>
-        <label class="tv-field"><span>Ou cole aqui</span><textarea id="sheetPaste" rows="4" spellcheck="false" placeholder="Código&#9;Descrição&#9;Qtd&#10;190847&#9;ARVORE NATAL 240CM&#9;4"></textarea></label>
-        <p id="sheetMsg" class="tv-msg" role="status"></p>
-        <div id="sheetStep2" hidden>
-          <div class="tv-grid3">
-            <label class="tv-field"><span>Coluna do código</span><select id="sheetColCode"></select></label>
-            <label class="tv-field"><span>Coluna da descrição</span><select id="sheetColDesc"></select></label>
-            <label class="tv-field"><span>Coluna das cópias</span><select id="sheetColCopies"></select></label>
-          </div>
-          <div class="tv-row">
-            <label class="tv-check"><input id="sheetHeader" type="checkbox"> A primeira linha é título</label>
-            <label class="tv-field tv-small"><span>Cópias padrão</span><input id="sheetDefCopies" type="number" min="1" max="500" value="1" inputmode="numeric"></label>
-          </div>
-          <div class="tv-table-wrap"><table id="sheetTable" class="tv-table"></table></div>
-          <p class="tv-info" id="sheetInfo"></p>
-          <button id="sheetCreate" class="btn primary" type="button"><svg class="icon"><use href="#ic-tag"/></svg><span class="btn-label">Criar etiquetas</span></button>
-        </div>
-      </div>
-    </div>
-  </section>
 
-  <section id="pdfView" class="tool-view" aria-labelledby="pdfTitle" hidden>
-    <header class="tv-head">
-      <button class="btn subtle" type="button" data-tool-back><svg class="icon"><use href="#ic-left"/></svg><span class="btn-label">Ferramentas</span></button>
-      <h1 id="pdfTitle" tabindex="-1">Editor de PDF</h1>
-      <button id="pdfSave" class="btn primary" type="button" disabled><svg class="icon"><use href="#ic-download"/></svg><span class="btn-label">Baixar PDF</span></button>
-    </header>
-    <div class="pdf-bar" id="pdfBar" role="toolbar" aria-label="Ações do PDF">
-      <button id="pdfOpen" class="btn subtle" type="button"><svg class="icon"><use href="#ic-upload"/></svg><span>Abrir</span></button>
-      <button id="pdfMerge" class="btn subtle" type="button" disabled title="Juntar outro PDF no fim"><svg class="icon"><use href="#ic-plus"/></svg><span>Juntar PDF</span></button>
-      <span class="pdf-sep"></span>
-      <button id="pdfSelAll" class="btn subtle" type="button" disabled>Selecionar tudo</button>
-      <button id="pdfRotL" class="btn subtle" type="button" disabled title="Girar para a esquerda">↺ Girar</button>
-      <button id="pdfRotR" class="btn subtle" type="button" disabled title="Girar para a direita">Girar ↻</button>
-      <button id="pdfMoveL" class="btn subtle" type="button" disabled title="Mover para trás">← Mover</button>
-      <button id="pdfMoveR" class="btn subtle" type="button" disabled title="Mover para frente">Mover →</button>
-      <button id="pdfDel" class="btn subtle" type="button" disabled><svg class="icon"><use href="#ic-trash"/></svg><span>Excluir</span></button>
-      <span class="pdf-sep"></span>
-      <button id="pdfAnnot" class="btn primary" type="button" disabled><svg class="icon"><use href="#ic-edit"/></svg><span>Anotar / assinar</span></button>
-      <button id="pdfExtract" class="btn subtle" type="button" disabled title="Baixar só as páginas selecionadas">Extrair</button>
-      <button id="pdfSplit" class="btn subtle" type="button" disabled title="Um PDF por página, em um .zip">Dividir</button>
-    </div>
-    <p id="pdfMsg" class="tv-msg pdf-msg" role="status"></p>
-    <div class="pdf-main" id="pdfMain">
-      <div id="pdfEmpty" class="pdf-empty">
-        <svg class="pi" aria-hidden="true"><use href="#pi-pdf"/></svg>
-        <strong>Abra um PDF para começar</strong>
-        <span>Arraste o arquivo para cá ou toque em <b>Abrir</b>. Tudo acontece neste aparelho.</span>
-      </div>
-      <div id="pdfGrid" class="pdf-grid" hidden></div>
-    </div>
-    <input id="pdfFile" type="file" accept="application/pdf,.pdf" multiple hidden>
-    <div id="pdfEditor" class="pdf-editor" role="dialog" aria-modal="true" aria-label="Anotar página" hidden>
-      <div class="pdf-ebar">
-        <button id="pdfEdDone" class="btn primary" type="button"><svg class="icon"><use href="#ic-check"/></svg><span>Concluir</span></button>
-        <span class="pdf-sep"></span>
-        <button class="btn subtle" type="button" data-tool="text">Texto</button>
-        <button class="btn subtle" type="button" data-tool="sign">Assinatura</button>
-        <button class="btn subtle" type="button" data-tool="image">Imagem</button>
-        <button class="btn subtle" type="button" data-tool="hl">Realçar</button>
-        <button class="btn subtle" type="button" data-tool="cover">Cobrir</button>
-        <span class="pdf-sep"></span>
-        <input id="pdfColor" type="color" value="#111111" aria-label="Cor do texto" title="Cor do texto">
-        <button id="pdfBigger" class="btn subtle" type="button" title="Aumentar o item">A+</button>
-        <button id="pdfSmaller" class="btn subtle" type="button" title="Diminuir o item">A−</button>
-        <button id="pdfRemove" class="btn subtle" type="button" title="Apagar o item selecionado (Delete)"><svg class="icon"><use href="#ic-trash"/></svg><span>Apagar</span></button>
-      </div>
-      <p class="pdf-ehint" id="pdfHint">Escolha uma ferramenta. Arraste para mover; toque duas vezes no texto para editar.</p>
-      <div class="pdf-stage" id="pdfStage"><div class="pdf-sheet" id="pdfSheet"><canvas id="pdfCanvas"></canvas><div class="pdf-over" id="pdfOver"></div></div></div>
-    </div>
-    <dialog id="sigDialog" class="dialog">
-      <form method="dialog" class="dialog-card">
-        <h2>Sua assinatura</h2>
-        <p>Desenhe com o dedo ou o mouse.</p>
-        <canvas id="sigPad" class="sig-pad" width="720" height="260"></canvas>
-        <div class="dialog-actions">
-          <button class="btn subtle" type="button" id="sigClear">Limpar</button>
-          <button class="btn subtle" type="button" id="sigCancel">Cancelar</button>
-          <button class="btn primary" type="button" id="sigUse">Usar</button>
-        </div>
-      </form>
-    </dialog>
-  </section>
-  <section id="imagesView" class="tool-view" aria-labelledby="imagesTitle" hidden>
-    <header class="tv-head">
-      <button class="btn subtle" type="button" data-tool-back><svg class="icon"><use href="#ic-left"/></svg><span class="btn-label">Ferramentas</span></button>
-      <h1 id="imagesTitle" tabindex="-1">Imagens</h1>
-      <button id="imgDownloadAll" class="btn primary" type="button" disabled><svg class="icon"><use href="#ic-download"/></svg><span class="btn-label">Baixar tudo</span></button>
-    </header>
-    <div class="tv-body">
-      <div class="tv-form">
-        <button id="imgAdd" class="btn primary" type="button"><svg class="icon"><use href="#ic-plus"/></svg><span class="btn-label">Adicionar imagens</span></button>
-        <input id="imgFiles" type="file" accept="image/*" multiple hidden>
-        <p class="tv-info">Escolha fotos ou arraste para cá. Tudo é feito neste aparelho: nada é enviado.</p>
-        <div class="tv-row">
-          <label class="tv-field"><span>Largura máx. (px)</span><input id="imgMaxW" type="number" min="16" max="12000" placeholder="sem limite" inputmode="numeric"></label>
-          <label class="tv-field"><span>Altura máx. (px)</span><input id="imgMaxH" type="number" min="16" max="12000" placeholder="sem limite" inputmode="numeric"></label>
-        </div>
-        <label class="tv-field"><span>Cortar</span>
-          <select id="imgCrop"><option value="">Sem corte</option><option value="1:1">Quadrado (1:1)</option><option value="4:3">4:3</option><option value="3:4">3:4 (em pé)</option><option value="3:2">3:2</option><option value="2:3">2:3 (em pé)</option><option value="16:9">16:9</option><option value="9:16">9:16 (em pé)</option></select>
-        </label>
-        <label class="tv-field"><span>Formato</span>
-          <select id="imgFormat"><option value="keep">Igual ao original</option><option value="image/jpeg">JPG</option><option value="image/png">PNG</option><option value="image/webp">WebP</option></select>
-        </label>
-        <label class="tv-field"><span>Qualidade: <b id="imgQualityVal">80%</b></span><input id="imgQuality" type="range" min="30" max="100" step="1" value="80"></label>
-        <p id="imgMsg" class="tv-msg" role="status"></p>
-        <p class="tv-info" id="imgInfo"></p>
-      </div>
-      <div class="tv-preview" id="imgDrop"><div id="imgList" class="img-list"></div><p id="imgEmpty" class="img-empty">Nenhuma imagem ainda.<br>Toque em <b>Adicionar imagens</b>.</p></div>
-    </div>
-  </section>
 
   <div id="newSheet" class="sheet-back" hidden>
     <div class="sheet" role="dialog" aria-modal="true" aria-label="Criar novo">
       <h2>Criar novo</h2>
-      <button class="home-option" type="button" data-new="labels"><span class="home-ic pi-wrap"><svg class="pi"><use href="#pi-labels"/></svg></span><span class="home-txt"><strong>Coding Etiquetas</strong><small>Códigos e descrições em A4</small></span></button>
-      <button class="home-option" type="button" data-new="texts"><span class="home-ic pi-wrap"><svg class="pi"><use href="#pi-texts"/></svg></span><span class="home-txt"><strong>Coding Textos</strong><small>Textos e imagens, como no Word</small></span></button>
-      <button class="home-option" type="button" data-new="file"><span class="home-ic"><svg class="icon"><use href="#ic-upload"/></svg></span><span class="home-txt"><strong>Abrir arquivo .json</strong><small>Projeto salvo antes</small></span></button>
+      <div id="newSheetList" class="sheet-list"></div>
       <button class="btn subtle sheet-cancel" type="button" data-new="close">Cancelar</button>
     </div>
   </div>
@@ -495,6 +344,136 @@
         </div>
       </div>
     </div>
+
+    <div class="workspace tool-ws" id="codesWs" hidden>
+    <div class="tv-body">
+      <div class="tv-form">
+        <label class="tv-field"><span>Tipo</span>
+          <select id="codesType"><option value="qr">QR Code</option><option value="code128">Código de barras (Code 128)</option><option value="ean13">Código de barras EAN-13</option></select>
+        </label>
+        <label class="tv-field"><span>Lista <small>uma linha por código: conteúdo ; legenda ; cópias</small></span>
+          <textarea id="codesText" rows="9" spellcheck="false" placeholder="123456789012 ; Caixa 1 ; 2"></textarea>
+        </label>
+        <p id="codesMsg" class="tv-msg" role="status"></p>
+        <div class="tv-row">
+          <label class="tv-field"><span>Colunas</span><select id="codesCols"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+          <label class="tv-field"><span>Folha</span><select id="codesOrient"><option value="portrait">Retrato</option><option value="landscape">Paisagem</option></select></label>
+        </div>
+        <label class="tv-field"><span>Tamanho do código: <b id="codesSizeVal">35 mm</b></span><input id="codesSize" type="range" min="15" max="90" step="1" value="35"></label>
+        <label class="tv-check"><input id="codesShowText" type="checkbox" checked> Mostrar o texto embaixo</label>
+        <label class="tv-check"><input id="codesCut" type="checkbox" checked> Linha de corte</label>
+        <p class="tv-info" id="codesInfo"></p>
+      </div>
+      <div class="tv-preview" id="codesPreviewBox"><div id="codesPreview" class="codes-preview"></div></div>
+    </div>
+    </div>
+    <div class="workspace tool-ws" id="sheetWs" hidden>
+    <div class="tv-body tv-single">
+      <div class="tv-form">
+        <p class="tv-info">Escolha um arquivo <b>.xlsx</b> ou <b>.csv</b> — ou cole as células copiadas do Excel. Cada linha vira uma etiqueta.</p>
+        <div class="tv-row">
+          <button id="sheetPick" class="btn primary" type="button"><svg class="icon"><use href="#ic-upload"/></svg><span class="btn-label">Escolher arquivo</span></button>
+          <input id="sheetFile" type="file" accept=".xlsx,.csv,.tsv,.txt,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+        </div>
+        <label class="tv-field"><span>Ou cole aqui</span><textarea id="sheetPaste" rows="4" spellcheck="false" placeholder="Código&#9;Descrição&#9;Qtd&#10;190847&#9;ARVORE NATAL 240CM&#9;4"></textarea></label>
+        <p id="sheetMsg" class="tv-msg" role="status"></p>
+        <div id="sheetStep2" hidden>
+          <div class="tv-grid3">
+            <label class="tv-field"><span>Coluna do código</span><select id="sheetColCode"></select></label>
+            <label class="tv-field"><span>Coluna da descrição</span><select id="sheetColDesc"></select></label>
+            <label class="tv-field"><span>Coluna das cópias</span><select id="sheetColCopies"></select></label>
+          </div>
+          <div class="tv-row">
+            <label class="tv-check"><input id="sheetHeader" type="checkbox"> A primeira linha é título</label>
+            <label class="tv-field tv-small"><span>Cópias padrão</span><input id="sheetDefCopies" type="number" min="1" max="500" value="1" inputmode="numeric"></label>
+          </div>
+          <div class="tv-table-wrap"><table id="sheetTable" class="tv-table"></table></div>
+          <p class="tv-info" id="sheetInfo"></p>
+          <button id="sheetCreate" class="btn primary" type="button"><svg class="icon"><use href="#ic-tag"/></svg><span class="btn-label">Criar etiquetas</span></button>
+        </div>
+      </div>
+    </div>
+    </div>
+    <div class="workspace tool-ws" id="pdfWs" hidden>
+    <div class="pdf-bar" id="pdfBar" role="toolbar" aria-label="Ações do PDF">
+      <button id="pdfOpen" class="btn subtle" type="button"><svg class="icon"><use href="#ic-upload"/></svg><span>Abrir</span></button>
+      <button id="pdfMerge" class="btn subtle" type="button" disabled title="Juntar outro PDF no fim"><svg class="icon"><use href="#ic-plus"/></svg><span>Juntar PDF</span></button>
+      <span class="pdf-sep"></span>
+      <button id="pdfSelAll" class="btn subtle" type="button" disabled>Selecionar tudo</button>
+      <button id="pdfRotL" class="btn subtle" type="button" disabled title="Girar para a esquerda">↺ Girar</button>
+      <button id="pdfRotR" class="btn subtle" type="button" disabled title="Girar para a direita">Girar ↻</button>
+      <button id="pdfMoveL" class="btn subtle" type="button" disabled title="Mover para trás">← Mover</button>
+      <button id="pdfMoveR" class="btn subtle" type="button" disabled title="Mover para frente">Mover →</button>
+      <button id="pdfDel" class="btn subtle" type="button" disabled><svg class="icon"><use href="#ic-trash"/></svg><span>Excluir</span></button>
+      <span class="pdf-sep"></span>
+      <button id="pdfAnnot" class="btn primary" type="button" disabled><svg class="icon"><use href="#ic-edit"/></svg><span>Anotar / assinar</span></button>
+      <button id="pdfExtract" class="btn subtle" type="button" disabled title="Baixar só as páginas selecionadas">Extrair</button>
+      <button id="pdfSplit" class="btn subtle" type="button" disabled title="Um PDF por página, em um .zip">Dividir</button>
+    </div>
+    <p id="pdfMsg" class="tv-msg pdf-msg" role="status"></p>
+    <div class="pdf-main" id="pdfMain">
+      <div id="pdfEmpty" class="pdf-empty">
+        <svg class="pi" aria-hidden="true"><use href="#pi-pdf"/></svg>
+        <strong>Abra um PDF para começar</strong>
+        <span>Arraste o arquivo para cá ou toque em <b>Abrir</b>. Tudo acontece neste aparelho.</span>
+      </div>
+      <div id="pdfGrid" class="pdf-grid" hidden></div>
+    </div>
+    <input id="pdfFile" type="file" accept="application/pdf,.pdf" multiple hidden>
+    <div id="pdfEditor" class="pdf-editor" role="dialog" aria-modal="true" aria-label="Anotar página" hidden>
+      <div class="pdf-ebar">
+        <button id="pdfEdDone" class="btn primary" type="button"><svg class="icon"><use href="#ic-check"/></svg><span>Concluir</span></button>
+        <span class="pdf-sep"></span>
+        <button class="btn subtle" type="button" data-tool="text">Texto</button>
+        <button class="btn subtle" type="button" data-tool="sign">Assinatura</button>
+        <button class="btn subtle" type="button" data-tool="image">Imagem</button>
+        <button class="btn subtle" type="button" data-tool="hl">Realçar</button>
+        <button class="btn subtle" type="button" data-tool="cover">Cobrir</button>
+        <span class="pdf-sep"></span>
+        <input id="pdfColor" type="color" value="#111111" aria-label="Cor do texto" title="Cor do texto">
+        <button id="pdfBigger" class="btn subtle" type="button" title="Aumentar o item">A+</button>
+        <button id="pdfSmaller" class="btn subtle" type="button" title="Diminuir o item">A−</button>
+        <button id="pdfRemove" class="btn subtle" type="button" title="Apagar o item selecionado (Delete)"><svg class="icon"><use href="#ic-trash"/></svg><span>Apagar</span></button>
+      </div>
+      <p class="pdf-ehint" id="pdfHint">Escolha uma ferramenta. Arraste para mover; toque duas vezes no texto para editar.</p>
+      <div class="pdf-stage" id="pdfStage"><div class="pdf-sheet" id="pdfSheet"><canvas id="pdfCanvas"></canvas><div class="pdf-over" id="pdfOver"></div></div></div>
+    </div>
+    <dialog id="sigDialog" class="dialog">
+      <form method="dialog" class="dialog-card">
+        <h2>Sua assinatura</h2>
+        <p>Desenhe com o dedo ou o mouse.</p>
+        <canvas id="sigPad" class="sig-pad" width="720" height="260"></canvas>
+        <div class="dialog-actions">
+          <button class="btn subtle" type="button" id="sigClear">Limpar</button>
+          <button class="btn subtle" type="button" id="sigCancel">Cancelar</button>
+          <button class="btn primary" type="button" id="sigUse">Usar</button>
+        </div>
+      </form>
+    </dialog>
+    </div>
+    <div class="workspace tool-ws" id="imagesWs" hidden>
+    <div class="tv-body">
+      <div class="tv-form">
+        <button id="imgAdd" class="btn primary" type="button"><svg class="icon"><use href="#ic-plus"/></svg><span class="btn-label">Adicionar imagens</span></button>
+        <input id="imgFiles" type="file" accept="image/*" multiple hidden>
+        <p class="tv-info">Escolha fotos ou arraste para cá. Tudo é feito neste aparelho: nada é enviado.</p>
+        <div class="tv-row">
+          <label class="tv-field"><span>Largura máx. (px)</span><input id="imgMaxW" type="number" min="16" max="12000" placeholder="sem limite" inputmode="numeric"></label>
+          <label class="tv-field"><span>Altura máx. (px)</span><input id="imgMaxH" type="number" min="16" max="12000" placeholder="sem limite" inputmode="numeric"></label>
+        </div>
+        <label class="tv-field"><span>Cortar</span>
+          <select id="imgCrop"><option value="">Sem corte</option><option value="1:1">Quadrado (1:1)</option><option value="4:3">4:3</option><option value="3:4">3:4 (em pé)</option><option value="3:2">3:2</option><option value="2:3">2:3 (em pé)</option><option value="16:9">16:9</option><option value="9:16">9:16 (em pé)</option></select>
+        </label>
+        <label class="tv-field"><span>Formato</span>
+          <select id="imgFormat"><option value="keep">Igual ao original</option><option value="image/jpeg">JPG</option><option value="image/png">PNG</option><option value="image/webp">WebP</option></select>
+        </label>
+        <label class="tv-field"><span>Qualidade: <b id="imgQualityVal">80%</b></span><input id="imgQuality" type="range" min="30" max="100" step="1" value="80"></label>
+        <p id="imgMsg" class="tv-msg" role="status"></p>
+        <p class="tv-info" id="imgInfo"></p>
+      </div>
+      <div class="tv-preview" id="imgDrop"><div id="imgList" class="img-list"></div><p id="imgEmpty" class="img-empty">Nenhuma imagem ainda.<br>Toque em <b>Adicionar imagens</b>.</p></div>
+    </div>
+    </div>
   </div>
 
   <div id="home" class="home" role="dialog" aria-modal="true" aria-labelledby="homeTitle" hidden>
@@ -510,16 +489,7 @@
           <svg class="icon home-go"><use href="#ic-right"/></svg>
         </button>
         <h2 class="home-sub">Criar um novo</h2>
-        <div class="home-types">
-          <button id="homeNewLabels" class="home-option" type="button">
-            <span class="home-ic pi-wrap"><svg class="pi"><use href="#pi-labels"/></svg></span>
-            <span class="home-txt"><strong>Coding Etiquetas</strong><small>Códigos e descrições em A4</small></span>
-          </button>
-          <button id="homeNewTexts" class="home-option" type="button">
-            <span class="home-ic pi-wrap"><svg class="pi"><use href="#pi-texts"/></svg></span>
-            <span class="home-txt"><strong>Coding Textos</strong><small>Textos e imagens, como no Word</small></span>
-          </button>
-        </div>
+        <div class="home-types" id="homeTypes"></div>
       </div>
       <div id="homeFavs" class="home-recent" hidden>
         <h2>Favoritos</h2>

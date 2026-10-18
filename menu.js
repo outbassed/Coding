@@ -11,7 +11,7 @@
   let openedAt = 0;
 
   const SHORTCUTS = [
-    ["Imprimir / PDF", "Ctrl+P"],
+    ["Imprimir / PDF (etiquetas, textos, códigos)", "Ctrl+P"],
     ["Salvar projeto (.json)", "Ctrl+S"],
     ["Novo documento", "Alt+N"],
     ["Tela inicial", "Alt+H"],
@@ -22,6 +22,9 @@
     ["Textos: desfazer", "Ctrl+Z"],
     ["Textos: refazer", "Ctrl+Y"],
     ["Textos: colar sem formatação", "Ctrl+V"],
+    ["PDF: excluir páginas selecionadas", "Delete"],
+    ["PDF: selecionar todas as páginas", "Ctrl+A"],
+    ["PDF: fechar a anotação", "Esc"],
     ["Menu pelo teclado", "Menu ou Shift+F10"],
     ["Menu normal do navegador", "Shift + botão direito"]
   ];
@@ -229,7 +232,7 @@
       { label: "Novo documento", run: newOfCurrent },
       { label: C.isFav() ? "Remover dos favoritos" : "Adicionar aos favoritos", run: () => C.toggleFav(), disabled: !doc },
       { sep: true },
-      { label: "Imprimir / PDF", run: C.print, disabled: !doc },
+      { label: C.primaryLabel(), run: C.print, disabled: !doc },
       { label: "Copiar link do documento", run: C.copyShareLink, disabled: !doc },
       { label: "Salvar projeto (.json)", run: C.exportProject, disabled: !doc },
       { label: "Abrir arquivo (.json)…", run: C.openImport }
@@ -255,8 +258,7 @@
     const doc = C.cur();
     if (onHome) {
       return [
-        { label: "Nova etiqueta", run: () => C.newDoc("labels") },
-        { label: "Novo texto", run: () => C.newDoc("texts") },
+        { label: "Novo documento", sub: C.programs.map((p) => ({ label: p.name, run: () => C.newDoc(p.id) })) },
         { label: "Abrir arquivo (.json)…", run: C.openImport },
         { sep: true },
         { label: "Atalhos do teclado", shortcut: "?", run: openShortcuts }
@@ -267,7 +269,7 @@
       { label: "Tela inicial", shortcut: "Alt+H", run: C.goHome },
       { label: C.isFav() ? "Remover dos favoritos" : "Adicionar aos favoritos", run: () => C.toggleFav(), disabled: !doc },
       { sep: true },
-      { label: "Imprimir / PDF", shortcut: "Ctrl+P", run: C.print, disabled: !doc },
+      { label: C.primaryLabel(), shortcut: printable() ? "Ctrl+P" : undefined, run: C.print, disabled: !doc },
       { label: "Arquivo", sub: [
         { label: "Copiar link do documento", run: C.copyShareLink, disabled: !doc },
         { label: "Salvar projeto (.json)", shortcut: "Ctrl+S", run: C.exportProject, disabled: !doc },
@@ -280,6 +282,8 @@
     items.push({ label: "Atalhos do teclado", shortcut: "?", run: openShortcuts });
     return items;
   }
+
+  function printable() { const mode = C.curMode(); return !mode || mode.primaryIsPrint !== false; }
 
   function newOfCurrent() {
     const doc = C.cur();
@@ -392,7 +396,7 @@
       return;
     }
 
-    if (mod && !e.shiftKey && !e.altKey && e.code === "KeyP") { e.preventDefault(); C.print(); return; }
+    if (mod && !e.shiftKey && !e.altKey && e.code === "KeyP") { if (!printable()) return; e.preventDefault(); C.print(); return; }
     if (mod && !e.shiftKey && !e.altKey && e.code === "KeyS") { e.preventDefault(); if (byId("home").hidden && C.cur()) C.exportProject(); return; }
     if (e.altKey && !mod && !e.shiftKey && e.code === "KeyN") { e.preventDefault(); if (!dialogOpen) newOfCurrent(); return; }
     if (e.altKey && !mod && !e.shiftKey && e.code === "KeyH") { e.preventDefault(); if (!dialogOpen) C.goHome(); return; }
