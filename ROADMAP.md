@@ -33,6 +33,7 @@ O modo **Etiquetas continua sem imagens** (decisão do dono). No Texts dá para 
 - **Texts:** a imagem entra no fluxo do texto. Selecionando, aparecem alças para **aumentar e diminuir** arrastando (mantém a proporção) e uma barra com: largura em % da folha, alinhamento (esquerda, centro, direita), trocar imagem e remover.
 - Folha em retrato ou paisagem, impressão e PDF mostram as imagens como na tela.
 - Documentos de etiquetas não mudam e não carregam imagens.
+- **Imagem de fallback:** se uma imagem não puder ser exibida (arquivo corrompido, removido do armazenamento ou falha ao carregar), aparece um quadro cinza com ícone de imagem e o texto "Imagem indisponível". Ele mantém o tamanho e o alinhamento escolhidos, então o layout da folha não muda. As alças e a barra continuam funcionando, e dá para **trocar** a imagem ou **remover** o quadro. Antes de imprimir, o app avisa que há imagens indisponíveis; no PDF o quadro sai vazio, só com a borda fina.
 
 Decisões técnicas:
 - As imagens são reduzidas ao inserir (lado maior de até 1600 px, em WebP/JPEG) para não estourar o armazenamento nem o PDF.
