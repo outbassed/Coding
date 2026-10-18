@@ -134,6 +134,7 @@
     const items = [
       { label: "Tela inicial", run: C.goHome },
       { label: "Novo documento", run: newOfCurrent },
+      { label: C.isFav() ? "Remover dos favoritos" : "Adicionar aos favoritos", run: () => C.toggleFav(), disabled: !doc },
       { sep: true },
       { label: "Imprimir / PDF", run: C.print, disabled: !doc },
       { label: "Copiar link do documento", run: C.copyShareLink, disabled: !doc },
@@ -163,6 +164,7 @@
     const items = [
       { label: "Novo documento", shortcut: "Alt+N", run: newOfCurrent },
       { label: "Tela inicial", shortcut: "Alt+H", run: C.goHome },
+      { label: C.isFav() ? "Remover dos favoritos" : "Adicionar aos favoritos", run: () => C.toggleFav(), disabled: !doc },
       { sep: true },
       { label: "Imprimir / PDF", shortcut: "Ctrl+P", run: C.print, disabled: !doc },
       { label: "Copiar link do documento", run: C.copyShareLink, disabled: !doc },

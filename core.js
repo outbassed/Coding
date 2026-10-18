@@ -354,7 +354,61 @@
     return (mode && mode.info ? mode.info(doc) + " · " : "") + when;
   }
 
+  const HISTORY_LIMIT = 10;
+  let showAllHistory = false;
+
+  function docRow(d) {
+    const name = d.state.name.trim() || "Documento sem título";
+    const li = document.createElement("li");
+    li.className = "recent-item";
+    const open = document.createElement("button");
+    open.type = "button";
+    open.className = "recent-open";
+    open.dataset.open = d.id;
+    const typeIcon = document.createElement("span");
+    typeIcon.className = "recent-type";
+    typeIcon.title = TYPE_META[d.type].name;
+    typeIcon.innerHTML = '<svg class="icon"><use href="' + TYPE_META[d.type].icon + '"/></svg>';
+    const text = document.createElement("span");
+    text.className = "recent-text";
+    const title = document.createElement("strong");
+    title.textContent = name;
+    const info = document.createElement("small");
+    info.textContent = TYPE_META[d.type].name + " · " + docInfo(d);
+    text.append(title, info);
+    open.append(typeIcon, text);
+    const star = document.createElement("button");
+    star.type = "button";
+    star.className = "icon-btn fav-btn" + (d.fav ? " is-on" : "");
+    star.dataset.fav = d.id;
+    star.setAttribute("aria-pressed", String(Boolean(d.fav)));
+    star.setAttribute("aria-label", (d.fav ? "Remover dos favoritos: " : "Adicionar aos favoritos: ") + name);
+    star.title = d.fav ? "Remover dos favoritos" : "Adicionar aos favoritos";
+    star.innerHTML = '<svg class="icon"><use href="#ic-star"/></svg>';
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "icon-btn danger";
+    del.dataset.del = d.id;
+    del.setAttribute("aria-label", "Excluir " + name);
+    del.title = "Excluir";
+    del.innerHTML = '<svg class="icon"><use href="#ic-trash"/></svg>';
+    li.append(open, star, del);
+    return li;
+  }
+
+  function toggleFav(id) {
+    const doc = lib.docs[id || lib.currentId];
+    if (!doc) return;
+    doc.fav = !doc.fav;
+    store.putDoc(doc).catch(() => setSaved("Armazenamento indisponível"));
+    toast(doc.fav ? "Adicionado aos favoritos." : "Removido dos favoritos.");
+    if (!homeEl.hidden) showHome({ keep: true, replace: true });
+  }
+
+  const isFav = () => Boolean(cur() && cur().fav);
+
   function showHome(opts = {}) {
+    if (!opts.keep) showAllHistory = false;
     flushSave();
     setRoute("#/", opts.replace);
     const current = cur();
@@ -364,38 +418,18 @@
       byId("homeContinueInfo").textContent = TYPE_META[current.type].name + " · " + docInfo(current);
       byId("homeContinueIcon").innerHTML = '<svg class="icon"><use href="' + TYPE_META[current.type].icon + '"/></svg>';
     }
-    const others = Object.values(lib.docs).filter((d) => d.id !== lib.currentId).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 8);
-    byId("homeRecent").hidden = others.length === 0;
-    byId("recentList").replaceChildren(...others.map((d) => {
-      const name = d.state.name.trim() || "Documento sem título";
-      const li = document.createElement("li");
-      li.className = "recent-item";
-      const open = document.createElement("button");
-      open.type = "button";
-      open.className = "recent-open";
-      open.dataset.open = d.id;
-      const typeIcon = document.createElement("span");
-      typeIcon.className = "recent-type";
-      typeIcon.title = TYPE_META[d.type].name;
-      typeIcon.innerHTML = '<svg class="icon"><use href="' + TYPE_META[d.type].icon + '"/></svg>';
-      const text = document.createElement("span");
-      text.className = "recent-text";
-      const title = document.createElement("strong");
-      title.textContent = name;
-      const info = document.createElement("small");
-      info.textContent = TYPE_META[d.type].name + " · " + docInfo(d);
-      text.append(title, info);
-      open.append(typeIcon, text);
-      const del = document.createElement("button");
-      del.type = "button";
-      del.className = "icon-btn danger";
-      del.dataset.del = d.id;
-      del.setAttribute("aria-label", "Excluir " + name);
-      del.title = "Excluir";
-      del.innerHTML = '<svg class="icon"><use href="#ic-trash"/></svg>';
-      li.append(open, del);
-      return li;
-    }));
+    const all = Object.values(lib.docs).sort((a, b) => b.updatedAt - a.updatedAt);
+    const favs = all.filter((d) => d.fav);
+    const history = all.filter((d) => d.id !== lib.currentId && !d.fav);
+    byId("homeFavs").hidden = favs.length === 0;
+    byId("favList").replaceChildren(...favs.map(docRow));
+    const visible = showAllHistory ? history : history.slice(0, HISTORY_LIMIT);
+    byId("homeRecent").hidden = history.length === 0;
+    byId("recentList").replaceChildren(...visible.map(docRow));
+    const more = byId("moreRecent");
+    more.hidden = history.length <= HISTORY_LIMIT;
+    more.textContent = showAllHistory ? "Ver menos" : "Ver mais (" + (history.length - HISTORY_LIMIT) + ")";
+    more.setAttribute("aria-expanded", String(showAllHistory));
     homeEl.hidden = false;
     appEl.inert = true;
     appEl.setAttribute("aria-hidden", "true");
@@ -653,16 +687,21 @@
     byId("homeNewLabels").addEventListener("click", () => newDoc("labels"));
     byId("homeNewTexts").addEventListener("click", () => newDoc("texts"));
     byId("homeImport").addEventListener("click", () => byId("importInput").click());
-    byId("recentList").addEventListener("click", (e) => {
+    const rowClick = (e) => {
       const open = e.target.closest("[data-open]");
       const del = e.target.closest("[data-del]");
+      const fav = e.target.closest("[data-fav]");
       if (open) { openDoc(open.dataset.open); return; }
+      if (fav) { toggleFav(fav.dataset.fav); return; }
       if (del) {
         const doc = lib.docs[del.dataset.del];
         if (!doc || !window.confirm("Excluir o documento “" + (doc.state.name.trim() || "Documento sem título") + "”? Esta ação não pode ser desfeita.")) return;
         removeDoc(del.dataset.del).then(() => showHome());
       }
-    });
+    };
+    byId("recentList").addEventListener("click", rowClick);
+    byId("favList").addEventListener("click", rowClick);
+    byId("moreRecent").addEventListener("click", () => { showAllHistory = !showAllHistory; showHome({ keep: true, replace: true }); byId("moreRecent").focus({ preventScroll: true }); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !homeEl.hidden && cur() && !document.querySelector("dialog[open]")) continueEditing(); });
     byId("exportButton").addEventListener("click", exportProject);
     byId("shareButton").addEventListener("click", copyShareLink);
@@ -694,7 +733,7 @@
       if (!d || typeof d.id !== "string") return;
       const type = d.type === "texts" ? "texts" : "labels";
       try {
-        docs[d.id] = { id: d.id, type, updatedAt: Number(d.updatedAt) || Date.now(), state: modes[type].normalize(d.state) };
+        docs[d.id] = { id: d.id, type, fav: d.fav === true, updatedAt: Number(d.updatedAt) || Date.now(), state: modes[type].normalize(d.state) };
       } catch (_) { /* documento corrompido é ignorado */ }
     });
     lib.docs = docs;
@@ -710,7 +749,7 @@
     lib, store, modes,
     register(mode) { modes[mode.type] = mode; },
     toast, setSaved, scheduleSave, flushSave, busy,
-    cur, curMode, openDoc, createDoc, newDoc, goHome, print, exportProject, copyShareLink,
+    cur, curMode, toggleFav, isFav, openDoc, createDoc, newDoc, goHome, print, exportProject, copyShareLink,
     openImport() { byId("importInput").click(); },
     PANEL_KEY
   };

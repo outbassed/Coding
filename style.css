@@ -201,7 +201,7 @@ select { cursor: pointer; }
 .home-txt small { font-size: 12.5px; color: #b9c7de; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .home-go { color: #c9d8f5; }
 .home-recent h2 { margin: 0 0 8px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-#recentList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+#recentList, #favList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .recent-item { display: flex; align-items: center; gap: 4px; border: 1px solid var(--line-soft); border-radius: 12px; background: #17202e; }
 .recent-open { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 0; background: none; text-align: left; }
 .recent-open strong { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -209,6 +209,12 @@ select { cursor: pointer; }
 .recent-item:hover { border-color: #4a5f85; }
 .recent-item .icon-btn { width: 34px; height: 34px; margin-right: 6px; border-color: transparent; background: transparent; }
 .recent-item .icon-btn.danger:hover { background: #5a2f38; color: var(--danger); }
+.recent-item .fav-btn { margin-right: 0; }
+.fav-btn.is-on { color: #ffd166; }
+.fav-btn.is-on .icon { fill: currentColor; }
+.home-recent + .home-recent { margin-top: -6px; }
+.more-btn { width: 100%; margin-top: 8px; min-height: 42px; border: 1px solid var(--line-soft); border-radius: 12px; background: #17202e; color: var(--accent-soft); font-size: 13px; font-weight: 650; }
+.more-btn:hover { border-color: #4a5f85; background: #1d2a3d; }
 .home-foot { display: flex; justify-content: center; }
 .link-btn { padding: 8px; border: 0; background: none; color: var(--accent-soft); font-size: 13px; text-decoration: underline; }
 
