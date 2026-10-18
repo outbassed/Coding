@@ -4,6 +4,14 @@ Lista de pedidos pendentes. Quando o dono do projeto mandar **"Iniciar update"**
 
 ## Próximo update
 
+### Links em português (pedido de 18/10)
+- Trocar `#/label/` por `#/etiquetas/` e `#/texts/` por `#/texto/` (e `#/qr/`, `#/pdf/`, `#/imagens/`, `#/planilhas/` seguem em português). Os links antigos (`/label/`, `/texts/`) continuam abrindo, só deixam de ser os principais.
+
+### Lista de melhorias aprovada para análise (18/10)
+- Imagens: virar editor completo e consertar o travamento com fotos grandes.
+- Planilhas: funções por botão (fx), somar com um toque, sem digitar `;` nem intervalos.
+- QR com formulários prontos, Etiquetas com tamanhos prontos, Texto com tabelas/cabeçalho/.docx, PDF com anotações melhores, modelos, pastas e backup geral.
+
 ### Ainda fora do Texts (fica para depois)
 Tabelas, exportar para `.docx`, cabeçalho/rodapé, comentários, corretor ortográfico próprio (o do navegador continua valendo), recortar e girar imagem, imagem solta sobre o texto (posição livre) e imagem de fundo.
 
