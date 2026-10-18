@@ -356,21 +356,60 @@
 
   const HISTORY_LIMIT = 10;
 
-  const historyDocs = () => Object.values(lib.docs).filter((d) => d.id !== lib.currentId && !d.fav).sort((a, b) => b.updatedAt - a.updatedAt);
+  let historyTab = "labels";
+  const historyDocs = (type) => Object.values(lib.docs).filter((d) => d.id !== lib.currentId && !d.fav && (!type || d.type === type)).sort((a, b) => b.updatedAt - a.updatedAt);
+
+  function renderTabs(container) {
+    container.replaceChildren(...["labels", "texts"].map((type) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.setAttribute("role", "tab");
+      button.dataset.htab = type;
+      const on = type === historyTab;
+      button.className = "htab" + (on ? " is-active" : "");
+      button.setAttribute("aria-selected", String(on));
+      button.textContent = TYPE_META[type].name.replace("Coding ", "") + " (" + historyDocs(type).length + ")";
+      return button;
+    }));
+  }
+
+  function emptyItem() {
+    const li = document.createElement("li");
+    li.className = "list-empty";
+    li.textContent = historyTab === "labels" ? "Nenhum documento de etiquetas no histórico." : "Nenhum documento de textos no histórico.";
+    return li;
+  }
+
+  function renderHistory() {
+    renderTabs(byId("homeTabs"));
+    const list = historyDocs(historyTab);
+    byId("recentList").replaceChildren(...(list.length ? list.slice(0, HISTORY_LIMIT).map(docRow) : [emptyItem()]));
+    const more = byId("moreRecent");
+    more.hidden = list.length <= HISTORY_LIMIT;
+    more.textContent = "Ver mais (" + (list.length - HISTORY_LIMIT) + ")";
+    renderHistoryDialog();
+  }
 
   function renderHistoryDialog() {
     const dialog = byId("historyDialog");
     if (!dialog.open) return;
-    const list = historyDocs();
-    if (!list.length) { dialog.close(); return; }
+    if (!historyDocs().length) { dialog.close(); return; }
+    renderTabs(byId("historyTabs"));
+    const list = historyDocs(historyTab);
     byId("historyCount").textContent = list.length + (list.length === 1 ? " documento" : " documentos");
-    byId("allList").replaceChildren(...list.map(docRow));
+    byId("allList").replaceChildren(...(list.length ? list.map(docRow) : [emptyItem()]));
   }
 
   function openHistory() {
     const dialog = byId("historyDialog");
     if (!dialog.open) dialog.showModal();
     renderHistoryDialog();
+    byId("allList").scrollTop = 0;
+  }
+
+  function setHistoryTab(type) {
+    historyTab = type === "texts" ? "texts" : "labels";
+    renderHistory();
     byId("allList").scrollTop = 0;
   }
 
@@ -419,7 +458,7 @@
     doc.fav = !doc.fav;
     store.putDoc(doc).catch(() => setSaved("Armazenamento indisponível"));
     toast(doc.fav ? "Adicionado aos favoritos." : "Removido dos favoritos.");
-    if (!homeEl.hidden) showHome({ replace: true });
+    if (!homeEl.hidden) showHome({ replace: true, keepTab: true });
   }
 
   const isFav = () => Boolean(cur() && cur().fav);
@@ -434,17 +473,14 @@
       byId("homeContinueInfo").textContent = TYPE_META[current.type].name + " · " + docInfo(current);
       byId("homeContinueIcon").innerHTML = '<svg class="icon"><use href="' + TYPE_META[current.type].icon + '"/></svg>';
     }
+    if (!opts.keepTab && current) historyTab = current.type;
     const all = Object.values(lib.docs).sort((a, b) => b.updatedAt - a.updatedAt);
     const favs = all.filter((d) => d.fav);
     const history = all.filter((d) => d.id !== lib.currentId && !d.fav);
     byId("homeFavs").hidden = favs.length === 0;
     byId("favList").replaceChildren(...favs.map(docRow));
     byId("homeRecent").hidden = history.length === 0;
-    byId("recentList").replaceChildren(...history.slice(0, HISTORY_LIMIT).map(docRow));
-    const more = byId("moreRecent");
-    more.hidden = history.length <= HISTORY_LIMIT;
-    more.textContent = "Ver mais (" + (history.length - HISTORY_LIMIT) + ")";
-    renderHistoryDialog();
+    renderHistory();
     homeEl.hidden = false;
     appEl.inert = true;
     appEl.setAttribute("aria-hidden", "true");
@@ -711,12 +747,15 @@
       if (del) {
         const doc = lib.docs[del.dataset.del];
         if (!doc || !window.confirm("Excluir o documento “" + (doc.state.name.trim() || "Documento sem título") + "”? Esta ação não pode ser desfeita.")) return;
-        removeDoc(del.dataset.del).then(() => showHome());
+        removeDoc(del.dataset.del).then(() => showHome({ keepTab: true }));
       }
     };
     byId("recentList").addEventListener("click", rowClick);
     byId("favList").addEventListener("click", rowClick);
     byId("allList").addEventListener("click", rowClick);
+    const tabClick = (e) => { const t = e.target.closest("[data-htab]"); if (t) setHistoryTab(t.dataset.htab); };
+    byId("homeTabs").addEventListener("click", tabClick);
+    byId("historyTabs").addEventListener("click", tabClick);
     byId("moreRecent").addEventListener("click", openHistory);
     byId("historyClose").addEventListener("click", () => byId("historyDialog").close());
     byId("historyDialog").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });

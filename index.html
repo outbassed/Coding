@@ -319,6 +319,7 @@
       </div>
       <div id="homeRecent" class="home-recent" hidden>
         <h2>Histórico</h2>
+        <div id="homeTabs" class="htabs" role="tablist" aria-label="Tipo de documento"></div>
         <ul id="recentList"></ul>
         <button id="moreRecent" class="more-btn" type="button" hidden aria-haspopup="dialog">Ver mais</button>
       </div>
@@ -342,6 +343,7 @@
   <dialog id="historyDialog" class="dialog history-dialog" aria-labelledby="historyTitle">
     <div class="dialog-card">
       <div class="history-head"><h2 id="historyTitle">Histórico</h2><span id="historyCount" class="muted"></span></div>
+      <div id="historyTabs" class="htabs" role="tablist" aria-label="Tipo de documento"></div>
       <ul id="allList" class="doc-list"></ul>
       <div class="dialog-actions"><button class="btn primary" type="button" id="historyClose">Fechar</button></div>
     </div>
