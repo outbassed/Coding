@@ -280,6 +280,19 @@
     saveBlob(zip, "imagens.zip");
   }
 
+  byId("imgSample").addEventListener("click", async () => {
+    const button = byId("imgSample");
+    button.disabled = true;
+    try {
+      const response = await fetch("exemplos/praia.jpg");
+      if (!response.ok) throw new Error("http");
+      const blob = await response.blob();
+      await addFiles([new File([blob], "praia-exemplo.jpg", { type: "image/jpeg" })]);
+    } catch (_) {
+      ui.msg.textContent = "Não consegui carregar a foto de exemplo (ela precisa de internet na primeira vez).";
+    }
+    button.disabled = false;
+  });
   ui.add.addEventListener("click", () => ui.files.click());
   ui.files.addEventListener("change", () => { const f = ui.files.files; addFiles(f).then(() => { ui.files.value = ""; }); });
   [ui.maxW, ui.maxH, ui.crop, ui.format, ui.quality].forEach((n) => {

@@ -16,12 +16,19 @@
     ["Novo documento", "Alt+N"],
     ["Tela inicial", "Alt+H"],
     ["Mostrar esta lista", "?"],
-    ["Textos: negrito", "Ctrl+B"],
-    ["Textos: itálico", "Ctrl+I"],
-    ["Textos: sublinhado", "Ctrl+U"],
-    ["Textos: desfazer", "Ctrl+Z"],
-    ["Textos: refazer", "Ctrl+Y"],
-    ["Textos: colar sem formatação", "Ctrl+V"],
+    ["Texto: negrito", "Ctrl+B"],
+    ["Texto: itálico", "Ctrl+I"],
+    ["Texto: sublinhado", "Ctrl+U"],
+    ["Texto: desfazer", "Ctrl+Z"],
+    ["Texto: refazer", "Ctrl+Y"],
+    ["Texto: colar sem formatação", "Ctrl+V"],
+    ["Planilhas: editar a célula / confirmar", "F2 / Enter"],
+    ["Planilhas: copiar, recortar, colar", "Ctrl+C / X / V"],
+    ["Planilhas: negrito, itálico, sublinhado", "Ctrl+B / I / U"],
+    ["Planilhas: desfazer / refazer", "Ctrl+Z / Ctrl+Y"],
+    ["Planilhas: preencher para baixo / direita", "Ctrl+D / Ctrl+R"],
+    ["Planilhas: AutoSoma", "Alt+="],
+    ["Planilhas: imprimir", "Ctrl+P"],
     ["PDF: excluir páginas selecionadas", "Delete"],
     ["PDF: selecionar todas as páginas", "Ctrl+A"],
     ["PDF: fechar a anotação", "Esc"],
@@ -396,7 +403,7 @@
       return;
     }
 
-    if (mod && !e.shiftKey && !e.altKey && e.code === "KeyP") { if (!printable()) return; e.preventDefault(); C.print(); return; }
+    if (mod && !e.shiftKey && !e.altKey && e.code === "KeyP") { if (!printable()) { const m = C.curMode(); if (m && m.printKey && document.body.classList.contains("in-doc")) { e.preventDefault(); m.printKey(); } return; } e.preventDefault(); C.print(); return; }
     if (mod && !e.shiftKey && !e.altKey && e.code === "KeyS") { e.preventDefault(); if (byId("home").hidden && C.cur()) C.exportProject(); return; }
     if (e.altKey && !mod && !e.shiftKey && e.code === "KeyN") { e.preventDefault(); if (!dialogOpen) newOfCurrent(); return; }
     if (e.altKey && !mod && !e.shiftKey && e.code === "KeyH") { e.preventDefault(); if (!dialogOpen) C.goHome(); return; }

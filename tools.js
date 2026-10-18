@@ -343,7 +343,7 @@
     menuItems: codesMenu
   });
 
-  /* ============================ Etiquetas por planilha ============================ */
+  /* ============================ Planilha → Etiquetas ============================ */
 
   const sheet = {
     ws: byId("sheetWs"),
@@ -463,7 +463,7 @@
     return n - 1;
   };
 
-  async function parseXlsx(buffer) {
+  async function parseXlsx(buffer, withFormulas) {
     const zip = await unzip(buffer);
     const parse = (xml) => new DOMParser().parseFromString(xml, "application/xml");
     let sheetPath = "xl/worksheets/sheet1.xml";
@@ -496,6 +496,7 @@
         if (t === "s") val = shared[Number(v && v.textContent)] || "";
         else if (t === "inlineStr") val = Array.from(c.getElementsByTagName("t")).map((x) => x.textContent).join("");
         else if (v) val = v.textContent;
+        if (withFormulas) { const f = c.getElementsByTagName("f")[0]; if (f && f.textContent) val = "=" + f.textContent; }
         arr[idx] = val;
       });
       for (let i = 0; i < arr.length; i++) if (arr[i] === undefined) arr[i] = "";
@@ -504,15 +505,17 @@
     return out.filter((r) => r.some((c) => String(c).trim() !== ""));
   }
 
-  async function readFile(file) {
+  async function readFile(file, withFormulas) {
     const name = file.name.toLowerCase();
-    if (name.endsWith(".xlsx")) return parseXlsx(await file.arrayBuffer());
+    if (name.endsWith(".xlsx")) return parseXlsx(await file.arrayBuffer(), withFormulas);
     if (name.endsWith(".xls")) throw new Error("Arquivo .xls antigo: abra no Excel e salve como .xlsx ou .csv.");
     const buf = await file.arrayBuffer();
     let text = new TextDecoder("utf-8").decode(buf);
     if (text.includes("�")) text = new TextDecoder("windows-1252").decode(buf);
     return parseDelimited(text);
   }
+
+  C.readSpreadsheet = (file) => readFile(file, true);
 
   const looksNumeric = (v) => /^\d+([.,]\d+)?$/.test(String(v).trim());
 
@@ -593,7 +596,7 @@
     const items = sheetItems();
     const total = items.reduce((a, b) => a + b.copies, 0);
     const MAX = 200;
-    sheet.info.textContent = items.length + (items.length === 1 ? " item" : " itens") + " · " + total + (total === 1 ? " etiqueta" : " etiquetas") + (items.length > MAX ? " — o Coding Etiquetas aceita até " + MAX + " itens por documento; só os primeiros " + MAX + " entram." : "");
+    sheet.info.textContent = items.length + (items.length === 1 ? " item" : " itens") + " · " + total + (total === 1 ? " etiqueta" : " etiquetas") + (items.length > MAX ? " — o Etiquetas aceita até " + MAX + " itens por documento; só os primeiros " + MAX + " entram." : "");
     sheet.create.disabled = !items.length;
     C.setPrimary(undefined, !items.length);
   }
