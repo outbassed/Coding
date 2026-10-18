@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Coding — Etiquetas e Texts",
+  "name": "Coding — Etiquetas e Textos",
   "short_name": "Coding",
-  "description": "Etiquetas A4 com vários códigos e descrições, e editor de textos básico (Texts) com imagens, prontos para imprimir.",
+  "description": "Etiquetas A4 com vários códigos e descrições, e editor de textos básico (Coding Textos) com imagens, prontos para imprimir.",
   "lang": "pt-BR",
   "dir": "ltr",
   "start_url": "./",
@@ -62,8 +62,8 @@
     },
     {
       "name": "Novo texto",
-      "short_name": "Texts",
-      "description": "Começa um documento no Coding Texts",
+      "short_name": "Textos",
+      "description": "Começa um documento no Coding Textos",
       "url": "./#/novo/texts",
       "icons": [
         {

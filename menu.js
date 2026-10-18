@@ -16,12 +16,12 @@
     ["Novo documento", "Alt+N"],
     ["Tela inicial", "Alt+H"],
     ["Mostrar esta lista", "?"],
-    ["Texts: negrito", "Ctrl+B"],
-    ["Texts: itálico", "Ctrl+I"],
-    ["Texts: sublinhado", "Ctrl+U"],
-    ["Texts: desfazer", "Ctrl+Z"],
-    ["Texts: refazer", "Ctrl+Y"],
-    ["Texts: colar sem formatação", "Ctrl+V"],
+    ["Textos: negrito", "Ctrl+B"],
+    ["Textos: itálico", "Ctrl+I"],
+    ["Textos: sublinhado", "Ctrl+U"],
+    ["Textos: desfazer", "Ctrl+Z"],
+    ["Textos: refazer", "Ctrl+Y"],
+    ["Textos: colar sem formatação", "Ctrl+V"],
     ["Menu pelo teclado", "Menu ou Shift+F10"],
     ["Menu normal do navegador", "Shift + botão direito"]
   ];

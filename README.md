@@ -2,14 +2,14 @@
 
 App de documentos para o dia a dia, com dois modos:
 
-- **Etiquetas**: editor de etiquetas A4 para identificar caixas e produtos, com **vários códigos e descrições**, paginação automática e impressão/PDF.
-- **Texts**: editor de texto básico, como um Word enxuto, com formatação essencial e **imagens** dentro da folha.
+- **Coding Etiquetas**: editor de etiquetas A4 para identificar caixas e produtos, com **vários códigos e descrições**, paginação automática e impressão/PDF.
+- **Coding Textos**: editor de texto básico, como um Word enxuto, com formatação essencial e **imagens** dentro da folha.
 
 Funciona como site e como aplicativo instalável (PWA), inclusive offline. Sem frameworks, backend ou contas.
 
 ## Como usar
 1. Abra `index.html` por um servidor (ou publique no GitHub Pages) e, se quiser, instale como aplicativo.
-2. Na tela inicial escolha **Etiquetas** ou **Texts**, ou continue o último documento. A biblioteca guarda os dois tipos juntos.
+2. Na tela inicial escolha **Etiquetas** ou **Coding Textos**, ou continue o último documento. A biblioteca guarda os dois tipos juntos.
 3. Clique em **Imprimir / PDF** (ou Ctrl+P). Para gerar um PDF, escolha *Salvar como PDF* na janela de impressão, em A4, escala 100% e sem cabeçalhos/rodapés.
 
 ### Etiquetas
@@ -19,7 +19,7 @@ Funciona como site e como aplicativo instalável (PWA), inclusive offline. Sem f
 - Cada etiqueta é indivisível: se não couber no fim da folha, vai inteira para a próxima. Etiquetas maiores que a área útil bloqueiam a impressão até o texto ser ajustado.
 - Limites: 200 itens e 2000 etiquetas por documento.
 
-### Texts
+### Coding Textos
 - Folha A4 em retrato ou paisagem, com margens de 20 mm (cima/baixo) e 18 mm (laterais).
 - Negrito, itálico, sublinhado, fonte, tamanho, cor, alinhamento (esquerda, centro, direita, justificado), títulos 1 e 2, listas com marcadores e numeradas.
 - Desfazer/refazer (Ctrl+Z / Ctrl+Y), Ctrl+B / I / U. Colar traz só o texto, sem formatação estranha.
@@ -62,7 +62,7 @@ A instalação exige HTTPS (o GitHub Pages já oferece) ou `localhost`.
 - `style.css`: layout responsivo e CSS de impressão A4
 - `core.js`: armazenamento (IndexedDB), biblioteca, rotas, tela inicial, exportar/importar/compartilhar, PWA
 - `labels.js`: modo Etiquetas (itens, paginação, prévia)
-- `texts.js`: modo Texts (editor, sanitização, histórico, imagens)
+- `texts.js`: modo Textos (editor, sanitização, histórico, imagens)
 - `menu.js`: menu de clique direito e atalhos
 - `manifest.webmanifest`: dados do aplicativo instalável
 - `sw.js`: service worker (cache offline)

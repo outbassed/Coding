@@ -278,8 +278,8 @@
   const homeEl = byId("home");
   const appEl = document.querySelector(".app");
   const TYPE_META = {
-    labels: { icon: "#ic-tag", name: "Etiquetas", sub: "Etiquetas A4", title: "Coding | Etiquetas A4" },
-    texts: { icon: "#ic-text", name: "Texts", sub: "Texts", title: "Coding | Texts" }
+    labels: { icon: "#ic-tag", name: "Coding Etiquetas", sub: "Etiquetas A4", title: "Coding Etiquetas" },
+    texts: { icon: "#ic-text", name: "Coding Textos", sub: "Textos", title: "Coding Textos" }
   };
 
   function showWorkspace(type) {
