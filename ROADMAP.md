@@ -4,9 +4,6 @@ Lista de pedidos pendentes. Quando o dono do projeto mandar **"Iniciar update"**
 
 ## Próximo update
 
-### Ferramentas secundárias (a escolher; a página já existe, falta construir cada uma)
-PDF (anotar, assinar, juntar, dividir, reordenar); Imagens (redimensionar, cortar, comprimir, montar em A4); Recibos/Orçamentos; Planilhas simples; Checklists; Placas/Cartazes; Digitalizar documento pela câmera.
-
 ### Ainda fora do Texts (fica para depois)
 Tabelas, exportar para `.docx`, cabeçalho/rodapé, comentários, corretor ortográfico próprio (o do navegador continua valendo), recortar e girar imagem, imagem solta sobre o texto (posição livre) e imagem de fundo.
 
@@ -17,6 +14,8 @@ Tabelas, exportar para `.docx`, cabeçalho/rodapé, comentários, corretor ortog
 - Contador "faltam X etiquetas" para completar a última folha.
 
 ## Feito
+- **Editor de PDF** (abrir, juntar, girar, mover/arrastar, excluir, extrair, dividir em .zip, anotar com texto/realce/cobrir, assinatura desenhada e imagem) e **Imagens** (redimensionar, cortar por proporção, girar, comprimir, converter JPG/PNG/WebP, baixar em .zip).
+- **Ícones coloridos** próprios para cada programa e **interruptores** na página Ferramentas que mostram/ocultam cada programa na barra lateral (Início e Ferramentas sempre fixos).
 - **Ferramentas: QR e código de barras** (QR, Code 128 e EAN-13 em folha A4, colunas, tamanho, legenda, linha de corte, impressão/PDF) e **Etiquetas por planilha** (.xlsx, .csv ou colar do Excel; escolhe as colunas e cria um documento de Etiquetas). Rotas `#/ferramentas/codigos` e `#/ferramentas/planilha`.
 - **Layout separado PC/celular**: barra lateral no PC (recolhe para ícones dentro do documento) e barra inferior no celular (Início, Novo, Ferramentas, Menu, com folha "Criar novo"); página **Ferramentas** (`#/ferramentas`) com as ferramentas futuras marcadas "Em breve".
 - Vários itens por documento, colar lista, 1 a 3 colunas, linha de corte.

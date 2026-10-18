@@ -279,8 +279,63 @@
   const appEl = document.querySelector(".app");
   const toolsEl = byId("tools");
   const navEl = byId("mainNav");
-  const toolViews = { codes: byId("codesView"), sheet: byId("sheetView") };
-  const TOOL_ROUTES = { codes: "codigos", sheet: "planilha" };
+  const toolViews = { codes: byId("codesView"), sheet: byId("sheetView"), pdf: byId("pdfView"), images: byId("imagesView") };
+  const TOOL_ROUTES = { codes: "codigos", sheet: "planilha", pdf: "pdf", images: "imagens" };
+  const PROGRAMS = [
+    { id: "labels", group: "editors", short: "Etiquetas", name: "Coding Etiquetas", desc: "Códigos e descrições em A4, prontos para colar nas caixas" },
+    { id: "texts", group: "editors", short: "Textos", name: "Coding Textos", desc: "Textos e imagens, como no Word" },
+    { id: "codes", group: "tools", short: "QR e barras", name: "QR e código de barras", desc: "Em folha A4, vários por página" },
+    { id: "sheet", group: "tools", short: "Planilha", name: "Etiquetas por planilha", desc: "Uma etiqueta por linha do CSV ou Excel" },
+    { id: "pdf", group: "tools", short: "PDF", name: "Editor de PDF", desc: "Anotar, assinar, juntar, dividir e reordenar" },
+    { id: "images", group: "tools", short: "Imagens", name: "Imagens", desc: "Redimensionar, cortar, comprimir e converter" }
+  ];
+  const NAV_KEY = "coding-nav-v1";
+  const navPrefs = (() => {
+    const base = { labels: true, texts: true, codes: false, sheet: false, pdf: false, images: false };
+    try { const s = JSON.parse(localStorage.getItem(NAV_KEY) || "null"); if (s && typeof s === "object") PROGRAMS.forEach((p) => { if (typeof s[p.id] === "boolean") base[p.id] = s[p.id]; }); } catch (_) { /* padrão */ }
+    return base;
+  })();
+  const saveNavPrefs = () => { try { localStorage.setItem(NAV_KEY, JSON.stringify(navPrefs)); } catch (_) { /* sem armazenamento */ } };
+  const piIcon = (id) => '<svg class="pi" aria-hidden="true"><use href="#pi-' + id + '"/></svg>';
+
+  function renderNavPrograms() {
+    const box = byId("navPrograms");
+    box.replaceChildren();
+    PROGRAMS.filter((p) => navPrefs[p.id]).forEach((p) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "nav-item nav-prog";
+      b.dataset.nav = p.id;
+      b.title = p.name;
+      b.innerHTML = piIcon(p.id) + '<span class="nav-label"></span>';
+      b.lastChild.textContent = p.short;
+      box.append(b);
+    });
+    updateNav();
+  }
+
+  function renderToolsPage() {
+    const list = byId("toolsList");
+    list.replaceChildren();
+    [["editors", "Editores"], ["tools", "Ferramentas"]].forEach(([group, title]) => {
+      const h = document.createElement("h2");
+      h.className = "home-sub tools-sub";
+      h.textContent = title;
+      const grid = document.createElement("div");
+      grid.className = "tools-grid";
+      PROGRAMS.filter((p) => p.group === group).forEach((p) => {
+        const card = document.createElement("div");
+        card.className = "prog-card";
+        card.innerHTML = '<button class="prog-open" type="button" data-open="' + p.id + '"><span class="pi-wrap">' + piIcon(p.id) + '</span><span class="home-txt"><strong></strong><small></small></span><svg class="icon home-go"><use href="#ic-right"/></svg></button>' +
+          '<label class="switch" title="Mostrar na barra lateral"><input type="checkbox" role="switch" data-switch="' + p.id + '"><span class="sw" aria-hidden="true"></span><span class="sw-text">Na barra</span></label>';
+        card.querySelector("strong").textContent = p.name;
+        card.querySelector("small").textContent = p.desc;
+        card.querySelector("input").checked = navPrefs[p.id];
+        grid.append(card);
+      });
+      list.append(h, grid);
+    });
+  }
   const anyToolView = () => Object.values(toolViews).some((v) => !v.hidden);
   const hideToolViews = () => Object.values(toolViews).forEach((v) => { v.hidden = true; });
   const TYPE_META = {
@@ -517,7 +572,9 @@
     const inDoc = homeEl.hidden && toolsEl.hidden && !anyToolView();
     document.body.classList.toggle("in-doc", inDoc);
     const doc = cur();
-    const active = !homeEl.hidden ? "home" : (!toolsEl.hidden || anyToolView()) ? "tools" : (doc ? doc.type : "home");
+    const visibleTool = Object.keys(toolViews).find((k) => !toolViews[k].hidden);
+    let active = !homeEl.hidden ? "home" : !toolsEl.hidden ? "tools" : visibleTool ? visibleTool : (doc ? doc.type : "home");
+    if (active !== "home" && active !== "tools" && !navPrefs[active]) active = "tools";
     navEl.querySelectorAll("[data-nav]").forEach((b) => {
       if (b.dataset.nav === active && b.dataset.nav !== "menu" && b.dataset.nav !== "new") b.setAttribute("aria-current", "page");
       else b.removeAttribute("aria-current");
@@ -812,7 +869,21 @@
       if (await newDoc(doc ? doc.type : "labels")) toast("Novo documento criado. O anterior continua salvo.");
     });
     byId("homeButton").addEventListener("click", goHome);
-    toolsEl.addEventListener("click", (e) => { const t = e.target.closest("[data-tool]"); if (t) showToolView(t.dataset.tool); });
+    renderToolsPage();
+    renderNavPrograms();
+    toolsEl.addEventListener("click", (e) => {
+      const t = e.target.closest("[data-open]");
+      if (!t) return;
+      const k = t.dataset.open;
+      if (k === "labels" || k === "texts") openLatest(k); else showToolView(k);
+    });
+    toolsEl.addEventListener("change", (e) => {
+      const sw = e.target.closest("[data-switch]");
+      if (!sw) return;
+      navPrefs[sw.dataset.switch] = sw.checked;
+      saveNavPrefs();
+      renderNavPrograms();
+    });
     Object.values(toolViews).forEach((v) => v.addEventListener("click", (e) => { if (e.target.closest("[data-tool-back]")) showTools(); }));
     const sheet = byId("newSheet");
     const closeSheet = () => { sheet.hidden = true; };
@@ -823,6 +894,7 @@
       if (k === "home") goHome();
       else if (k === "tools") showTools();
       else if (k === "labels" || k === "texts") openLatest(k);
+      else if (toolViews[k]) showToolView(k);
       else if (k === "new") { sheet.hidden = false; const f = sheet.querySelector("[data-new]"); if (f) f.focus({ preventScroll: true }); }
     });
     sheet.addEventListener("click", (e) => {
@@ -859,7 +931,7 @@
     byId("moreFavs").addEventListener("click", () => openHistory("favs"));
     byId("historyClose").addEventListener("click", () => byId("historyDialog").close());
     byId("historyDialog").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && (!homeEl.hidden || !toolsEl.hidden || anyToolView()) && cur() && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && !document.querySelector("dialog[open]")) continueEditing(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && (!homeEl.hidden || !toolsEl.hidden) && cur() && !document.querySelector("dialog[open]")) continueEditing(); });
     byId("exportButton").addEventListener("click", exportProject);
     byId("shareButton").addEventListener("click", copyShareLink);
     byId("importButton").addEventListener("click", () => byId("importInput").click());

@@ -59,6 +59,8 @@
   <script src="texts.js" defer></script>
   <script src="barcodes.js" defer></script>
   <script src="tools.js" defer></script>
+  <script src="tool-images.js" defer></script>
+  <script src="tool-pdf.js" defer></script>
   <script src="menu.js" defer></script>
 </head>
 <body>
@@ -73,6 +75,20 @@
     </div>
   </div>
   <svg class="svg-sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="g-labels" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffc24a"/><stop offset="1" stop-color="#f26b1d"/></linearGradient>
+      <linearGradient id="g-texts" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#63b3ff"/><stop offset="1" stop-color="#2f5fe0"/></linearGradient>
+      <linearGradient id="g-codes" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b98cff"/><stop offset="1" stop-color="#6a3fe0"/></linearGradient>
+      <linearGradient id="g-sheet" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5eea8f"/><stop offset="1" stop-color="#14994b"/></linearGradient>
+      <linearGradient id="g-pdf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8d7a"/><stop offset="1" stop-color="#da2f3d"/></linearGradient>
+      <linearGradient id="g-images" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4fe0d6"/><stop offset="1" stop-color="#0b8fb8"/></linearGradient>
+    </defs>
+    <symbol id="pi-labels" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="url(#g-labels)"/><path d="M13 14h16.5a3 3 0 0 1 2.1.9L37 20.3a3 3 0 0 1 .9 2.1V33a3 3 0 0 1-3 3H13a3 3 0 0 1-3-3V17a3 3 0 0 1 3-3z" fill="#fff"/><circle cx="31" cy="19.5" r="2.2" fill="#f26b1d"/><rect x="14" y="21" width="12" height="3" rx="1.5" fill="#f9a85a"/><rect x="14" y="27" width="17" height="3" rx="1.5" fill="#f9a85a"/></symbol>
+    <symbol id="pi-texts" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="url(#g-texts)"/><path d="M15 10h13l7 7v19a2 2 0 0 1-2 2H15a2 2 0 0 1-2-2V12a2 2 0 0 1 2-2z" fill="#fff"/><path d="M28 10v5a2 2 0 0 0 2 2h5z" fill="#a9ccff"/><rect x="17" y="22" width="14" height="2.6" rx="1.3" fill="#3a6ee8"/><rect x="17" y="28" width="14" height="2.6" rx="1.3" fill="#9bbcf6"/><rect x="17" y="33" width="9" height="2.6" rx="1.3" fill="#9bbcf6"/></symbol>
+    <symbol id="pi-codes" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="url(#g-codes)"/><g fill="#fff"><path d="M11 11h11v11H11zM26 11h11v11H26zM11 26h11v11H11z"/><rect x="26" y="26" width="4.5" height="4.5"/><rect x="32.5" y="26" width="4.5" height="4.5"/><rect x="26" y="32.5" width="4.5" height="4.5"/><rect x="32.5" y="32.5" width="4.5" height="4.5" opacity=".6"/></g><g fill="#7b4ee6"><rect x="14" y="14" width="5" height="5" rx="1"/><rect x="29" y="14" width="5" height="5" rx="1"/><rect x="14" y="29" width="5" height="5" rx="1"/></g></symbol>
+    <symbol id="pi-sheet" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="url(#g-sheet)"/><rect x="10" y="12" width="28" height="24" rx="3.5" fill="#fff"/><path d="M10 20h28M10 28h28M21 12v24" stroke="#2fb866" stroke-width="2.2" fill="none"/><rect x="10" y="12" width="28" height="8" rx="3.5" fill="#c8f5da"/><path d="M10 20h28" stroke="#2fb866" stroke-width="2.2"/></symbol>
+    <symbol id="pi-pdf" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="url(#g-pdf)"/><path d="M15 9h13l7 7v20a3 3 0 0 1-3 3H15a3 3 0 0 1-3-3V12a3 3 0 0 1 3-3z" fill="#fff"/><path d="M28 9v5a2 2 0 0 0 2 2h5z" fill="#ffc2b9"/><rect x="12" y="24" width="23" height="9.5" rx="2" fill="#da2f3d"/><text x="23.5" y="31.6" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="7.4" fill="#fff">PDF</text></symbol>
+    <symbol id="pi-images" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="url(#g-images)"/><rect x="10" y="12" width="28" height="24" rx="4" fill="#fff"/><circle cx="19" cy="20" r="3.2" fill="#ffc24a"/><path d="M10 33l8.5-8.5a2 2 0 0 1 2.8 0L26 29l4.2-4.2a2 2 0 0 1 2.8 0L38 29.8V32a4 4 0 0 1-4 4H14a4 4 0 0 1-4-4z" fill="#27b4cf"/></symbol>
     <symbol id="ic-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></symbol>
     <symbol id="ic-print" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6zM18 12h.01"/></symbol>
     <symbol id="ic-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 17v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></symbol>
@@ -120,10 +136,9 @@
       <span class="brand-icon"><svg class="icon"><use href="#ic-file"/></svg></span><span class="nav-label"><strong>Coding</strong></span>
     </button>
     <button class="nav-item" type="button" data-nav="home" title="Início"><svg class="icon"><use href="#ic-home"/></svg><span class="nav-label">Início</span></button>
-    <button class="nav-item nav-desk" type="button" data-nav="labels" title="Etiquetas"><svg class="icon"><use href="#ic-tag"/></svg><span class="nav-label">Etiquetas</span></button>
-    <button class="nav-item nav-desk" type="button" data-nav="texts" title="Textos"><svg class="icon"><use href="#ic-text"/></svg><span class="nav-label">Textos</span></button>
+    <button class="nav-item nav-tools" type="button" data-nav="tools" title="Ferramentas"><svg class="icon"><use href="#ic-tools"/></svg><span class="nav-label">Ferramentas</span></button>
+    <div id="navPrograms" class="nav-programs nav-desk"></div>
     <button class="nav-item nav-new nav-mob" type="button" data-nav="new" aria-haspopup="dialog" title="Criar novo"><svg class="icon"><use href="#ic-plus"/></svg><span class="nav-label">Novo</span></button>
-    <button class="nav-item" type="button" data-nav="tools" title="Ferramentas"><svg class="icon"><use href="#ic-tools"/></svg><span class="nav-label">Ferramentas</span></button>
     <button class="nav-item nav-mob" type="button" data-nav="menu" aria-haspopup="menu" title="Menu"><svg class="icon"><use href="#ic-menu"/></svg><span class="nav-label">Menu</span></button>
     <span class="nav-grow nav-desk"></span>
     <button class="nav-item nav-desk" type="button" data-nav="keys" title="Atalhos do teclado"><svg class="icon"><use href="#ic-keys"/></svg><span class="nav-label">Atalhos</span></button>
@@ -133,14 +148,10 @@
     <div class="home-card tools-card">
       <div class="home-brand">
         <div class="brand-icon"><svg class="icon"><use href="#ic-tools"/></svg></div>
-        <div><h1 id="toolsTitle" tabindex="-1">Ferramentas</h1><p>Utilitários extras, separados dos editores. Chegam aos poucos.</p></div>
+        <div><h1 id="toolsTitle" tabindex="-1">Ferramentas</h1><p>Todos os programas do Coding, em um só lugar.</p></div>
       </div>
-      <div class="tools-grid">
-        <button class="home-option" type="button" data-tool="codes"><span class="home-ic"><svg class="icon"><use href="#ic-qr"/></svg></span><span class="home-txt"><strong>QR e código de barras</strong><small>Em folha A4, vários por página</small></span><svg class="icon home-go"><use href="#ic-right"/></svg></button>
-        <button class="home-option" type="button" data-tool="sheet"><span class="home-ic"><svg class="icon"><use href="#ic-grid"/></svg></span><span class="home-txt"><strong>Etiquetas por planilha</strong><small>Uma etiqueta por linha do CSV/Excel</small></span><svg class="icon home-go"><use href="#ic-right"/></svg></button>
-        <div class="home-option tool-card" aria-disabled="true"><span class="home-ic"><svg class="icon"><use href="#ic-file"/></svg></span><span class="home-txt"><strong>Editor de PDF</strong><small>Anotar, assinar, juntar e dividir</small></span><em class="soon">Em breve</em></div>
-        <div class="home-option tool-card" aria-disabled="true"><span class="home-ic"><svg class="icon"><use href="#ic-image"/></svg></span><span class="home-txt"><strong>Imagens</strong><small>Redimensionar, cortar e comprimir</small></span><em class="soon">Em breve</em></div>
-      </div>
+      <p class="tv-info tools-hint">Ligue o interruptor para fixar o programa na barra lateral. <b>Início</b> e <b>Ferramentas</b> ficam sempre lá.</p>
+      <div id="toolsList"></div>
     </div>
   </div>
 
@@ -205,11 +216,102 @@
     </div>
   </section>
 
+  <section id="pdfView" class="tool-view" aria-labelledby="pdfTitle" hidden>
+    <header class="tv-head">
+      <button class="btn subtle" type="button" data-tool-back><svg class="icon"><use href="#ic-left"/></svg><span class="btn-label">Ferramentas</span></button>
+      <h1 id="pdfTitle" tabindex="-1">Editor de PDF</h1>
+      <button id="pdfSave" class="btn primary" type="button" disabled><svg class="icon"><use href="#ic-download"/></svg><span class="btn-label">Baixar PDF</span></button>
+    </header>
+    <div class="pdf-bar" id="pdfBar" role="toolbar" aria-label="Ações do PDF">
+      <button id="pdfOpen" class="btn subtle" type="button"><svg class="icon"><use href="#ic-upload"/></svg><span>Abrir</span></button>
+      <button id="pdfMerge" class="btn subtle" type="button" disabled title="Juntar outro PDF no fim"><svg class="icon"><use href="#ic-plus"/></svg><span>Juntar PDF</span></button>
+      <span class="pdf-sep"></span>
+      <button id="pdfSelAll" class="btn subtle" type="button" disabled>Selecionar tudo</button>
+      <button id="pdfRotL" class="btn subtle" type="button" disabled title="Girar para a esquerda">↺ Girar</button>
+      <button id="pdfRotR" class="btn subtle" type="button" disabled title="Girar para a direita">Girar ↻</button>
+      <button id="pdfMoveL" class="btn subtle" type="button" disabled title="Mover para trás">← Mover</button>
+      <button id="pdfMoveR" class="btn subtle" type="button" disabled title="Mover para frente">Mover →</button>
+      <button id="pdfDel" class="btn subtle" type="button" disabled><svg class="icon"><use href="#ic-trash"/></svg><span>Excluir</span></button>
+      <span class="pdf-sep"></span>
+      <button id="pdfAnnot" class="btn primary" type="button" disabled><svg class="icon"><use href="#ic-edit"/></svg><span>Anotar / assinar</span></button>
+      <button id="pdfExtract" class="btn subtle" type="button" disabled title="Baixar só as páginas selecionadas">Extrair</button>
+      <button id="pdfSplit" class="btn subtle" type="button" disabled title="Um PDF por página, em um .zip">Dividir</button>
+    </div>
+    <p id="pdfMsg" class="tv-msg pdf-msg" role="status"></p>
+    <div class="pdf-main" id="pdfMain">
+      <div id="pdfEmpty" class="pdf-empty">
+        <svg class="pi" aria-hidden="true"><use href="#pi-pdf"/></svg>
+        <strong>Abra um PDF para começar</strong>
+        <span>Arraste o arquivo para cá ou toque em <b>Abrir</b>. Tudo acontece neste aparelho.</span>
+      </div>
+      <div id="pdfGrid" class="pdf-grid" hidden></div>
+    </div>
+    <input id="pdfFile" type="file" accept="application/pdf,.pdf" multiple hidden>
+    <div id="pdfEditor" class="pdf-editor" role="dialog" aria-modal="true" aria-label="Anotar página" hidden>
+      <div class="pdf-ebar">
+        <button id="pdfEdDone" class="btn primary" type="button"><svg class="icon"><use href="#ic-check"/></svg><span>Concluir</span></button>
+        <span class="pdf-sep"></span>
+        <button class="btn subtle" type="button" data-tool="text">Texto</button>
+        <button class="btn subtle" type="button" data-tool="sign">Assinatura</button>
+        <button class="btn subtle" type="button" data-tool="image">Imagem</button>
+        <button class="btn subtle" type="button" data-tool="hl">Realçar</button>
+        <button class="btn subtle" type="button" data-tool="cover">Cobrir</button>
+        <span class="pdf-sep"></span>
+        <input id="pdfColor" type="color" value="#111111" aria-label="Cor do texto" title="Cor do texto">
+        <button id="pdfBigger" class="btn subtle" type="button" title="Aumentar o item">A+</button>
+        <button id="pdfSmaller" class="btn subtle" type="button" title="Diminuir o item">A−</button>
+        <button id="pdfRemove" class="btn subtle" type="button" title="Apagar o item selecionado (Delete)"><svg class="icon"><use href="#ic-trash"/></svg><span>Apagar</span></button>
+      </div>
+      <p class="pdf-ehint" id="pdfHint">Escolha uma ferramenta. Arraste para mover; toque duas vezes no texto para editar.</p>
+      <div class="pdf-stage" id="pdfStage"><div class="pdf-sheet" id="pdfSheet"><canvas id="pdfCanvas"></canvas><div class="pdf-over" id="pdfOver"></div></div></div>
+    </div>
+    <dialog id="sigDialog" class="dialog">
+      <form method="dialog" class="dialog-card">
+        <h2>Sua assinatura</h2>
+        <p>Desenhe com o dedo ou o mouse.</p>
+        <canvas id="sigPad" class="sig-pad" width="720" height="260"></canvas>
+        <div class="dialog-actions">
+          <button class="btn subtle" type="button" id="sigClear">Limpar</button>
+          <button class="btn subtle" type="button" id="sigCancel">Cancelar</button>
+          <button class="btn primary" type="button" id="sigUse">Usar</button>
+        </div>
+      </form>
+    </dialog>
+  </section>
+  <section id="imagesView" class="tool-view" aria-labelledby="imagesTitle" hidden>
+    <header class="tv-head">
+      <button class="btn subtle" type="button" data-tool-back><svg class="icon"><use href="#ic-left"/></svg><span class="btn-label">Ferramentas</span></button>
+      <h1 id="imagesTitle" tabindex="-1">Imagens</h1>
+      <button id="imgDownloadAll" class="btn primary" type="button" disabled><svg class="icon"><use href="#ic-download"/></svg><span class="btn-label">Baixar tudo</span></button>
+    </header>
+    <div class="tv-body">
+      <div class="tv-form">
+        <button id="imgAdd" class="btn primary" type="button"><svg class="icon"><use href="#ic-plus"/></svg><span class="btn-label">Adicionar imagens</span></button>
+        <input id="imgFiles" type="file" accept="image/*" multiple hidden>
+        <p class="tv-info">Escolha fotos ou arraste para cá. Tudo é feito neste aparelho: nada é enviado.</p>
+        <div class="tv-row">
+          <label class="tv-field"><span>Largura máx. (px)</span><input id="imgMaxW" type="number" min="16" max="12000" placeholder="sem limite" inputmode="numeric"></label>
+          <label class="tv-field"><span>Altura máx. (px)</span><input id="imgMaxH" type="number" min="16" max="12000" placeholder="sem limite" inputmode="numeric"></label>
+        </div>
+        <label class="tv-field"><span>Cortar</span>
+          <select id="imgCrop"><option value="">Sem corte</option><option value="1:1">Quadrado (1:1)</option><option value="4:3">4:3</option><option value="3:4">3:4 (em pé)</option><option value="3:2">3:2</option><option value="2:3">2:3 (em pé)</option><option value="16:9">16:9</option><option value="9:16">9:16 (em pé)</option></select>
+        </label>
+        <label class="tv-field"><span>Formato</span>
+          <select id="imgFormat"><option value="keep">Igual ao original</option><option value="image/jpeg">JPG</option><option value="image/png">PNG</option><option value="image/webp">WebP</option></select>
+        </label>
+        <label class="tv-field"><span>Qualidade: <b id="imgQualityVal">80%</b></span><input id="imgQuality" type="range" min="30" max="100" step="1" value="80"></label>
+        <p id="imgMsg" class="tv-msg" role="status"></p>
+        <p class="tv-info" id="imgInfo"></p>
+      </div>
+      <div class="tv-preview" id="imgDrop"><div id="imgList" class="img-list"></div><p id="imgEmpty" class="img-empty">Nenhuma imagem ainda.<br>Toque em <b>Adicionar imagens</b>.</p></div>
+    </div>
+  </section>
+
   <div id="newSheet" class="sheet-back" hidden>
     <div class="sheet" role="dialog" aria-modal="true" aria-label="Criar novo">
       <h2>Criar novo</h2>
-      <button class="home-option" type="button" data-new="labels"><span class="home-ic"><svg class="icon"><use href="#ic-tag"/></svg></span><span class="home-txt"><strong>Coding Etiquetas</strong><small>Códigos e descrições em A4</small></span></button>
-      <button class="home-option" type="button" data-new="texts"><span class="home-ic"><svg class="icon"><use href="#ic-text"/></svg></span><span class="home-txt"><strong>Coding Textos</strong><small>Textos e imagens, como no Word</small></span></button>
+      <button class="home-option" type="button" data-new="labels"><span class="home-ic pi-wrap"><svg class="pi"><use href="#pi-labels"/></svg></span><span class="home-txt"><strong>Coding Etiquetas</strong><small>Códigos e descrições em A4</small></span></button>
+      <button class="home-option" type="button" data-new="texts"><span class="home-ic pi-wrap"><svg class="pi"><use href="#pi-texts"/></svg></span><span class="home-txt"><strong>Coding Textos</strong><small>Textos e imagens, como no Word</small></span></button>
       <button class="home-option" type="button" data-new="file"><span class="home-ic"><svg class="icon"><use href="#ic-upload"/></svg></span><span class="home-txt"><strong>Abrir arquivo .json</strong><small>Projeto salvo antes</small></span></button>
       <button class="btn subtle sheet-cancel" type="button" data-new="close">Cancelar</button>
     </div>
@@ -410,11 +512,11 @@
         <h2 class="home-sub">Criar um novo</h2>
         <div class="home-types">
           <button id="homeNewLabels" class="home-option" type="button">
-            <span class="home-ic"><svg class="icon"><use href="#ic-tag"/></svg></span>
+            <span class="home-ic pi-wrap"><svg class="pi"><use href="#pi-labels"/></svg></span>
             <span class="home-txt"><strong>Coding Etiquetas</strong><small>Códigos e descrições em A4</small></span>
           </button>
           <button id="homeNewTexts" class="home-option" type="button">
-            <span class="home-ic"><svg class="icon"><use href="#ic-text"/></svg></span>
+            <span class="home-ic pi-wrap"><svg class="pi"><use href="#pi-texts"/></svg></span>
             <span class="home-txt"><strong>Coding Textos</strong><small>Textos e imagens, como no Word</small></span>
           </button>
         </div>
