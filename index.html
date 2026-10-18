@@ -4,21 +4,72 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#101722">
-  <meta name="description" content="Coding: crie etiquetas A4 com vários códigos e descrições de produtos, prontas para imprimir.">
+  <meta name="description" content="Coding: etiquetas A4 com vários códigos e descrições, e editor de textos básico (Texts), prontos para imprimir.">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Coding">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Coding | Etiquetas A4</title>
+  <title>Coding</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="style.css">
+  <!-- Tela de carregamento: tudo inline, sem depender do style.css -->
+  <style>
+    html,body{margin:0;background:#0f141d}
+    #boot{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;background:#0f141d;color:#eef3fb;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;opacity:1;transition:opacity .25s ease,visibility .25s}
+    #boot[hidden]{display:none}
+    #boot.hide{opacity:0;visibility:hidden;pointer-events:none}
+    #boot.busy{background:rgba(15,20,29,.8)}
+    #boot .b-in{display:flex;flex-direction:column;align-items:center;gap:16px;padding:24px;text-align:center}
+    #boot .b-logo{width:60px;height:60px;display:grid;place-items:center;border-radius:18px;border:1px solid #5a79b0;background:linear-gradient(135deg,#36558d,#27354b)}
+    #boot .b-logo svg{width:32px;height:32px;fill:none;stroke:#e1edff;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+    #boot .b-name{font-size:22px;font-weight:700;letter-spacing:-.5px}
+    #boot .b-spin{width:22px;height:22px;border-radius:50%;border:2px solid #2c394f;border-top-color:#8fb0ee;animation:b-rot .9s linear infinite}
+    #boot .b-msg{margin:0;min-height:18px;font-size:13px;color:#98a6bd;max-width:300px;line-height:1.5}
+    #boot .b-retry{padding:10px 18px;border-radius:10px;border:1px solid #9dbdff;background:#b0c9ff;color:#0f244a;font:inherit;font-weight:700;cursor:pointer}
+    #boot.failed .b-spin{display:none}
+    @keyframes b-rot{to{transform:rotate(360deg)}}
+    @media (prefers-reduced-motion:reduce){#boot{transition:none}#boot .b-spin{animation:none;border-top-color:#2c394f;border-right-color:#8fb0ee}}
+  </style>
+  <link rel="stylesheet" href="style.css" media="print" onload="this.media='all';window.__cssReady=1">
+  <noscript><link rel="stylesheet" href="style.css"></noscript>
   <style id="pageStyle">@page { size: A4 portrait; margin: 0; }</style>
-  <script src="script.js" defer></script>
+  <script>
+    (function () {
+      function fail(text) {
+        var boot = document.getElementById("boot");
+        if (!boot || window.__codingReady) return;
+        boot.hidden = false;
+        boot.className = "failed";
+        var msg = document.getElementById("bootMsg");
+        if (msg) msg.textContent = text;
+        var retry = document.getElementById("bootRetry");
+        if (retry) retry.hidden = false;
+      }
+      setTimeout(function () { fail("Está demorando mais do que o normal para carregar."); }, 8000);
+      window.addEventListener("error", function (event) {
+        var t = event.target;
+        if (t && (t.tagName === "SCRIPT" || t.tagName === "LINK")) fail("Não foi possível carregar o aplicativo. Verifique a conexão.");
+      }, true);
+    })();
+  </script>
+  <script src="core.js" defer></script>
+  <script src="labels.js" defer></script>
+  <script src="texts.js" defer></script>
+  <script src="menu.js" defer></script>
 </head>
 <body>
+  <div id="boot" role="status" aria-live="polite">
+    <div class="b-in">
+      <div class="b-logo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></svg></div>
+      <div class="b-name">Coding</div>
+      <div class="b-spin" aria-hidden="true"></div>
+      <p class="b-msg" id="bootMsg"></p>
+      <button class="b-retry" id="bootRetry" type="button" hidden onclick="location.reload()">Tentar de novo</button>
+      <noscript><p class="b-msg">O Coding precisa do JavaScript ativado para funcionar.</p></noscript>
+    </div>
+  </div>
   <svg class="svg-sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
     <symbol id="ic-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></symbol>
     <symbol id="ic-print" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6zM18 12h.01"/></symbol>
@@ -44,13 +95,23 @@
     <symbol id="ic-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></symbol>
     <symbol id="ic-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6M10 11v6M14 11v6"/></symbol>
     <symbol id="ic-install" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="14" rx="2"/><path d="M8 21h8M12 17v4M12 7v6m-3-3 3 3 3-3"/></symbol>
+    <symbol id="ic-undo" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/></symbol>
+    <symbol id="ic-redo" viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 15-6.7L21 13"/></symbol>
+    <symbol id="ic-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></symbol>
+    <symbol id="ic-olist" viewBox="0 0 24 24"><path d="M10 6h11M10 12h11M10 18h11M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></symbol>
+    <symbol id="ic-justify" viewBox="0 0 24 24"><path d="M3 6h18M3 10h18M3 14h18M3 18h18"/></symbol>
+    <symbol id="ic-tag" viewBox="0 0 24 24"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><path d="M7.5 7.5h.01"/></symbol>
+    <symbol id="ic-text" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></symbol>
+    <symbol id="ic-camera" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></symbol>
+    <symbol id="ic-swap" viewBox="0 0 24 24"><path d="m17 3 4 4-4 4M21 7H9a4 4 0 0 0-4 4M7 21l-4-4 4-4M3 17h12a4 4 0 0 0 4-4"/></symbol>
+    <symbol id="ic-keys" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
   </svg>
 
   <div class="app">
     <header class="topbar">
       <button class="brand" id="homeButton" type="button" title="Tela inicial" aria-label="Ir para a tela inicial">
         <span class="brand-icon"><svg class="icon"><use href="#ic-file"/></svg></span>
-        <span class="brand-copy"><strong>Coding</strong><span>Etiquetas A4</span></span>
+        <span class="brand-copy"><strong>Coding</strong><span id="brandSub">Etiquetas A4</span></span>
       </button>
       <div class="doc-name">
         <label for="documentName">Nome do documento</label>
@@ -67,7 +128,7 @@
       </div>
     </header>
 
-    <div class="workspace">
+    <div class="workspace" id="labelsWs" hidden>
       <aside class="panel" id="panel" aria-label="Editor">
         <button class="sheet-handle" id="sheetHandle" type="button" aria-label="Recolher ou expandir o editor" aria-expanded="true"></button>
         <nav class="tabs" role="tablist" aria-label="Seções do editor">
@@ -144,25 +205,110 @@
         </div>
       </main>
     </div>
+
+    <div class="workspace texts-ws" id="textsWs" hidden>
+      <div class="tx-main">
+        <div class="tx-toolbar" id="txToolbar" role="toolbar" aria-label="Formatação do texto">
+          <div class="tx-group">
+            <button type="button" class="tx-btn" id="txUndo" title="Desfazer (Ctrl+Z)" aria-label="Desfazer"><svg class="icon"><use href="#ic-undo"/></svg></button>
+            <button type="button" class="tx-btn" id="txRedo" title="Refazer (Ctrl+Y)" aria-label="Refazer"><svg class="icon"><use href="#ic-redo"/></svg></button>
+          </div>
+          <div class="tx-group">
+            <select id="txBlock" class="tx-select" title="Estilo do parágrafo" aria-label="Estilo do parágrafo">
+              <option value="p">Texto normal</option>
+              <option value="h1">Título 1</option>
+              <option value="h2">Título 2</option>
+            </select>
+            <select id="txFont" class="tx-select tx-font" title="Fonte" aria-label="Fonte"></select>
+            <select id="txSize" class="tx-select tx-size" title="Tamanho (pt)" aria-label="Tamanho da fonte"></select>
+          </div>
+          <div class="tx-group">
+            <button type="button" class="tx-btn tx-bold" id="txBold" title="Negrito (Ctrl+B)" aria-label="Negrito" aria-pressed="false">B</button>
+            <button type="button" class="tx-btn tx-italic" id="txItalic" title="Itálico (Ctrl+I)" aria-label="Itálico" aria-pressed="false">I</button>
+            <button type="button" class="tx-btn tx-underline" id="txUnderline" title="Sublinhado (Ctrl+U)" aria-label="Sublinhado" aria-pressed="false">U</button>
+            <label class="tx-btn tx-color" title="Cor do texto"><span id="txColorSwatch">A</span><input type="color" id="txColor" value="#000000" aria-label="Cor do texto"></label>
+          </div>
+          <div class="tx-group">
+            <button type="button" class="tx-btn" id="txAlignLeft" title="Alinhar à esquerda" aria-label="Alinhar à esquerda" aria-pressed="false"><svg class="icon"><use href="#ic-alignleft"/></svg></button>
+            <button type="button" class="tx-btn" id="txAlignCenter" title="Centralizar" aria-label="Centralizar" aria-pressed="false"><svg class="icon"><use href="#ic-center"/></svg></button>
+            <button type="button" class="tx-btn" id="txAlignRight" title="Alinhar à direita" aria-label="Alinhar à direita" aria-pressed="false"><svg class="icon"><use href="#ic-alignright"/></svg></button>
+            <button type="button" class="tx-btn" id="txAlignJustify" title="Justificar" aria-label="Justificar" aria-pressed="false"><svg class="icon"><use href="#ic-justify"/></svg></button>
+          </div>
+          <div class="tx-group">
+            <button type="button" class="tx-btn" id="txBullets" title="Lista com marcadores" aria-label="Lista com marcadores" aria-pressed="false"><svg class="icon"><use href="#ic-list"/></svg></button>
+            <button type="button" class="tx-btn" id="txNumbers" title="Lista numerada" aria-label="Lista numerada" aria-pressed="false"><svg class="icon"><use href="#ic-olist"/></svg></button>
+          </div>
+          <div class="tx-group tx-images-group">
+            <button type="button" class="tx-btn tx-wide" id="txImage" title="Inserir imagem (arquivo ou galeria)"><svg class="icon"><use href="#ic-image"/></svg><span>Imagem</span></button>
+            <button type="button" class="tx-btn tx-camera" id="txCamera" title="Tirar uma foto" aria-label="Tirar uma foto"><svg class="icon"><use href="#ic-camera"/></svg></button>
+          </div>
+          <div class="tx-group">
+            <select id="txOrient" class="tx-select" title="Orientação da folha" aria-label="Orientação da folha">
+              <option value="portrait">Retrato</option>
+              <option value="landscape">Paisagem</option>
+            </select>
+          </div>
+        </div>
+        <div class="tx-imgbar" id="imgBar" role="toolbar" aria-label="Imagem selecionada" hidden>
+          <span class="tx-imgbar-title">Imagem</span>
+          <label class="tx-width">Largura <input type="range" id="imgWidth" min="5" max="100" step="1" aria-label="Largura da imagem em porcentagem da folha"><output id="imgWidthOut">50%</output></label>
+          <div class="tx-group">
+            <button type="button" class="tx-btn" id="imgLeft" title="Imagem à esquerda" aria-label="Imagem à esquerda"><svg class="icon"><use href="#ic-alignleft"/></svg></button>
+            <button type="button" class="tx-btn" id="imgCenter" title="Imagem centralizada" aria-label="Imagem centralizada"><svg class="icon"><use href="#ic-center"/></svg></button>
+            <button type="button" class="tx-btn" id="imgRight" title="Imagem à direita" aria-label="Imagem à direita"><svg class="icon"><use href="#ic-alignright"/></svg></button>
+          </div>
+          <button type="button" class="tx-btn tx-wide" id="imgReplace" title="Substituir imagem (mantém o quadro)"><svg class="icon"><use href="#ic-swap"/></svg><span>Substituir</span></button>
+          <button type="button" class="tx-btn tx-wide danger" id="imgRemove" title="Remover imagem (Delete)"><svg class="icon"><use href="#ic-trash"/></svg><span>Remover</span></button>
+        </div>
+        <div class="tx-scroll" id="txScroll">
+          <div class="tx-wrap" id="txWrap">
+            <div class="tx-sheet" id="txSheet">
+              <div class="tx-editor" id="txEditor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Texto do documento" spellcheck="true" data-empty="true"></div>
+              <div class="tx-markers" id="txMarkers" aria-hidden="true"></div>
+              <div class="tx-overlay" id="imgOverlay" hidden aria-hidden="true">
+                <span class="tx-handle" data-h="nw"></span><span class="tx-handle" data-h="ne"></span><span class="tx-handle" data-h="sw"></span><span class="tx-handle" data-h="se"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="statusbar tx-status">
+          <div class="status-left">
+            <span id="txWords" class="indicator">0 palavras</span>
+            <span id="txPages" class="muted">1 página</span>
+          </div>
+          <div class="zoom-controls">
+            <button id="txZoomOut" class="icon-btn" type="button" aria-label="Diminuir zoom"><svg class="icon"><use href="#ic-minus"/></svg></button>
+            <button id="txZoomIndicator" class="zoom-reset" type="button" title="Ajustar à largura" aria-label="Ajustar à largura">100%</button>
+            <button id="txZoomIn" class="icon-btn" type="button" aria-label="Aumentar zoom"><svg class="icon"><use href="#ic-plus"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="home" class="home" role="dialog" aria-modal="true" aria-labelledby="homeTitle" hidden>
     <div class="home-card">
       <div class="home-brand">
         <div class="brand-icon"><svg class="icon"><use href="#ic-file"/></svg></div>
-        <div><h1 id="homeTitle">Coding</h1><p>Etiquetas A4 para caixas e produtos</p></div>
+        <div><h1 id="homeTitle">Coding</h1><p>Etiquetas e textos, prontos para imprimir</p></div>
       </div>
       <div class="home-actions">
         <button id="homeContinue" class="home-option primary" type="button">
-          <span class="home-ic"><svg class="icon"><use href="#ic-edit"/></svg></span>
+          <span class="home-ic" id="homeContinueIcon"><svg class="icon"><use href="#ic-edit"/></svg></span>
           <span class="home-txt"><strong>Continuar editando</strong><span id="homeContinueName" class="home-name"></span><small id="homeContinueInfo"></small></span>
           <svg class="icon home-go"><use href="#ic-right"/></svg>
         </button>
-        <button id="homeNew" class="home-option" type="button">
-          <span class="home-ic"><svg class="icon"><use href="#ic-plus"/></svg></span>
-          <span class="home-txt"><strong>Criar um novo</strong><small>Começa com um modelo pronto</small></span>
-          <svg class="icon home-go"><use href="#ic-right"/></svg>
-        </button>
+        <h2 class="home-sub">Criar um novo</h2>
+        <div class="home-types">
+          <button id="homeNewLabels" class="home-option" type="button">
+            <span class="home-ic"><svg class="icon"><use href="#ic-tag"/></svg></span>
+            <span class="home-txt"><strong>Etiquetas</strong><small>Códigos e descrições em A4</small></span>
+          </button>
+          <button id="homeNewTexts" class="home-option" type="button">
+            <span class="home-ic"><svg class="icon"><use href="#ic-text"/></svg></span>
+            <span class="home-txt"><strong>Texts</strong><small>Textos e imagens, como no Word</small></span>
+          </button>
+        </div>
       </div>
       <div id="homeRecent" class="home-recent" hidden>
         <h2>Outros documentos</h2>
@@ -185,8 +331,20 @@
     </form>
   </dialog>
 
+  <dialog id="shortcutsDialog" class="dialog">
+    <div class="dialog-card">
+      <h2>Atalhos do teclado</h2>
+      <div id="shortcutList" class="shortcut-list"></div>
+      <p>Clique com o botão direito para abrir o menu do Coding. Segure Shift para ver o menu do navegador. No celular, use o toque longo.</p>
+      <div class="dialog-actions"><button class="btn primary" type="button" id="shortcutsClose">Fechar</button></div>
+    </div>
+  </dialog>
+
+  <div id="ctxMenu" class="ctx-menu" role="menu" aria-label="Menu de contexto" hidden></div>
   <div id="measureHost" aria-hidden="true"></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <input id="importInput" type="file" accept=".json,application/json" hidden>
+  <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/*" hidden>
+  <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden>
 </body>
 </html>

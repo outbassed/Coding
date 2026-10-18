@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Coding — Etiquetas A4",
+  "name": "Coding — Etiquetas e Texts",
   "short_name": "Coding",
-  "description": "Crie etiquetas A4 com vários códigos e descrições de produtos, prontas para imprimir.",
+  "description": "Etiquetas A4 com vários códigos e descrições, e editor de textos básico (Texts) com imagens, prontos para imprimir.",
   "lang": "pt-BR",
   "dir": "ltr",
   "start_url": "./",
@@ -48,10 +48,23 @@
   ],
   "shortcuts": [
     {
-      "name": "Criar um novo",
-      "short_name": "Novo",
-      "description": "Começa um documento com o modelo padrão",
-      "url": "./#/novo",
+      "name": "Nova etiqueta",
+      "short_name": "Etiquetas",
+      "description": "Começa um documento de etiquetas com o modelo padrão",
+      "url": "./#/novo/etiquetas",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Novo texto",
+      "short_name": "Texts",
+      "description": "Começa um documento no Coding Texts",
+      "url": "./#/novo/texts",
       "icons": [
         {
           "src": "icons/icon-192.png",

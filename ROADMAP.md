@@ -4,76 +4,10 @@ Lista de pedidos pendentes. Quando o dono do projeto mandar **"Iniciar update"**
 
 ## Próximo update
 
-### Modos do app
-O Coding passa a ter modos. A tela inicial deixa escolher o tipo ao criar um documento, e a biblioteca guarda os dois tipos juntos.
+Nada pendente. Os pedidos novos entram aqui.
 
-- **Etiquetas**: o que existe hoje, sem mudanças.
-- **Texts**: editor de texto básico, tipo um Word enxuto.
-
-Regras gerais:
-- Cada documento guarda o seu `type` (`labels` ou `texts`). Documentos antigos viram `labels`.
-- A biblioteca mostra os dois tipos, com ícone para diferenciar.
-- Links: `#/novo/texts` e `#/novo/etiquetas` (`#/novo` continua criando Etiquetas).
-- O botão Link, o PWA, o salvamento, a exportação `.json` e o modo offline funcionam nos dois tipos.
-
-### Coding Texts, primeira versão (só o essencial)
-- Folha A4 em retrato ou paisagem, com margens, e impressão/PDF.
-- Formatação: negrito, itálico, sublinhado, fonte, tamanho, cor do texto e alinhamento (esquerda, centro, direita, justificado).
-- Títulos (1 e 2) e listas (com marcadores e numeradas).
-- Desfazer e refazer; atalhos Ctrl+B / I / U / Z / Y.
-- Colar texto sem trazer formatação estranha.
-- Contador de palavras e de páginas na barra inferior.
-- Marcação visual de onde cada página termina (a folha é contínua ao editar; no PDF as quebras seguem o A4).
-- Salvamento automático na biblioteca, nome do documento editável.
-- Mesmo layout responsivo do app (celular, tablet, computador).
-
-### Imagens dentro da folha (somente no Texts)
-O modo **Etiquetas continua sem imagens** (decisão do dono). No Texts dá para inserir imagens (PNG, JPG, WebP; também colando com Ctrl+V e, no celular, escolhendo da galeria ou da câmera).
-
-- **Texts:** a imagem entra no fluxo do texto. Selecionando, aparecem alças para **aumentar e diminuir** arrastando (mantém a proporção) e uma barra com: largura em % da folha, alinhamento (esquerda, centro, direita), **substituir imagem** e remover.
-- Folha em retrato ou paisagem, impressão e PDF mostram as imagens como na tela.
-- Documentos de etiquetas não mudam e não carregam imagens.
-- **Substituir imagem:** na barra da imagem selecionada, o botão "Substituir" abre a escolha de um novo arquivo (também vale arrastar outra imagem para cima dela, ou colar com Ctrl+V com a imagem selecionada). A nova imagem ocupa **o mesmo quadro**: mesma largura, mesma altura e mesmo alinhamento, então o texto ao redor não se mexe. Ela é ajustada dentro do quadro sem distorcer (se a proporção for diferente, sobra espaço vazio nas laterais ou em cima e embaixo). Funciona igualmente em imagens normais e nos **fallbacks** (o quadro "Imagem indisponível" também tem o botão Substituir). Dá para desfazer com Ctrl+Z.
-- **Imagem de fallback:** se uma imagem não puder ser exibida (arquivo corrompido, removido do armazenamento ou falha ao carregar), aparece um quadro cinza com ícone de imagem e o texto "Imagem indisponível". Ele mantém o tamanho e o alinhamento escolhidos, então o layout da folha não muda. As alças e a barra continuam funcionando, e dá para **substituir** a imagem ou **remover** o quadro. Antes de imprimir, o app avisa que há imagens indisponíveis; no PDF o quadro sai vazio, só com a borda fina.
-
-Decisões técnicas:
-- As imagens são reduzidas ao inserir (lado maior de até 1600 px, em WebP/JPEG) para não estourar o armazenamento nem o PDF.
-- Como `localStorage` tem limite pequeno (cerca de 5 MB), a biblioteca (que é única para os dois modos) passa para **IndexedDB**. Os documentos atuais são migrados sozinhos, sem perder nada.
-- Exportar `.json` leva as imagens dentro do arquivo. O **link de compartilhamento não leva imagens** (não cabem num link); o app avisa e sugere usar Salvar (.json).
-- Limite por documento: 30 imagens. A biblioteca mostra um aviso se o aparelho ficar sem espaço.
-
-Fica para depois: recortar, girar, imagem solta sobre o texto (posição livre) e imagem de fundo.
-
-### Menu de clique direito personalizado (os dois modos)
-O botão direito abre um menu do próprio Coding, com **atalhos de teclado mostrados ao lado de cada opção**. O conteúdo muda conforme onde se clica:
-
-- **Em qualquer lugar:** Novo documento, Tela inicial, Imprimir / PDF, Copiar link, Salvar (.json), Abrir arquivo, Mostrar/ocultar o editor, Zoom (aumentar, diminuir, página inteira).
-- **Etiquetas, sobre um item da lista:** Adicionar item, Duplicar, Subir, Descer, Excluir. Sobre a folha: Retrato/Paisagem, 1/2/3 colunas, Linha de corte.
-- **Texts, sobre o texto:** Cortar, Copiar, Colar, Colar sem formatação, Negrito, Itálico, Sublinhado, alinhamento, lista com marcadores/numerada, título.
-- **Texts, sobre uma imagem:** Substituir, tamanho (pequena, média, grande, largura total), alinhamento, Copiar, Remover.
-
-Regras:
-- **Shift + botão direito** abre o menu normal do navegador (corretor ortográfico, por exemplo). Nos campos de digitação do modo Etiquetas o menu normal continua como está.
-- No celular e no tablet o menu abre com **toque longo**, em formato de lista grande e fácil de tocar.
-- Navegação pelo teclado: tecla Menu ou Shift+F10 abre, setas escolhem, Enter confirma, Esc fecha. Também fecha ao clicar fora ou rolar a página.
-- O menu nunca sai da tela (reposiciona perto das bordas) e é acessível a leitores de tela.
-- "Colar" pelo menu depende da permissão do navegador para ler a área de transferência; se for negada, o app avisa para usar Ctrl+V.
-- Atalhos de teclado do app (além dos do editor): Ctrl+P imprimir, Ctrl+S salvar (.json), Alt+N novo documento, Alt+H tela inicial, e a tecla **?** abre a lista de atalhos. (Ctrl+N e Ctrl+T são reservados pelo navegador e não dá para usar.)
-
-### Tela de carregamento
-Uma tela de loading cobre o app até tudo estar pronto, para nunca aparecer a página "sem estilo" nem o editor piscando antes da tela inicial (hoje o editor aparece por uma fração de segundo antes da tela inicial entrar).
-
-- O HTML e o CSS da tela de loading ficam **dentro do próprio `index.html`**, sem depender do `style.css`, então ela já aparece no primeiro quadro, com o mesmo fundo escuro do app (sem flash branco).
-- Visual: logo do Coding no centro e um indicador de progresso discreto. Nada de texto grande.
-- Ela some com uma transição suave quando o CSS, o script e a biblioteca de documentos terminaram de carregar. Tempo mínimo de exibição curto, para não piscar quando tudo carrega rápido.
-- **Segurança:** se algo demorar demais (cerca de 8 segundos) ou der erro, a tela de loading some mesmo assim e mostra uma mensagem com o botão "Tentar de novo". O app nunca fica preso nela.
-- Sem JavaScript, aparece um aviso explicando que o Coding precisa dele.
-- Respeita "reduzir movimento" (sem animação para quem ativou isso no sistema).
-- No app instalado, a tela de abertura do sistema (`background_color` do manifest) já combina com o loading, para a transição ser contínua.
-- Vale também ao trocar de documento grande ou abrir pelo link de compartilhamento.
-
-### Fora da primeira versão (fica para depois)
-Tabelas, exportar para `.docx`, cabeçalho/rodapé, comentários, corretor ortográfico próprio (o do navegador continua valendo).
+### Ainda fora do Texts (fica para depois)
+Tabelas, exportar para `.docx`, cabeçalho/rodapé, comentários, corretor ortográfico próprio (o do navegador continua valendo), recortar e girar imagem, imagem solta sobre o texto (posição livre) e imagem de fundo.
 
 ## Ideias ainda não aprovadas
 - Salvar modelos próprios (por exemplo "meu padrão" com fontes e tamanhos).
@@ -87,3 +21,9 @@ Tabelas, exportar para `.docx`, cabeçalho/rodapé, comentários, corretor ortog
 - Tela inicial (Continuar editando / Criar um novo) e biblioteca de documentos.
 - PWA instalável e offline.
 - Links diretos (`#/novo`, `#/continuar`, `#/doc/…`) e link de compartilhamento.
+- **Modos Etiquetas e Texts**, com a escolha na tela inicial, ícone por tipo na biblioteca e links `#/novo/etiquetas` e `#/novo/texts` (`#/novo` continua sendo Etiquetas).
+- **Coding Texts**: folha A4 retrato/paisagem, negrito, itálico, sublinhado, fonte, tamanho, cor, alinhamento e justificado, títulos 1 e 2, listas, desfazer/refazer, colar sem formatação, contador de palavras e páginas, marcas de fim de página, impressão/PDF.
+- **Imagens no Texts**: inserir por arquivo, galeria/câmera, Ctrl+V ou arrastando; alças e barra (largura, alinhamento, substituir, remover); redução para 1600 px; quadro "Imagem indisponível" com botão Substituir; limite de 30 imagens.
+- **Biblioteca em IndexedDB**, com migração automática dos documentos antigos e reserva em `localStorage`; `.json` leva as imagens, o link de compartilhamento não.
+- **Menu de clique direito** com atalhos por contexto, toque longo, teclado e acessibilidade; atalhos Ctrl+P, Ctrl+S, Alt+N, Alt+H e `?`.
+- **Tela de carregamento** inline, sem flash de CSS, com aviso e "Tentar de novo" após 8 s.

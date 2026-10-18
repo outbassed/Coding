@@ -1,29 +1,18 @@
-/* Coding v2.0 — sem dependências externas */
+/* Coding — modo Etiquetas */
 (() => {
   "use strict";
 
-  const LIB_KEY = "coding-library-v1";
-  const PANEL_KEY = "coding-panel-hidden";
-  const FONTS = ["Arial", "Arial Black", "Impact", "Verdana", "Georgia", "Times New Roman", "Courier New", "Trebuchet MS", "Tahoma"];
+  const C = window.Coding;
+  const { byId, clamp, uid, toInt, toText, toFont, toAlign, toBool, FONTS } = C.util;
+  const scheduleSave = C.scheduleSave;
+  const toast = C.toast;
+  const PANEL_KEY = C.PANEL_KEY;
   const MAX_ITEMS = 200;
   const MAX_COPIES = 500;
   const MAX_BLOCKS = 2000;
-  const MAX_DOCS = 30;
   const PAPER = { portrait: { w: 210, h: 297 }, landscape: { w: 297, h: 210 } };
   const MARGIN_X_MM = 14;
   const MARGIN_Y_MM = 15;
-
-  const byId = (id) => document.getElementById(id);
-  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-  const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
-  const toInt = (value, fallback, min, max) => {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? clamp(Math.round(parsed), min, max) : fallback;
-  };
-  const toText = (value, fallback, limit) => typeof value === "string" ? value.slice(0, limit) : fallback;
-  const toFont = (value, fallback) => FONTS.includes(value) ? value : fallback;
-  const toAlign = (value, fallback) => ["left", "center", "right"].includes(value) ? value : fallback;
-  const toBool = (value, fallback) => typeof value === "boolean" ? value : fallback;
 
   function defaults() {
     return {
@@ -84,34 +73,8 @@
     };
   }
 
-  function loadLibrary() {
-    try {
-      const raw = localStorage.getItem(LIB_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object" && parsed.docs && typeof parsed.docs === "object") {
-          const docs = {};
-          Object.values(parsed.docs).slice(0, MAX_DOCS).forEach((d) => {
-            if (d && typeof d.id === "string") docs[d.id] = { id: d.id, updatedAt: Number(d.updatedAt) || Date.now(), state: normalize(d.state) };
-          });
-          const newest = Object.values(docs).sort((a, b) => b.updatedAt - a.updatedAt)[0];
-          return { currentId: docs[parsed.currentId] ? parsed.currentId : (newest ? newest.id : null), docs };
-        }
-      }
-      // Migra o documento único das versões anteriores.
-      const old = localStorage.getItem("coding-document-v2") || localStorage.getItem("coding-document-v1");
-      if (old) {
-        const id = uid();
-        return { currentId: id, docs: { [id]: { id, updatedAt: Date.now(), state: normalize(JSON.parse(old)) } } };
-      }
-    } catch (_) { /* biblioteca vazia */ }
-    return { currentId: null, docs: {} };
-  }
-
-  const lib = loadLibrary();
-  let currentId = lib.currentId;
-  let state = currentId ? lib.docs[currentId].state : normalize(defaults());
-
+  let state = normalize(defaults());
+  const root = byId("labelsWs");
   const pagesEl = byId("pages");
   const area = byId("sheetsArea");
   const measureHost = byId("measureHost");
@@ -127,43 +90,6 @@
   let pageCount = 1;
   let printBlockedReason = "";
   let renderPending = false;
-  let saveTimer;
-  let toastTimer;
-  let dirty = false;
-
-  /* ---------- Utilidades de interface ---------- */
-
-  function setSaved(message) { byId("saveText").textContent = message; }
-
-  function persist() {
-    if (!currentId || !lib.docs[currentId]) return;
-    if (dirty) { lib.docs[currentId].updatedAt = Date.now(); dirty = false; }
-    lib.currentId = currentId;
-    try {
-      localStorage.setItem(LIB_KEY, JSON.stringify(lib));
-      setSaved("Salvo neste aparelho");
-    } catch (_) {
-      setSaved("Armazenamento indisponível");
-    }
-  }
-
-  function flushSave() { clearTimeout(saveTimer); persist(); }
-
-  function scheduleSave() {
-    dirty = true;
-    setSaved("Salvando...");
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(persist, 300);
-  }
-
-  function toast(message) {
-    const el = byId("toast");
-    el.textContent = message;
-    el.classList.toggle("sheet-collapsed", panel.classList.contains("collapsed"));
-    el.classList.add("show");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
-  }
 
   function setTab(tab) {
     document.querySelectorAll(".tab").forEach((button) => {
@@ -553,251 +479,6 @@
       }
     }
   }
-
-  /* ---------- Projeto: novo, salvar, abrir ---------- */
-
-  function exportProject() {
-    const payload = { format: "coding-document", version: 2, ...state, items: state.items.map(({ code, description, copies }) => ({ code, description, copies })) };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = (state.name.trim() || "documento").replace(/[\\/:*?"<>|]/g, "-") + ".coding.json";
-    document.body.append(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast("Projeto salvo em arquivo .json.");
-  }
-
-  async function importProject(file) {
-    if (file.size > 1000000) { toast("Arquivo muito grande. Limite: 1 MB."); return; }
-    try {
-      const loaded = JSON.parse(await file.text());
-      if (!loaded || typeof loaded !== "object" || loaded.format !== "coding-document" || ![1, 2].includes(loaded.version)) {
-        throw new Error("Formato inválido");
-      }
-      if (createDoc(loaded)) toast("Projeto aberto como um novo documento.");
-    } catch (_) {
-      toast("Não foi possível abrir este arquivo do Coding.");
-    }
-  }
-
-  /* ---------- Documentos salvos e tela inicial ---------- */
-
-  function openDoc(id, opts = {}) {
-    if (!lib.docs[id]) return;
-    flushSave();
-    currentId = id;
-    state = lib.docs[id].state;
-    currentPage = 0;
-    refreshFields();
-    render();
-    persist();
-    hideHome();
-    setTab("itens");
-    setRoute("#/doc/" + id, opts.replace);
-  }
-
-  function createDoc(source, opts = {}) {
-    if (Object.keys(lib.docs).length >= MAX_DOCS) {
-      toast("Limite de " + MAX_DOCS + " documentos. Exclua algum na tela inicial.");
-      return false;
-    }
-    flushSave();
-    const id = uid();
-    lib.docs[id] = { id, updatedAt: Date.now(), state: normalize(source) };
-    openDoc(id, opts);
-    return true;
-  }
-
-  const homeEl = byId("home");
-  const appEl = document.querySelector(".app");
-
-  function docInfo(doc) {
-    let labels = 0;
-    doc.state.items.forEach((item) => { if (hasContent(item)) labels += item.copies; });
-    const when = new Date(doc.updatedAt).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-    return labels + (labels === 1 ? " etiqueta" : " etiquetas") + " · " + when;
-  }
-
-  /* ---------- Rotas por URL (#/novo, #/continuar, #/doc/ID, #/importar/…) ---------- */
-
-  let handledHash = null;
-
-  function setRoute(hash, replace) {
-    handledHash = hash;
-    if (location.hash === hash) return;
-    try { history[replace ? "replaceState" : "pushState"](null, "", hash); } catch (_) { /* sem histórico */ }
-  }
-
-  const slug = (text) => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-
-  function findDocId(arg) {
-    if (lib.docs[arg]) return arg;
-    const wanted = slug(arg);
-    if (!wanted) return null;
-    const hit = Object.values(lib.docs).sort((a, b) => b.updatedAt - a.updatedAt).find((d) => slug(d.state.name) === wanted);
-    return hit ? hit.id : null;
-  }
-
-  const b64uEncode = (bytes) => {
-    let text = "";
-    for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-    return btoa(text).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  };
-  const b64uDecode = (token) => {
-    const binary = atob(token.replace(/-/g, "+").replace(/_/g, "/"));
-    const out = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
-    return out;
-  };
-
-  async function gzip(bytes) {
-    const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("gzip"));
-    return new Uint8Array(await new Response(stream).arrayBuffer());
-  }
-
-  async function gunzip(bytes) {
-    const reader = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip")).getReader();
-    const chunks = [];
-    let size = 0;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.length;
-      if (size > 1000000) { reader.cancel(); throw new Error("Conteúdo grande demais"); }
-      chunks.push(value);
-    }
-    const out = new Uint8Array(size);
-    let offset = 0;
-    chunks.forEach((chunk) => { out.set(chunk, offset); offset += chunk.length; });
-    return out;
-  }
-
-  async function buildShareUrl() {
-    const payload = { format: "coding-document", version: 2, ...state, items: state.items.map(({ code, description, copies }) => ({ code, description, copies })) };
-    const bytes = new TextEncoder().encode(JSON.stringify(payload));
-    const token = "CompressionStream" in window ? "z." + b64uEncode(await gzip(bytes)) : "j." + b64uEncode(bytes);
-    return location.origin + location.pathname + "#/importar/" + token;
-  }
-
-  async function decodeShare(token) {
-    if (token.length > 40000) throw new Error("Link grande demais");
-    const bytes = b64uDecode(token.slice(2));
-    let raw;
-    if (token.startsWith("z.") && "DecompressionStream" in window) raw = await gunzip(bytes);
-    else if (token.startsWith("j.")) raw = bytes;
-    else throw new Error("Formato desconhecido");
-    return JSON.parse(new TextDecoder().decode(raw));
-  }
-
-  async function importFromLink(token) {
-    try {
-      const data = await decodeShare(token);
-      if (!data || typeof data !== "object" || data.format !== "coding-document") throw new Error("Formato inválido");
-      const name = toText(data.name, "Documento", 80).trim() || "Documento";
-      if (window.confirm("Abrir o documento compartilhado “" + name + "”? Ele será salvo como um novo documento neste aparelho.")) {
-        if (createDoc(data, { replace: true })) return;
-      }
-    } catch (_) {
-      toast("Este link do Coding está incompleto ou inválido.");
-    }
-    showHome({ replace: true });
-  }
-
-  async function copyShareLink() {
-    try {
-      const url = await buildShareUrl();
-      if (url.length > 16000) { toast("Documento grande demais para virar link. Use Salvar (.json)."); return; }
-      try {
-        await navigator.clipboard.writeText(url);
-        toast("Link copiado. Quem abrir recebe uma cópia deste documento.");
-      } catch (_) {
-        window.prompt("Copie o link do documento:", url);
-      }
-    } catch (_) {
-      toast("Não foi possível gerar o link.");
-    }
-  }
-
-  async function handleRoute() {
-    const hash = location.hash;
-    if (hash === handledHash) return;
-    handledHash = hash;
-    try {
-      const parts = hash.replace(/^#\/?/, "").split("/");
-      const name = parts[0];
-      const arg = decodeURIComponent(parts.slice(1).join("/"));
-      if (name === "novo") createDoc(defaults(), { replace: true });
-      else if (name === "continuar") { if (currentId) openDoc(currentId, { replace: true }); else showHome({ replace: true }); }
-      else if (name === "doc") {
-        const id = findDocId(arg);
-        if (id) openDoc(id, { replace: true });
-        else { showHome({ replace: true }); toast("Documento não encontrado neste aparelho."); }
-      }
-      else if (name === "importar") await importFromLink(arg);
-      else showHome({ replace: true });
-    } catch (_) {
-      showHome({ replace: true });
-    }
-  }
-
-  function continueEditing() {
-    if (!currentId) return;
-    hideHome();
-    setRoute("#/doc/" + currentId);
-  }
-
-  function showHome(opts = {}) {
-    flushSave();
-    setRoute("#/", opts.replace);
-    const current = currentId ? lib.docs[currentId] : null;
-    byId("homeContinue").hidden = !current;
-    if (current) {
-      byId("homeContinueName").textContent = current.state.name.trim() || "Documento sem título";
-      byId("homeContinueInfo").textContent = docInfo(current);
-    }
-    const others = Object.values(lib.docs).filter((d) => d.id !== currentId).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 8);
-    byId("homeRecent").hidden = others.length === 0;
-    byId("recentList").replaceChildren(...others.map((d) => {
-      const name = d.state.name.trim() || "Documento sem título";
-      const li = document.createElement("li");
-      li.className = "recent-item";
-      const open = document.createElement("button");
-      open.type = "button";
-      open.className = "recent-open";
-      open.dataset.open = d.id;
-      const title = document.createElement("strong");
-      title.textContent = name;
-      const info = document.createElement("small");
-      info.textContent = docInfo(d);
-      open.append(title, info);
-      const del = document.createElement("button");
-      del.type = "button";
-      del.className = "icon-btn danger";
-      del.dataset.del = d.id;
-      del.setAttribute("aria-label", "Excluir " + name);
-      del.title = "Excluir";
-      del.innerHTML = '<svg class="icon"><use href="#ic-trash"/></svg>';
-      li.append(open, del);
-      return li;
-    }));
-    homeEl.hidden = false;
-    appEl.inert = true;
-    appEl.setAttribute("aria-hidden", "true");
-    (current ? byId("homeContinue") : byId("homeNew")).focus({ preventScroll: true });
-  }
-
-  function hideHome() {
-    homeEl.hidden = true;
-    appEl.inert = false;
-    appEl.removeAttribute("aria-hidden");
-    requestAnimationFrame(applyZoom);
-  }
-
-  /* ---------- Ligações dos controles ---------- */
-
   function bindStepper(inputId, key, min, max) {
     const input = byId(inputId);
     const update = () => {
@@ -810,12 +491,102 @@
     input.addEventListener("blur", () => { input.value = state[key]; });
   }
 
+  /* ---------- Integração com o núcleo ---------- */
+
+  const hasItemContent = hasContent;
+
+  function payload(doc) {
+    const s = doc.state;
+    return { format: "coding-document", version: 2, type: "labels", ...s, items: s.items.map(({ code, description, copies }) => ({ code, description, copies })) };
+  }
+
+  function info(doc) {
+    let labels = 0;
+    doc.state.items.forEach((item) => { if (hasItemContent(item)) labels += item.copies; });
+    return labels + (labels === 1 ? " etiqueta" : " etiquetas");
+  }
+
+  function open(doc) {
+    state = doc.state;
+    currentPage = 0;
+    refreshFields();
+    setTab("itens");
+    render();
+    byId("labelsWs").scrollTop = 0;
+  }
+
+  function print() {
+    if (renderPending) render();
+    if (printBlockedReason) { toast(printBlockedReason); return; }
+    window.print();
+  }
+
+  function togglePanelHidden(force) {
+    const app = document.querySelector(".app");
+    const hide = typeof force === "boolean" ? force : !app.classList.contains("panel-hidden");
+    app.classList.toggle("panel-hidden", hide);
+    const toggle = byId("panelToggle");
+    toggle.classList.toggle("is-on", !hide);
+    toggle.setAttribute("aria-pressed", String(!hide));
+    try { localStorage.setItem(PANEL_KEY, hide ? "1" : "0"); } catch (_) { /* ignorado */ }
+    requestAnimationFrame(applyZoom);
+  }
+
+  function zoomBy(delta) { zoomIndex = clamp(zoomIndex + delta, 0, zoomLevels.length - 1); applyZoom(); }
+  function fitPage() { fitMode = "page"; zoomIndex = 2; applyZoom(); }
+
+  function addItemAndFocus() {
+    const item = addItem();
+    if (!item) return;
+    state.items.push(item);
+    renderItemList(item.id);
+    scheduleRender();
+  }
+
+  function menuItems(target) {
+    const card = target.closest && target.closest(".item-card");
+    if (card && root.contains(card)) {
+      const found = findItem(card);
+      const act = (name) => () => { const button = card.querySelector('[data-act="' + name + '"]'); if (button && !button.disabled) onItemAction(button); };
+      return [
+        { label: "Adicionar item", run: addItemAndFocus },
+        { label: "Duplicar item", run: act("dup") },
+        { sep: true },
+        { label: "Subir item", run: act("up"), disabled: !found || found.index === 0 },
+        { label: "Descer item", run: act("down"), disabled: !found || found.index === state.items.length - 1 },
+        { sep: true },
+        { label: "Excluir item", run: act("del"), danger: true }
+      ];
+    }
+    if (target.closest && target.closest("#sheetsArea") && root.contains(target)) {
+      const setCols = (n) => () => { state.cols = n; refreshFields(); scheduleRender(); };
+      return [
+        { label: state.orientation === "portrait" ? "Folha na horizontal (paisagem)" : "Folha na vertical (retrato)", run: () => { state.orientation = state.orientation === "portrait" ? "landscape" : "portrait"; refreshFields(); scheduleRender(); } },
+        { label: "1 coluna", check: state.cols === 1, run: setCols(1) },
+        { label: "2 colunas", check: state.cols === 2, run: setCols(2) },
+        { label: "3 colunas", check: state.cols === 3, run: setCols(3) },
+        { label: "Linha de corte", check: state.border, run: () => { state.border = !state.border; refreshFields(); scheduleRender(); } },
+        { sep: true },
+        { label: "Adicionar item", run: addItemAndFocus },
+        { label: "Imprimir / PDF", shortcut: "Ctrl+P", run: print }
+      ];
+    }
+    return null;
+  }
+
+  function viewItems() {
+    const hidden = document.querySelector(".app").classList.contains("panel-hidden");
+    const items = [];
+    if (!mobileQuery.matches) items.push({ label: hidden ? "Mostrar o editor" : "Ocultar o editor", run: () => togglePanelHidden() });
+    items.push({ label: "Aumentar zoom", run: () => zoomBy(1) }, { label: "Diminuir zoom", run: () => zoomBy(-1) }, { label: "Página inteira", run: fitPage });
+    return items;
+  }
+
   function init() {
     buildFormat("codeFormat", "code");
     buildFormat("descFormat", "desc");
     refreshFields();
 
-    byId("documentName").addEventListener("input", (e) => { state.name = e.target.value; scheduleSave(); });
     byId("prefixInput").addEventListener("input", (e) => { state.prefix = e.target.value; scheduleRender(); });
     bindStepper("blockGap", "gap", 0, 25);
     bindStepper("codeSize", "codeSize", 8, 96);
@@ -851,7 +622,7 @@
     });
     byId("borderToggle").addEventListener("change", (e) => { state.border = e.target.checked; scheduleRender(); });
 
-    document.querySelectorAll("[data-step]").forEach((button) => {
+    root.querySelectorAll("[data-step]").forEach((button) => {
       button.addEventListener("click", () => {
         const [id, amount] = button.dataset.step.split(":");
         const control = byId(id);
@@ -884,13 +655,7 @@
       const button = e.target.closest("[data-act]");
       if (button) onItemAction(button);
     });
-    byId("addItem").addEventListener("click", () => {
-      const item = addItem();
-      if (!item) return;
-      state.items.push(item);
-      renderItemList(item.id);
-      scheduleRender();
-    });
+    byId("addItem").addEventListener("click", addItemAndFocus);
 
     // Colar lista
     const dialog = byId("bulkDialog");
@@ -903,48 +668,16 @@
     });
 
     // Abas, painel e navegação
-    document.querySelectorAll(".tab").forEach((tab) => {
+    root.querySelectorAll(".tab").forEach((tab) => {
       tab.addEventListener("click", () => { setCollapsed(false); setTab(tab.dataset.tab); });
     });
     byId("sheetHandle").addEventListener("click", () => setCollapsed(!panel.classList.contains("collapsed")));
     byId("previousPage").addEventListener("click", () => { currentPage = Math.max(0, currentPage - 1); updatePages(true); });
     byId("nextPage").addEventListener("click", () => { currentPage = Math.min(pageCount - 1, currentPage + 1); updatePages(true); });
-    byId("zoomOut").addEventListener("click", () => { zoomIndex = Math.max(0, zoomIndex - 1); applyZoom(); });
-    byId("zoomIn").addEventListener("click", () => { zoomIndex = Math.min(zoomLevels.length - 1, zoomIndex + 1); applyZoom(); });
+    byId("zoomOut").addEventListener("click", () => zoomBy(-1));
+    byId("zoomIn").addEventListener("click", () => zoomBy(1));
 
-    // Documento
-    byId("newButton").addEventListener("click", () => { if (createDoc(defaults())) toast("Novo documento criado. O anterior continua salvo."); });
-    byId("homeButton").addEventListener("click", () => showHome());
-    byId("homeContinue").addEventListener("click", continueEditing);
-    byId("homeNew").addEventListener("click", () => createDoc(defaults()));
-    byId("homeImport").addEventListener("click", () => byId("importInput").click());
-    byId("recentList").addEventListener("click", (e) => {
-      const open = e.target.closest("[data-open]");
-      const del = e.target.closest("[data-del]");
-      if (open) { openDoc(open.dataset.open); return; }
-      if (del) {
-        const doc = lib.docs[del.dataset.del];
-        if (!doc || !window.confirm("Excluir o documento “" + (doc.state.name.trim() || "Documento sem título") + "”? Esta ação não pode ser desfeita.")) return;
-        delete lib.docs[del.dataset.del];
-        flushSave();
-        showHome();
-      }
-    });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !homeEl.hidden && currentId) continueEditing(); });
-    byId("exportButton").addEventListener("click", exportProject);
-    byId("shareButton").addEventListener("click", copyShareLink);
-    byId("importButton").addEventListener("click", () => byId("importInput").click());
-    byId("importInput").addEventListener("change", (e) => {
-      const file = e.target.files && e.target.files[0];
-      e.target.value = "";
-      if (file) importProject(file);
-    });
-    printButton.addEventListener("click", () => {
-      if (renderPending) render();
-      if (printBlockedReason) { toast(printBlockedReason); return; }
-      window.print();
-    });
-    window.addEventListener("beforeprint", () => { if (renderPending) render(); });
+    window.addEventListener("beforeprint", () => { if (!root.hidden && renderPending) render(); });
 
     byId("zoomIndicator").addEventListener("click", () => {
       fitMode = fitMode === "page" ? "width" : "page";
@@ -952,67 +685,20 @@
       applyZoom();
       toast(fitMode === "page" ? "Mostrando a página inteira." : "Ajustado à largura da tela.");
     });
-    const togglePanel = (hide) => {
-      document.querySelector(".app").classList.toggle("panel-hidden", hide);
-      const toggle = byId("panelToggle");
-      toggle.classList.toggle("is-on", !hide);
-      toggle.setAttribute("aria-pressed", String(!hide));
-      try { localStorage.setItem(PANEL_KEY, hide ? "1" : "0"); } catch (_) { /* ignorado */ }
-    };
-    byId("panelToggle").addEventListener("click", () => togglePanel(!document.querySelector(".app").classList.contains("panel-hidden")));
-    try { if (localStorage.getItem(PANEL_KEY) === "1") togglePanel(true); } catch (_) { /* ignorado */ }
-    if ("ResizeObserver" in window) new ResizeObserver(() => applyZoom()).observe(area);
-    window.addEventListener("resize", () => { applyZoom(); updatePages(false); });
-    if (mobileQuery.addEventListener) mobileQuery.addEventListener("change", () => { applyZoom(); updatePages(false); });
-    window.addEventListener("pagehide", flushSave);
-    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushSave(); });
+    byId("panelToggle").addEventListener("click", () => togglePanelHidden());
+    try { if (localStorage.getItem(PANEL_KEY) === "1") togglePanelHidden(true); } catch (_) { /* ignorado */ }
+    if ("ResizeObserver" in window) new ResizeObserver(() => { if (!root.hidden) applyZoom(); }).observe(area);
+    window.addEventListener("resize", () => { if (root.hidden) return; applyZoom(); updatePages(false); });
+    window.addEventListener("coding:shown", () => { if (!root.hidden) requestAnimationFrame(applyZoom); });
+    if (mobileQuery.addEventListener) mobileQuery.addEventListener("change", () => { if (root.hidden) return; applyZoom(); updatePages(false); });
 
-    setupInstall();
     setTab("itens");
-    render();
-    persist();
-    window.addEventListener("hashchange", handleRoute);
-    window.addEventListener("popstate", handleRoute);
-    handleRoute();
-  }
-
-  /* ---------- PWA ---------- */
-
-  function setupInstall() {
-    const button = byId("installButton");
-    const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    let promptEvent = null;
-
-    if (isIos && !standalone) button.hidden = false;
-
-    window.addEventListener("beforeinstallprompt", (event) => {
-      event.preventDefault();
-      promptEvent = event;
-      button.hidden = false;
+    C.register({
+      type: "labels",
+      defaults, normalize, payload, info, open, print, menuItems, viewItems,
+      close() {},
+      zoomBy, fitPage
     });
-    window.addEventListener("appinstalled", () => {
-      promptEvent = null;
-      button.hidden = true;
-      toast("Aplicativo instalado.");
-    });
-    button.addEventListener("click", async () => {
-      if (promptEvent) {
-        promptEvent.prompt();
-        try { await promptEvent.userChoice; } catch (_) { /* ignorado */ }
-        promptEvent = null;
-        button.hidden = true;
-      } else {
-        toast("No iPhone/iPad: toque em Compartilhar e depois em “Adicionar à Tela de Início”.");
-      }
-    });
-
-    const secure = location.protocol === "https:" || ["localhost", "127.0.0.1"].includes(location.hostname);
-    if ("serviceWorker" in navigator && secure) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("sw.js").catch(() => { /* sem suporte offline */ });
-      });
-    }
   }
 
   init();
