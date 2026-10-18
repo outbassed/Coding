@@ -27,16 +27,16 @@ Regras gerais:
 - Salvamento automático na biblioteca, nome do documento editável.
 - Mesmo layout responsivo do app (celular, tablet, computador).
 
-### Imagens dentro da folha (Etiquetas e Texts)
-Nos dois modos dá para inserir imagens (PNG, JPG, WebP; também colando com Ctrl+V e, no celular, escolhendo da galeria ou da câmera).
+### Imagens dentro da folha (somente no Texts)
+O modo **Etiquetas continua sem imagens** (decisão do dono). No Texts dá para inserir imagens (PNG, JPG, WebP; também colando com Ctrl+V e, no celular, escolhendo da galeria ou da câmera).
 
 - **Texts:** a imagem entra no fluxo do texto. Selecionando, aparecem alças para **aumentar e diminuir** arrastando (mantém a proporção) e uma barra com: largura em % da folha, alinhamento (esquerda, centro, direita), trocar imagem e remover.
-- **Etiquetas:** cada item pode ter uma imagem (por exemplo logo ou código de barras), acima ou abaixo do texto, com o mesmo controle de largura (em mm) e alinhamento. A imagem conta na altura da etiqueta, então a paginação e o aviso de "etiqueta grande demais" continuam valendo.
 - Folha em retrato ou paisagem, impressão e PDF mostram as imagens como na tela.
+- Documentos de etiquetas não mudam e não carregam imagens.
 
 Decisões técnicas:
 - As imagens são reduzidas ao inserir (lado maior de até 1600 px, em WebP/JPEG) para não estourar o armazenamento nem o PDF.
-- Como `localStorage` tem limite pequeno (cerca de 5 MB), a biblioteca passa para **IndexedDB**. Os documentos atuais são migrados sozinhos, sem perder nada.
+- Como `localStorage` tem limite pequeno (cerca de 5 MB), a biblioteca (que é única para os dois modos) passa para **IndexedDB**. Os documentos atuais são migrados sozinhos, sem perder nada.
 - Exportar `.json` leva as imagens dentro do arquivo. O **link de compartilhamento não leva imagens** (não cabem num link); o app avisa e sugere usar Salvar (.json).
 - Limite por documento: 30 imagens. A biblioteca mostra um aviso se o aparelho ficar sem espaço.
 
