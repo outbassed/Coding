@@ -320,7 +320,7 @@
       <div id="homeRecent" class="home-recent" hidden>
         <h2>Histórico</h2>
         <ul id="recentList"></ul>
-        <button id="moreRecent" class="more-btn" type="button" hidden aria-expanded="false">Ver mais</button>
+        <button id="moreRecent" class="more-btn" type="button" hidden aria-haspopup="dialog">Ver mais</button>
       </div>
       <div class="home-foot"><button id="homeImport" class="link-btn" type="button">Abrir arquivo .json</button></div>
     </div>
@@ -337,6 +337,14 @@
         <button class="btn primary" type="button" id="bulkAppend">Adicionar à lista</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="historyDialog" class="dialog history-dialog" aria-labelledby="historyTitle">
+    <div class="dialog-card">
+      <div class="history-head"><h2 id="historyTitle">Histórico</h2><span id="historyCount" class="muted"></span></div>
+      <ul id="allList" class="doc-list"></ul>
+      <div class="dialog-actions"><button class="btn primary" type="button" id="historyClose">Fechar</button></div>
+    </div>
   </dialog>
 
   <dialog id="shortcutsDialog" class="dialog">

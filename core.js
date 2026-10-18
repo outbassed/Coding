@@ -355,7 +355,24 @@
   }
 
   const HISTORY_LIMIT = 10;
-  let showAllHistory = false;
+
+  const historyDocs = () => Object.values(lib.docs).filter((d) => d.id !== lib.currentId && !d.fav).sort((a, b) => b.updatedAt - a.updatedAt);
+
+  function renderHistoryDialog() {
+    const dialog = byId("historyDialog");
+    if (!dialog.open) return;
+    const list = historyDocs();
+    if (!list.length) { dialog.close(); return; }
+    byId("historyCount").textContent = list.length + (list.length === 1 ? " documento" : " documentos");
+    byId("allList").replaceChildren(...list.map(docRow));
+  }
+
+  function openHistory() {
+    const dialog = byId("historyDialog");
+    if (!dialog.open) dialog.showModal();
+    renderHistoryDialog();
+    byId("allList").scrollTop = 0;
+  }
 
   function docRow(d) {
     const name = d.state.name.trim() || "Documento sem título";
@@ -402,13 +419,12 @@
     doc.fav = !doc.fav;
     store.putDoc(doc).catch(() => setSaved("Armazenamento indisponível"));
     toast(doc.fav ? "Adicionado aos favoritos." : "Removido dos favoritos.");
-    if (!homeEl.hidden) showHome({ keep: true, replace: true });
+    if (!homeEl.hidden) showHome({ replace: true });
   }
 
   const isFav = () => Boolean(cur() && cur().fav);
 
   function showHome(opts = {}) {
-    if (!opts.keep) showAllHistory = false;
     flushSave();
     setRoute("#/", opts.replace);
     const current = cur();
@@ -423,13 +439,12 @@
     const history = all.filter((d) => d.id !== lib.currentId && !d.fav);
     byId("homeFavs").hidden = favs.length === 0;
     byId("favList").replaceChildren(...favs.map(docRow));
-    const visible = showAllHistory ? history : history.slice(0, HISTORY_LIMIT);
     byId("homeRecent").hidden = history.length === 0;
-    byId("recentList").replaceChildren(...visible.map(docRow));
+    byId("recentList").replaceChildren(...history.slice(0, HISTORY_LIMIT).map(docRow));
     const more = byId("moreRecent");
     more.hidden = history.length <= HISTORY_LIMIT;
-    more.textContent = showAllHistory ? "Ver menos" : "Ver mais (" + (history.length - HISTORY_LIMIT) + ")";
-    more.setAttribute("aria-expanded", String(showAllHistory));
+    more.textContent = "Ver mais (" + (history.length - HISTORY_LIMIT) + ")";
+    renderHistoryDialog();
     homeEl.hidden = false;
     appEl.inert = true;
     appEl.setAttribute("aria-hidden", "true");
@@ -691,7 +706,7 @@
       const open = e.target.closest("[data-open]");
       const del = e.target.closest("[data-del]");
       const fav = e.target.closest("[data-fav]");
-      if (open) { openDoc(open.dataset.open); return; }
+      if (open) { if (byId("historyDialog").open) byId("historyDialog").close(); openDoc(open.dataset.open); return; }
       if (fav) { toggleFav(fav.dataset.fav); return; }
       if (del) {
         const doc = lib.docs[del.dataset.del];
@@ -701,7 +716,10 @@
     };
     byId("recentList").addEventListener("click", rowClick);
     byId("favList").addEventListener("click", rowClick);
-    byId("moreRecent").addEventListener("click", () => { showAllHistory = !showAllHistory; showHome({ keep: true, replace: true }); byId("moreRecent").focus({ preventScroll: true }); });
+    byId("allList").addEventListener("click", rowClick);
+    byId("moreRecent").addEventListener("click", openHistory);
+    byId("historyClose").addEventListener("click", () => byId("historyDialog").close());
+    byId("historyDialog").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !homeEl.hidden && cur() && !document.querySelector("dialog[open]")) continueEditing(); });
     byId("exportButton").addEventListener("click", exportProject);
     byId("shareButton").addEventListener("click", copyShareLink);

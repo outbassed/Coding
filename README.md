@@ -29,7 +29,7 @@ Funciona como site e como aplicativo instalável (PWA), inclusive offline. Sem f
 - Se uma imagem não puder ser exibida, aparece um quadro "Imagem indisponível" com o mesmo tamanho e alinhamento. No PDF ele sai vazio, só com uma borda fina, e o app pede confirmação antes de imprimir.
 
 ## Favoritos e histórico
-Na tela inicial, **Favoritos** lista os documentos marcados com a estrela (também dá para marcar o documento aberto pelo menu: "Adicionar aos favoritos"). O **Histórico** mostra os 10 mais recentes que não são favoritos, com o botão **Ver mais** para listar o restante.
+Na tela inicial, **Favoritos** lista os documentos marcados com a estrela (também dá para marcar o documento aberto pelo menu: "Adicionar aos favoritos"). O **Histórico** mostra os 10 mais recentes que não são favoritos, com o botão **Ver mais**, que abre um popup com todos os documentos (rolagem só dentro do popup).
 
 ## Barra superior no celular
 Em telas pequenas a barra mostra só o logo (volta à tela inicial), o nome do documento (toque para renomear) e o botão de três risquinhos, que abre o menu com Tela inicial, Novo documento, Imprimir / PDF, Copiar link, Salvar, Abrir arquivo e Atalhos (e Instalar, quando disponível).
