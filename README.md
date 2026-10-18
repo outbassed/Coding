@@ -51,7 +51,7 @@ Ctrl+N e Ctrl+T pertencem ao navegador e não podem ser usados. "Colar" pelo men
 - `#/novo` ou `#/novo/etiquetas`: novo documento de Etiquetas
 - `#/novo/texts`: novo documento do Texts
 - `#/continuar`: abre o último documento
-- `#/doc/ID` ou `#/doc/nome-do-documento`: abre um documento salvo
+- `#/label/ID` (etiquetas) e `#/texts/ID` (textos), também aceitam o nome do documento; `#/doc/ID` continua funcionando
 - O botão **Link** copia um endereço que cria uma cópia do documento em quem abrir. **O link não leva imagens** (elas aparecem como "Imagem indisponível"); para levar as imagens, use **Salvar (.json)**.
 
 ## Armazenamento

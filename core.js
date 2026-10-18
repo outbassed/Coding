@@ -318,8 +318,14 @@
     if (token !== openToken) return false;
     hideHome();
     persist();
-    setRoute("#/doc/" + id, opts.replace);
+    setRoute(docHash(id), opts.replace);
     return true;
+  }
+
+  function docHash(id) {
+    const d = lib.docs && lib.docs[id];
+    const t = d ? d.type : (cur() && cur().id === id ? cur().type : "labels");
+    return "#/" + (t === "texts" ? "texts" : "label") + "/" + id;
   }
 
   async function createDoc(type, source, opts = {}) {
@@ -509,7 +515,7 @@
     const doc = cur();
     if (!doc) return;
     const wsVisible = !byId(doc.type === "texts" ? "textsWs" : "labelsWs").hidden;
-    if (wsVisible) { hideHome(); setRoute("#/doc/" + doc.id); return; }
+    if (wsVisible) { hideHome(); setRoute(docHash(doc.id)); return; }
     openDoc(doc.id);
   }
 
@@ -668,7 +674,7 @@
         await createDoc(["texts", "text", "texto", "textos"].includes(kind) ? "texts" : "labels", null, { replace: true });
       } else if (name === "continuar") {
         if (cur()) await openDoc(lib.currentId, { replace: true }); else showHome({ replace: true });
-      } else if (name === "doc") {
+      } else if (name === "doc" || name === "label" || name === "labels" || name === "etiqueta" || name === "texts" || name === "texto" || name === "textos") {
         const id = findDocId(arg);
         if (id) await openDoc(id, { replace: true });
         else { showHome({ replace: true }); toast("Documento não encontrado neste aparelho."); }
