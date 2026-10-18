@@ -176,15 +176,15 @@ select { cursor: pointer; }
 #measureHost .entry { margin: 0; }
 
 /* Tela inicial */
-.home { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: calc(20px + var(--safe-top)) 20px calc(20px + var(--safe-bottom)); overflow-y: auto; background: radial-gradient(ellipse at 50% 0%, #22304a, #0f141d 70%); }
-.home-card { width: min(520px, 100%); display: flex; flex-direction: column; gap: 24px; }
+.home { position: fixed; inset: 0; z-index: 50; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; padding: calc(20px + var(--safe-top)) 20px calc(20px + var(--safe-bottom)); overflow-y: auto; background: radial-gradient(ellipse at 50% 0%, #22304a, #0f141d 70%); }
+.home-card { width: min(520px, 100%); min-width: 0; max-width: 100%; display: flex; flex-direction: column; gap: 24px; }
 .home-brand { display: flex; align-items: center; gap: 14px; }
 .home-brand .brand-icon { width: 56px; height: 56px; border-radius: 17px; }
 .home-brand .brand-icon .icon { width: 28px; height: 28px; }
 .home-brand h1 { margin: 0; font-size: 30px; letter-spacing: -.9px; }
 .home-brand p { margin: 3px 0 0; font-size: 13px; color: var(--muted); }
 .home-actions { display: flex; flex-direction: column; gap: 12px; }
-.home-option { display: flex; align-items: center; gap: 14px; width: 100%; padding: 18px; text-align: left; border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--text); transition: background-color .15s, border-color .15s, transform .1s; }
+.home-option { min-width: 0; display: flex; align-items: center; gap: 14px; width: 100%; padding: 18px; text-align: left; border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--text); transition: background-color .15s, border-color .15s, transform .1s; }
 .home-option:hover { background: #29374e; border-color: #6786c0; }
 .home-option:active { transform: translateY(1px); }
 .home-option.primary { background: linear-gradient(135deg, #3d63ad, #2a4272); border-color: #7da2ec; }
