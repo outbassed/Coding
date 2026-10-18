@@ -366,7 +366,7 @@ select { cursor: pointer; }
 .tx-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 18px 0 30px; }
 .tx-wrap { position: relative; margin: 0 auto; }
 .tx-sheet { --tw: 210mm; --th: 297mm; --tmx: 18mm; --tmy: 20mm; --inv: 1; position: relative; width: var(--tw); min-height: var(--th); padding: var(--tmy) var(--tmx); background: #fff; color: #111; box-shadow: 0 12px 33px #0005; transform-origin: top left; }
-.tx-editor { position: relative; min-height: calc(var(--th) - 2 * var(--tmy)); outline: none; font: 12pt/1.45 Arial, "Helvetica Neue", sans-serif; overflow-wrap: anywhere; caret-color: #111; }
+.tx-editor { position: relative; min-height: calc(var(--th) - 2 * var(--tmy)); outline: none; font: 12pt/1.45 Arial, "Helvetica Neue", sans-serif; overflow-wrap: anywhere; font-synthesis: weight style; caret-color: #111; }
 .tx-editor[data-empty="true"]::before { content: "Comece a escrever…"; position: absolute; left: 0; top: 0; color: #9aa3b2; pointer-events: none; }
 .tx-editor p { margin: 0 0 6pt; min-height: 1.45em; }
 .tx-editor h1 { margin: 12pt 0 6pt; font-size: 20pt; line-height: 1.25; }
