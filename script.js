@@ -585,7 +585,7 @@
 
   /* ---------- Documentos salvos e tela inicial ---------- */
 
-  function openDoc(id) {
+  function openDoc(id, opts = {}) {
     if (!lib.docs[id]) return;
     flushSave();
     currentId = id;
@@ -596,9 +596,10 @@
     persist();
     hideHome();
     setTab("itens");
+    setRoute("#/doc/" + id, opts.replace);
   }
 
-  function createDoc(source) {
+  function createDoc(source, opts = {}) {
     if (Object.keys(lib.docs).length >= MAX_DOCS) {
       toast("Limite de " + MAX_DOCS + " documentos. Exclua algum na tela inicial.");
       return false;
@@ -606,7 +607,7 @@
     flushSave();
     const id = uid();
     lib.docs[id] = { id, updatedAt: Date.now(), state: normalize(source) };
-    openDoc(id);
+    openDoc(id, opts);
     return true;
   }
 
@@ -620,8 +621,137 @@
     return labels + (labels === 1 ? " etiqueta" : " etiquetas") + " · " + when;
   }
 
-  function showHome() {
+  /* ---------- Rotas por URL (#/novo, #/continuar, #/doc/ID, #/importar/…) ---------- */
+
+  let handledHash = null;
+
+  function setRoute(hash, replace) {
+    handledHash = hash;
+    if (location.hash === hash) return;
+    try { history[replace ? "replaceState" : "pushState"](null, "", hash); } catch (_) { /* sem histórico */ }
+  }
+
+  const slug = (text) => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+  function findDocId(arg) {
+    if (lib.docs[arg]) return arg;
+    const wanted = slug(arg);
+    if (!wanted) return null;
+    const hit = Object.values(lib.docs).sort((a, b) => b.updatedAt - a.updatedAt).find((d) => slug(d.state.name) === wanted);
+    return hit ? hit.id : null;
+  }
+
+  const b64uEncode = (bytes) => {
+    let text = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(text).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  };
+  const b64uDecode = (token) => {
+    const binary = atob(token.replace(/-/g, "+").replace(/_/g, "/"));
+    const out = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+    return out;
+  };
+
+  async function gzip(bytes) {
+    const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("gzip"));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+
+  async function gunzip(bytes) {
+    const reader = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip")).getReader();
+    const chunks = [];
+    let size = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      if (size > 1000000) { reader.cancel(); throw new Error("Conteúdo grande demais"); }
+      chunks.push(value);
+    }
+    const out = new Uint8Array(size);
+    let offset = 0;
+    chunks.forEach((chunk) => { out.set(chunk, offset); offset += chunk.length; });
+    return out;
+  }
+
+  async function buildShareUrl() {
+    const payload = { format: "coding-document", version: 2, ...state, items: state.items.map(({ code, description, copies }) => ({ code, description, copies })) };
+    const bytes = new TextEncoder().encode(JSON.stringify(payload));
+    const token = "CompressionStream" in window ? "z." + b64uEncode(await gzip(bytes)) : "j." + b64uEncode(bytes);
+    return location.origin + location.pathname + "#/importar/" + token;
+  }
+
+  async function decodeShare(token) {
+    if (token.length > 40000) throw new Error("Link grande demais");
+    const bytes = b64uDecode(token.slice(2));
+    let raw;
+    if (token.startsWith("z.") && "DecompressionStream" in window) raw = await gunzip(bytes);
+    else if (token.startsWith("j.")) raw = bytes;
+    else throw new Error("Formato desconhecido");
+    return JSON.parse(new TextDecoder().decode(raw));
+  }
+
+  async function importFromLink(token) {
+    try {
+      const data = await decodeShare(token);
+      if (!data || typeof data !== "object" || data.format !== "coding-document") throw new Error("Formato inválido");
+      const name = toText(data.name, "Documento", 80).trim() || "Documento";
+      if (window.confirm("Abrir o documento compartilhado “" + name + "”? Ele será salvo como um novo documento neste aparelho.")) {
+        if (createDoc(data, { replace: true })) return;
+      }
+    } catch (_) {
+      toast("Este link do Coding está incompleto ou inválido.");
+    }
+    showHome({ replace: true });
+  }
+
+  async function copyShareLink() {
+    try {
+      const url = await buildShareUrl();
+      if (url.length > 16000) { toast("Documento grande demais para virar link. Use Salvar (.json)."); return; }
+      try {
+        await navigator.clipboard.writeText(url);
+        toast("Link copiado. Quem abrir recebe uma cópia deste documento.");
+      } catch (_) {
+        window.prompt("Copie o link do documento:", url);
+      }
+    } catch (_) {
+      toast("Não foi possível gerar o link.");
+    }
+  }
+
+  async function handleRoute() {
+    const hash = location.hash;
+    if (hash === handledHash) return;
+    handledHash = hash;
+    try {
+      const parts = hash.replace(/^#\/?/, "").split("/");
+      const name = parts[0];
+      const arg = decodeURIComponent(parts.slice(1).join("/"));
+      if (name === "novo") createDoc(defaults(), { replace: true });
+      else if (name === "continuar") { if (currentId) openDoc(currentId, { replace: true }); else showHome({ replace: true }); }
+      else if (name === "doc") {
+        const id = findDocId(arg);
+        if (id) openDoc(id, { replace: true });
+        else { showHome({ replace: true }); toast("Documento não encontrado neste aparelho."); }
+      }
+      else if (name === "importar") await importFromLink(arg);
+      else showHome({ replace: true });
+    } catch (_) {
+      showHome({ replace: true });
+    }
+  }
+
+  function continueEditing() {
+    if (!currentId) return;
+    hideHome();
+    setRoute("#/doc/" + currentId);
+  }
+
+  function showHome(opts = {}) {
     flushSave();
+    setRoute("#/", opts.replace);
     const current = currentId ? lib.docs[currentId] : null;
     byId("homeContinue").hidden = !current;
     if (current) {
@@ -784,8 +914,8 @@
 
     // Documento
     byId("newButton").addEventListener("click", () => { if (createDoc(defaults())) toast("Novo documento criado. O anterior continua salvo."); });
-    byId("homeButton").addEventListener("click", showHome);
-    byId("homeContinue").addEventListener("click", hideHome);
+    byId("homeButton").addEventListener("click", () => showHome());
+    byId("homeContinue").addEventListener("click", continueEditing);
     byId("homeNew").addEventListener("click", () => createDoc(defaults()));
     byId("homeImport").addEventListener("click", () => byId("importInput").click());
     byId("recentList").addEventListener("click", (e) => {
@@ -800,8 +930,9 @@
         showHome();
       }
     });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !homeEl.hidden && currentId) hideHome(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !homeEl.hidden && currentId) continueEditing(); });
     byId("exportButton").addEventListener("click", exportProject);
+    byId("shareButton").addEventListener("click", copyShareLink);
     byId("importButton").addEventListener("click", () => byId("importInput").click());
     byId("importInput").addEventListener("change", (e) => {
       const file = e.target.files && e.target.files[0];
@@ -840,7 +971,9 @@
     setTab("itens");
     render();
     persist();
-    showHome();
+    window.addEventListener("hashchange", handleRoute);
+    window.addEventListener("popstate", handleRoute);
+    handleRoute();
   }
 
   /* ---------- PWA ---------- */

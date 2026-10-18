@@ -22,9 +22,26 @@ Cada etiqueta (código + descrição) é indivisível: se não couber no fim de 
 - Zoom que abre mostrando a **página inteira** (clique na porcentagem para alternar com "ajustar à largura"); o editor pode ser ocultado na barra inferior
 - Layout responsivo: painel lateral no computador, painel inferior recolhível no celular e no tablet, e lado a lado com o celular deitado
 - PWA instalável, com funcionamento offline
+- Links diretos por URL e link de compartilhamento do documento
 - Salvamento automático e exportação/importação de projetos `.coding.json` (abrir um arquivo cria um novo documento, sem sobrescrever)
 - Abre automaticamente os documentos de versões anteriores
 - HTML, CSS e JavaScript puros, sem frameworks, backend ou contas
+
+## Links diretos
+Os endereços usam `#` (funcionam igual no Vercel, no GitHub Pages e no app instalado):
+
+| Link | O que faz |
+|---|---|
+| `…/#/` | Tela inicial |
+| `…/#/novo` | Cria um documento novo com o modelo padrão e abre direto no editor |
+| `…/#/continuar` | Abre o último documento direto no editor |
+| `…/#/doc/ID` ou `…/#/doc/nome-do-documento` | Abre aquele documento (só existe no aparelho onde foi criado; serve para favoritar) |
+| `…/#/importar/…` | Link de compartilhamento: abre uma cópia do documento em qualquer aparelho |
+
+- O botão **Link** (barra superior) copia um link de compartilhamento com o documento dentro dele (comprimido, sem servidor). Quem abrir confirma e recebe uma cópia como novo documento.
+- O endereço acompanha o documento aberto e o botão **Voltar** do navegador funciona entre a tela inicial e o editor.
+- Link inexistente ou inválido cai na tela inicial com um aviso.
+- No app instalado, o ícone ganha os atalhos **Criar um novo** e **Continuar editando** (toque e segure no Android, clique direito no Windows).
 
 ## Instalar como aplicativo
 - **Android/Chrome e computador (Chrome/Edge):** use o botão **Instalar** do app ou o ícone de instalação da barra de endereço.
