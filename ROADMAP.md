@@ -8,7 +8,7 @@ Lista de pedidos pendentes. Quando o dono do projeto mandar **"Iniciar update"**
 - Trocar `#/label/` por `#/etiquetas/` e `#/texts/` por `#/texto/` (e `#/qr/`, `#/pdf/`, `#/imagens/`, `#/planilhas/` seguem em português). Os links antigos (`/label/`, `/texts/`) continuam abrindo, só deixam de ser os principais.
 
 ### Lista de melhorias aprovada para análise (18/10)
-- Imagens: virar editor completo e consertar o travamento com fotos grandes.
+- Imagens: virar editor simples, estilo Paint + edição básica de foto (só o essencial, sem foco profissional), e consertar o travamento com fotos grandes.
 - Planilhas: funções por botão (fx), somar com um toque, sem digitar `;` nem intervalos.
 - QR com formulários prontos, Etiquetas com tamanhos prontos, Texto com tabelas/cabeçalho/.docx, PDF com anotações melhores, modelos, pastas e backup geral.
 
