@@ -36,7 +36,7 @@ Funciona como site e como aplicativo instalável (PWA), inclusive offline. Sem f
 - Se uma imagem não puder ser exibida, aparece um quadro "Imagem indisponível" com o mesmo tamanho e alinhamento. No PDF ele sai vazio, só com uma borda fina, e o app pede confirmação antes de imprimir.
 
 ## Favoritos e histórico
-Na tela inicial, **Favoritos** lista os documentos marcados com a estrela (também dá para marcar o documento aberto pelo menu: "Adicionar aos favoritos"). O **Histórico** mostra os que não são favoritos. As duas listas são separadas em abas, **Etiquetas** e **Textos**. Na tela inicial aparecem 3 favoritos e 5 documentos do histórico por aba; o botão **Ver mais** abre um popup com a lista completa (rolagem só dentro do popup).
+Na tela inicial, os **Documentos recentes** aparecem como miniaturas (ou em lista), com busca pelo nome ou conteúdo, filtro por tipo (inclui **Favoritos**), ordem por data ou de A a Z e a estrela para favoritar (também dá para favoritar o documento aberto pelo menu).
 
 ## Barra superior no celular
 Em telas pequenas a barra mostra só o logo (volta à tela inicial), o nome do documento (toque para renomear) e o botão de três risquinhos, que abre o menu com Tela inicial, Novo documento, Imprimir / PDF, Copiar link, Salvar, Abrir arquivo e Atalhos (e Instalar, quando disponível).
@@ -56,7 +56,8 @@ Ctrl+N e Ctrl+T pertencem ao navegador e não podem ser usados. "Colar" pelo men
 
 ## Links
 - `#/novo` ou `#/novo/etiquetas`: novo documento de Etiquetas
-- `#/novo/texts`: novo documento do Texts
+- `#/novo/texts`: novo documento de Texto
+- `#/novo/planilhas` e `#/planilhas/ID`: Planilhas
 - `#/continuar`: abre o último documento
 - `#/ferramentas`: página com todos os programas; `#/ferramentas/codigos`, `/planilha`, `/pdf` e `/imagens` abrem o documento mais recente da ferramenta
 - `#/qr/ID`, `#/planilha/ID`, `#/pdf/ID` e `#/imagens/ID`: abrem um documento salvo daquela ferramenta (também aceitam o nome); `#/novo/qr`, `#/novo/planilha`, `#/novo/pdf` e `#/novo/imagens` criam um novo
