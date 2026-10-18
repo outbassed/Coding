@@ -262,7 +262,7 @@ select { cursor: pointer; }
   .brand-icon .icon { width: 17px; height: 17px; }
   .brand-copy strong { font-size: 16px; }
   .doc-name { max-width: none; }
-  .doc-name input { font-size: 12px; font-weight: 500; color: #adbdd2; }
+  .doc-name input { font-weight: 500; color: #adbdd2; }
   .top-actions { gap: 2px; }
   .btn-label { display: none; }
   .top-actions .btn { min-height: 38px; min-width: 38px; padding: 0 8px; }
@@ -389,6 +389,13 @@ select { cursor: pointer; }
   .tx-group { flex: none; }
   .tx-scroll { padding: 10px 0 24px; }
   .home-types { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Celular/tablet: campos com 16px evitam o zoom automático do iOS ao tocar num campo */
+@media (pointer: coarse), (max-width: 899px) {
+  input[type="text"], input[type="number"], textarea, select, .doc-name input, .tx-select, .dialog-card textarea { font-size: 16px; }
+  .doc-name input, .doc-name input:hover { font-weight: 600; }
+  body { touch-action: manipulation; }
 }
 
 /* Impressão A4 */
