@@ -44,6 +44,22 @@ Decisões técnicas:
 
 Fica para depois: recortar, girar, imagem solta sobre o texto (posição livre) e imagem de fundo.
 
+### Menu de clique direito personalizado (os dois modos)
+O botão direito abre um menu do próprio Coding, com **atalhos de teclado mostrados ao lado de cada opção**. O conteúdo muda conforme onde se clica:
+
+- **Em qualquer lugar:** Novo documento, Tela inicial, Imprimir / PDF, Copiar link, Salvar (.json), Abrir arquivo, Mostrar/ocultar o editor, Zoom (aumentar, diminuir, página inteira).
+- **Etiquetas, sobre um item da lista:** Adicionar item, Duplicar, Subir, Descer, Excluir. Sobre a folha: Retrato/Paisagem, 1/2/3 colunas, Linha de corte.
+- **Texts, sobre o texto:** Cortar, Copiar, Colar, Colar sem formatação, Negrito, Itálico, Sublinhado, alinhamento, lista com marcadores/numerada, título.
+- **Texts, sobre uma imagem:** Substituir, tamanho (pequena, média, grande, largura total), alinhamento, Copiar, Remover.
+
+Regras:
+- **Shift + botão direito** abre o menu normal do navegador (corretor ortográfico, por exemplo). Nos campos de digitação do modo Etiquetas o menu normal continua como está.
+- No celular e no tablet o menu abre com **toque longo**, em formato de lista grande e fácil de tocar.
+- Navegação pelo teclado: tecla Menu ou Shift+F10 abre, setas escolhem, Enter confirma, Esc fecha. Também fecha ao clicar fora ou rolar a página.
+- O menu nunca sai da tela (reposiciona perto das bordas) e é acessível a leitores de tela.
+- "Colar" pelo menu depende da permissão do navegador para ler a área de transferência; se for negada, o app avisa para usar Ctrl+V.
+- Atalhos de teclado do app (além dos do editor): Ctrl+P imprimir, Ctrl+S salvar (.json), Alt+N novo documento, Alt+H tela inicial, e a tecla **?** abre a lista de atalhos. (Ctrl+N e Ctrl+T são reservados pelo navegador e não dá para usar.)
+
 ### Fora da primeira versão (fica para depois)
 Tabelas, exportar para `.docx`, cabeçalho/rodapé, comentários, corretor ortográfico próprio (o do navegador continua valendo).
 
