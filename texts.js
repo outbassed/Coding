@@ -1024,14 +1024,17 @@
       return [
         { label: "Substituir imagem…", run: on(() => startImagePick(selImg)) },
         { sep: true },
-        { label: "Pequena (25%)", run: on(() => { flushHistory(); setImageWidth(25); afterChange(true); }) },
-        { label: "Média (50%)", run: on(() => { flushHistory(); setImageWidth(50); afterChange(true); }) },
-        { label: "Grande (75%)", run: on(() => { flushHistory(); setImageWidth(75); afterChange(true); }) },
-        { label: "Largura total (100%)", run: on(() => { flushHistory(); setImageWidth(100); afterChange(true); }) },
-        { sep: true },
-        { label: "Alinhar à esquerda", run: on(() => setImageAlign("left")) },
-        { label: "Centralizar", run: on(() => setImageAlign("center")) },
-        { label: "Alinhar à direita", run: on(() => setImageAlign("right")) },
+        { label: "Tamanho", sub: [
+          { label: "Pequena (25%)", run: on(() => { flushHistory(); setImageWidth(25); afterChange(true); }) },
+          { label: "Média (50%)", run: on(() => { flushHistory(); setImageWidth(50); afterChange(true); }) },
+          { label: "Grande (75%)", run: on(() => { flushHistory(); setImageWidth(75); afterChange(true); }) },
+          { label: "Largura total (100%)", run: on(() => { flushHistory(); setImageWidth(100); afterChange(true); }) }
+        ] },
+        { label: "Alinhamento", sub: [
+          { label: "À esquerda", run: on(() => setImageAlign("left")) },
+          { label: "Centralizado", run: on(() => setImageAlign("center")) },
+          { label: "À direita", run: on(() => setImageAlign("right")) }
+        ] },
         { sep: true },
         { label: "Copiar imagem", run: on(copyImage), disabled: missing },
         { label: "Remover imagem", shortcut: "Delete", run: on(removeImage), danger: true }
@@ -1048,20 +1051,25 @@
       { label: "Colar sem formatação", shortcut: "Ctrl+Shift+V", run: pasteFromClipboard },
       { label: "Selecionar tudo", shortcut: "Ctrl+A", run: () => { focusEditor(); cmd("selectAll"); scheduleToolbar(); } },
       { sep: true },
-      { label: "Negrito", shortcut: "Ctrl+B", run: () => format("bold"), check: byId("txBold").classList.contains("is-active") },
-      { label: "Itálico", shortcut: "Ctrl+I", run: () => format("italic"), check: byId("txItalic").classList.contains("is-active") },
-      { label: "Sublinhado", shortcut: "Ctrl+U", run: () => format("underline"), check: byId("txUnderline").classList.contains("is-active") },
-      { sep: true },
-      { label: "Alinhar à esquerda", run: () => format("justifyLeft") },
-      { label: "Centralizar", run: () => format("justifyCenter") },
-      { label: "Alinhar à direita", run: () => format("justifyRight") },
-      { label: "Justificar", run: () => format("justifyFull") },
-      { sep: true },
-      { label: "Lista com marcadores", run: () => format("insertUnorderedList") },
-      { label: "Lista numerada", run: () => format("insertOrderedList") },
-      { label: "Título 1", run: () => setBlock("h1") },
-      { label: "Título 2", run: () => setBlock("h2") },
-      { label: "Texto normal", run: () => setBlock("p") },
+      { label: "Formatar", sub: [
+        { label: "Negrito", shortcut: "Ctrl+B", run: () => format("bold"), check: byId("txBold").classList.contains("is-active") },
+        { label: "Itálico", shortcut: "Ctrl+I", run: () => format("italic"), check: byId("txItalic").classList.contains("is-active") },
+        { label: "Sublinhado", shortcut: "Ctrl+U", run: () => format("underline"), check: byId("txUnderline").classList.contains("is-active") }
+      ] },
+      { label: "Alinhamento", sub: [
+        { label: "À esquerda", run: () => format("justifyLeft") },
+        { label: "Centralizar", run: () => format("justifyCenter") },
+        { label: "À direita", run: () => format("justifyRight") },
+        { label: "Justificar", run: () => format("justifyFull") }
+      ] },
+      { label: "Parágrafo", sub: [
+        { label: "Lista com marcadores", run: () => format("insertUnorderedList") },
+        { label: "Lista numerada", run: () => format("insertOrderedList") },
+        { sep: true },
+        { label: "Título 1", run: () => setBlock("h1") },
+        { label: "Título 2", run: () => setBlock("h2") },
+        { label: "Texto normal", run: () => setBlock("p") }
+      ] },
       { sep: true },
       { label: "Inserir imagem…", run: () => startImagePick(null), disabled: !C.store.images }
     ];

@@ -38,7 +38,27 @@
     return out;
   }
 
+  const sub = document.createElement("div");
+  sub.className = "ctx-menu ctx-sub";
+  sub.setAttribute("role", "menu");
+  sub.hidden = true;
+  document.body.append(sub);
+  let subOwner = null;
+  let subTimer = 0;
+
+  function closeSub(focusOwner) {
+    clearTimeout(subTimer);
+    if (sub.hidden) return;
+    sub.hidden = true;
+    sub.replaceChildren();
+    if (subOwner) { subOwner.setAttribute("aria-expanded", "false"); subOwner.classList.remove("open"); }
+    const owner = subOwner;
+    subOwner = null;
+    if (focusOwner && owner) owner.focus({ preventScroll: true });
+  }
+
   function close(restoreFocus) {
+    closeSub(false);
     if (menu.hidden) return;
     menu.hidden = true;
     menu.replaceChildren();
@@ -47,20 +67,15 @@
     if (restoreFocus && target && document.contains(target) && typeof target.focus === "function") target.focus({ preventScroll: true });
   }
 
-  function focusable() { return Array.from(menu.querySelectorAll('[role^="menuitem"]:not(:disabled)')); }
+  function focusable(scope) { return Array.from((scope || menu).querySelectorAll('[role^="menuitem"]:not(:disabled)')); }
 
-  function open(list, x, y, touch) {
-    close(false);
-    const items = clean(list);
-    if (!items.length) return;
-    opener = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
-    menu.classList.toggle("touch", Boolean(touch));
+  function build(container, items, touch, level) {
     items.forEach((item) => {
       if (item.sep) {
         const sep = document.createElement("div");
         sep.className = "ctx-sep";
         sep.setAttribute("role", "separator");
-        menu.append(sep);
+        container.append(sep);
         return;
       }
       const button = document.createElement("button");
@@ -77,6 +92,40 @@
       label.className = "ctx-label";
       label.textContent = item.label;
       button.append(mark, label);
+      if (item.sub) {
+        const arrow = document.createElement("span");
+        arrow.className = "ctx-arrow";
+        arrow.textContent = "›";
+        arrow.setAttribute("aria-hidden", "true");
+        button.append(arrow);
+        button.setAttribute("aria-haspopup", "menu");
+        button.setAttribute("aria-expanded", "false");
+        if (touch) {
+          // toque: o grupo abre por baixo, sem janela lateral
+          const group = document.createElement("div");
+          group.className = "ctx-group";
+          group.hidden = true;
+          build(group, clean(item.sub), touch, level + 1);
+          button.addEventListener("click", () => {
+            group.hidden = !group.hidden;
+            button.setAttribute("aria-expanded", String(!group.hidden));
+            button.classList.toggle("open", !group.hidden);
+          });
+          container.append(button, group);
+        } else {
+          button.addEventListener("click", () => openSub(button, item.sub, true));
+          button.addEventListener("mouseenter", () => {
+            if (container !== menu) return;
+            clearTimeout(subTimer);
+            subTimer = setTimeout(() => openSub(button, item.sub, false), 140);
+          });
+          container.append(button);
+        }
+        return;
+      }
+      if (!touch && container === menu) {
+        button.addEventListener("mouseenter", () => { clearTimeout(subTimer); subTimer = setTimeout(() => closeSub(false), 140); });
+      }
       if (item.shortcut) {
         const key = document.createElement("kbd");
         key.className = "ctx-key";
@@ -87,8 +136,41 @@
         close(true);
         setTimeout(() => item.run && item.run(), 0);
       });
-      menu.append(button);
+      container.append(button);
     });
+  }
+
+  function openSub(button, list, focusFirst) {
+    clearTimeout(subTimer);
+    if (subOwner === button && !sub.hidden) { if (focusFirst) { const f = focusable(sub)[0]; if (f) f.focus(); } return; }
+    closeSub(false);
+    const items = clean(list);
+    if (!items.length) return;
+    build(sub, items, false, 1);
+    subOwner = button;
+    button.setAttribute("aria-expanded", "true");
+    button.classList.add("open");
+    sub.hidden = false;
+    sub.style.left = "0px";
+    sub.style.top = "0px";
+    sub.style.maxHeight = window.innerHeight - 16 + "px";
+    const r = button.getBoundingClientRect();
+    const box = sub.getBoundingClientRect();
+    let left = r.right + 2;
+    if (left + box.width > window.innerWidth - 8) left = Math.max(8, r.left - box.width - 2);
+    const top = Math.max(8, Math.min(r.top - 6, window.innerHeight - box.height - 8));
+    sub.style.left = left + "px";
+    sub.style.top = top + "px";
+    if (focusFirst) { const f = focusable(sub)[0]; if (f) f.focus({ preventScroll: true }); }
+  }
+
+  function open(list, x, y, touch) {
+    close(false);
+    const items = clean(list);
+    if (!items.length) return;
+    opener = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
+    menu.classList.toggle("touch", Boolean(touch));
+    build(menu, items, Boolean(touch), 0);
     openedAt = performance.now();
     menu.hidden = false;
     menu.style.left = "0px";
@@ -103,24 +185,32 @@
     if (first) first.focus({ preventScroll: true });
   }
 
-  menu.addEventListener("keydown", (e) => {
-    const items = focusable();
+  function onKey(e) {
+    const inSub = sub.contains(document.activeElement);
+    const scope = inSub ? sub : menu;
+    const items = focusable(scope).filter((el) => !el.closest("[hidden]"));
     const index = items.indexOf(document.activeElement);
+    const current = document.activeElement;
+    if (!items.length) return;
     if (e.key === "ArrowDown") { e.preventDefault(); items[(index + 1) % items.length].focus(); }
     else if (e.key === "ArrowUp") { e.preventDefault(); items[(index - 1 + items.length) % items.length].focus(); }
     else if (e.key === "Home") { e.preventDefault(); items[0].focus(); }
     else if (e.key === "End") { e.preventDefault(); items[items.length - 1].focus(); }
-    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(true); }
+    else if (e.key === "ArrowRight" && current && current.getAttribute("aria-haspopup")) { e.preventDefault(); current.click(); }
+    else if (e.key === "ArrowLeft" && inSub) { e.preventDefault(); closeSub(true); }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); if (inSub) closeSub(true); else close(true); }
     else if (e.key === "Tab") { e.preventDefault(); close(true); }
-  });
+  }
+  menu.addEventListener("keydown", onKey);
+  sub.addEventListener("keydown", onKey);
 
   let outsideTarget = null;
   document.addEventListener("pointerdown", (e) => {
     outsideTarget = null;
-    if (!menu.hidden && !menu.contains(e.target)) { outsideTarget = e.target; close(false); }
+    if (!menu.hidden && !menu.contains(e.target) && !sub.contains(e.target)) { outsideTarget = e.target; close(false); }
   }, true);
-  document.addEventListener("scroll", (e) => { if (!menu.hidden && !menu.contains(e.target) && performance.now() - openedAt > 400) close(false); }, true);
-  window.addEventListener("wheel", (e) => { if (!menu.hidden && !menu.contains(e.target)) close(false); }, { passive: true });
+  document.addEventListener("scroll", (e) => { if (!menu.hidden && !menu.contains(e.target) && !sub.contains(e.target) && performance.now() - openedAt > 400) close(false); }, true);
+  window.addEventListener("wheel", (e) => { if (!menu.hidden && !menu.contains(e.target) && !sub.contains(e.target)) close(false); }, { passive: true });
   window.addEventListener("resize", () => close(false));
   window.addEventListener("blur", () => close(false));
 
@@ -167,13 +257,15 @@
       { label: C.isFav() ? "Remover dos favoritos" : "Adicionar aos favoritos", run: () => C.toggleFav(), disabled: !doc },
       { sep: true },
       { label: "Imprimir / PDF", shortcut: "Ctrl+P", run: C.print, disabled: !doc },
-      { label: "Copiar link do documento", run: C.copyShareLink, disabled: !doc },
-      { label: "Salvar projeto (.json)", shortcut: "Ctrl+S", run: C.exportProject, disabled: !doc },
-      { label: "Abrir arquivo (.json)…", run: C.openImport },
+      { label: "Arquivo", sub: [
+        { label: "Copiar link do documento", run: C.copyShareLink, disabled: !doc },
+        { label: "Salvar projeto (.json)", shortcut: "Ctrl+S", run: C.exportProject, disabled: !doc },
+        { label: "Abrir arquivo (.json)…", run: C.openImport }
+      ] },
       { sep: true }
     ];
     const mode = C.curMode();
-    if (mode && mode.viewItems) items.push(...mode.viewItems(), { sep: true });
+    if (mode && mode.viewItems) items.push({ label: "Exibir", sub: mode.viewItems() }, { sep: true });
     items.push({ label: "Atalhos do teclado", shortcut: "?", run: openShortcuts });
     return items;
   }
@@ -201,7 +293,7 @@
     if (suppressContext) { e.preventDefault(); return; }
     const target = e.target;
     if (!(target instanceof Element)) return;
-    if (target.closest("#ctxMenu")) { e.preventDefault(); return; }
+    if (target.closest("#ctxMenu, .ctx-sub")) { e.preventDefault(); return; }
     if (e.shiftKey) return; // menu nativo do navegador
     if (target.closest("dialog") || isField(target)) return;
     const coarse = window.matchMedia("(pointer: coarse)").matches;
@@ -216,7 +308,7 @@
   document.addEventListener("pointerdown", (e) => {
     if (e.pointerType !== "touch" || !e.isPrimary) return;
     const target = e.target;
-    if (!(target instanceof Element) || target.closest("dialog, #ctxMenu") || isField(target)) return;
+    if (!(target instanceof Element) || target.closest("dialog, #ctxMenu, .ctx-sub") || isField(target)) return;
     if (target.closest("#txEditor") && target.tagName !== "IMG") return;
     const x = e.clientX;
     const y = e.clientY;

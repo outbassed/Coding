@@ -395,6 +395,12 @@ select { cursor: pointer; }
 .ctx-mark { flex: none; width: 16px; text-align: center; color: var(--accent-soft); }
 .ctx-label { flex: 1; min-width: 0; }
 .ctx-key { margin-left: 18px; padding: 0; border: 0; background: none; font: 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--muted); white-space: nowrap; }
+.ctx-sub { z-index: 201; min-width: 190px; }
+.ctx-arrow { margin-left: 14px; font-size: 18px; line-height: 1; color: var(--muted); }
+.ctx-item.open { background: #31456a; }
+.ctx-group { margin: 2px 0 4px 14px; padding-left: 6px; border-left: 2px solid var(--line-soft); }
+.ctx-menu.touch .ctx-arrow { transition: transform .15s; }
+.ctx-menu.touch .ctx-item.open .ctx-arrow { transform: rotate(90deg); }
 .ctx-sep { height: 1px; margin: 5px 4px; background: var(--line-soft); }
 .ctx-menu.touch { min-width: min(300px, calc(100vw - 16px)); }
 .ctx-menu.touch .ctx-item { min-height: 48px; font-size: 15px; }
@@ -429,7 +435,7 @@ select { cursor: pointer; }
   .paper { transform: none !important; width: var(--pw) !important; height: var(--ph) !important; margin: 0 !important; box-shadow: none !important; background: #fff !important; color: #000 !important; overflow: hidden !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .entry { break-inside: avoid !important; page-break-inside: avoid !important; }
   :root { color-scheme: light !important; }
-  .workspace[hidden], #boot, .tx-toolbar, .tx-imgbar, .tx-markers, .tx-overlay, .tx-status, .ctx-menu { display: none !important; }
+  .workspace[hidden], #boot, .tx-toolbar, .tx-imgbar, .tx-markers, .tx-overlay, .tx-status, .ctx-menu, .ctx-sub { display: none !important; }
   html[data-mode="texts"], html[data-mode="texts"] body { width: auto !important; }
   html[data-mode="texts"] .texts-ws, html[data-mode="texts"] .tx-main, html[data-mode="texts"] .tx-scroll, html[data-mode="texts"] .tx-wrap, html[data-mode="texts"] .tx-sheet { display: block !important; position: static !important; width: auto !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; transform: none !important; box-shadow: none !important; overflow: visible !important; background: #fff !important; }
   .tx-editor { min-height: 0 !important; color: #000 !important; overflow: visible !important; }
