@@ -114,11 +114,38 @@
     else if (e.key === "Tab") { e.preventDefault(); close(true); }
   });
 
-  document.addEventListener("pointerdown", (e) => { if (!menu.hidden && !menu.contains(e.target)) close(false); }, true);
+  let outsideTarget = null;
+  document.addEventListener("pointerdown", (e) => {
+    outsideTarget = null;
+    if (!menu.hidden && !menu.contains(e.target)) { outsideTarget = e.target; close(false); }
+  }, true);
   document.addEventListener("scroll", (e) => { if (!menu.hidden && !menu.contains(e.target) && performance.now() - openedAt > 400) close(false); }, true);
   window.addEventListener("wheel", (e) => { if (!menu.hidden && !menu.contains(e.target)) close(false); }, { passive: true });
   window.addEventListener("resize", () => close(false));
   window.addEventListener("blur", () => close(false));
+
+  /* ---------- Menu do celular (botão de três risquinhos) ---------- */
+
+  const menuButton = byId("menuButton");
+  menuButton.addEventListener("click", () => {
+    if (outsideTarget && menuButton.contains(outsideTarget)) { outsideTarget = null; return; } // segundo toque fecha
+    const doc = C.cur();
+    const install = byId("installButton");
+    const items = [
+      { label: "Tela inicial", run: C.goHome },
+      { label: "Novo documento", run: newOfCurrent },
+      { sep: true },
+      { label: "Imprimir / PDF", run: C.print, disabled: !doc },
+      { label: "Copiar link do documento", run: C.copyShareLink, disabled: !doc },
+      { label: "Salvar projeto (.json)", run: C.exportProject, disabled: !doc },
+      { label: "Abrir arquivo (.json)…", run: C.openImport },
+      { sep: true }
+    ];
+    if (!install.hidden) items.push({ label: "Instalar aplicativo", run: () => install.click() });
+    items.push({ label: "Atalhos do teclado", run: openShortcuts });
+    const box = menuButton.getBoundingClientRect();
+    open(items, window.innerWidth, box.bottom + 6, true);
+  });
 
   /* ---------- Conteúdo ---------- */
 

@@ -59,6 +59,10 @@ button.brand:hover .brand-icon { border-color: #8fb0ee; }
 .save-status .icon { width: 12px; height: 12px; }
 .top-actions { margin-left: auto; display: flex; align-items: center; gap: 7px; }
 
+.menu-btn { display: none; flex: none; width: 40px; height: 40px; place-items: center; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #e3ecfb; }
+.menu-btn:hover { background: #2a384e; }
+.menu-btn .icon { width: 22px; height: 22px; }
+
 /* Botões */
 .btn { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; border: 1px solid transparent; border-radius: 10px; font-size: 13px; font-weight: 700; white-space: nowrap; transition: background-color .15s, transform .1s; }
 .btn:active:not(:disabled) { transform: translateY(1px); }
@@ -263,11 +267,11 @@ select { cursor: pointer; }
   .brand-copy strong { font-size: 16px; }
   .doc-name { max-width: none; }
   .doc-name input { font-weight: 500; color: #adbdd2; }
-  .top-actions { gap: 2px; }
-  .btn-label { display: none; }
-  .top-actions .btn { min-height: 38px; min-width: 38px; padding: 0 8px; }
-  .top-actions .btn.subtle { background: transparent; border-color: transparent; }
-  .top-actions .btn.primary { border-radius: 9px; margin-left: 2px; }
+  .top-actions { display: none; }
+  .menu-btn { display: grid; }
+  .brand-copy { display: none; }
+  .doc-name { flex: 1 1 auto; max-width: none; }
+  .doc-name input { text-align: center; }
   .indicator { min-width: 32px; font-size: 11px; }
   .icon-btn { border-color: transparent; background: transparent; }
   .item-fields { grid-template-columns: minmax(0, 1fr); }

@@ -28,6 +28,9 @@ Funciona como site e como aplicativo instalável (PWA), inclusive offline. Sem f
 - As imagens são reduzidas ao inserir (lado maior de até 1600 px, WebP/JPEG). Limite: 30 imagens por documento.
 - Se uma imagem não puder ser exibida, aparece um quadro "Imagem indisponível" com o mesmo tamanho e alinhamento. No PDF ele sai vazio, só com uma borda fina, e o app pede confirmação antes de imprimir.
 
+## Barra superior no celular
+Em telas pequenas a barra mostra só o logo (volta à tela inicial), o nome do documento (toque para renomear) e o botão de três risquinhos, que abre o menu com Tela inicial, Novo documento, Imprimir / PDF, Copiar link, Salvar, Abrir arquivo e Atalhos (e Instalar, quando disponível).
+
 ## Menu de clique direito e atalhos
 O botão direito abre o menu do Coding, que muda conforme o lugar (item de etiqueta, folha, texto, imagem, qualquer lugar) e mostra os atalhos de cada opção. **Shift + botão direito** abre o menu do navegador, que também continua nos campos de digitação das Etiquetas. No celular, use o toque longo. Pelo teclado: tecla Menu ou Shift+F10, setas, Enter e Esc.
 
