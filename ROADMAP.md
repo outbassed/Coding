@@ -4,7 +4,14 @@ Lista de pedidos pendentes. Quando o dono do projeto mandar **"Iniciar update"**
 
 ## Próximo update
 
-Nada pendente. Os pedidos novos entram aqui.
+### Layout separado para PC e celular (aprovado: barra lateral no PC)
+- **Estrutura:** dois modos principais (Etiquetas e Textos) sempre em destaque; as ferramentas secundárias ficam num grupo "Ferramentas", fora do caminho.
+- **PC:** barra lateral fixa à esquerda com Início, Etiquetas, Textos e Ferramentas (expande a lista). Dentro de um documento a barra encolhe para só ícones e o editor ganha espaço.
+- **Celular:** sem barra lateral; barra fixa embaixo com Início, Novo (+), Ferramentas e Menu. O "+" abre uma folha por baixo com as opções de criar. Controles do editor em faixa rolável com botões grandes.
+- **Facilidade:** botões sempre com ícone e nome, no máximo 4 destinos principais, uma ação de destaque por tela, nada escondido.
+
+### Ferramentas secundárias (a escolher)
+Códigos QR e de barras em folha A4; importar planilha/CSV nas Etiquetas (uma etiqueta por linha); PDF (anotar, assinar, juntar, dividir, reordenar); Imagens (redimensionar, cortar, comprimir, montar em A4); Recibos/Orçamentos; Planilhas simples; Checklists; Placas/Cartazes; Digitalizar documento pela câmera.
 
 ### Ainda fora do Texts (fica para depois)
 Tabelas, exportar para `.docx`, cabeçalho/rodapé, comentários, corretor ortográfico próprio (o do navegador continua valendo), recortar e girar imagem, imagem solta sobre o texto (posição livre) e imagem de fundo.
