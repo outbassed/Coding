@@ -428,7 +428,7 @@ select { cursor: pointer; }
   @page { size: A4 portrait; margin: 0; }
   html, body { width: var(--pw) !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; background: #fff !important; }
   .app, .workspace, .preview { display: block !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; background: #fff !important; box-shadow: none !important; }
-  #home, #tools, .main-nav, .sheet-back, .topbar, .panel, .statusbar, .warning, .dialog, #measureHost, .toast { display: none !important; }
+  #home, #tools, .tool-view, .main-nav, .sheet-back, .topbar, .panel, .statusbar, .warning, .dialog, #measureHost, .toast { display: none !important; }
   .sheets-area, .pages { display: block !important; width: var(--pw) !important; min-width: 0 !important; height: auto !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
   .page-frame, .page-frame.mobile-inactive { display: block !important; position: relative !important; width: var(--pw) !important; height: var(--ph) !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; break-after: page; page-break-after: always; }
   .page-frame:last-child { break-after: auto; page-break-after: auto; }
@@ -494,4 +494,59 @@ body { --nav-w: 0px; --nav-h: 0px; }
   .nav-new { color: #fff; }
   .nav-new .icon { box-sizing: content-box; padding: 5px; border-radius: 99px; background: #3d63ad; width: 22px; height: 22px; margin-top: -2px; }
   .home { bottom: var(--nav-h); inset: 0 0 var(--nav-h) 0; padding-bottom: 20px; }
+}
+
+/* ---------- Ferramentas: QR / barras e planilha ---------- */
+.tool-view { position: fixed; z-index: 50; inset: 0 0 var(--nav-h) var(--nav-w); display: flex; flex-direction: column; background: var(--bg); }
+.tool-view[hidden] { display: none; }
+.tv-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: calc(10px + var(--safe-top)) 16px 10px; background: var(--bar); border-bottom: 1px solid var(--line-soft); }
+.tv-head h1 { margin: 0; font-size: 17px; outline: none; text-align: center; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tv-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); }
+.tv-body.tv-single { grid-template-columns: minmax(0, 1fr); overflow-y: auto; justify-items: center; }
+.tv-body.tv-single .tv-form { width: min(720px, 100%); }
+.tv-form { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 18px; overflow-y: auto; border-right: 1px solid var(--line-soft); }
+.tv-single .tv-form { border-right: 0; overflow: visible; }
+.tv-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: 12px; font-weight: 650; color: var(--muted); }
+.tv-field small { font-weight: 500; color: #8896ad; }
+.tv-field select, .tv-field textarea, .tv-field input[type="number"] { width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--text); font: inherit; font-size: 14px; font-weight: 500; }
+.tv-field textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.4; }
+.tv-field input[type="range"] { width: 100%; }
+.tv-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.tv-row > .tv-field { flex: 1; }
+.tv-small { max-width: 130px; }
+.tv-grid3 { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tv-check { display: flex; align-items: center; gap: 9px; font-size: 14px; color: var(--text); }
+.tv-check input { width: 18px; height: 18px; }
+.tv-msg { margin: 0; min-height: 1em; font-size: 12.5px; color: #f0b27a; white-space: pre-line; }
+.tv-info { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.45; }
+.tv-info b { color: var(--text); }
+.tv-preview { min-width: 0; overflow: auto; padding: 16px; background: #0b0f16; }
+.codes-preview { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.codes-page { position: relative; flex: none; background: #fff; color: #000; box-shadow: 0 6px 24px #0008; overflow: hidden; }
+.codes-grid { position: absolute; display: grid; align-content: start; }
+.code-cell { box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; color: #000; background: #fff; }
+.code-cell.cut { border: .25mm dashed #777; }
+.code-cell svg { display: block; flex: none; }
+.code-cell .ct { max-width: 100%; text-align: center; font: 3.2mm/1.15 Arial, Helvetica, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.code-cell .ct.l2 { font-size: 2.8mm; }
+.tv-table-wrap { max-width: 100%; overflow: auto; border: 1px solid var(--line-soft); border-radius: 10px; }
+.tv-table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.tv-table th, .tv-table td { padding: 6px 10px; border-bottom: 1px solid var(--line-soft); text-align: left; white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.tv-table th { color: var(--muted); font-weight: 650; background: #ffffff08; }
+.tv-table tr.is-head td { color: var(--muted); font-style: italic; }
+.tool-card-link { cursor: pointer; }
+#codesPrintRoot { display: none; }
+@media (max-width: 899px) {
+  .tv-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(260px, 1fr); overflow-y: auto; }
+  .tv-form { border-right: 0; overflow: visible; }
+  .tv-grid3 { grid-template-columns: minmax(0, 1fr); }
+  .tv-head .btn-label { display: none; }
+  .tv-head #codesPrint .btn-label { display: inline; }
+}
+@media print {
+  body.print-codes > *:not(#codesPrintRoot) { display: none !important; }
+  body.print-codes #codesPrintRoot { display: block !important; }
+  #codesPrintRoot .codes-page { box-shadow: none !important; margin: 0 !important; break-after: page; page-break-after: always; zoom: 1 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #codesPrintRoot .codes-page:last-child { break-after: auto; page-break-after: auto; }
+  .tool-view { display: none !important; }
 }

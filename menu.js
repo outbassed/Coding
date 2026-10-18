@@ -221,7 +221,7 @@
   function mainMenu(anchor, above) {
     const doc = C.cur();
     const install = byId("installButton");
-    const onHome = !doc || !byId("home").hidden || !byId("tools").hidden;
+    const onHome = !doc || !document.body.classList.contains("in-doc");
     const items = onHome ? [
       { label: "Abrir arquivo (.json)…", run: C.openImport }
     ] : [
@@ -287,7 +287,7 @@
   }
 
   function showFor(target, x, y, touch) {
-    const onHome = !byId("home").hidden;
+    const onHome = !document.body.classList.contains("in-doc");
     const doc = C.cur();
     let list = null;
     if (!onHome && doc) {

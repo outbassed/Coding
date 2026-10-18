@@ -51,7 +51,7 @@ Ctrl+N e Ctrl+T pertencem ao navegador e não podem ser usados. "Colar" pelo men
 - `#/novo` ou `#/novo/etiquetas`: novo documento de Etiquetas
 - `#/novo/texts`: novo documento do Texts
 - `#/continuar`: abre o último documento
-- `#/ferramentas`: página de ferramentas
+- `#/ferramentas`: página de ferramentas; `#/ferramentas/codigos` (QR e barras) e `#/ferramentas/planilha` (etiquetas por planilha)
 - `#/label/ID` (etiquetas) e `#/texts/ID` (textos), também aceitam o nome do documento; `#/doc/ID` continua funcionando
 - O botão **Link** copia um endereço que cria uma cópia do documento em quem abrir. **O link não leva imagens** (elas aparecem como "Imagem indisponível"); para levar as imagens, use **Salvar (.json)**.
 
@@ -80,3 +80,6 @@ A instalação exige HTTPS (o GitHub Pages já oferece) ou `localhost`.
 - Textos e HTML vindos de links ou arquivos `.json` são filtrados (só marcações de formatação conhecidas; sem scripts, links ou estilos arbitrários).
 - As fontes disponíveis variam conforme o sistema operacional.
 - **Ao alterar qualquer arquivo do app**, aumente `CACHE_VERSION` em `sw.js` e inclua novos arquivos em `ASSETS`, senão quem já instalou continua vendo a versão em cache.
+
+## Licenças de terceiros
+`vendor/qrcode.js` é o *qrcode-generator* de Kazuhiko Arase (MIT, ver `vendor/qrcode.LICENSE`).

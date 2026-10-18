@@ -1,6 +1,6 @@
 /* Coding — service worker (funciona offline).
    O app busca sempre a versão mais nova quando há internet e usa o cache só offline. */
-const CACHE_VERSION = 17;
+const CACHE_VERSION = 18;
 const CACHE = "coding-cache-v" + CACHE_VERSION;
 const ASSETS = [
   "./",
@@ -10,6 +10,9 @@ const ASSETS = [
   "labels.js",
   "texts.js",
   "menu.js",
+  "barcodes.js",
+  "tools.js",
+  "vendor/qrcode.js",
   "manifest.webmanifest",
   "icons/icon.svg",
   "icons/icon-192.png",

@@ -57,6 +57,8 @@
   <script src="core.js" defer></script>
   <script src="labels.js" defer></script>
   <script src="texts.js" defer></script>
+  <script src="barcodes.js" defer></script>
+  <script src="tools.js" defer></script>
   <script src="menu.js" defer></script>
 </head>
 <body>
@@ -134,13 +136,74 @@
         <div><h1 id="toolsTitle" tabindex="-1">Ferramentas</h1><p>Utilitários extras, separados dos editores. Chegam aos poucos.</p></div>
       </div>
       <div class="tools-grid">
-        <div class="home-option tool-card" aria-disabled="true"><span class="home-ic"><svg class="icon"><use href="#ic-qr"/></svg></span><span class="home-txt"><strong>QR e código de barras</strong><small>Em folha A4, vários por página</small></span><em class="soon">Em breve</em></div>
-        <div class="home-option tool-card" aria-disabled="true"><span class="home-ic"><svg class="icon"><use href="#ic-grid"/></svg></span><span class="home-txt"><strong>Etiquetas por planilha</strong><small>Uma etiqueta por linha do CSV/Excel</small></span><em class="soon">Em breve</em></div>
+        <button class="home-option" type="button" data-tool="codes"><span class="home-ic"><svg class="icon"><use href="#ic-qr"/></svg></span><span class="home-txt"><strong>QR e código de barras</strong><small>Em folha A4, vários por página</small></span><svg class="icon home-go"><use href="#ic-right"/></svg></button>
+        <button class="home-option" type="button" data-tool="sheet"><span class="home-ic"><svg class="icon"><use href="#ic-grid"/></svg></span><span class="home-txt"><strong>Etiquetas por planilha</strong><small>Uma etiqueta por linha do CSV/Excel</small></span><svg class="icon home-go"><use href="#ic-right"/></svg></button>
         <div class="home-option tool-card" aria-disabled="true"><span class="home-ic"><svg class="icon"><use href="#ic-file"/></svg></span><span class="home-txt"><strong>Editor de PDF</strong><small>Anotar, assinar, juntar e dividir</small></span><em class="soon">Em breve</em></div>
         <div class="home-option tool-card" aria-disabled="true"><span class="home-ic"><svg class="icon"><use href="#ic-image"/></svg></span><span class="home-txt"><strong>Imagens</strong><small>Redimensionar, cortar e comprimir</small></span><em class="soon">Em breve</em></div>
       </div>
     </div>
   </div>
+
+  <section id="codesView" class="tool-view" aria-labelledby="codesTitle" hidden>
+    <header class="tv-head">
+      <button class="btn subtle" type="button" data-tool-back><svg class="icon"><use href="#ic-left"/></svg><span class="btn-label">Ferramentas</span></button>
+      <h1 id="codesTitle" tabindex="-1">QR e código de barras</h1>
+      <button id="codesPrint" class="btn primary" type="button"><svg class="icon"><use href="#ic-print"/></svg><span class="btn-label">Imprimir / PDF</span></button>
+    </header>
+    <div class="tv-body">
+      <div class="tv-form">
+        <label class="tv-field"><span>Tipo</span>
+          <select id="codesType"><option value="qr">QR Code</option><option value="code128">Código de barras (Code 128)</option><option value="ean13">Código de barras EAN-13</option></select>
+        </label>
+        <label class="tv-field"><span>Lista <small>uma linha por código: conteúdo ; legenda ; cópias</small></span>
+          <textarea id="codesText" rows="9" spellcheck="false" placeholder="123456789012 ; Caixa 1 ; 2"></textarea>
+        </label>
+        <p id="codesMsg" class="tv-msg" role="status"></p>
+        <div class="tv-row">
+          <label class="tv-field"><span>Colunas</span><select id="codesCols"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+          <label class="tv-field"><span>Folha</span><select id="codesOrient"><option value="portrait">Retrato</option><option value="landscape">Paisagem</option></select></label>
+        </div>
+        <label class="tv-field"><span>Tamanho do código: <b id="codesSizeVal">35 mm</b></span><input id="codesSize" type="range" min="15" max="90" step="1" value="35"></label>
+        <label class="tv-check"><input id="codesShowText" type="checkbox" checked> Mostrar o texto embaixo</label>
+        <label class="tv-check"><input id="codesCut" type="checkbox" checked> Linha de corte</label>
+        <p class="tv-info" id="codesInfo"></p>
+      </div>
+      <div class="tv-preview" id="codesPreviewBox"><div id="codesPreview" class="codes-preview"></div></div>
+    </div>
+  </section>
+
+  <section id="sheetView" class="tool-view" aria-labelledby="sheetTitle" hidden>
+    <header class="tv-head">
+      <button class="btn subtle" type="button" data-tool-back><svg class="icon"><use href="#ic-left"/></svg><span class="btn-label">Ferramentas</span></button>
+      <h1 id="sheetTitle" tabindex="-1">Etiquetas por planilha</h1>
+      <span></span>
+    </header>
+    <div class="tv-body tv-single">
+      <div class="tv-form">
+        <p class="tv-info">Escolha um arquivo <b>.xlsx</b> ou <b>.csv</b> — ou cole as células copiadas do Excel. Cada linha vira uma etiqueta.</p>
+        <div class="tv-row">
+          <button id="sheetPick" class="btn primary" type="button"><svg class="icon"><use href="#ic-upload"/></svg><span class="btn-label">Escolher arquivo</span></button>
+          <input id="sheetFile" type="file" accept=".xlsx,.csv,.tsv,.txt,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+        </div>
+        <label class="tv-field"><span>Ou cole aqui</span><textarea id="sheetPaste" rows="4" spellcheck="false" placeholder="Código&#9;Descrição&#9;Qtd&#10;190847&#9;ARVORE NATAL 240CM&#9;4"></textarea></label>
+        <p id="sheetMsg" class="tv-msg" role="status"></p>
+        <div id="sheetStep2" hidden>
+          <div class="tv-grid3">
+            <label class="tv-field"><span>Coluna do código</span><select id="sheetColCode"></select></label>
+            <label class="tv-field"><span>Coluna da descrição</span><select id="sheetColDesc"></select></label>
+            <label class="tv-field"><span>Coluna das cópias</span><select id="sheetColCopies"></select></label>
+          </div>
+          <div class="tv-row">
+            <label class="tv-check"><input id="sheetHeader" type="checkbox"> A primeira linha é título</label>
+            <label class="tv-field tv-small"><span>Cópias padrão</span><input id="sheetDefCopies" type="number" min="1" max="500" value="1" inputmode="numeric"></label>
+          </div>
+          <div class="tv-table-wrap"><table id="sheetTable" class="tv-table"></table></div>
+          <p class="tv-info" id="sheetInfo"></p>
+          <button id="sheetCreate" class="btn primary" type="button"><svg class="icon"><use href="#ic-tag"/></svg><span class="btn-label">Criar etiquetas</span></button>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <div id="newSheet" class="sheet-back" hidden>
     <div class="sheet" role="dialog" aria-modal="true" aria-label="Criar novo">

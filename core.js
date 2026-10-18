@@ -279,6 +279,10 @@
   const appEl = document.querySelector(".app");
   const toolsEl = byId("tools");
   const navEl = byId("mainNav");
+  const toolViews = { codes: byId("codesView"), sheet: byId("sheetView") };
+  const TOOL_ROUTES = { codes: "codigos", sheet: "planilha" };
+  const anyToolView = () => Object.values(toolViews).some((v) => !v.hidden);
+  const hideToolViews = () => Object.values(toolViews).forEach((v) => { v.hidden = true; });
   const TYPE_META = {
     labels: { icon: "#ic-tag", name: "Coding Etiquetas", sub: "Etiquetas A4", title: "Coding Etiquetas" },
     texts: { icon: "#ic-text", name: "Coding Textos", sub: "Textos", title: "Coding Textos" }
@@ -501,6 +505,7 @@
     if (!opts.keepTab && current) { tabState.favs = current.type; tabState.history = current.type; }
     renderHistory();
     toolsEl.hidden = true;
+    hideToolViews();
     homeEl.hidden = false;
     appEl.inert = true;
     appEl.setAttribute("aria-hidden", "true");
@@ -509,10 +514,10 @@
   }
 
   function updateNav() {
-    const inDoc = homeEl.hidden && toolsEl.hidden;
+    const inDoc = homeEl.hidden && toolsEl.hidden && !anyToolView();
     document.body.classList.toggle("in-doc", inDoc);
     const doc = cur();
-    const active = !homeEl.hidden ? "home" : !toolsEl.hidden ? "tools" : (doc ? doc.type : "home");
+    const active = !homeEl.hidden ? "home" : (!toolsEl.hidden || anyToolView()) ? "tools" : (doc ? doc.type : "home");
     navEl.querySelectorAll("[data-nav]").forEach((b) => {
       if (b.dataset.nav === active && b.dataset.nav !== "menu" && b.dataset.nav !== "new") b.setAttribute("aria-current", "page");
       else b.removeAttribute("aria-current");
@@ -523,11 +528,29 @@
     flushSave();
     setRoute("#/ferramentas", opts.replace);
     homeEl.hidden = true;
+    hideToolViews();
     toolsEl.hidden = false;
     appEl.inert = true;
     appEl.setAttribute("aria-hidden", "true");
     updateNav();
     byId("toolsTitle").focus({ preventScroll: true });
+  }
+
+  function showToolView(name, opts = {}) {
+    const view = toolViews[name];
+    if (!view) { showTools(opts); return; }
+    flushSave();
+    setRoute("#/ferramentas/" + TOOL_ROUTES[name], opts.replace);
+    homeEl.hidden = true;
+    toolsEl.hidden = true;
+    hideToolViews();
+    view.hidden = false;
+    appEl.inert = true;
+    appEl.setAttribute("aria-hidden", "true");
+    updateNav();
+    window.dispatchEvent(new CustomEvent("coding:tool", { detail: name }));
+    const title = view.querySelector("h1");
+    if (title) title.focus({ preventScroll: true });
   }
 
   function openLatest(type) {
@@ -537,6 +560,7 @@
   }
 
   function hideHome() {
+    hideToolViews();
     toolsEl.hidden = true;
     homeEl.hidden = true;
     appEl.inert = false;
@@ -713,7 +737,8 @@
         if (id) await openDoc(id, { replace: true });
         else { showHome({ replace: true }); toast("Documento não encontrado neste aparelho."); }
       } else if (name === "ferramentas") {
-        showTools({ replace: true });
+        const tool = Object.keys(TOOL_ROUTES).find((k) => TOOL_ROUTES[k] === slug(arg));
+        if (tool) showToolView(tool, { replace: true }); else showTools({ replace: true });
       } else if (name === "importar") {
         await importFromLink(arg);
       } else {
@@ -787,6 +812,8 @@
       if (await newDoc(doc ? doc.type : "labels")) toast("Novo documento criado. O anterior continua salvo.");
     });
     byId("homeButton").addEventListener("click", goHome);
+    toolsEl.addEventListener("click", (e) => { const t = e.target.closest("[data-tool]"); if (t) showToolView(t.dataset.tool); });
+    Object.values(toolViews).forEach((v) => v.addEventListener("click", (e) => { if (e.target.closest("[data-tool-back]")) showTools(); }));
     const sheet = byId("newSheet");
     const closeSheet = () => { sheet.hidden = true; };
     navEl.addEventListener("click", (e) => {
@@ -832,7 +859,7 @@
     byId("moreFavs").addEventListener("click", () => openHistory("favs"));
     byId("historyClose").addEventListener("click", () => byId("historyDialog").close());
     byId("historyDialog").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && (!homeEl.hidden || !toolsEl.hidden) && cur() && !document.querySelector("dialog[open]")) continueEditing(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && (!homeEl.hidden || !toolsEl.hidden || anyToolView()) && cur() && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && !document.querySelector("dialog[open]")) continueEditing(); });
     byId("exportButton").addEventListener("click", exportProject);
     byId("shareButton").addEventListener("click", copyShareLink);
     byId("importButton").addEventListener("click", () => byId("importInput").click());
@@ -879,7 +906,7 @@
     lib, store, modes,
     register(mode) { modes[mode.type] = mode; },
     toast, setSaved, scheduleSave, flushSave, busy,
-    cur, curMode, toggleFav, isFav, openDoc, createDoc, newDoc, goHome, print, exportProject, copyShareLink,
+    showToolView, cur, curMode, toggleFav, isFav, openDoc, createDoc, newDoc, goHome, print, exportProject, copyShareLink,
     openImport() { byId("importInput").click(); },
     PANEL_KEY
   };
