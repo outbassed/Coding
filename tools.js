@@ -44,7 +44,8 @@
   const codes = {
     ws: byId("codesWs"),
     type: byId("codesType"),
-    text: byId("codesText"),
+    rows: byId("codesRows"),
+    add: byId("codesAdd"),
     cols: byId("codesCols"),
     orient: byId("codesOrient"),
     size: byId("codesSize"),
@@ -63,15 +64,35 @@
   let cDocId = null;
 
   function codesDefaults() {
-    return { name: "Códigos sem título", kind: "qr", text: "123456789012 ; Exemplo ; 2", cols: 2, orient: "portrait", size: 35, showText: true, cut: true };
+    return { name: "Códigos sem título", kind: "qr", items: [{ content: "123456789012", label: "Exemplo", copies: 2 }], cols: 2, orient: "portrait", size: 35, showText: true, cut: true };
   }
+  const MAX_CODE_ROWS = 300;
+  function normalizeItems(o) {
+    let list = [];
+    if (Array.isArray(o.items)) list = o.items;
+    else if (typeof o.text === "string") list = legacyLines(o.text);
+    else list = codesDefaults().items;
+    return list.slice(0, MAX_CODE_ROWS).filter((i) => i && typeof i === "object").map((i) => ({
+      content: C.util.toText(i.content, "", 300),
+      label: C.util.toText(i.label, "", 200),
+      copies: C.util.toInt(i.copies, 1, 1, 200)
+    }));
+  }
+  function legacyLines(raw) {
+    return raw.split(/\r?\n/).filter((l) => l.trim()).map((line) => {
+      const parts = line.includes("\t") ? line.split("\t") : line.split(";");
+      const n = parseInt((parts[2] || "").trim(), 10);
+      return { content: (parts[0] || "").trim(), label: (parts[1] || "").trim(), copies: Number.isFinite(n) ? n : 1 };
+    });
+  }
+
   function codesNormalize(src) {
     const o = src && typeof src === "object" ? src : {};
     const d = codesDefaults();
     return {
       name: C.util.toText(o.name, d.name, 80),
       kind: ["qr", "code128", "ean13"].includes(o.kind) ? o.kind : (["qr", "code128", "ean13"].includes(o.type) ? o.type : d.kind),
-      text: C.util.toText(o.text, d.text, 30000),
+      items: normalizeItems(o),
       cols: C.util.toInt(o.cols, d.cols, 1, 4),
       orient: o.orient === "landscape" ? "landscape" : "portrait",
       size: C.util.toInt(o.size, d.size, 15, 90),
@@ -82,7 +103,6 @@
 
   function fillCodesForm() {
     codes.type.value = cstate.kind;
-    codes.text.value = cstate.text;
     codes.cols.value = String(cstate.cols);
     codes.orient.value = cstate.orient;
     codes.size.value = String(cstate.size);
@@ -92,7 +112,6 @@
 
   function readCodesForm() {
     cstate.kind = codes.type.value;
-    cstate.text = codes.text.value;
     cstate.cols = Number(codes.cols.value);
     cstate.orient = codes.orient.value;
     cstate.size = Number(codes.size.value);
@@ -100,19 +119,90 @@
     cstate.cut = codes.cut.checked;
   }
 
-  function parseLines(raw) {
+  function parseLines(list) {
     const items = [];
-    raw.split(/\r?\n/).forEach((line, index) => {
-      if (!line.trim()) return;
-      const parts = line.includes("\t") ? line.split("\t") : line.split(";");
-      const content = (parts[0] || "").trim();
+    list.forEach((it, index) => {
+      const content = (it.content || "").trim();
       if (!content) return;
-      const label = (parts[1] || "").trim();
-      const n = parseInt((parts[2] || "").trim(), 10);
-      items.push({ line: index + 1, content, label, copies: Number.isFinite(n) ? clamp(n, 1, 200) : 1 });
+      items.push({ line: index + 1, content, label: (it.label || "").trim(), copies: clamp(it.copies || 1, 1, 200) });
     });
     return items;
   }
+
+  /* Editor de linhas: conteúdo, legenda e cópias (sem sintaxe nenhuma) */
+  let rt = 0;
+  function renderCodesSoon() { clearTimeout(rt); rt = setTimeout(renderCodes, 150); }
+  let rowsFocus = -1;
+  function renderRows() {
+    const box = codes.rows;
+    const items = cstate.items;
+    box.replaceChildren(...items.map((it, i) => {
+      const row = el("div", { class: "row-item", "data-i": String(i) });
+      const c = el("input", { class: "ri-content", type: "text", placeholder: "Conteúdo (ex.: 7891234567890)", "aria-label": "Conteúdo do código " + (i + 1), autocomplete: "off", spellcheck: "false" });
+      c.value = it.content;
+      const l = el("input", { class: "ri-label", type: "text", placeholder: "Legenda (opcional)", "aria-label": "Legenda do código " + (i + 1), autocomplete: "off" });
+      l.value = it.label;
+      const n = el("input", { class: "ri-copies", type: "number", min: "1", max: "200", inputmode: "numeric", title: "Quantas cópias", "aria-label": "Cópias do código " + (i + 1) });
+      n.value = String(it.copies);
+      const x = el("button", { class: "icon-btn ri-del", type: "button", title: "Remover", "aria-label": "Remover código " + (i + 1) });
+      x.innerHTML = '<svg class="icon"><use href="#ic-trash"/></svg>';
+      row.append(c, l, n, x);
+      return row;
+    }));
+    if (rowsFocus >= 0) { const r = box.children[rowsFocus]; if (r) r.querySelector(".ri-content").focus(); rowsFocus = -1; }
+  }
+  function addRow(at, focus) {
+    if (cstate.items.length >= MAX_CODE_ROWS) { C.toast("Limite de " + MAX_CODE_ROWS + " códigos por documento."); return; }
+    cstate.items.splice(at === undefined ? cstate.items.length : at, 0, { content: "", label: "", copies: 1 });
+    if (focus !== false) rowsFocus = at === undefined ? cstate.items.length - 1 : at;
+    renderRows();
+    C.scheduleSave();
+  }
+  codes.add.addEventListener("click", () => addRow());
+  codes.rows.addEventListener("input", (e) => {
+    const row = e.target.closest(".row-item");
+    if (!row) return;
+    const it = cstate.items[Number(row.dataset.i)];
+    if (!it) return;
+    if (e.target.classList.contains("ri-content")) it.content = e.target.value;
+    else if (e.target.classList.contains("ri-label")) it.label = e.target.value;
+    else if (e.target.classList.contains("ri-copies")) it.copies = clamp(parseInt(e.target.value, 10) || 1, 1, 200);
+    C.scheduleSave();
+    renderCodesSoon();
+  });
+  codes.rows.addEventListener("click", (e) => {
+    const del = e.target.closest(".ri-del");
+    if (!del) return;
+    const i = Number(del.closest(".row-item").dataset.i);
+    cstate.items.splice(i, 1);
+    if (!cstate.items.length) cstate.items.push({ content: "", label: "", copies: 1 });
+    renderRows();
+    C.scheduleSave();
+    renderCodesSoon();
+  });
+  codes.rows.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || !e.target.matches("input")) return;
+    e.preventDefault();
+    const i = Number(e.target.closest(".row-item").dataset.i);
+    if (i === cstate.items.length - 1) addRow(); else { const nx = codes.rows.children[i + 1]; if (nx) nx.querySelector(".ri-content").focus(); }
+  });
+  codes.rows.addEventListener("paste", (e) => {
+    const input = e.target.closest(".ri-content");
+    const text = e.clipboardData && e.clipboardData.getData("text/plain");
+    if (!input || !text || !/[\r\n]/.test(text.trim())) return;
+    e.preventDefault();
+    const i = Number(input.closest(".row-item").dataset.i);
+    const added = legacyLines(text).filter((x) => x.content);
+    if (!added.length) return;
+    const room = MAX_CODE_ROWS - cstate.items.length + 1;
+    const cur = cstate.items[i];
+    const blank = !cur.content && !cur.label;
+    cstate.items.splice(i, blank ? 1 : 0, ...added.slice(0, room + (blank ? 0 : -1)).map((x) => ({ ...x, copies: clamp(x.copies, 1, 200) })));
+    renderRows();
+    C.scheduleSave();
+    renderCodesSoon();
+    C.toast(added.length + (added.length === 1 ? " código colado." : " códigos colados."));
+  });
 
   function pathFromRuns(rects) {
     return rects.map(([x, y, w, h]) => "M" + x + " " + y + "h" + w + "v" + h + "h-" + w + "z").join("");
@@ -163,7 +253,7 @@
   /* Monta as páginas (elementos .codes-page em mm). */
   async function buildPages(s) {
     const type = s.kind;
-    const items = parseLines(s.text);
+    const items = parseLines(s.items);
     const errors = [];
     const cells = [];
     if (type === "qr" && items.length) { try { await loadQr(); } catch (_) { errors.push("Não foi possível carregar o gerador de QR."); } }
@@ -266,7 +356,7 @@
     timer = setTimeout(renderCodes, 120);
   }
 
-  [codes.type, codes.text, codes.cols, codes.orient, codes.size, codes.showText, codes.cut].forEach((n) => {
+  [codes.type, codes.cols, codes.orient, codes.size, codes.showText, codes.cut].forEach((n) => {
     n.addEventListener("input", scheduleCodes);
     n.addEventListener("change", scheduleCodes);
   });
@@ -322,7 +412,7 @@
   }
 
   function codesInfo(doc) {
-    const n = parseLines(doc.state.text).reduce((a, b) => a + b.copies, 0);
+    const n = parseLines(doc.state.items).reduce((a, b) => a + b.copies, 0);
     return n + (n === 1 ? " código" : " códigos");
   }
 
@@ -336,6 +426,7 @@
       cDocId = doc.id;
       cstate = doc.state;
       fillCodesForm();
+      renderRows();
       await renderCodes();
     },
     close() {},
@@ -349,7 +440,7 @@
     ws: byId("sheetWs"),
     pick: byId("sheetPick"),
     file: byId("sheetFile"),
-    paste: byId("sheetPaste"),
+    fromCalc: byId("sheetFromCalc"),
     msg: byId("sheetMsg"),
     step2: byId("sheetStep2"),
     colCode: byId("sheetColCode"),
@@ -622,15 +713,30 @@
     try { setData(await readFile(file)); }
     catch (e) { sheet.step2.hidden = true; sheet.msg.textContent = e && /\.xls/.test(e.message) ? e.message : "Não consegui ler esse arquivo. Use .xlsx ou .csv."; }
   });
-  sheet.paste.addEventListener("input", () => {
-    const text = sheet.paste.value;
-    if (!text.trim()) return;
-    setData(parseDelimited(text));
+  function calcDocs() { return Object.values(C.lib.docs).filter((d) => d.type === "calc").sort((a, b) => b.updatedAt - a.updatedAt); }
+  function fillCalcList() {
+    const docs = calcDocs();
+    sheet.fromCalc.replaceChildren(...[["", docs.length ? "Escolher uma planilha…" : "Você ainda não tem planilhas"]].concat(docs.map((d) => [d.id, d.state.name.trim() || "Planilha sem título"])).map(([v, l]) => { const o = document.createElement("option"); o.value = v; o.textContent = l; return o; }));
+    sheet.fromCalc.disabled = !docs.length;
+  }
+  sheet.fromCalc.addEventListener("change", () => {
+    const doc = C.lib.docs[sheet.fromCalc.value];
+    sheet.fromCalc.value = "";
+    const X = window.CodingCalc;
+    if (!doc || !X) return;
+    const cx = X.makeCx(doc.state.cells);
+    let maxR = -1, maxC = -1;
+    Object.entries(doc.state.cells).forEach(([k, c]) => { if (!c.v) return; const [r, cc] = k.split(",").map(Number); if (r > maxR) maxR = r; if (cc > maxC) maxC = cc; });
+    if (maxR < 0) { sheet.msg.textContent = "Essa planilha está vazia."; return; }
+    const rows = [];
+    for (let r = 0; r <= maxR; r++) { const row = []; for (let c = 0; c <= maxC; c++) { const cell = doc.state.cells[r + "," + c]; row.push(X.showValue(cx.get(r, c), cell && cell.n)); } rows.push(row); }
+    sstate.name = doc.state.name;
+    setData(rows);
   });
 
   async function createLabels() {
     const items = sheetItems().slice(0, 200);
-    if (!items.length) { C.toast("Escolha um arquivo ou cole as células primeiro."); return; }
+    if (!items.length) { C.toast("Escolha um arquivo ou uma planilha primeiro."); return; }
     const base = C.modes.labels.defaults();
     base.items = items.map((it) => ({ id: "", ...it }));
     base.name = sstate.name && !/sem título/i.test(sstate.name) ? sstate.name : "Etiquetas da planilha";
@@ -645,7 +751,7 @@
       { label: "Criar etiquetas", run: createLabels, disabled: !sstate.rows.length },
       { sep: true },
       { label: "Escolher arquivo…", run: () => sheet.file.click() },
-      { label: "Limpar a planilha", run: () => { sstate.rows = []; sheet.paste.value = ""; showSheet(); C.setPrimary(undefined, true); C.scheduleSave(); }, disabled: !sstate.rows.length }
+      { label: "Limpar a planilha", run: () => { sstate.rows = []; showSheet(); C.setPrimary(undefined, true); C.scheduleSave(); }, disabled: !sstate.rows.length }
     ];
   }
 
@@ -658,7 +764,7 @@
     async open(doc) {
       sstate = doc.state;
       sheet.msg.textContent = "";
-      sheet.paste.value = "";
+      fillCalcList();
       showSheet();
       if (!sstate.rows.length) C.setPrimary(undefined, true);
     },

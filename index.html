@@ -402,9 +402,10 @@
         <label class="tv-field"><span>Tipo</span>
           <select id="codesType"><option value="qr">QR Code</option><option value="code128">Código de barras (Code 128)</option><option value="ean13">Código de barras EAN-13</option></select>
         </label>
-        <label class="tv-field"><span>Lista <small>uma linha por código: conteúdo ; legenda ; cópias</small></span>
-          <textarea id="codesText" rows="9" spellcheck="false" placeholder="123456789012 ; Caixa 1 ; 2"></textarea>
-        </label>
+        <div class="tv-field"><span>Códigos</span>
+          <div id="codesRows" class="rows-edit"></div>
+          <button id="codesAdd" class="btn subtle rows-add" type="button"><svg class="icon"><use href="#ic-plus"/></svg><span class="btn-label">Adicionar código</span></button>
+        </div>
         <p id="codesMsg" class="tv-msg" role="status"></p>
         <div class="tv-row">
           <label class="tv-field"><span>Colunas</span><select id="codesCols"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
@@ -421,12 +422,12 @@
     <div class="workspace tool-ws" id="sheetWs" hidden>
     <div class="tv-body tv-single">
       <div class="tv-form">
-        <p class="tv-info">Escolha um arquivo <b>.xlsx</b> ou <b>.csv</b> — ou cole as células copiadas do Excel. Cada linha vira uma etiqueta.</p>
+        <p class="tv-info">Gere uma etiqueta para cada linha de uma tabela: escolha um arquivo do Excel (.xlsx) ou CSV, ou use uma das suas <b>Planilhas</b> do Coding.</p>
         <div class="tv-row">
           <button id="sheetPick" class="btn primary" type="button"><svg class="icon"><use href="#ic-upload"/></svg><span class="btn-label">Escolher arquivo</span></button>
           <input id="sheetFile" type="file" accept=".xlsx,.csv,.tsv,.txt,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
         </div>
-        <label class="tv-field"><span>Ou cole aqui</span><textarea id="sheetPaste" rows="4" spellcheck="false" placeholder="Código&#9;Descrição&#9;Qtd&#10;190847&#9;ARVORE NATAL 240CM&#9;4"></textarea></label>
+        <label class="tv-field"><span>Ou use uma planilha do Coding</span><select id="sheetFromCalc"></select></label>
         <p id="sheetMsg" class="tv-msg" role="status"></p>
         <div id="sheetStep2" hidden>
           <div class="tv-grid3">

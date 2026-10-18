@@ -470,7 +470,7 @@
         const t = document.createElement("template");
         t.innerHTML = String(st.html || "").replace(/<\/(p|div|h[1-6]|li|tr)>|<br\s*\/?>/gi, "\n");
         lines = t.content.textContent.split("\n");
-      } else if (doc.type === "codes") lines = String(st.text || "").split("\n");
+      } else if (doc.type === "codes") lines = (st.items || []).map((i) => [i.content, i.label].filter(Boolean).join("  "));
       else if (doc.type === "sheet") lines = (st.rows || []).slice(0, 8).map((r) => (Array.isArray(r) ? r.join(" · ") : ""));
       else if (doc.type === "pdf") lines = (st.files || []).map((f) => f.name);
       else if (doc.type === "images") lines = (st.items || []).map((i) => i.name);

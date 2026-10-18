@@ -793,3 +793,13 @@ body { --nav-w: 0px; --nav-h: 0px; }
 @media (max-width: 899px) { .calc-namebox { width: 70px; } .cbtn small { display: none; } }
 .cselect { width: 132px; }
 .start-name { white-space: normal; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+/* ===== lista de códigos sem sintaxe ===== */
+.rows-edit { display: flex; flex-direction: column; gap: 8px; }
+.row-item { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 64px 38px; gap: 6px; align-items: center; }
+.row-item input { min-width: 0; height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--field); color: var(--text); font: inherit; font-size: 14px; }
+.row-item input:focus { outline: 0; border-color: #6f93dd; }
+.row-item .ri-copies { text-align: center; padding: 0 4px; }
+.row-item .ri-del { width: 38px; height: 38px; }
+.rows-add { align-self: flex-start; margin-top: 4px; }
+@media (max-width: 520px) { .row-item { grid-template-columns: minmax(0, 1fr) 64px 38px; } .row-item .ri-label { grid-column: 1 / 3; grid-row: 2; } }
