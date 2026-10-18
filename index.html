@@ -106,8 +106,51 @@
     <symbol id="ic-text" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></symbol>
     <symbol id="ic-camera" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></symbol>
     <symbol id="ic-swap" viewBox="0 0 24 24"><path d="m17 3 4 4-4 4M21 7H9a4 4 0 0 0-4 4M7 21l-4-4 4-4M3 17h12a4 4 0 0 0 4-4"/></symbol>
+    <symbol id="ic-home" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></symbol>
+    <symbol id="ic-tools" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.1L3 17.7 6.3 21l6.3-6.3a4 4 0 0 0 5.1-5.4l-2.8 2.8-2.5-.6-.6-2.5z"/></symbol>
+    <symbol id="ic-qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h3M20 17v4"/></symbol>
+    <symbol id="ic-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></symbol>
     <symbol id="ic-keys" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
   </svg>
+
+  <nav id="mainNav" class="main-nav" aria-label="Navegação principal">
+    <button class="nav-logo" type="button" data-nav="home" aria-label="Coding, tela inicial" title="Tela inicial">
+      <span class="brand-icon"><svg class="icon"><use href="#ic-file"/></svg></span><span class="nav-label"><strong>Coding</strong></span>
+    </button>
+    <button class="nav-item" type="button" data-nav="home" title="Início"><svg class="icon"><use href="#ic-home"/></svg><span class="nav-label">Início</span></button>
+    <button class="nav-item nav-desk" type="button" data-nav="labels" title="Etiquetas"><svg class="icon"><use href="#ic-tag"/></svg><span class="nav-label">Etiquetas</span></button>
+    <button class="nav-item nav-desk" type="button" data-nav="texts" title="Textos"><svg class="icon"><use href="#ic-text"/></svg><span class="nav-label">Textos</span></button>
+    <button class="nav-item nav-new nav-mob" type="button" data-nav="new" aria-haspopup="dialog" title="Criar novo"><svg class="icon"><use href="#ic-plus"/></svg><span class="nav-label">Novo</span></button>
+    <button class="nav-item" type="button" data-nav="tools" title="Ferramentas"><svg class="icon"><use href="#ic-tools"/></svg><span class="nav-label">Ferramentas</span></button>
+    <button class="nav-item nav-mob" type="button" data-nav="menu" aria-haspopup="menu" title="Menu"><svg class="icon"><use href="#ic-menu"/></svg><span class="nav-label">Menu</span></button>
+    <span class="nav-grow nav-desk"></span>
+    <button class="nav-item nav-desk" type="button" data-nav="keys" title="Atalhos do teclado"><svg class="icon"><use href="#ic-keys"/></svg><span class="nav-label">Atalhos</span></button>
+  </nav>
+
+  <div id="tools" class="home tools" role="region" aria-labelledby="toolsTitle" hidden>
+    <div class="home-card tools-card">
+      <div class="home-brand">
+        <div class="brand-icon"><svg class="icon"><use href="#ic-tools"/></svg></div>
+        <div><h1 id="toolsTitle" tabindex="-1">Ferramentas</h1><p>Utilitários extras, separados dos editores. Chegam aos poucos.</p></div>
+      </div>
+      <div class="tools-grid">
+        <div class="home-option tool-card" aria-disabled="true"><span class="home-ic"><svg class="icon"><use href="#ic-qr"/></svg></span><span class="home-txt"><strong>QR e código de barras</strong><small>Em folha A4, vários por página</small></span><em class="soon">Em breve</em></div>
+        <div class="home-option tool-card" aria-disabled="true"><span class="home-ic"><svg class="icon"><use href="#ic-grid"/></svg></span><span class="home-txt"><strong>Etiquetas por planilha</strong><small>Uma etiqueta por linha do CSV/Excel</small></span><em class="soon">Em breve</em></div>
+        <div class="home-option tool-card" aria-disabled="true"><span class="home-ic"><svg class="icon"><use href="#ic-file"/></svg></span><span class="home-txt"><strong>Editor de PDF</strong><small>Anotar, assinar, juntar e dividir</small></span><em class="soon">Em breve</em></div>
+        <div class="home-option tool-card" aria-disabled="true"><span class="home-ic"><svg class="icon"><use href="#ic-image"/></svg></span><span class="home-txt"><strong>Imagens</strong><small>Redimensionar, cortar e comprimir</small></span><em class="soon">Em breve</em></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="newSheet" class="sheet-back" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="Criar novo">
+      <h2>Criar novo</h2>
+      <button class="home-option" type="button" data-new="labels"><span class="home-ic"><svg class="icon"><use href="#ic-tag"/></svg></span><span class="home-txt"><strong>Coding Etiquetas</strong><small>Códigos e descrições em A4</small></span></button>
+      <button class="home-option" type="button" data-new="texts"><span class="home-ic"><svg class="icon"><use href="#ic-text"/></svg></span><span class="home-txt"><strong>Coding Textos</strong><small>Textos e imagens, como no Word</small></span></button>
+      <button class="home-option" type="button" data-new="file"><span class="home-ic"><svg class="icon"><use href="#ic-upload"/></svg></span><span class="home-txt"><strong>Abrir arquivo .json</strong><small>Projeto salvo antes</small></span></button>
+      <button class="btn subtle sheet-cancel" type="button" data-new="close">Cancelar</button>
+    </div>
+  </div>
 
   <div class="app">
     <header class="topbar">

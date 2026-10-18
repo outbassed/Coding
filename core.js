@@ -277,6 +277,8 @@
 
   const homeEl = byId("home");
   const appEl = document.querySelector(".app");
+  const toolsEl = byId("tools");
+  const navEl = byId("mainNav");
   const TYPE_META = {
     labels: { icon: "#ic-tag", name: "Coding Etiquetas", sub: "Etiquetas A4", title: "Coding Etiquetas" },
     texts: { icon: "#ic-text", name: "Coding Textos", sub: "Textos", title: "Coding Textos" }
@@ -498,16 +500,48 @@
     }
     if (!opts.keepTab && current) { tabState.favs = current.type; tabState.history = current.type; }
     renderHistory();
+    toolsEl.hidden = true;
     homeEl.hidden = false;
     appEl.inert = true;
     appEl.setAttribute("aria-hidden", "true");
+    updateNav();
     (current ? byId("homeContinue") : byId("homeNewLabels")).focus({ preventScroll: true });
   }
 
+  function updateNav() {
+    const inDoc = homeEl.hidden && toolsEl.hidden;
+    document.body.classList.toggle("in-doc", inDoc);
+    const doc = cur();
+    const active = !homeEl.hidden ? "home" : !toolsEl.hidden ? "tools" : (doc ? doc.type : "home");
+    navEl.querySelectorAll("[data-nav]").forEach((b) => {
+      if (b.dataset.nav === active && b.dataset.nav !== "menu" && b.dataset.nav !== "new") b.setAttribute("aria-current", "page");
+      else b.removeAttribute("aria-current");
+    });
+  }
+
+  function showTools(opts = {}) {
+    flushSave();
+    setRoute("#/ferramentas", opts.replace);
+    homeEl.hidden = true;
+    toolsEl.hidden = false;
+    appEl.inert = true;
+    appEl.setAttribute("aria-hidden", "true");
+    updateNav();
+    byId("toolsTitle").focus({ preventScroll: true });
+  }
+
+  function openLatest(type) {
+    const latest = Object.values(lib.docs).filter((d) => d.type === type).sort((a, b) => b.updatedAt - a.updatedAt)[0];
+    if (latest) return openDoc(latest.id);
+    return newDoc(type);
+  }
+
   function hideHome() {
+    toolsEl.hidden = true;
     homeEl.hidden = true;
     appEl.inert = false;
     appEl.removeAttribute("aria-hidden");
+    updateNav();
     window.dispatchEvent(new Event("coding:shown"));
   }
 
@@ -678,6 +712,8 @@
         const id = findDocId(arg);
         if (id) await openDoc(id, { replace: true });
         else { showHome({ replace: true }); toast("Documento não encontrado neste aparelho."); }
+      } else if (name === "ferramentas") {
+        showTools({ replace: true });
       } else if (name === "importar") {
         await importFromLink(arg);
       } else {
@@ -751,6 +787,26 @@
       if (await newDoc(doc ? doc.type : "labels")) toast("Novo documento criado. O anterior continua salvo.");
     });
     byId("homeButton").addEventListener("click", goHome);
+    const sheet = byId("newSheet");
+    const closeSheet = () => { sheet.hidden = true; };
+    navEl.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-nav]");
+      if (!b) return;
+      const k = b.dataset.nav;
+      if (k === "home") goHome();
+      else if (k === "tools") showTools();
+      else if (k === "labels" || k === "texts") openLatest(k);
+      else if (k === "new") { sheet.hidden = false; const f = sheet.querySelector("[data-new]"); if (f) f.focus({ preventScroll: true }); }
+    });
+    sheet.addEventListener("click", (e) => {
+      if (e.target === sheet) { closeSheet(); return; }
+      const b = e.target.closest("[data-new]");
+      if (!b) return;
+      closeSheet();
+      if (b.dataset.new === "labels" || b.dataset.new === "texts") newDoc(b.dataset.new);
+      else if (b.dataset.new === "file") byId("importInput").click();
+    });
+    sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); closeSheet(); } });
     byId("homeContinue").addEventListener("click", continueEditing);
     byId("homeNewLabels").addEventListener("click", () => newDoc("labels"));
     byId("homeNewTexts").addEventListener("click", () => newDoc("texts"));
@@ -776,7 +832,7 @@
     byId("moreFavs").addEventListener("click", () => openHistory("favs"));
     byId("historyClose").addEventListener("click", () => byId("historyDialog").close());
     byId("historyDialog").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !homeEl.hidden && cur() && !document.querySelector("dialog[open]")) continueEditing(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && (!homeEl.hidden || !toolsEl.hidden) && cur() && !document.querySelector("dialog[open]")) continueEditing(); });
     byId("exportButton").addEventListener("click", exportProject);
     byId("shareButton").addEventListener("click", copyShareLink);
     byId("importButton").addEventListener("click", () => byId("importInput").click());

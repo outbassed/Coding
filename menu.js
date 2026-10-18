@@ -164,7 +164,7 @@
     if (focusFirst) { const f = focusable(sub)[0]; if (f) f.focus({ preventScroll: true }); }
   }
 
-  function open(list, x, y, touch) {
+  function open(list, x, y, touch, above) {
     close(false);
     const items = clean(list);
     if (!items.length) return;
@@ -178,7 +178,7 @@
     menu.style.maxHeight = window.innerHeight - 16 + "px";
     const rect = menu.getBoundingClientRect();
     const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
-    const top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8));
+    const top = Math.max(8, Math.min(above ? y - rect.height : y, window.innerHeight - rect.height - 8));
     menu.style.left = left + "px";
     menu.style.top = top + "px";
     const first = focusable()[0];
@@ -217,11 +217,14 @@
   /* ---------- Menu do celular (botão de três risquinhos) ---------- */
 
   const menuButton = byId("menuButton");
-  menuButton.addEventListener("click", () => {
-    if (outsideTarget && menuButton.contains(outsideTarget)) { outsideTarget = null; return; } // segundo toque fecha
+  const navMenu = document.querySelector('#mainNav [data-nav="menu"]');
+  function mainMenu(anchor, above) {
     const doc = C.cur();
     const install = byId("installButton");
-    const items = [
+    const onHome = !doc || !byId("home").hidden || !byId("tools").hidden;
+    const items = onHome ? [
+      { label: "Abrir arquivo (.json)…", run: C.openImport }
+    ] : [
       { label: "Tela inicial", run: C.goHome },
       { label: "Novo documento", run: newOfCurrent },
       { label: C.isFav() ? "Remover dos favoritos" : "Adicionar aos favoritos", run: () => C.toggleFav(), disabled: !doc },
@@ -229,14 +232,22 @@
       { label: "Imprimir / PDF", run: C.print, disabled: !doc },
       { label: "Copiar link do documento", run: C.copyShareLink, disabled: !doc },
       { label: "Salvar projeto (.json)", run: C.exportProject, disabled: !doc },
-      { label: "Abrir arquivo (.json)…", run: C.openImport },
-      { sep: true }
+      { label: "Abrir arquivo (.json)…", run: C.openImport }
     ];
+    items.push({ sep: true });
     if (!install.hidden) items.push({ label: "Instalar aplicativo", run: () => install.click() });
     items.push({ label: "Atalhos do teclado", run: openShortcuts });
-    const box = menuButton.getBoundingClientRect();
-    open(items, window.innerWidth, box.bottom + 6, true);
+    const box = anchor.getBoundingClientRect();
+    if (above) open(items, window.innerWidth, box.top - 6, true, true);
+    else open(items, window.innerWidth, box.bottom + 6, true);
+  }
+  [[menuButton, false], [navMenu, true]].forEach(([button, above]) => {
+    button.addEventListener("click", () => {
+      if (outsideTarget && button.contains(outsideTarget)) { outsideTarget = null; return; } // segundo toque fecha
+      mainMenu(button, above);
+    });
   });
+  document.querySelector('#mainNav [data-nav="keys"]').addEventListener("click", openShortcuts);
 
   /* ---------- Conteúdo ---------- */
 

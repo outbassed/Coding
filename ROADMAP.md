@@ -4,13 +4,7 @@ Lista de pedidos pendentes. Quando o dono do projeto mandar **"Iniciar update"**
 
 ## Próximo update
 
-### Layout separado para PC e celular (aprovado: barra lateral no PC)
-- **Estrutura:** dois modos principais (Etiquetas e Textos) sempre em destaque; as ferramentas secundárias ficam num grupo "Ferramentas", fora do caminho.
-- **PC:** barra lateral fixa à esquerda com Início, Etiquetas, Textos e Ferramentas (expande a lista). Dentro de um documento a barra encolhe para só ícones e o editor ganha espaço.
-- **Celular:** sem barra lateral; barra fixa embaixo com Início, Novo (+), Ferramentas e Menu. O "+" abre uma folha por baixo com as opções de criar. Controles do editor em faixa rolável com botões grandes.
-- **Facilidade:** botões sempre com ícone e nome, no máximo 4 destinos principais, uma ação de destaque por tela, nada escondido.
-
-### Ferramentas secundárias (a escolher)
+### Ferramentas secundárias (a escolher; a página já existe, falta construir cada uma)
 Códigos QR e de barras em folha A4; importar planilha/CSV nas Etiquetas (uma etiqueta por linha); PDF (anotar, assinar, juntar, dividir, reordenar); Imagens (redimensionar, cortar, comprimir, montar em A4); Recibos/Orçamentos; Planilhas simples; Checklists; Placas/Cartazes; Digitalizar documento pela câmera.
 
 ### Ainda fora do Texts (fica para depois)
@@ -23,6 +17,7 @@ Tabelas, exportar para `.docx`, cabeçalho/rodapé, comentários, corretor ortog
 - Contador "faltam X etiquetas" para completar a última folha.
 
 ## Feito
+- **Layout separado PC/celular**: barra lateral no PC (recolhe para ícones dentro do documento) e barra inferior no celular (Início, Novo, Ferramentas, Menu, com folha "Criar novo"); página **Ferramentas** (`#/ferramentas`) com as ferramentas futuras marcadas "Em breve".
 - Vários itens por documento, colar lista, 1 a 3 colunas, linha de corte.
 - Retrato e paisagem, zoom que mostra a página inteira, editor recolhível.
 - Tela inicial (Continuar editando / Criar um novo) e biblioteca de documentos.
