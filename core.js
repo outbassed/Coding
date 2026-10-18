@@ -354,61 +354,78 @@
     return (mode && mode.info ? mode.info(doc) + " · " : "") + when;
   }
 
-  const HISTORY_LIMIT = 10;
+  const LIMITS = { favs: 3, history: 5 };
+  const SECTIONS = {
+    favs: { tabs: "favTabs", list: "favList", more: "moreFavs", box: "homeFavs", title: "Favoritos", noun: "nos favoritos" },
+    history: { tabs: "homeTabs", list: "recentList", more: "moreRecent", box: "homeRecent", title: "Histórico", noun: "no histórico" }
+  };
+  const tabState = { favs: "labels", history: "labels" };
+  let modalKind = "history";
 
-  let historyTab = "labels";
-  const historyDocs = (type) => Object.values(lib.docs).filter((d) => d.id !== lib.currentId && !d.fav && (!type || d.type === type)).sort((a, b) => b.updatedAt - a.updatedAt);
+  const docsOf = (kind, type) => Object.values(lib.docs)
+    .filter((d) => (kind === "favs" ? d.fav : d.id !== lib.currentId && !d.fav) && (!type || d.type === type))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
 
-  function renderTabs(container) {
+  function renderTabs(container, kind) {
+    container.dataset.kind = kind;
     container.replaceChildren(...["labels", "texts"].map((type) => {
       const button = document.createElement("button");
       button.type = "button";
       button.setAttribute("role", "tab");
       button.dataset.htab = type;
-      const on = type === historyTab;
+      const on = type === tabState[kind];
       button.className = "htab" + (on ? " is-active" : "");
       button.setAttribute("aria-selected", String(on));
-      button.textContent = TYPE_META[type].name.replace("Coding ", "") + " (" + historyDocs(type).length + ")";
+      button.textContent = TYPE_META[type].name.replace("Coding ", "") + " (" + docsOf(kind, type).length + ")";
       return button;
     }));
   }
 
-  function emptyItem() {
+  function emptyItem(kind) {
     const li = document.createElement("li");
     li.className = "list-empty";
-    li.textContent = historyTab === "labels" ? "Nenhum documento de etiquetas no histórico." : "Nenhum documento de textos no histórico.";
+    li.textContent = "Nenhum documento de " + (tabState[kind] === "labels" ? "etiquetas " : "textos ") + SECTIONS[kind].noun + ".";
     return li;
   }
 
+  function renderSection(kind) {
+    const s = SECTIONS[kind];
+    byId(s.box).hidden = docsOf(kind).length === 0;
+    renderTabs(byId(s.tabs), kind);
+    const list = docsOf(kind, tabState[kind]);
+    byId(s.list).replaceChildren(...(list.length ? list.slice(0, LIMITS[kind]).map(docRow) : [emptyItem(kind)]));
+    const more = byId(s.more);
+    more.hidden = list.length <= LIMITS[kind];
+    more.textContent = "Ver mais (" + (list.length - LIMITS[kind]) + ")";
+  }
+
   function renderHistory() {
-    renderTabs(byId("homeTabs"));
-    const list = historyDocs(historyTab);
-    byId("recentList").replaceChildren(...(list.length ? list.slice(0, HISTORY_LIMIT).map(docRow) : [emptyItem()]));
-    const more = byId("moreRecent");
-    more.hidden = list.length <= HISTORY_LIMIT;
-    more.textContent = "Ver mais (" + (list.length - HISTORY_LIMIT) + ")";
+    renderSection("favs");
+    renderSection("history");
     renderHistoryDialog();
   }
 
   function renderHistoryDialog() {
     const dialog = byId("historyDialog");
     if (!dialog.open) return;
-    if (!historyDocs().length) { dialog.close(); return; }
-    renderTabs(byId("historyTabs"));
-    const list = historyDocs(historyTab);
+    if (!docsOf(modalKind).length) { dialog.close(); return; }
+    byId("historyTitle").textContent = SECTIONS[modalKind].title;
+    renderTabs(byId("historyTabs"), modalKind);
+    const list = docsOf(modalKind, tabState[modalKind]);
     byId("historyCount").textContent = list.length + (list.length === 1 ? " documento" : " documentos");
-    byId("allList").replaceChildren(...(list.length ? list.map(docRow) : [emptyItem()]));
+    byId("allList").replaceChildren(...(list.length ? list.map(docRow) : [emptyItem(modalKind)]));
   }
 
-  function openHistory() {
+  function openHistory(kind) {
+    modalKind = kind;
     const dialog = byId("historyDialog");
     if (!dialog.open) dialog.showModal();
     renderHistoryDialog();
     byId("allList").scrollTop = 0;
   }
 
-  function setHistoryTab(type) {
-    historyTab = type === "texts" ? "texts" : "labels";
+  function setHistoryTab(kind, type) {
+    tabState[kind] = type === "texts" ? "texts" : "labels";
     renderHistory();
     byId("allList").scrollTop = 0;
   }
@@ -473,13 +490,7 @@
       byId("homeContinueInfo").textContent = TYPE_META[current.type].name + " · " + docInfo(current);
       byId("homeContinueIcon").innerHTML = '<svg class="icon"><use href="' + TYPE_META[current.type].icon + '"/></svg>';
     }
-    if (!opts.keepTab && current) historyTab = current.type;
-    const all = Object.values(lib.docs).sort((a, b) => b.updatedAt - a.updatedAt);
-    const favs = all.filter((d) => d.fav);
-    const history = all.filter((d) => d.id !== lib.currentId && !d.fav);
-    byId("homeFavs").hidden = favs.length === 0;
-    byId("favList").replaceChildren(...favs.map(docRow));
-    byId("homeRecent").hidden = history.length === 0;
+    if (!opts.keepTab && current) { tabState.favs = current.type; tabState.history = current.type; }
     renderHistory();
     homeEl.hidden = false;
     appEl.inert = true;
@@ -753,10 +764,10 @@
     byId("recentList").addEventListener("click", rowClick);
     byId("favList").addEventListener("click", rowClick);
     byId("allList").addEventListener("click", rowClick);
-    const tabClick = (e) => { const t = e.target.closest("[data-htab]"); if (t) setHistoryTab(t.dataset.htab); };
-    byId("homeTabs").addEventListener("click", tabClick);
-    byId("historyTabs").addEventListener("click", tabClick);
-    byId("moreRecent").addEventListener("click", openHistory);
+    const tabClick = (e) => { const t = e.target.closest("[data-htab]"); if (t) setHistoryTab(e.currentTarget.dataset.kind, t.dataset.htab); };
+    ["homeTabs", "favTabs", "historyTabs"].forEach((id) => byId(id).addEventListener("click", tabClick));
+    byId("moreRecent").addEventListener("click", () => openHistory("history"));
+    byId("moreFavs").addEventListener("click", () => openHistory("favs"));
     byId("historyClose").addEventListener("click", () => byId("historyDialog").close());
     byId("historyDialog").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !homeEl.hidden && cur() && !document.querySelector("dialog[open]")) continueEditing(); });
