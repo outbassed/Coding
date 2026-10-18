@@ -60,6 +60,18 @@ Regras:
 - "Colar" pelo menu depende da permissão do navegador para ler a área de transferência; se for negada, o app avisa para usar Ctrl+V.
 - Atalhos de teclado do app (além dos do editor): Ctrl+P imprimir, Ctrl+S salvar (.json), Alt+N novo documento, Alt+H tela inicial, e a tecla **?** abre a lista de atalhos. (Ctrl+N e Ctrl+T são reservados pelo navegador e não dá para usar.)
 
+### Tela de carregamento
+Uma tela de loading cobre o app até tudo estar pronto, para nunca aparecer a página "sem estilo" nem o editor piscando antes da tela inicial (hoje o editor aparece por uma fração de segundo antes da tela inicial entrar).
+
+- O HTML e o CSS da tela de loading ficam **dentro do próprio `index.html`**, sem depender do `style.css`, então ela já aparece no primeiro quadro, com o mesmo fundo escuro do app (sem flash branco).
+- Visual: logo do Coding no centro e um indicador de progresso discreto. Nada de texto grande.
+- Ela some com uma transição suave quando o CSS, o script e a biblioteca de documentos terminaram de carregar. Tempo mínimo de exibição curto, para não piscar quando tudo carrega rápido.
+- **Segurança:** se algo demorar demais (cerca de 8 segundos) ou der erro, a tela de loading some mesmo assim e mostra uma mensagem com o botão "Tentar de novo". O app nunca fica preso nela.
+- Sem JavaScript, aparece um aviso explicando que o Coding precisa dele.
+- Respeita "reduzir movimento" (sem animação para quem ativou isso no sistema).
+- No app instalado, a tela de abertura do sistema (`background_color` do manifest) já combina com o loading, para a transição ser contínua.
+- Vale também ao trocar de documento grande ou abrir pelo link de compartilhamento.
+
 ### Fora da primeira versão (fica para depois)
 Tabelas, exportar para `.docx`, cabeçalho/rodapé, comentários, corretor ortográfico próprio (o do navegador continua valendo).
 
