@@ -10,7 +10,7 @@ Conferido no código: P0-01 (backups v4 de Imagens/Sorteio/Racha-conta são recu
 - **Fase 2 – Lógica (FEITA e na `main`):** filtros não destrutivos (Normal, intensidade, trocar em vez de empilhar); linhas do XLSX pela posição real; Racha-conta em centavos inteiros e `1.234,56`; "Cobrir visualmente" com aviso claro.
 - **Fase 3 – UX (FEITA, publicando; só falta teste em celular na Fase 4):** ícones 100% SVG nos controles (sem emoji, exceto adesivos do usuário); editor manual de Planilha → Etiquetas; horário local do aparelho.
 - **Fase 4 – Offline/responsivo (FEITA e na `main`; falta só teste em celular físico):** pré-cache do PDF, testes em 320–1920 px, acessibilidade.
-- **Fase 5 – Documentação e relatório PASSOU/FALHOU** de todos os testes.
+- **Fase 5 – Documentação e relatório PASSOU/FALHOU (FEITA):** ver `RELATORIO-TESTES.md`.
 - Regras do dono: trabalhar em branch, commits pequenos, nada de extras (P3) sem aprovação.
 
 ### Auditoria completa (documento do dono, 18/10) — plano em fases

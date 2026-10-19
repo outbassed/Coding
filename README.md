@@ -122,3 +122,7 @@ A instalação exige HTTPS (o GitHub Pages já oferece) ou `localhost`.
 
 ## Licenças de terceiros
 `vendor/qrcode.js` é o *qrcode-generator* de Kazuhiko Arase (MIT, `vendor/qrcode.LICENSE`), `vendor/pdf-lib.min.js` de Andrew Dillon (MIT, `vendor/pdf-lib.LICENSE`) e `vendor/pdf.min.js` / `pdf.worker.min.js` do pdf.js da Mozilla (Apache 2.0, `vendor/pdfjs.LICENSE`).
+
+## Testes
+
+Relatório com o que passou, o que falhou e o que não foi testado: [RELATORIO-TESTES.md](RELATORIO-TESTES.md). Verificações automáticas em `tests/final.py`.
