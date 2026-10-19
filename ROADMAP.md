@@ -14,6 +14,9 @@ Lista de pedidos pendentes. Quando o dono do projeto mandar **"Iniciar update"**
 ### Pesquisa de ferramentas semelhantes (18/10)
 - Ideias a aprovar: Scanner/OCR (tesseract.js, Apache-2.0, offline), Câmbio e conversor (Frankfurter, sem chave), CEP/CNPJ/feriados (BrasilAPI), roleta/sorteio, racha-conta, QR criativo, cartão/convite, comprimir PDF e imagem, juntar fotos em PDF.
 
+### Hora oficial de Brasília (pedido de 18/10)
+- Relógio/hora real no fuso de Brasília (`America/Sao_Paulo`) ou do estado escolhido (Amazonas, Acre, Fernando de Noronha…), usado em "Hoje/Agora" das Planilhas, datas dos documentos e um mini-relógio. Base: `Intl` com o fuso (funciona offline); API de hora só para corrigir relógio errado do aparelho (a testar qual responde, ex.: worldtimeapi).
+
 ### Links em português (pedido de 18/10)
 - Trocar `#/label/` por `#/etiquetas/` e `#/texts/` por `#/texto/` (e `#/qr/`, `#/pdf/`, `#/imagens/`, `#/planilhas/` seguem em português). Os links antigos (`/label/`, `/texts/`) continuam abrindo, só deixam de ser os principais.
 
