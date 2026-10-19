@@ -8,6 +8,12 @@ Lista de pedidos pendentes. Quando o dono do projeto mandar **"Iniciar update"**
 - Seletor de cor estilo Google Planilhas: botão **Redefinir**, grade de cores prontas (tons de cinza, cores vivas e 5 níveis claros/escuros de cada), linha "padrão" com 8 cores comuns, "cores personalizadas" com + e conta-gotas, e cor mais usada lembrada. Vale para fundo e texto.
 - Cor de fundo e do texto mudam enquanto o seletor de cor é arrastado (evento `input`), sem precisar confirmar; o desfazer conta como uma única alteração.
 
+### Tela inicial: selecionar documentos (pedido de 18/10)
+- Botão "Selecionar" nos Documentos recentes: marcar um ou vários cartões (caixinha), "Selecionar todos", contador "N selecionados", barra com Excluir (com confirmação), Favoritar e Cancelar. Esc sai do modo. Funciona em grade e em lista, e respeita busca/filtro ("selecionar todos" marca só o que está visível).
+
+### Pesquisa de ferramentas semelhantes (18/10)
+- Ideias a aprovar: Scanner/OCR (tesseract.js, Apache-2.0, offline), Câmbio e conversor (Frankfurter, sem chave), CEP/CNPJ/feriados (BrasilAPI), roleta/sorteio, racha-conta, QR criativo, cartão/convite, comprimir PDF e imagem, juntar fotos em PDF.
+
 ### Links em português (pedido de 18/10)
 - Trocar `#/label/` por `#/etiquetas/` e `#/texts/` por `#/texto/` (e `#/qr/`, `#/pdf/`, `#/imagens/`, `#/planilhas/` seguem em português). Os links antigos (`/label/`, `/texts/`) continuam abrindo, só deixam de ser os principais.
 
