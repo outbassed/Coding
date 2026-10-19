@@ -960,6 +960,7 @@
   }
   function select(o) {
     sel = o;
+    if (o && sheetUi) sheetUi.reveal("tools", o.t === "text" || o.t === "balloon" ? "expanded" : "half");
     showOpts(); paint();
   }
   function syncObjUi() {
@@ -1238,6 +1239,32 @@
   ["imFmt", "imQ", "imOutSize", "imBg"].forEach((id) => { byId(id).addEventListener("input", outForm); byId(id).addEventListener("change", outForm); });
 
   new ResizeObserver(() => { if (has && !ws.hidden) layout(); }).observe(ui.stage);
+
+  /* ---------- Celular: folha inferior compartilhada (shell.js) ---------- */
+  let sheetUi = null;
+  if (C.shell) {
+    const pane = (k) => ws.querySelector('[data-pane="' + k + '"]');
+    sheetUi = C.shell.create({
+      ws, id: "imagens", host: ws.querySelector(".im-main"), native: true, label: "Controles do editor de imagens",
+      tabs: [
+        { key: "tools", label: "Ferramentas", icon: "ic-tools", nodes: () => [byId("imTools"), byId("imOpts")] },
+        { key: "adj", label: "Ajustes", icon: "ic-sliders", pane: pane("adj") },
+        { key: "fil", label: "Filtros", icon: "ic-wand", pane: pane("fil") },
+        { key: "fra", label: "Molduras", icon: "ic-frame", pane: pane("fra") },
+        { key: "out", label: "Salvar", icon: "ic-download", pane: pane("out") }
+      ]
+    });
+  }
+  /* A barra de opções (cor, tamanho, texto) fica na aba Ferramentas; na aba Molduras ela vem junto para escolher a cor. */
+  function placeOpts() {
+    if (!sheetUi || !sheetUi.active) return;
+    const opts = byId("imOpts"), tools = byId("imTools"), fra = pane2("fra");
+    if (!pane2("fra").hidden) { if (opts.parentNode !== fra) fra.insertBefore(opts, fra.firstChild); }
+    else if (opts.parentNode !== tools.parentNode) tools.parentNode.appendChild(opts);
+  }
+  function pane2(k) { return ws.querySelector('[data-pane="' + k + '"]'); }
+  ws.addEventListener("click", (e) => { if (e.target.closest("[data-tab]")) placeOpts(); });
+
   ui.stage.addEventListener("wheel", (e) => { if (e.ctrlKey && has) { e.preventDefault(); zoomBy(e.deltaY < 0 ? 1.12 : 0.89); } }, { passive: false });
   ["dragenter", "dragover"].forEach((ev) => ui.stage.addEventListener(ev, (e) => { e.preventDefault(); ui.stage.classList.add("drag"); }));
   ["dragleave", "drop"].forEach((ev) => ui.stage.addEventListener(ev, (e) => { e.preventDefault(); ui.stage.classList.remove("drag"); }));

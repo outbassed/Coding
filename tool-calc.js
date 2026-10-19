@@ -237,14 +237,14 @@
     ui.name.value = R.r0 === R.r1 && R.c0 === R.c1 ? refOf(sel.ar, sel.ac) : refOf(R.r0, R.c0) + ":" + refOf(R.r1, R.c1);
     if (!editing) ui.formula.value = rawOf(sel.ar, sel.ac);
     const cell = getCell(sel.ar, sel.ac) || {};
-    ui.tools.querySelector('[data-act="bold"]').setAttribute("aria-pressed", String(!!cell.b));
-    ui.tools.querySelector('[data-act="italic"]').setAttribute("aria-pressed", String(!!cell.i));
-    ui.tools.querySelector('[data-act="underline"]').setAttribute("aria-pressed", String(!!cell.u));
+    ui.ws.querySelector('[data-act="bold"]').setAttribute("aria-pressed", String(!!cell.b));
+    ui.ws.querySelector('[data-act="italic"]').setAttribute("aria-pressed", String(!!cell.i));
+    ui.ws.querySelector('[data-act="underline"]').setAttribute("aria-pressed", String(!!cell.u));
     ui.fmt.value = cell.n || "";
     ui.bgSw.style.setProperty("--c", cell.bg || "#ffffff");
     ui.fgSw.style.setProperty("--c", cell.fg || "#e8edf6");
-    ui.tools.querySelector('[data-act="undo"]').disabled = !hist.length;
-    ui.tools.querySelector('[data-act="redo"]').disabled = !redoStack.length;
+    ui.ws.querySelector('[data-act="undo"]').disabled = !hist.length;
+    ui.ws.querySelector('[data-act="redo"]').disabled = !redoStack.length;
   }
 
   function updateStatus() {
@@ -751,7 +751,7 @@
 
   /* ---------------- Barra de ferramentas ---------------- */
 
-  ui.tools.addEventListener("click", (e) => {
+  const onToolClick = (e) => {
     const pal = e.target.closest("[data-pal]");
     if (pal) { openPalette(pal.dataset.pal, pal); return; }
     const b = e.target.closest("[data-act]");
@@ -771,8 +771,14 @@
     else if (a === "ins-row") insertLines("r", false);
     else if (a === "ins-col") insertLines("c", false);
     else if (a === "import") ui.file.click();
+    else if (a === "edit") { focusGrid(); startEdit(); return; }
+    else if (a === "copy" || a === "cut") { focusGrid(); if (!document.execCommand(a)) C.toast("Não consegui copiar. Use o menu do navegador."); }
+    else if (a === "paste") { focusGrid(); pasteFromMenu(); return; }
+    else if (a === "xlsx") exportXlsx();
+    else if (a === "csv") exportCsv();
     if (a !== "import") focusGrid();
-  });
+  };
+  ui.tools.addEventListener("click", onToolClick);
   ui.fmt.addEventListener("change", () => { applyFmt({ n: ui.fmt.value || undefined }); focusGrid(); });
   ui.file.addEventListener("change", () => { const f = ui.file.files && ui.file.files[0]; ui.file.value = ""; if (f) importFile(f); });
 
@@ -1440,5 +1446,23 @@
     printKey: printSheet,
     menuItems
   });
+
+  /* ---------- Celular: grade em cima, comandos na folha inferior (shell.js) ---------- */
+  if (C.shell) {
+    const A = (...acts) => () => acts.map((a) => ui.ws.querySelector('[data-act="' + a + '"]'));
+    const sel1 = (s) => () => [ui.ws.querySelector(s)];
+    const sh = C.shell.create({
+      ws: ui.ws, id: "planilhas", defaultState: "collapsed", host: ui.ws, label: "Comandos da planilha",
+      tabs: [
+        { key: "edit", label: "Editar", icon: "ic-edit", nodes: A("edit", "undo", "redo", "copy", "cut", "paste") },
+        { key: "fmt", label: "Formatar", icon: "ic-type", nodes: () => [...A("bold", "italic", "underline", "al-l", "al-c", "al-r")(), ui.ws.querySelector('[data-pal="bg"]'), ui.ws.querySelector('[data-pal="fg"]'), ui.fmt] },
+        { key: "fx", label: "Fórmulas", icon: "ic-hash", nodes: A("sumMenu", "fx") },
+        { key: "ins", label: "Inserir", icon: "ic-plus", nodes: A("ins-row", "ins-col") },
+        { key: "file", label: "Arquivo", icon: "ic-file", nodes: A("templates", "import", "xlsx", "csv") }
+      ]
+    });
+    sh.sheet.addEventListener("click", onToolClick);
+    window.addEventListener("coding:keyboard", () => { if (sh.active && editing) setTimeout(() => { try { ui.scroll.querySelector(".calc-editor:not([hidden])") && ui.scroll.querySelector(".calc-editor").scrollIntoView({ block: "nearest", inline: "nearest" }); } catch (_) { /* ok */ } }, 120); });
+  }
   C.calc = { exportXlsx, exportCsv, printSheet };
 })();

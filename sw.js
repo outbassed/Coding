@@ -1,12 +1,13 @@
 /* Coding — service worker (funciona offline).
    O app busca sempre a versão mais nova quando há internet e usa o cache só offline. */
-const CACHE_VERSION = 28;
+const CACHE_VERSION = 29;
 const CACHE = "coding-cache-v" + CACHE_VERSION;
 const ASSETS = [
   "./",
   "index.html",
   "style.css",
   "core.js",
+  "shell.js",
   "labels.js",
   "texts.js",
   "menu.js",

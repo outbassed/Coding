@@ -1037,3 +1037,55 @@ body { --nav-w: 0px; --nav-h: 0px; }
 @media (pointer: coarse) {
   .icon-btn, #homeSelect, #homeSort, #homeView, .item-head .icon-btn, .tv-rowdel { min-width: 40px; min-height: 40px; }
 }
+
+/* ===== Shell móvel compartilhado (shell.js): área de trabalho em cima, folha embaixo ===== */
+:root { --sh-kb: 0px; }
+.sh-sheet { display: none; }
+.sh-on .sh-sheet { display: flex; flex: none; flex-direction: column; height: var(--sh-h, 260px); min-height: 0; margin-bottom: var(--sh-kb); background: var(--bar); border-top: 1px solid #4e5d74; border-radius: 18px 18px 0 0; box-shadow: 0 -8px 25px #0005; transition: height .18s ease; }
+.sh-sheet.is-dragging { transition: none; }
+.sh-head { flex: none; display: flex; align-items: center; height: 40px; padding: 0 4px; }
+.sh-handle { position: relative; flex: 1; height: 40px; border: 0; background: transparent; touch-action: none; cursor: grab; }
+.sh-handle span { position: absolute; left: 50%; top: 17px; width: 44px; height: 5px; border-radius: 5px; background: #64738b; transform: translateX(-50%); }
+.sh-step { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; color: var(--muted); }
+.sh-step:disabled { opacity: .3; }
+.sh-tabs { flex: none; display: flex; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line-soft); }
+.sh-tabs::-webkit-scrollbar { display: none; }
+.sh-tab { flex: 1 1 0; min-width: 0; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 2px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font-size: 11px; font-weight: 700; }
+.sh-tab .icon { width: 20px; height: 20px; }
+.sh-tab.is-on { color: var(--text); border-bottom-color: var(--accent); }
+.sh-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: calc(14px + var(--safe-bottom)); }
+.sh-pane[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .sh-on .sh-sheet { transition: none; } }
+.sh-has .toast { bottom: calc(14px + var(--sh-open, 0px) + var(--sh-kb)); }
+.sh-keyboard .sh-on .sh-sheet, .sh-keyboard .sh-sheet { border-radius: 14px 14px 0 0; }
+
+/* Imagens no celular: canvas fixo em cima; ferramentas/ajustes/filtros dentro da folha */
+.sh-on .im-main { display: flex; flex-direction: column; overflow: hidden; }
+.sh-on .im-center { flex: 1; min-height: 0; }
+.sh-on .im-side { display: none; }
+.sh-on .im-stage { flex: 1; min-height: 0; }
+.sh-on .sh-pane .im-tools { display: flex; flex-direction: row; overflow-x: auto; overflow-y: hidden; border: 0; background: transparent; padding: 8px 8px 4px; }
+.sh-on .sh-pane .im-tool { flex: none; min-width: 62px; min-height: 56px; }
+.sh-on .sh-pane .im-tool .im-l { display: block; }
+.sh-on .sh-pane .im-gap { width: 1px; height: auto; margin: 6px 4px; grid-column: auto; }
+.sh-on .sh-pane .im-opts { background: transparent; border: 0; padding: 6px 12px 8px; }
+.sh-on .sh-body .im-pane { overflow: visible; flex: none; padding: 12px 14px; }
+.sh-on .im-filters { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding-bottom: 6px; }
+.sh-on .im-filter { flex: 0 0 92px; }
+.sh-on .im-swatches .sw-c { width: 30px; height: 30px; }
+.sh-on .im-top .cbtn { min-height: 44px; }
+.sh-on .im-stk { max-height: none; }
+
+/* Planilhas no celular */
+.m-only { display: none; }
+.sh-on .sh-pane .m-only { display: inline-flex; }
+.sh-on .sh-pane .m-only.csep { display: none; }
+.m-lbl { display: none; }
+.sh-on .sh-pane .m-lbl { display: inline; }
+.sh-on.calc-ws .calc-tools { display: none; }
+.sh-on .sh-pane:not([data-pane]) { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; padding: 12px 12px 6px; }
+.sh-on .sh-pane .cbtn { min-width: 44px; min-height: 44px; padding: 0 12px; border-color: var(--line); background: #ffffff0a; }
+.sh-on .sh-pane .cbtn small { display: inline; font-size: 12.5px; }
+.sh-on .sh-pane .cselect { min-height: 44px; }
+.sh-on.calc-ws .calc-fbar { padding: 4px 8px; }
+.sh-on.calc-ws .calc-scroll { touch-action: pan-x pan-y; }
