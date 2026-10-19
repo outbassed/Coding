@@ -4,6 +4,9 @@ Lista de pedidos pendentes. Quando o dono do projeto mandar **"Iniciar update"**
 
 ## Próximo update
 
+### Planilhas: cor ao vivo (pedido de 18/10)
+- Cor de fundo e do texto mudam enquanto o seletor de cor é arrastado (evento `input`), sem precisar confirmar; o desfazer conta como uma única alteração.
+
 ### Links em português (pedido de 18/10)
 - Trocar `#/label/` por `#/etiquetas/` e `#/texts/` por `#/texto/` (e `#/qr/`, `#/pdf/`, `#/imagens/`, `#/planilhas/` seguem em português). Os links antigos (`/label/`, `/texts/`) continuam abrindo, só deixam de ser os principais.
 
