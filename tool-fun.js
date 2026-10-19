@@ -148,7 +148,7 @@
       else {
         spinning = false; dui.spin.disabled = false;
         const name = list[win];
-        dui.result.textContent = "🎉 " + name + "!";
+        dui.result.textContent = name + "!";
         ds.winners.push(name); mark(); dInfo();
         if (ds.remove) setTimeout(drawWheel, 1200);
       }
@@ -168,7 +168,15 @@
       card.append(t, ul); dui.teams.append(card);
     });
   }
-  const FACES = { 6: ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"] };
+  const NS = "http://www.w3.org/2000/svg";
+  const PIPS = { 1: [[12, 12]], 2: [[7, 7], [17, 17]], 3: [[7, 7], [12, 12], [17, 17]], 4: [[7, 7], [17, 7], [7, 17], [17, 17]], 5: [[7, 7], [17, 7], [12, 12], [7, 17], [17, 17]], 6: [[7, 6.5], [17, 6.5], [7, 12], [17, 12], [7, 17.5], [17, 17.5]] };
+  function dieSvg(n) {
+    const s = document.createElementNS(NS, "svg"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("class", "die"); s.setAttribute("role", "img"); s.setAttribute("aria-label", "Dado: " + n);
+    const r = document.createElementNS(NS, "rect"); r.setAttribute("x", "1.5"); r.setAttribute("y", "1.5"); r.setAttribute("width", "21"); r.setAttribute("height", "21"); r.setAttribute("rx", "5"); r.setAttribute("fill", "#fff"); r.setAttribute("stroke", "#1b2433"); r.setAttribute("stroke-width", "1.4"); s.append(r);
+    PIPS[n].forEach(([x, y]) => { const c = document.createElementNS(NS, "circle"); c.setAttribute("cx", x); c.setAttribute("cy", y); c.setAttribute("r", "2"); c.setAttribute("fill", "#1b2433"); s.append(c); });
+    return s;
+  }
+  function iconSvg(id) { const s = document.createElementNS(NS, "svg"); s.setAttribute("class", "icon"); s.setAttribute("aria-hidden", "true"); const u = document.createElementNS(NS, "use"); u.setAttribute("href", "#ic-" + id); s.append(u); return s; }
   async function roll() {
     const n = ds.diceN, s = ds.diceS;
     dui.dice.replaceChildren(); dui.diceSum.textContent = "";
@@ -176,7 +184,7 @@
     for (let i = 0; i < n; i++) { const d = document.createElement("div"); d.className = "fn-die is-roll"; d.textContent = "?"; dui.dice.append(d); els.push(d); }
     const vals = els.map(() => 1 + rnd(s));
     for (let f = 0; f < 10; f++) { els.forEach((d) => { d.textContent = String(1 + rnd(s)); }); await new Promise((r) => setTimeout(r, 55)); }
-    els.forEach((d, i) => { d.classList.remove("is-roll"); d.textContent = s === 6 ? FACES[6][vals[i]] : String(vals[i]); d.title = String(vals[i]); d.classList.toggle("is-face", s === 6); });
+    els.forEach((d, i) => { d.classList.remove("is-roll"); if (s === 6) d.replaceChildren(dieSvg(vals[i])); else d.textContent = String(vals[i]); d.title = String(vals[i]); d.classList.toggle("is-face", s === 6); });
     const sum = vals.reduce((a, b) => a + b, 0);
     dui.diceSum.textContent = n > 1 ? "Soma: " + sum + "  (" + vals.join(" + ") + ")" : "Saiu " + vals[0] + "!";
   }
@@ -188,7 +196,7 @@
     dui.coin.classList.remove("is-flip"); void dui.coin.offsetWidth; dui.coin.classList.add("is-flip");
     dui.coinRes.textContent = "";
     setTimeout(() => {
-      dui.coinFace.textContent = heads ? "😀" : "👑";
+      dui.coinFace.replaceChildren(iconSvg(heads ? "smile" : "crown"));
       dui.coinRes.textContent = heads ? "Cara!" : "Coroa!";
       if (heads) ds.coin.h++; else ds.coin.t++;
       mark(); coinStat(); flipping = false;
@@ -244,7 +252,7 @@
       dui.names.value = ds.names; dui.remove.checked = ds.remove; dui.teamNames.value = ds.teamNames; dui.teamCount.value = String(ds.teamCount);
       dui.diceN.value = String(ds.diceN); dui.diceS.value = String(ds.diceS);
       dui.min.value = String(ds.min); dui.max.value = String(ds.max); dui.qty.value = String(ds.qty); dui.unique.checked = ds.unique;
-      dui.result.textContent = ""; dui.coinRes.textContent = ""; dui.coinFace.textContent = "🪙"; dui.diceSum.textContent = ""; dui.dice.replaceChildren(); dui.teams.replaceChildren(); dui.nums.textContent = "?";
+      dui.result.textContent = ""; dui.coinRes.textContent = ""; dui.coinFace.replaceChildren(iconSvg("coin")); dui.diceSum.textContent = ""; dui.dice.replaceChildren(); dui.teams.replaceChildren(); dui.nums.textContent = "?";
       dInfo(); coinStat(); showDTab(ds.tab); C.setPrimary(undefined, false);
     },
     close() { cancelAnimationFrame(animId); spinning = false; },
@@ -321,7 +329,7 @@
     if (bad) { const w = document.createElement("p"); w.className = "tv-msg"; w.textContent = bad + (bad === 1 ? " item tem um preço que não entendi (use 12,50 ou 1.234,56) e ficou de fora." : " itens têm um preço que não entendi e ficaram de fora."); sui.result.append(w); }
     if (pending.length) {
       const w = document.createElement("div"); w.className = "fn-pending";
-      const t = document.createElement("p"); t.textContent = "⚠ Sem ninguém marcado (não entram na conta): " + pending.join(", ") + ".";
+      const t = document.createElement("p"); t.append(iconSvg("alert"), " Sem ninguém marcado (não entram na conta): " + pending.join(", ") + ".");
       const btn = document.createElement("button"); btn.type = "button"; btn.className = "btn"; btn.textContent = "Dividir entre todos";
       btn.addEventListener("click", () => { ss.items.forEach((it) => { if (!it.who.some((i) => i < n) && parseMoney(it.price)) it.who = ss.names.map((_, i) => i); }); mark(); renderItems(); calcItems(); });
       w.append(t, btn); sui.result.append(w);
@@ -356,7 +364,7 @@
       nm.addEventListener("input", () => { it.name = nm.value.slice(0, 60); mark(); });
       const pr = document.createElement("input"); pr.className = "fn-inp fn-price"; pr.placeholder = "R$"; pr.inputMode = "decimal"; pr.value = it.price; pr.setAttribute("aria-label", "Preço do item");
       pr.addEventListener("input", () => { it.price = pr.value.slice(0, 20); mark(); calcItems(); });
-      const del = document.createElement("button"); del.type = "button"; del.className = "cbtn"; del.textContent = "🗑"; del.title = "Apagar item";
+      const del = document.createElement("button"); del.type = "button"; del.className = "cbtn"; del.append(iconSvg("trash")); del.title = "Apagar item"; del.setAttribute("aria-label", "Apagar item");
       del.addEventListener("click", () => { ss.items.splice(k, 1); mark(); renderItems(); calcItems(); });
       top.append(nm, pr, del);
       const who = document.createElement("div"); who.className = "fn-who";

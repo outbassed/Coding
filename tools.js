@@ -449,7 +449,7 @@
     header: byId("sheetHeader"),
     defCopies: byId("sheetDefCopies"),
     table: byId("sheetTable"),
-    info: byId("sheetInfo"),
+    info: byId("sheetInfo"), manual: byId("sheetManual"), addRow: byId("sheetAddRow"), shown: byId("sheetShown"),
     create: byId("sheetCreate")
   };
   const MAX_ROWS = 3000;
@@ -686,6 +686,7 @@
     refreshSheet();
   }
 
+  const EDIT_ROWS = 200; // linhas editáveis na tela (o Etiquetas aceita até 200 itens)
   function refreshSheet() {
     const rows = sstate.rows;
     const start = sstate.header ? 1 : 0;
@@ -694,12 +695,26 @@
     const width = rows[0].length;
     const thead = el("tr");
     for (let i = 0; i < width; i++) thead.append(el("th", {}, i === sstate.colCode ? "Código" : i === sstate.colDesc ? "Descrição" : i === sstate.colCopies ? "Cópias" : ""));
+    thead.append(el("th", { "aria-label": "Apagar linha" }, ""));
     sheet.table.append(thead);
-    rows.slice(0, 8).forEach((r, idx) => {
+    rows.slice(0, EDIT_ROWS).forEach((r, idx) => {
       const tr = el("tr", idx < start ? { class: "is-head" } : {});
-      r.forEach((c, i) => { const td = el("td", marks.has(i) ? { style: "color:var(--text)" } : {}, c); td.title = c; tr.append(td); });
+      for (let i = 0; i < width; i++) {
+        const td = el("td", marks.has(i) ? { class: "is-key" } : {});
+        const inp = el("input", { type: "text", value: r[i] || "", maxlength: "300", "aria-label": "Linha " + (idx + 1) + ", coluna " + (i + 1) });
+        inp.addEventListener("input", () => { sstate.rows[idx][i] = inp.value.trim(); updateSheetInfo(); C.scheduleSave(); });
+        td.append(inp); tr.append(td);
+      }
+      const del = el("button", { type: "button", class: "tv-rowdel", title: "Apagar esta linha", "aria-label": "Apagar a linha " + (idx + 1) });
+      del.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#ic-close"/></svg>';
+      del.addEventListener("click", () => { if (rows.length <= 1) { rows[0] = rows[0].map(() => ""); } else rows.splice(idx, 1); refreshSheet(); C.scheduleSave(); });
+      const tdd = el("td", { class: "tv-rowdel-td" }); tdd.append(del); tr.append(tdd);
       sheet.table.append(tr);
     });
+    sheet.shown.textContent = rows.length > EDIT_ROWS ? "Mostrando as primeiras " + EDIT_ROWS + " de " + rows.length + " linhas." : "";
+    updateSheetInfo();
+  }
+  function updateSheetInfo() {
     const items = sheetItems();
     const total = items.reduce((a, b) => a + b.copies, 0);
     const MAX = 200;
@@ -707,6 +722,23 @@
     sheet.create.disabled = !items.length;
     C.setPrimary(undefined, !items.length);
   }
+  function addSheetRow() {
+    if (!sstate.rows.length) return;
+    if (sstate.rows.length >= MAX_ROWS) { C.toast("Limite de " + MAX_ROWS + " linhas."); return; }
+    sstate.rows.push(sstate.rows[0].map(() => ""));
+    refreshSheet(); C.scheduleSave();
+    const last = sheet.table.querySelector("tr:last-child input"); if (last) last.focus();
+  }
+  function startManual() {
+    if (sstate.rows.length && !window.confirm("Começar uma lista nova? A tabela atual será substituída.")) return;
+    sstate.rows = [["Código", "Descrição", "Cópias"], ["", "", "1"], ["", "", "1"], ["", "", "1"]];
+    sstate.header = true; sstate.colCode = 0; sstate.colDesc = 1; sstate.colCopies = 2;
+    sheet.msg.textContent = "Preencha a tabela. A primeira linha é o título das colunas.";
+    showSheet(); C.scheduleSave();
+    const first = sheet.table.querySelector("tr.is-head + tr input"); if (first) first.focus();
+  }
+  sheet.addRow.addEventListener("click", addSheetRow);
+  sheet.manual.addEventListener("click", startManual);
 
   function readSheetForm() {
     sstate.colCode = Number(sheet.colCode.value);

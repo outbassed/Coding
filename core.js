@@ -27,22 +27,24 @@
     ["America/Manaus", "Manaus (AM, RR, RO)"],
     ["America/Cuiaba", "Cuiabá (MT, MS)"],
     ["America/Rio_Branco", "Rio Branco (AC)"],
-    ["America/Noronha", "Fernando de Noronha"]
+    ["America/Noronha", "Fernando de Noronha"],
+    ["local", "Horário do aparelho (local, funciona offline)"]
   ];
   const ZONE_KEY = "coding-zone";
   const MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
   const clock = {
     offset: 0,
+    synced: false, // true quando a hora foi conferida com o servidor; senão é só a hora do aparelho (estimada)
     zone: (() => { try { const z = localStorage.getItem(ZONE_KEY); if (ZONES.some((x) => x[0] === z)) return z; } catch (_) { /* padrão */ } return "America/Sao_Paulo"; })(),
     now() { return Date.now() + this.offset; },
     setZone(z) { if (!ZONES.some((x) => x[0] === z)) return; this.zone = z; try { localStorage.setItem(ZONE_KEY, z); } catch (_) { /* sem armazenamento */ } },
     parts(ts, opts) {
-      try { return new Intl.DateTimeFormat("pt-BR", { timeZone: this.zone, ...opts }); } catch (_) { return new Intl.DateTimeFormat("pt-BR", opts); }
+      try { return new Intl.DateTimeFormat("pt-BR", this.zone === "local" ? opts : { timeZone: this.zone, ...opts }); } catch (_) { return new Intl.DateTimeFormat("pt-BR", opts); }
     },
     short(ts) { const p = this.parts(ts, { day: "2-digit", month: "numeric" }).formatToParts(new Date(ts)); const d = p.find((x) => x.type === "day").value; const m = Number(p.find((x) => x.type === "month").value); return d + " " + MONTHS[m - 1]; },
     full(ts) { return this.parts(ts, { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(ts)); },
     time(ts) { return this.parts(ts, { hour: "2-digit", minute: "2-digit" }).format(new Date(ts === undefined ? this.now() : ts)); },
-    zoneName() { const z = ZONES.find((x) => x[0] === this.zone); return z ? z[1].split(" (")[0] : "Brasília"; }
+    zoneName() { const z = ZONES.find((x) => x[0] === this.zone); return this.zone === "local" ? "o horário do aparelho" : z ? z[1].split(" (")[0] : "Brasília"; }
   };
   /* A data vem do cabeçalho "Date" do próprio servidor do app: sem API de terceiros, sem chave e sem bloqueio de CORS. */
   async function syncClock() {
@@ -56,9 +58,11 @@
       const server = Date.parse(header);
       if (!Number.isFinite(server)) return;
       clock.offset = server - (t0 + t1) / 2;
+      clock.synced = true;
+      document.dispatchEvent(new Event("coding:clock"));
       if (Math.abs(clock.offset) > 60000) {
         const min = Math.round(Math.abs(clock.offset) / 60000);
-        toast("O relógio do seu aparelho está " + min + (min === 1 ? " minuto " : " minutos ") + (clock.offset > 0 ? "atrasado" : "adiantado") + ". O Coding usa a hora certa de " + clock.zoneName() + ".");
+        toast("O relógio do seu aparelho está " + min + (min === 1 ? " minuto " : " minutos ") + (clock.offset > 0 ? "atrasado" : "adiantado") + (clock.zone === "local" ? ". O Coding corrige isso nos documentos." : ". O Coding usa a hora certa de " + clock.zoneName() + "."));
       }
     } catch (_) { /* sem internet: usa o relógio do aparelho */ }
   }
@@ -1197,8 +1201,13 @@
     const zone = byId("homeZone");
     zone.replaceChildren(...ZONES.map(([v, l]) => { const o = document.createElement("option"); o.value = v; o.textContent = l; return o; }));
     zone.value = clock.zone;
-    const tick = () => { byId("homeTime").textContent = clock.time(); };
-    zone.addEventListener("change", () => { clock.setZone(zone.value); tick(); renderHome(); toast("Hora de " + clock.zoneName() + "."); });
+    const tick = () => {
+      const est = !clock.synced && clock.zone !== "local";
+      byId("homeTime").textContent = (est ? "≈ " : "") + clock.time();
+      byId("homeTime").title = est ? "Hora estimada pelo relógio do aparelho (sem conferir com a internet)." : "";
+    };
+    document.addEventListener("coding:clock", tick);
+    zone.addEventListener("change", () => { clock.setZone(zone.value); tick(); renderHome(); toast(clock.zone === "local" ? "Usando o horário do aparelho." : "Hora de " + clock.zoneName() + "."); });
     tick();
     setInterval(() => { if (!homeEl.hidden) tick(); }, 15000);
     byId("homeSearch").addEventListener("input", (e) => { searchTerm = e.target.value; renderHome(); });

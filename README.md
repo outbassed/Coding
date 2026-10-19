@@ -7,7 +7,9 @@ App de documentos e ferramentas para o dia a dia, que funciona offline. Principa
 - **Planilhas**: tabelas com fórmulas, como um Excel simples.
 - **Imagens**: editor divertido, estilo Paint + edição de fotos.
 - **Sorteio** e **Racha-conta**: roleta, dado, moeda, times e divisão da conta.
-- Ainda: QR e código de barras, Planilha → Etiquetas e Editor de PDF.
+- Ainda: QR e código de barras, Planilha → Etiquetas (arquivo, planilha do Coding ou **digitando à mão** numa tabela editável) e Editor de PDF.
+- **Relógio**: Brasília por padrão (ou a última região escolhida); a opção **Horário do aparelho (local)** funciona offline. Sem conferir com a internet, a hora aparece com "≈".
+- Todos os ícones de controle são SVG; só os adesivos de Imagens continuam emoji.
 
 Funciona como site e como aplicativo instalável (PWA), inclusive offline. Sem frameworks, backend ou contas.
 

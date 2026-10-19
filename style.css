@@ -888,14 +888,18 @@ body { --nav-w: 0px; --nav-h: 0px; }
 .im-top { flex: none; display: flex; align-items: center; gap: 4px; padding: 6px 10px; overflow-x: auto; background: var(--bar); border-bottom: 1px solid var(--line-soft); }
 .im-top .cbtn { flex: none; display: inline-flex; align-items: center; gap: 6px; }
 .im-top .cbtn:disabled { opacity: .35; }
-.im-e { font-size: 17px; line-height: 1; }
+.im-e { font-size: 17px; line-height: 1; display: inline-grid; place-items: center; }
+.im-e .icon { width: 20px; height: 20px; }
+.btn .icon, .cbtn .icon { margin-right: 5px; vertical-align: -4px; }
+.cbtn:not(:has(.im-l)) .icon { margin-right: 0; }
+.btn .icon:only-child { margin-right: 0; }
 .im-l { font-size: 12.5px; font-weight: 650; }
 .im-main { flex: 1; min-height: 0; display: grid; grid-template-columns: 136px minmax(0, 1fr) 280px; }
 .im-tools { display: grid; grid-template-columns: 1fr 1fr; align-content: start; gap: 3px; padding: 8px 6px; overflow-y: auto; border-right: 1px solid var(--line-soft); background: var(--bar); }
 .im-tool { flex: none; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--text); }
 .im-tool:hover { background: #ffffff10; }
 .im-tool.is-on { background: #769ff82a; border-color: var(--accent); }
-.im-tool .im-e { font-size: 21px; }
+.im-tool .im-e .icon { width: 23px; height: 23px; }
 .im-tool .im-l { font-size: 10.5px; color: var(--muted); text-align: center; }
 .im-gap { grid-column: 1 / -1; height: 1px; margin: 4px 8px; background: var(--line-soft); }
 .im-center { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
@@ -982,7 +986,10 @@ body { --nav-w: 0px; --nav-h: 0px; }
 .fn-controls { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
 .fn-dice { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; min-height: 96px; }
 .fn-die { min-width: 84px; height: 84px; padding: 0 10px; display: grid; place-items: center; border-radius: 18px; background: #fff; color: #1b2433; font-size: 38px; font-weight: 800; box-shadow: 0 6px 16px #0006; }
-.fn-die.is-face { font-size: 64px; line-height: 1; }
+.fn-die.is-face { padding: 8px; }
+.fn-die svg.die { width: 68px; height: 68px; }
+.fn-coin svg.icon { width: 84px; height: 84px; stroke: #6b4700; stroke-width: 1.6; margin: 0; }
+.fn-big .icon { width: 20px; height: 20px; }
 .fn-die.is-roll { animation: fn-shake .18s infinite; }
 @keyframes fn-shake { 0% { transform: rotate(-8deg) translateY(0); } 50% { transform: rotate(8deg) translateY(-6px); } 100% { transform: rotate(-8deg) translateY(0); } }
 .fn-coin { width: 180px; height: 180px; border: 0; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe27a, #e0a410 70%); font-size: 84px; display: grid; place-items: center; box-shadow: 0 10px 30px #000a, inset 0 -8px 16px #0003; }
@@ -1013,3 +1020,15 @@ body { --nav-w: 0px; --nav-h: 0px; }
 .fn-pending { padding: 10px 12px; border-radius: 10px; background: #f0b27a22; border: 1px solid #f0b27a66; display: flex; flex-direction: column; gap: 8px; }
 .fn-pending p { margin: 0; font-size: 13px; }
 #spDetail { white-space: pre-line; }
+
+/* Planilha → Etiquetas: tabela editável */
+.tv-edit input { width: 100%; min-width: 90px; padding: 6px 8px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: 13px; }
+.tv-edit td.is-key input { color: var(--text); }
+.tv-edit input:hover { border-color: var(--line); }
+.tv-edit input:focus { border-color: #6aa5ff; background: #0e1522; color: var(--text); outline: none; }
+.tv-edit tr.is-head input { font-weight: 700; }
+.tv-rowdel-td { width: 34px; }
+.tv-rowdel { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--muted); }
+.tv-rowdel:hover { background: #3b2630; color: #ff9aa5; }
+.tv-rowdel .icon { width: 14px; height: 14px; }
+#sheetWs .tv-table-wrap { max-height: 46vh; overflow: auto; }
