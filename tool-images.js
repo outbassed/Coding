@@ -337,9 +337,12 @@
 
   /* ---------------- Salvar no aparelho ---------------- */
 
-  function changed(imgChanged = true) {
+  let sampleUntouched = false; // exemplo aberto só para ver: não vira documento até a primeira edição de verdade
+  function changed(imgChanged = true, quiet = false) {
     state.objects = objs.map(serialObj);
     state.w = w; state.h = h;
+    if (quiet) { paint(); updateEst(); markFilters(); return; }
+    sampleUntouched = false;
     if (imgChanged) { dirtyImg = true; clearTimeout(saveTimer); saveTimer = setTimeout(persist, 1500); }
     clearTimeout(thumbTimer);
     thumbTimer = setTimeout(makeThumb, 900);
@@ -362,7 +365,7 @@
     C.scheduleSave();
   }
   function makeThumb() {
-    if (!has) return;
+    if (!has || sampleUntouched) return;
     const k = Math.min(1, 240 / Math.max(w, h));
     const t = document.createElement("canvas");
     t.width = Math.max(1, Math.round(w * k)); t.height = Math.max(1, Math.round(h * k));
@@ -593,8 +596,8 @@
     layout();
   }
   // Há trabalho a perder? Vale para quem acabou de editar e também para um documento salvo e reaberto.
-  function hasWork() { return has && (undoSt.length > 0 || objs.length > 0 || Boolean(state.curId) || dirtyImg); }
-  async function loadBase(file) {
+  function hasWork() { return has && !sampleUntouched && (undoSt.length > 0 || objs.length > 0 || Boolean(state.curId) || dirtyImg); }
+  async function loadBase(file, opts = {}) {
     if (!C.store.images) { C.toast("Este navegador não guarda arquivos: o editor de imagens fica indisponível."); return; }
     if (hasWork() && !window.confirm("Trocar a foto deste documento? As alterações feitas nela (desenhos, textos, filtros, cortes) serão perdidas.\n\nDica: use Novo na barra de cima para abrir outra foto num documento separado, sem perder esta.")) return;
     const end = C.busy("Preparando a foto…");
@@ -612,7 +615,15 @@
       byId("documentName").value = state.name;
       await C.store.putImage({ id: state.origId, docId, blob, mime: blob.type, name: file.name || "foto" });
       if (oldIds.length) C.store.deleteImages(oldIds).catch(() => {});
-      dirtyImg = true; changed();
+      if (opts.sample) {
+        // exemplo editável: foto + camadas de texto e adesivo independentes
+        const sz = Math.round(Math.min(w, h) * 0.11);
+        objs.push(
+          { t: "text", x: w / 2, y: h * 0.14, size: sz, rot: 0, text: "Dia de praia", color: "#ffffff", font: "impact", bold: false, stroke: "#000000", strokeOn: true, caps: true },
+          { t: "emoji", x: w * 0.82, y: h * 0.82, size: Math.round(Math.min(w, h) * 0.2), rot: 0, ch: "🌴" }
+        );
+        dirtyImg = false; changed(false, true); sampleUntouched = true;
+      } else { dirtyImg = true; changed(); }
       syncButtons(); setTool("move");
       if (info.scaled) C.toast("Foto grande: reduzi de " + info.ow + "×" + info.oh + " para " + w + "×" + h + " para o editor ficar rápido.");
     } catch (_) {
@@ -960,7 +971,7 @@
   }
   function select(o) {
     sel = o;
-    if (o && sheetUi) sheetUi.reveal("tools", o.t === "text" || o.t === "balloon" ? "expanded" : "half");
+    if (o && sheetUi) sheetUi.reveal(o.t === "text" || o.t === "balloon" ? "text" : o.t === "emoji" || o.t === "img" ? "stk" : "tools", o.t === "text" || o.t === "balloon" ? "expanded" : "half");
     showOpts(); paint();
   }
   function syncObjUi() {
@@ -1201,7 +1212,7 @@
     try {
       const r = await fetch("exemplos/praia.jpg");
       if (!r.ok) throw new Error("http");
-      await loadBase(new File([await r.blob()], "Praia de exemplo.jpg", { type: "image/jpeg" }));
+      await loadBase(new File([await r.blob()], "Praia de exemplo.jpg", { type: "image/jpeg" }), { sample: true });
     } catch (_) { C.toast("Não consegui carregar a foto de exemplo (ela precisa de internet na primeira vez)."); }
     b.disabled = false;
   });
@@ -1244,23 +1255,34 @@
   let sheetUi = null;
   if (C.shell) {
     const pane = (k) => ws.querySelector('[data-pane="' + k + '"]');
+    // Texto e Adesivos ganham abas próprias: os botões são cópias (a ação é pelo data-add/data-tool, que já é delegado)
+    const toolsEl = byId("imTools");
+    const mkTools = (sel) => {
+      const box = document.createElement("div"); box.className = "im-tools im-tools-x";
+      sel.forEach((q) => { const src = toolsEl.querySelector(q); if (src) { const c = src.cloneNode(true); c.classList.add("im-clone"); box.appendChild(c); } });
+      return box;
+    };
     sheetUi = C.shell.create({
       ws, id: "imagens", host: ws.querySelector(".im-main"), native: true, label: "Controles do editor de imagens",
       tabs: [
         { key: "tools", label: "Ferramentas", icon: "ic-tools", nodes: () => [byId("imTools"), byId("imOpts")] },
         { key: "adj", label: "Ajustes", icon: "ic-sliders", pane: pane("adj") },
         { key: "fil", label: "Filtros", icon: "ic-wand", pane: pane("fil") },
+        { key: "text", label: "Texto", icon: "ic-type", nodes: () => [mkTools(['[data-add="text"]', '[data-add="meme"]', '[data-add="balloon"]'])] },
+        { key: "stk", label: "Adesivos", icon: "ic-smile", nodes: () => [mkTools(['[data-tool="stickers"]', '[data-add="photo"]'])] },
         { key: "fra", label: "Molduras", icon: "ic-frame", pane: pane("fra") },
         { key: "out", label: "Salvar", icon: "ic-download", pane: pane("out") }
       ]
     });
   }
-  /* A barra de opções (cor, tamanho, texto) fica na aba Ferramentas; na aba Molduras ela vem junto para escolher a cor. */
+  /* A barra de opções (cor, tamanho, texto) acompanha a aba ativa: Ferramentas, Texto, Adesivos ou Molduras. */
   function placeOpts() {
     if (!sheetUi || !sheetUi.active) return;
-    const opts = byId("imOpts"), tools = byId("imTools"), fra = pane2("fra");
-    if (!pane2("fra").hidden) { if (opts.parentNode !== fra) fra.insertBefore(opts, fra.firstChild); }
-    else if (opts.parentNode !== tools.parentNode) tools.parentNode.appendChild(opts);
+    const opts = byId("imOpts");
+    const act = ["tools", "text", "stk", "fra"].map(pane2).find((p) => p && !p.hidden);
+    if (!act) return;
+    if (opts.parentNode === act) return;
+    if (act.dataset.pane === "fra") act.insertBefore(opts, act.firstChild); else act.appendChild(opts);
   }
   function pane2(k) { return ws.querySelector('[data-pane="' + k + '"]'); }
   ws.addEventListener("click", (e) => { if (e.target.closest("[data-tab]")) placeOpts(); });
@@ -1382,6 +1404,7 @@
   }
 
   async function open(doc) {
+    sampleUntouched = false;
     const tok = ++openTok;
     clearTimeout(saveTimer);
     docId = doc.id;
@@ -1430,6 +1453,11 @@
   }
   function closeDoc() {
     openTok++;
+    if (sampleUntouched) { // exemplo que ninguém editou: não deixa nada guardado
+      const ids = [state.origId, state.curId].filter(Boolean);
+      if (ids.length) C.store.deleteImages(ids).catch(() => {});
+      sampleUntouched = false;
+    }
     persist();
     clearTimeout(saveTimer);
     clearInterval(drag && drag.timer);

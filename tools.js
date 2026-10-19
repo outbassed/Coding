@@ -662,7 +662,7 @@
 
   function setData(data) {
     const rows = data.map((r) => r.slice(0, MAX_COLS).map((c) => String(c === undefined || c === null ? "" : c).trim().slice(0, 300))).slice(0, MAX_ROWS);
-    if (!rows.length) { sstate.rows = []; sheet.step2.hidden = true; sheet.msg.textContent = "Não encontrei linhas nesse arquivo."; C.scheduleSave(); return; }
+    if (!rows.length) { sstate.rows = []; setStep2(true); sheet.msg.textContent = "Não encontrei linhas nesse arquivo."; C.scheduleSave(); return; }
     const width = Math.max(...rows.map((r) => r.length));
     rows.forEach((r) => { while (r.length < width) r.push(""); });
     const head = rows[0];
@@ -693,8 +693,9 @@
     return items;
   }
 
+  function setStep2(hidden) { sheet.step2.hidden = hidden; sheet.ws.dataset.rows = hidden ? "0" : "1"; } // a folha do celular também esconde o que depende de linhas
   function showSheet() {
-    sheet.step2.hidden = !sstate.rows.length;
+    setStep2(!sstate.rows.length);
     if (!sstate.rows.length) return;
     fillSelects();
     refreshSheet();
@@ -783,7 +784,7 @@
     if (!file) return;
     sheet.msg.textContent = "Lendo o arquivo…";
     try { setData(await readFile(file)); }
-    catch (e) { sheet.step2.hidden = true; sheet.msg.textContent = e && /\.xls/.test(e.message) ? e.message : "Não consegui ler esse arquivo. Use .xlsx ou .csv."; }
+    catch (e) { setStep2(true); sheet.msg.textContent = e && /\.xls/.test(e.message) ? e.message : "Não consegui ler esse arquivo. Use .xlsx ou .csv."; }
   });
   function calcDocs() { return Object.values(C.lib.docs).filter((d) => d.type === "calc").sort((a, b) => b.updatedAt - a.updatedAt); }
   function fillCalcList() {
@@ -865,11 +866,17 @@
       ]
     });
     const SF = [kids(sheet.ws, ".tv-form > p.tv-info")[0], sheet.pick.parentNode, sheet.fromCalc.closest("label"), sheet.msg];
+    const emptyNote = (t) => { const n = document.createElement("p"); n.className = "tv-info sh-when-empty"; n.textContent = t; return n; };
+    const need = (...els) => els.filter(Boolean).map((e) => { e.classList.add("sh-needs-rows"); return e; });
+    const defCopies = sheet.ws.querySelector("#sheetDefCopies").closest("label");
+    const notes = [emptyNote("Primeiro escolha um arquivo, digite à mão ou use o exemplo na aba Produtos."), emptyNote("Primeiro escolha um arquivo, digite à mão ou use o exemplo na aba Produtos."), emptyNote("Primeiro escolha um arquivo, digite à mão ou use o exemplo na aba Produtos.")];
     C.shell.create({
       ws: sheet.ws, id: "planilha-etiquetas", host: sheet.ws.querySelector(".tv-body"), label: "Controles de planilha para etiquetas", defaultState: "collapsed",
       tabs: [
         { key: "prod", label: "Produtos", icon: "ic-list", nodes: () => SF },
-        { key: "col", label: "Colunas", icon: "ic-viewgrid", nodes: () => [sheet.step2.querySelector(".tv-grid3"), sheet.header.closest(".tv-row")] }
+        { key: "col", label: "Colunas", icon: "ic-viewgrid", nodes: () => [notes[0], ...need(sheet.step2.querySelector(".tv-grid3") || sheet.colCode.closest(".tv-grid3"), sheet.header.closest(".tv-check"))] },
+        { key: "fmt", label: "Formato", icon: "ic-sliders", nodes: () => [notes[1], ...need(defCopies)] },
+        { key: "go", label: "Criar etiquetas", icon: "ic-tag", nodes: () => [notes[2], ...need(sheet.info, sheet.ws.querySelector("#sheetCreate"))] }
       ]
     });
   }

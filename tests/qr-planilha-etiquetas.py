@@ -1,0 +1,47 @@
+"""Teste de toque (emulação) — qr-planilha-etiquetas. Uso: servir a pasta em http://localhost:8766 e rodar `python3 tests/qr-planilha-etiquetas.py` na raiz do projeto.
+Variável opcional CAPTURAS = pasta para salvar as capturas de tela."""
+from playwright.sync_api import sync_playwright
+OUT=__import__("os").environ.get("CAPTURAS","/tmp/")
+R=[]
+def chk(n,ok,d=""): R.append((n,ok)); print(("PASSOU" if ok else "FALHOU")+" | "+n+(" | "+str(d) if d else ""))
+def rect(pg,sel): return pg.evaluate("s=>{const b=document.querySelector(s).getBoundingClientRect();return [Math.round(b.left),Math.round(b.top),Math.round(b.right),Math.round(b.bottom)]}",sel)
+with sync_playwright() as p:
+    b=p.chromium.launch()
+    ctx=b.new_context(viewport={"width":360,"height":740},device_scale_factor=2,has_touch=True,is_mobile=True)
+    pg=ctx.new_page(); errs=[]
+    pg.on("pageerror",lambda e:errs.append(str(e))); pg.on("console",lambda m:m.type=="error" and errs.append(m.text))
+    pg.goto("http://localhost:8766/#/novo/qr"); pg.wait_for_timeout(1500)
+    pg.screenshot(path=OUT+"qr-new-1.png")
+    pv=rect(pg,"#codesPreviewBox"); sh=rect(pg,"#codesWs .sh-sheet")
+    chk("Prévia acima da folha e visível", pv[3]<=sh[1]+1 and pv[3]-pv[1]>=150, (pv,sh))
+    chk("3 exemplos de QR", pg.locator("#codesRows .row-item").count()==3, pg.locator("#codesRows .row-item").count())
+    n_svg=pg.locator("#codesPreview svg").count()
+    chk("Prévia desenhou códigos", n_svg>=3, n_svg)
+    # troca tipo: exemplos trocam e continuam válidos
+    pg.tap('#codesWs .sh-tab[data-sh-tab="cod"]'); pg.wait_for_timeout(300)
+    pg.select_option("#codesType","ean13"); pg.wait_for_timeout(700)
+    vals=pg.eval_on_selector_all("#codesRows input[type=text], #codesRows input:not([type])","e=>e.map(x=>x.value)")
+    chk("Trocar para EAN-13 troca os exemplos (sem erro)", pg.inner_text("#codesMsg").strip()=="" , (pg.inner_text("#codesMsg"), vals[:4]))
+    pg.select_option("#codesType","code128"); pg.wait_for_timeout(700)
+    chk("Code 128 com exemplos válidos", pg.inner_text("#codesMsg").strip()=="", pg.inner_text("#codesMsg"))
+    pg.screenshot(path=OUT+"qr-new-128.png")
+    pg.tap('#codesWs .sh-tab[data-sh-tab="exp"]'); pg.wait_for_timeout(300)
+    chk("Aba Exportar tem botão de imprimir", pg.locator("#codesPrintM").is_visible())
+    chk("Sem rolagem horizontal", pg.evaluate("document.documentElement.scrollWidth<=innerWidth"))
+    # planilha -> etiquetas
+    pg.goto("http://localhost:8766/#/novo/planilha"); pg.wait_for_timeout(1500)
+    pg.screenshot(path=OUT+"sheet-new-1.png")
+    rows=pg.locator("#sheetTable tr:not(.is-head)").count()
+    chk("Tabela de exemplo pronta (cabeçalho + 5 linhas)", rows==6, rows)
+    chk("Contagem: 5 itens · 27 etiquetas", pg.inner_text("#sheetInfo").startswith("5 itens · 27"), pg.inner_text("#sheetInfo"))
+    ins=pg.locator("#sheetTable tr:not(.is-head) input"); ins.nth(2).fill("10"); pg.wait_for_timeout(200)
+    chk("Editar cópias atualiza total (10+2+12+3+6=33)", "33 etiquetas" in pg.inner_text("#sheetInfo"), pg.inner_text("#sheetInfo"))
+    gr=rect(pg,"#sheetCreate"); sh=rect(pg,"#sheetWs .sh-sheet")
+    chk("Botão Criar etiquetas acima da folha", gr[3]<=sh[1]+1, (gr,sh))
+    pg.tap('#sheetWs .sh-tab[data-sh-tab="col"]'); pg.wait_for_timeout(300)
+    pg.screenshot(path=OUT+"sheet-new-col.png")
+    pg.tap("#sheetCreate"); pg.wait_for_timeout(1500)
+    chk("Cria documento de Etiquetas", "#/etiquetas/" in pg.url, pg.url)
+    chk("Sem erros no console", not errs, errs[:3])
+    b.close()
+print(sum(1 for _,o in R if o),"/",len(R))

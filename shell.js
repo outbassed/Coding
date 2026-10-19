@@ -33,6 +33,7 @@
     relayout();
     window.dispatchEvent(new CustomEvent("coding:keyboard", { detail: { height: kb } }));
   }
+  window.addEventListener("coding:shown", () => requestAnimationFrame(relayout));
   document.addEventListener("focusout", () => setTimeout(relayout, 50));
   document.addEventListener("focusin", () => setTimeout(relayout, 50));
   if (window.visualViewport) { window.visualViewport.addEventListener("resize", syncKeyboard); window.visualViewport.addEventListener("scroll", syncKeyboard); }
@@ -84,12 +85,13 @@
       const H = Math.max(240, (host.clientHeight || 0) - kb); // o teclado já tira espaço da área útil
       const strip = (sheet.querySelector(".sh-head").offsetHeight || 40) + (tabsEl.offsetHeight || 52);
       const collapsed = strip + 2;
-      const half = clamp(Math.round(H * 0.42), collapsed + 120, Math.max(collapsed + 120, H - 150));
+      const room = H < 340 ? 56 : H < 420 ? 70 : 120; // celular deitado: a folha precisa deixar espaço para a área de trabalho
+      const half = clamp(Math.round(H * 0.42), collapsed + room, Math.max(collapsed + room, H - (H < 420 ? 110 : 150)));
       const expanded = clamp(Math.round(H * 0.72), half + 40, Math.max(half + 40, H - 110));
       return { collapsed, half, expanded };
     }
     function layout() {
-      if (!inst.active) return;
+      if (!inst.active || ws.hidden) return; // ferramenta escondida não mexe nas variáveis globais da folha
       const h = heights();
       // com o teclado aberto e o foco fora da folha (ex.: editando uma célula), a folha encolhe para não esconder o campo
       const eff = kb > 0 && !sheet.contains(document.activeElement) ? "collapsed" : inst.state;
@@ -142,7 +144,11 @@
     handle.addEventListener("pointercancel", endDrag);
 
     /* ---------- abas ---------- */
-    function paintTabs() { panes.forEach((p, k) => { p.tab.classList.toggle("is-on", k === inst.tab); p.tab.setAttribute("aria-selected", String(k === inst.tab)); }); }
+    function paintTabs() {
+      panes.forEach((p, k) => { p.tab.classList.toggle("is-on", k === inst.tab); p.tab.setAttribute("aria-selected", String(k === inst.tab)); });
+      const on = panes.get(inst.tab); // com muitas abas a faixa rola: mantém a aba ativa à vista
+      if (on && tabsEl.scrollWidth > tabsEl.clientWidth) { const t = on.tab; tabsEl.scrollLeft = Math.max(0, t.offsetLeft - (tabsEl.clientWidth - t.offsetWidth) / 2); }
+    }
     function show(key, { expand = true } = {}) {
       if (!panes.has(key)) return;
       inst.tab = key; paintTabs();

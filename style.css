@@ -1050,7 +1050,7 @@ body { --nav-w: 0px; --nav-h: 0px; }
 .sh-step:disabled { opacity: .3; }
 .sh-tabs { flex: none; display: flex; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line-soft); }
 .sh-tabs::-webkit-scrollbar { display: none; }
-.sh-tab { flex: 1 1 0; min-width: 0; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 2px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font-size: 11px; font-weight: 700; }
+.sh-tab { flex: 1 0 auto; min-width: 64px; white-space: nowrap; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 10px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font-size: 11px; font-weight: 700; }
 .sh-tab .icon { width: 20px; height: 20px; }
 .sh-tab.is-on { color: var(--text); border-bottom-color: var(--accent); }
 .sh-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: calc(14px + var(--safe-bottom)); }
@@ -1167,3 +1167,45 @@ body { --nav-w: 0px; --nav-h: 0px; }
 .sh-on .tx-filepane { display: flex; flex-direction: column; gap: 10px; flex: 1 1 100%; padding-top: 6px; }
 .sh-on .tx-filepane .btn { min-height: 48px; justify-content: center; }
 .sh-on.texts-ws .tx-status { height: auto; min-height: 48px; }
+
+/* v29 — Imagens: Texto e Adesivos em abas próprias (os botões originais ficam só no desktop) */
+.sh-on #imTools [data-add], .sh-on #imTools [data-tool="stickers"] { display: none; }
+.sh-on .im-tools-x { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; padding: 10px 12px 4px; border: 0; background: transparent; }
+.sh-on .im-tools-x .im-tool { flex: none; min-width: 72px; min-height: 60px; }
+.sh-on .im-tools-x .im-tool .im-l { display: block; }
+
+/* v29 — celular deitado (pouca altura): faixa da folha mais baixa */
+@media (max-height: 460px) and (max-width: 899px) {
+  .sh-head, .sh-handle { height: 30px; }
+  .sh-handle span { top: 12px; }
+  .sh-step { width: 44px; height: 30px; }
+  .sh-tab { flex-direction: row; gap: 6px; min-height: 44px; padding: 2px 12px; }
+  .sh-tab .icon { width: 18px; height: 18px; }
+}
+
+/* v29 — Planilha → Etiquetas: abas que dependem de haver linhas */
+.sh-when-empty { display: none; }
+.sh-on:not([data-rows="1"]) .sh-when-empty { display: block; padding: 4px 2px; }
+.sh-on:not([data-rows="1"]) .sh-needs-rows { display: none; }
+.sh-on .sh-pane #sheetCreate { min-height: 48px; width: 100%; justify-content: center; }
+.sh-on .sh-pane > .tv-grid3 { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.sh-on .sh-resmirror { display: flex; flex-direction: column; gap: 12px; padding: 14px; }
+.sh-on .sh-resmirror .btn { min-height: 48px; justify-content: center; }
+.sh-resmirror { display: none; }
+.sh-on .sh-resmirror { display: flex; }
+
+/* v29 — alvos de toque (celular): zoom, caixas de seleção, controles deslizantes e seletor de cor */
+@media (max-width: 899px) {
+  .zoom-reset, .statusbar .icon-btn { min-width: 44px; min-height: 44px; }
+  .statusbar { min-height: 48px; }
+  .tv-check, .im-check, .switch { min-height: 44px; display: flex; align-items: center; gap: 8px; }
+  .sh-on .sh-pane input[type="range"] { min-height: 32px; margin: 4px 0; }
+  .sh-on .im-opt input[type="color"], .sh-on .sh-pane input[type="color"] { min-width: 44px; min-height: 40px; }
+  .img-credit a { display: inline-block; padding: 12px 6px; }
+}
+
+/* v29 — Sorteio/Racha: o conteúdo rola acima da folha em vez de ficar escondido embaixo dela (celular deitado e telas pequenas) */
+.sh-on .fn-body > .fn-pane:not([hidden]) { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+@media (max-height: 460px) and (max-width: 899px) { .sh-head, .sh-handle, .sh-step { height: 34px; } .sh-handle span { top: 14px; } }
+.sh-on .sh-body input[type="range"] { min-height: 32px; margin: 4px 0; }
+.sh-on .sh-body select, .sh-on .sh-body input[type="color"] { min-height: 44px; }

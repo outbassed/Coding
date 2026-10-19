@@ -486,15 +486,37 @@
     }
     const SEQ = [...sws.querySelectorAll('[data-sp="eq"] .fn-col:first-child > *')];
     const SIT = [...sws.querySelectorAll('[data-sp="items"] .fn-col:first-child > *')];
+    // "Resultado": cópia só de leitura do valor (o original continua em cima, na área de trabalho)
+    function mirror(mode) {
+      const box = document.createElement("div");
+      box.className = "sh-resmirror";
+      box.innerHTML = (mode === "items"
+        ? '<div class="fn-sub">Cada um paga</div><div class="fn-resultlist" data-m="list"></div>'
+        : '<div class="fn-pay"><span>Cada um paga</span><strong data-m="each"></strong><small data-m="detail"></small></div>') +
+        '<button class="btn primary" type="button" data-m="copy"><svg class="icon" aria-hidden="true"><use href="#ic-copy"/></svg> Copiar resumo</button>';
+      const q = (k) => box.querySelector('[data-m="' + k + '"]');
+      const sync = () => {
+        if (mode === "items") q("list").innerHTML = byId("spResult").innerHTML;
+        else { q("each").textContent = byId("spEach").textContent; q("detail").textContent = byId("spDetail").textContent; }
+      };
+      const srcs = mode === "items" ? [byId("spResult")] : [byId("spEach"), byId("spDetail")];
+      if ("MutationObserver" in window) srcs.forEach((e) => new MutationObserver(sync).observe(e, { childList: true, subtree: true, characterData: true }));
+      q("copy").addEventListener("click", copyText);
+      sync();
+      return box;
+    }
+    const MIR = { eq: mirror("eq"), items: mirror("items") };
     function sTabs(mode) {
       if (mode === "items") return [
         { key: "people", label: "Pessoas", icon: "ic-users", nodes: () => SIT.slice(0, 3) },
         { key: "items", label: "Itens", icon: "ic-receipt", nodes: () => SIT.slice(3, 6) },
-        { key: "tip", label: "Gorjeta", icon: "ic-sliders", nodes: () => [SIT[6], SIT[7]] }
+        { key: "tip", label: "Gorjeta", icon: "ic-sliders", nodes: () => [SIT[6], SIT[7]] },
+        { key: "res", label: "Resultado", icon: "ic-check", nodes: () => [MIR.items] }
       ];
       return [
-        { key: "bill", label: "Conta", icon: "ic-receipt", nodes: () => [SEQ[0], SEQ[1]] },
-        { key: "tip", label: "Gorjeta", icon: "ic-sliders", nodes: () => [SEQ[2], SEQ[3], SEQ[4]] }
+        { key: "bill", label: "Pessoas", icon: "ic-users", nodes: () => [SEQ[0], SEQ[1]] },
+        { key: "tip", label: "Gorjeta", icon: "ic-sliders", nodes: () => [SEQ[2], SEQ[3], SEQ[4]] },
+        { key: "res", label: "Resultado", icon: "ic-check", nodes: () => [MIR.eq] }
       ];
     }
     dTabsFn = dTabs; sTabsFn = sTabs;

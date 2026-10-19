@@ -56,6 +56,25 @@ Funciona como site e como aplicativo instalável (PWA), inclusive offline. Sem f
 - As imagens são reduzidas ao inserir (lado maior de até 1600 px, WebP/JPEG). Limite: 30 imagens por documento.
 - Se uma imagem não puder ser exibida, aparece um quadro "Imagem indisponível" com o mesmo tamanho e alinhamento. No PDF ele sai vazio, só com uma borda fina, e o app pede confirmação antes de imprimir.
 
+## Uso no celular (v29)
+Em telas de até 899 px, as nove ferramentas usam o mesmo padrão: a **área de trabalho fica em cima** (folha, imagem, grade, roleta…) e os **controles ficam numa folha inferior** com abas. A folha tem três alturas (**recolhida**, **meia** e **expandida**): arraste a alça ou use os botões de seta (a altura escolhida é lembrada por ferramenta, só como preferência de tela, e não vai para o documento). Com o teclado aberto a folha encolhe para o campo que você está editando continuar à vista. A rolagem da folha é interna; a da área de trabalho (zoom, grade, imagem) não briga com ela.
+
+| Ferramenta | Abas da folha |
+| --- | --- |
+| Etiquetas | Itens · Formato · Página · Imprimir / PDF |
+| Texto | Inserir · Formatar · Estilos · Imagens · Arquivo (desfazer/refazer ficam sempre na barra de baixo) |
+| Planilhas | Editar · Formatar · Fórmulas · Inserir · Arquivo |
+| Imagens | Ferramentas · Ajustes · Filtros · Texto · Adesivos · Molduras · Salvar |
+| PDF | Páginas · Organizar · Anotar · Assinar · Exportar |
+| QR e Barras | Códigos · Aparência · Página · Exportar |
+| Planilha → Etiquetas | Produtos · Colunas · Formato · Criar etiquetas |
+| Sorteio | Participantes · Configurações · Histórico (muda conforme o modo) |
+| Racha-conta | Pessoas · Itens · Gorjeta · Resultado |
+
+- **Exemplos editáveis** (nada é salvo só por abrir): Imagens (foto com texto e adesivo em camadas separadas), PDF (3 páginas, funciona offline), QR (3 exemplos válidos por tipo), Planilha → Etiquetas, Sorteio e Racha-conta. A primeira edição de verdade cria um documento independente; sair sem editar não deixa nada guardado, e os exemplos não gastam um dos 30 lugares.
+- Em Sorteio, **Limpar histórico** mostra **Desfazer limpeza** na hora.
+- No desktop (900 px ou mais) o layout é o de sempre: a folha inferior some e cada controle volta ao seu lugar.
+
 ## Favoritos e histórico
 Na tela inicial, os **Documentos recentes** aparecem como miniaturas (ou em lista), com busca pelo nome ou conteúdo, filtro por tipo (inclui **Favoritos**), ordem por data ou de A a Z e a estrela para favoritar (também dá para favoritar o documento aberto pelo menu).
 
@@ -102,13 +121,14 @@ A instalação exige HTTPS (o GitHub Pages já oferece) ou `localhost`.
 ## Arquivos
 - `index.html`: estrutura, tela de carregamento (HTML/CSS inline) e telas dos dois modos
 - `style.css`: layout responsivo e CSS de impressão A4
+- `shell.js`: folha inferior compartilhada do celular (abas, três alturas, teclado)
 - `core.js`: armazenamento (IndexedDB), biblioteca, rotas, tela inicial, exportar/importar/compartilhar, PWA
 - `labels.js`: modo Etiquetas (itens, paginação, prévia)
 - `texts.js`: modo Texto (editor, sanitização, histórico, imagens)
 - `calc-engine.js`: motor de fórmulas das Planilhas (sem dependências)
 - `tool-calc.js`: modo Planilhas (grade, edição, formatação, CSV/xlsx)
 - `tool-images.js`: editor de Imagens; `tool-fun.js`: Sorteio e Racha-conta; `tool-pdf.js`: Editor de PDF
-- `exemplos/`: foto de exemplo da ferramenta Imagens (créditos na própria tela)
+- `exemplos/`: foto de exemplo de Imagens (créditos na própria tela) e `exemplo.pdf` (3 páginas, para o editor de PDF)
 - `menu.js`: menu de clique direito e atalhos
 - `manifest.webmanifest`: dados do aplicativo instalável
 - `sw.js`: service worker (cache offline)
@@ -131,4 +151,4 @@ A instalação exige HTTPS (o GitHub Pages já oferece) ou `localhost`.
 
 ## Testes
 
-Relatório com o que passou, o que falhou e o que não foi testado: [RELATORIO-TESTES.md](RELATORIO-TESTES.md). Verificações automáticas em `tests/final.py`.
+Relatório com o que passou, o que falhou e o que não foi testado: [RELATORIO-TESTES.md](RELATORIO-TESTES.md). Verificações automáticas em `tests/final.py` (regressão geral) e, para o celular, `tests/mobile.py` (9 ferramentas × 12 tamanhos de tela, com toque emulado), `tests/teclado.py` (teclado simulado) e um teste por ferramenta (`tests/imagens.py`, `texto.py`, `planilhas.py`, `pdf.py`…). Todos são emulação de Chromium: **não substituem teste em aparelho físico**.
