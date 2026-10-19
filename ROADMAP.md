@@ -11,6 +11,7 @@ Conferido no código: P0-01 (backups v4 de Imagens/Sorteio/Racha-conta são recu
 - **Fase 3 – UX (FEITA, publicando; só falta teste em celular na Fase 4):** ícones 100% SVG nos controles (sem emoji, exceto adesivos do usuário); editor manual de Planilha → Etiquetas; horário local do aparelho.
 - **Fase 4 – Offline/responsivo (FEITA e na `main`; falta só teste em celular físico):** pré-cache do PDF, testes em 320–1920 px, acessibilidade.
 - **Fase 5 – Documentação e relatório PASSOU/FALHOU (FEITA):** ver `RELATORIO-TESTES.md`.
+- **Fase 6 – Extras (FEITA, aprovada pelo dono):** Duplicar e Renomear na seleção da home; Backup/restauração da biblioteca inteira (`.coding-library.json`); cor de fundo do JPG para fotos transparentes; miniaturas de filtro com debounce.
 - Regras do dono: trabalhar em branch, commits pequenos, nada de extras (P3) sem aprovação.
 
 ### Auditoria completa (documento do dono, 18/10) — plano em fases

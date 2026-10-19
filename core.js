@@ -540,6 +540,7 @@
       return false;
     }
     if (room.victim && lib.docs[room.victim.id]) await evict(room.victim);
+    if (opts.stay) return id;
     return openDoc(id, opts);
   }
 
@@ -730,6 +731,8 @@
     byId("selCount").textContent = n === 0 ? "Nenhum selecionado" : n + (n === 1 ? " selecionado" : " selecionados");
     byId("selDel").disabled = n === 0;
     byId("selFav").disabled = n === 0;
+    byId("selDup").disabled = n === 0;
+    byId("selRen").disabled = n !== 1;
     const allFav = n > 0 && [...picked].every((id) => lib.docs[id] && lib.docs[id].fav);
     byId("selFav").querySelector(".btn-label").textContent = allFav ? "Tirar dos favoritos" : "Favoritar";
     byId("docGrid").classList.toggle("is-selecting", selMode);
@@ -924,7 +927,94 @@
     const type = asType(data.type);
     const mode = modes[type];
     const prepared = mode.prepareImport ? await mode.prepareImport(data) : { state: data, images: [] };
-    return createDoc(type, prepared.state, { images: prepared.images, replace: Boolean(opts.replace) });
+    return createDoc(type, prepared.state, { images: prepared.images, replace: Boolean(opts.replace), stay: Boolean(opts.stay) });
+  }
+
+
+  /* ---------- Biblioteca: duplicar, renomear e backup completo ---------- */
+
+  async function payloadOf(doc) {
+    const mode = modes[doc.type];
+    if (mode.collect && doc.id === lib.currentId) mode.collect(doc);
+    return mode.exportPayload ? await mode.exportPayload(doc) : mode.payload(doc);
+  }
+
+  async function duplicatePicked() {
+    const docs = [...picked].map((id) => lib.docs[id]).filter((d) => d && !d.draft);
+    if (!docs.length) return;
+    await flushSave();
+    const release = busy("Duplicando…");
+    let done = 0;
+    try {
+      for (const d of docs) {
+        const payload = await payloadOf(d);
+        payload.name = toText((d.state.name.trim() || "Documento") + " (cópia)", "Documento (cópia)", 80);
+        if (await importData(payload, { stay: true })) done++; else break;
+      }
+    } catch (_) { /* aviso abaixo */ }
+    release();
+    picked.clear();
+    selMode = false;
+    renderHome();
+    toast(done === docs.length ? (done === 1 ? "Documento duplicado." : done + " documentos duplicados.") : "Duplicados " + done + " de " + docs.length + ".");
+  }
+
+  function renamePicked() {
+    if (picked.size !== 1) return;
+    const doc = lib.docs[[...picked][0]];
+    if (!doc) return;
+    const next = window.prompt("Novo nome do documento:", doc.state.name || "");
+    if (next === null) return;
+    const name = toText(next, "", 80).trim();
+    if (!name) { toast("O nome não pode ficar vazio."); return; }
+    doc.state.name = name;
+    store.putDoc({ id: doc.id, type: doc.type, fav: doc.fav === true, updatedAt: doc.updatedAt, state: doc.state }).catch(() => setSaved("Não foi possível salvar"));
+    renderHome();
+    toast("Renomeado.");
+  }
+
+  async function exportLibrary() {
+    const docs = realDocs();
+    if (!docs.length) { toast("Não há documentos para guardar."); return; }
+    await flushSave();
+    const release = busy("Preparando o backup…");
+    try {
+      const out = [];
+      for (const d of docs) out.push({ fav: d.fav === true, updatedAt: d.updatedAt, doc: await payloadOf(d) });
+      const blob = new Blob([JSON.stringify({ format: "coding-library", version: 1, exportedAt: clock.now(), docs: out })], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "coding-backup.coding-library.json";
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      toast(docs.length + (docs.length === 1 ? " documento guardado no backup." : " documentos guardados no backup."));
+    } catch (_) {
+      toast("Não foi possível criar o backup.");
+    } finally {
+      release();
+    }
+  }
+
+  async function importLibrary(data) {
+    if (data.version !== 1 || !Array.isArray(data.docs)) throw new Error("Backup inválido");
+    const entries = data.docs.slice(0, MAX_DOCS * 2);
+    let ok = 0;
+    for (const e of entries) {
+      if (!e || !e.doc) continue;
+      const nid = await importData(e.doc, { stay: true });
+      if (!nid) break;
+      ok++;
+      if (e.fav === true && lib.docs[nid]) toggleFavQuiet(lib.docs[nid]);
+    }
+    renderHome();
+    return ok;
+  }
+  function toggleFavQuiet(doc) {
+    doc.fav = true;
+    store.putDoc({ id: doc.id, type: doc.type, fav: true, updatedAt: doc.updatedAt, state: doc.state }).catch(() => {});
   }
 
   async function importProject(file) {
@@ -932,7 +1022,10 @@
     const release = busy("Abrindo arquivo…");
     try {
       const data = JSON.parse(await file.text());
-      if (await importData(data)) toast("Projeto aberto como um novo documento.");
+      if (data && data.format === "coding-library") {
+        const n = await importLibrary(data);
+        toast(n ? n + (n === 1 ? " documento restaurado do backup." : " documentos restaurados do backup.") : "Nenhum documento foi restaurado.");
+      } else if (await importData(data)) toast("Projeto aberto como um novo documento.");
     } catch (_) {
       toast("Não foi possível abrir este arquivo do Coding.");
     } finally {
@@ -1197,6 +1290,9 @@
     byId("selAll").addEventListener("click", pickAll);
     byId("selDel").addEventListener("click", deletePicked);
     byId("selFav").addEventListener("click", favPicked);
+    byId("selDup").addEventListener("click", duplicatePicked);
+    byId("selRen").addEventListener("click", renamePicked);
+    byId("homeBackup").addEventListener("click", exportLibrary);
     byId("selCancel").addEventListener("click", exitSelect);
     const zone = byId("homeZone");
     zone.replaceChildren(...ZONES.map(([v, l]) => { const o = document.createElement("option"); o.value = v; o.textContent = l; return o; }));

@@ -1,4 +1,4 @@
-# Relatório de testes — Coding v27 (auditoria de 18/10)
+# Relatório de testes — Coding v28 (auditoria de 18/10)
 
 Tudo abaixo foi **executado de verdade num navegador (Chromium/Playwright)** contra a versão publicada em `main`.
 Só está como PASSOU o que rodou e conferiu o resultado. O que não foi testado está na seção "Não testado".
@@ -35,6 +35,16 @@ Só está como PASSOU o que rodou e conferiu o resultado. O que não foi testado
 
 Reprodução parcial: `python3 tests/final.py` (com a pasta servida em `http://localhost:8766`) refaz os itens 15, 17, 18, 20–24 e imprime PASSOU/FALHOU (12/12).
 
+### Fase 6 (extras)
+
+| # | Verificação | Resultado |
+|---|-------------|-----------|
+| 26 | Renomear 1 documento na seleção | PASSOU |
+| 27 | Duplicar 3 documentos → 6, com “(cópia)” no nome, sem abrir nenhum | PASSOU |
+| 28 | Backup da biblioteca (6 docs) → apagar tudo → restaurar → 6 docs, continua após recarregar | PASSOU |
+| 29 | JPG de PNG transparente com fundo vermelho: canto vermelho, centro azul preservado; seletor some em PNG | PASSOU |
+| 30 | Barra de seleção sem overflow a 320 e 375 px; regressão geral e `tests/final.py` 12/12 | PASSOU |
+
 ## Não testado (sem maquiagem)
 
 - **Celular de verdade** (toque, teclado virtual, câmera): só simulei telas pequenas no navegador.
@@ -45,4 +55,4 @@ Reprodução parcial: `python3 tests/final.py` (com a pasta servida em `http://l
 
 ## Pendências conhecidas (fora do plano, Fase 6 só com aprovação)
 
-Cor de fundo para JPG de imagem transparente, debounce das miniaturas de filtro, “Duplicar documento”, renomear na biblioteca, exportar/importar a biblioteca inteira.
+Feitas na Fase 6. Restam ideias futuras, como desfazer a exclusão automática do mais antigo.

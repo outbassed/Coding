@@ -692,6 +692,7 @@
           </div>
           <div class="im-pane" data-pane="out" hidden>
             <label class="tv-field"><span>Formato</span><select id="imFmt"><option value="image/jpeg">JPG (menor)</option><option value="image/png">PNG (sem perdas)</option><option value="image/webp">WebP (moderno)</option></select></label>
+            <label class="tv-field" id="imBgBox"><span>Fundo do JPG (onde a foto é transparente)</span><input type="color" id="imBg" value="#ffffff"></label>
             <label class="tv-field"><span>Qualidade <b id="imQV">85</b>%</span><input type="range" id="imQ" min="30" max="100" value="85"></label>
             <label class="tv-field"><span>Tamanho</span><select id="imOutSize"><option value="0">Do mesmo tamanho</option><option value="3000">Grande (3000 px)</option><option value="1920">HD (1920 px)</option><option value="1280">Médio (1280 px)</option><option value="800">Pequeno (800 px)</option><option value="400">Mini (400 px)</option></select></label>
             <p class="tv-info" id="imEst">—</p>
@@ -802,6 +803,7 @@
         <label class="home-search"><svg class="icon" aria-hidden="true"><use href="#ic-search"/></svg><input id="homeSearch" type="search" placeholder="Pesquisar documentos" autocomplete="off" aria-label="Pesquisar documentos"></label>
         <label class="home-clock" title="Hora oficial. Toque para trocar a região."><span id="homeTime" aria-live="off"></span><select id="homeZone" aria-label="Região do fuso horário"></select></label>
         <button id="homeImport" class="btn subtle" type="button"><svg class="icon"><use href="#ic-upload"/></svg><span class="btn-label">Abrir arquivo</span></button>
+        <button id="homeBackup" class="btn subtle" type="button" title="Guardar todos os documentos num arquivo só. Para restaurar, use Abrir arquivo."><svg class="icon"><use href="#ic-download"/></svg><span class="btn-label">Backup</span></button>
       </div>
     </div>
     <section class="home-start" aria-labelledby="homeTitle">
@@ -824,6 +826,8 @@
           <button id="selAll" class="btn subtle" type="button" aria-pressed="false"><svg class="icon"><use href="#ic-checkbox"/></svg><span class="btn-label">Selecionar todos</span></button>
           <span id="selCount" class="sel-count" role="status"></span>
           <span class="sel-grow"></span>
+          <button id="selRen" class="btn subtle" type="button" disabled><svg class="icon"><use href="#ic-pencil"/></svg><span class="btn-label">Renomear</span></button>
+          <button id="selDup" class="btn subtle" type="button" disabled><svg class="icon"><use href="#ic-copy"/></svg><span class="btn-label">Duplicar</span></button>
           <button id="selFav" class="btn subtle" type="button" disabled><svg class="icon"><use href="#ic-star"/></svg><span class="btn-label">Favoritar</span></button>
           <button id="selDel" class="btn danger" type="button" disabled><svg class="icon"><use href="#ic-trash"/></svg><span class="btn-label">Excluir</span></button>
           <button id="selCancel" class="btn subtle" type="button">Cancelar</button>

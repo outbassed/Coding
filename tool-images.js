@@ -54,7 +54,7 @@
   let ratio = "";
 
   function defaults() {
-    return { name: "Imagem sem título", w: 0, h: 0, fmt: "image/jpeg", quality: 85, outSize: 0, thumb: "", origId: "", curId: "", objects: [], color: "#e53935", rot0: 0, filter: { id: "", amt: 100 } };
+    return { name: "Imagem sem título", w: 0, h: 0, fmt: "image/jpeg", quality: 85, outSize: 0, thumb: "", origId: "", curId: "", objects: [], color: "#e53935", bg: "#ffffff", rot0: 0, filter: { id: "", amt: 100 } };
   }
   const FILTER_IDS = ["bw", "sepia", "vintage", "neon", "sunset", "cool", "cartoon", "vivid", "fade", "neg", "pixel"];
   const okId = (v) => typeof v === "string" && /^[a-z0-9]{4,24}$/.test(v) ? v : "";
@@ -92,6 +92,7 @@
     return {
       name: C.util.toText(o.name, d.name, 80),
       w: C.util.toInt(o.w, 0, 0, 20000), h: C.util.toInt(o.h, 0, 0, 20000),
+      bg: /^#[0-9a-f]{6}$/i.test(o.bg) ? o.bg.toLowerCase() : d.bg,
       fmt: ["image/jpeg", "image/png", "image/webp"].includes(o.fmt) ? o.fmt : d.fmt,
       quality: C.util.toInt(o.quality, 85, 30, 100),
       outSize: [0, 3000, 1920, 1280, 800, 400].includes(Number(o.outSize)) ? Number(o.outSize) : 0,
@@ -456,7 +457,8 @@
   }
   let filtersDirty = true;
   let thumbRev = -1;
-  function markFilters() { if (thumbRev === baseRev) return; filtersDirty = true; if (!$('[data-pane="fil"]').hidden) buildFilters(); }
+  let filTimer = 0;
+  function markFilters() { if (thumbRev === baseRev) return; filtersDirty = true; clearTimeout(filTimer); filTimer = setTimeout(() => { if (filtersDirty && !$('[data-pane="fil"]').hidden) buildFilters(); }, 300); }
   function buildFilters() {
     const box = byId("imFilters");
     filtersDirty = false; thumbRev = baseRev;
@@ -789,7 +791,7 @@
     const k = maxSide ? Math.min(1, maxSide / Math.max(w, h)) : 1;
     const c = newCanvas(w * k, h * k);
     const g = c.getContext("2d");
-    if (white) { g.fillStyle = "#ffffff"; g.fillRect(0, 0, c.width, c.height); }
+    if (white) { g.fillStyle = state.bg || "#ffffff"; g.fillRect(0, 0, c.width, c.height); }
     g.imageSmoothingQuality = "high";
     g.scale(c.width / w, c.height / h);
     g.drawImage(shown(true), 0, 0);
@@ -1232,8 +1234,8 @@
   byId("imFr").addEventListener("input", () => { byId("imFrV").textContent = byId("imFr").value; });
   byId("imW").addEventListener("input", () => { if (byId("imLock").checked && w) byId("imH").value = String(Math.max(1, Math.round((Number(byId("imW").value) * h) / w))); });
   byId("imH").addEventListener("input", () => { if (byId("imLock").checked && h) byId("imW").value = String(Math.max(1, Math.round((Number(byId("imH").value) * w) / h))); });
-  const outForm = () => { state.fmt = byId("imFmt").value; state.quality = Number(byId("imQ").value); state.outSize = Number(byId("imOutSize").value); byId("imQV").textContent = state.quality; byId("imQ").disabled = state.fmt === "image/png"; C.scheduleSave(); updateEst(); };
-  ["imFmt", "imQ", "imOutSize"].forEach((id) => { byId(id).addEventListener("input", outForm); byId(id).addEventListener("change", outForm); });
+  const outForm = () => { state.fmt = byId("imFmt").value; state.quality = Number(byId("imQ").value); state.outSize = Number(byId("imOutSize").value); byId("imQV").textContent = state.quality; byId("imQ").disabled = state.fmt === "image/png"; state.bg = byId("imBg").value; byId("imBgBox").hidden = state.fmt !== "image/jpeg"; C.scheduleSave(); updateEst(); };
+  ["imFmt", "imQ", "imOutSize", "imBg"].forEach((id) => { byId(id).addEventListener("input", outForm); byId(id).addEventListener("change", outForm); });
 
   new ResizeObserver(() => { if (has && !ws.hidden) layout(); }).observe(ui.stage);
   ui.stage.addEventListener("wheel", (e) => { if (e.ctrlKey && has) { e.preventDefault(); zoomBy(e.deltaY < 0 ? 1.12 : 0.89); } }, { passive: false });
@@ -1361,7 +1363,7 @@
     undoSt = []; redoSt = []; lastCopy = null; lastRev = -1; dirtyImg = false; origBlob = null; origBmp = null; showOrig = false; view.zoom = 0;
     clearAdjUi();
     byId("imFmt").value = state.fmt; byId("imQ").value = String(state.quality); byId("imOutSize").value = String(state.outSize);
-    byId("imQV").textContent = state.quality; byId("imQ").disabled = state.fmt === "image/png";
+    byId("imQV").textContent = state.quality; byId("imQ").disabled = state.fmt === "image/png"; byId("imBg").value = state.bg || "#ffffff"; byId("imBgBox").hidden = state.fmt !== "image/jpeg";
     ui.color.value = state.color;
     if (state.curId && state.curId === state.origId) state.curId = "";
     byId("imgSample").disabled = !C.store.images;

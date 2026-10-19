@@ -123,6 +123,12 @@ A instalação exige HTTPS (o GitHub Pages já oferece) ou `localhost`.
 ## Licenças de terceiros
 `vendor/qrcode.js` é o *qrcode-generator* de Kazuhiko Arase (MIT, `vendor/qrcode.LICENSE`), `vendor/pdf-lib.min.js` de Andrew Dillon (MIT, `vendor/pdf-lib.LICENSE`) e `vendor/pdf.min.js` / `pdf.worker.min.js` do pdf.js da Mozilla (Apache 2.0, `vendor/pdfjs.LICENSE`).
 
+## Biblioteca
+
+- Na tela inicial, **Selecionar** permite **Renomear** (1 documento), **Duplicar**, Favoritar e Excluir.
+- **Backup** guarda todos os documentos num arquivo só; para restaurar, use **Abrir arquivo** com ele. Se passar de 30 documentos, vale a regra do limite (o mais antigo sem estrela sai).
+- Imagens: ao salvar em JPG, a cor de fundo (onde a foto é transparente) é escolhida na aba Salvar.
+
 ## Testes
 
 Relatório com o que passou, o que falhou e o que não foi testado: [RELATORIO-TESTES.md](RELATORIO-TESTES.md). Verificações automáticas em `tests/final.py`.
