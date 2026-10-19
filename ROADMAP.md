@@ -4,6 +4,15 @@ Lista de pedidos pendentes. Quando o dono do projeto mandar **"Iniciar update"**
 
 ## Próximo update
 
+### Auditoria de 18/10 (v23) — plano em fases, aguardando "Iniciar update"
+Conferido no código: P0-01 (backups v4 de Imagens/Sorteio/Racha-conta são recusados ao abrir; só 1–3 são aceitos), P1-06 (`vendor/pdf*.js` e `pdf-lib` não estão no pré-cache), P1-09 (`slice(0, 30)` na inicialização), P0-04 ("Cobrir" do PDF só põe um retângulo branco), P1-08 (documento novo é gravado antes de qualquer edição). Os demais itens (filtros que empilham, troca de foto sem aviso, XLSX com linhas vazias, centavos do Racha-conta) ainda serão reproduzidos no navegador antes de corrigir.
+- **Fase 1 – Confiabilidade:** formato `.coding.json` central e aceitando v4; rascunho que só entra na biblioteca após edição real; abrir sem editar não regrava nem muda a data; gravações em fila; indicador de status; limite de 30 (apaga o mais antigo não favorito, favoritos protegidos, contador X/30); aviso ao trocar/substituir foto.
+- **Fase 2 – Lógica:** filtros não destrutivos (Normal, intensidade, trocar em vez de empilhar); linhas do XLSX pela posição real; Racha-conta em centavos inteiros e `1.234,56`; "Cobrir visualmente" com aviso claro.
+- **Fase 3 – UX:** ícones 100% SVG nos controles (sem emoji, exceto adesivos do usuário); editor manual de Planilha → Etiquetas; horário local do aparelho.
+- **Fase 4 – Offline/responsivo:** pré-cache do PDF, testes em 320–1920 px, acessibilidade.
+- **Fase 5 – Documentação e relatório PASSOU/FALHOU** de todos os testes.
+- Regras do dono: trabalhar em branch, commits pequenos, nada de extras (P3) sem aprovação.
+
 ### Auditoria completa (documento do dono, 18/10) — plano em fases
 Conferido no código: **P0-01** (importar `.coding.json` v4 de Imagens/Sorteio/Racha é recusado), **P1-06** (`vendor/pdf*.js` e `pdf-lib` fora do pré-cache), **P1-07** (`1.234` vira 1,234; centavos em ponto flutuante), **P1-05** (xlsx ignora o número da linha), **P0-04** ("Cobrir" só pinta de branco), **P1-08/09** (documento novo é gravado antes de editar; `slice(0,30)` na abertura).
 - **Fase 1, confiabilidade:** aceitar v4 e testar exportar→importar dos 9 tipos; rascunho em memória (só vai para Recentes após mudança real; abrir sem editar não regrava nem muda a data); gravação em fila; limite de 30 com favoritos protegidos e contador X/30 (pedido anterior); confirmação certa ao trocar foto/tela em branco.
