@@ -1,3 +1,32 @@
+# Relatório de testes — Coding v29 (reforma do celular)
+
+Branch `mobile-shell-v29` (base v28, commit `c8afcdf`). Tudo foi executado em **Chromium/Playwright com toque emulado** (`has_touch`, `is_mobile`). **Nada foi testado em aparelho físico.**
+
+| Verificação | Script | Resultado |
+|---|---|---|
+| 9 ferramentas × 12 telas (320×568, 360×740, 375×667, 390×844, 412×915, 430×932, 740×360 deitado, 768, 899, 900, 1280, 1920): folha montada só até 899 px, sem rolagem horizontal, 3 alturas distintas, área de trabalho acima da folha, abas ≥ 44 px com hit-test, botões ≥ 32 px, sem erros | `tests/mobile.py` | 971 PASSOU, **1 FALHOU**, 0 PULADO |
+| Acessibilidade e ícones (nome em todo controle, símbolos SVG existentes, alvos de toque) nas abas das 9 ferramentas | `tests/acessibilidade.py` | 9/9 PASSOU |
+| Imagens (12), exemplo editável sem salvar (8), Planilhas (7), Sorteio/Racha (14), QR + Planilha→Etiquetas (14), PDF (11), Etiquetas (10), Texto (16) | `tests/imagens.py` etc. | todos PASSOU |
+| Regressão geral (biblioteca, 30 documentos, favoritos, importar/exportar, relógio, PDF) | `tests/final.py` | 12/12 PASSOU |
+| Offline (service worker `coding-cache-v29`, 9 ferramentas, exemplo de PDF e de foto) | `tests/offline.py` | 18/18 PASSOU |
+| Teclado simulado (a janela encolhe, como no Android): cursor do Texto, campo de texto de Imagens, grade | `tests/teclado.py` | 6/6 PASSOU |
+
+## Falha que continua
+- **Planilhas em celular deitado (740×360), folha na altura "meia"**: a grade fica com 72 px (meta: 80 px). Na altura padrão (recolhida) a grade tem bem mais espaço; é só ao abrir a folha para editar. Não corrigido.
+
+## PULADO / não testado
+- Teclado virtual **real** de iOS e Android (visualViewport com deslocamento) e arrastar a alça com o dedo num aparelho real.
+- Instalação como PWA num aparelho real; Safari/iOS e Firefox.
+- Site publicado (Vercel): não consegui acessar daqui, então SHA implantado e cache em produção **não foram confirmados**.
+
+## Mudanças principais
+- `shell.js`: folha inferior compartilhada (recolhida/meia/expandida, alça + botões, teclado, abas roláveis, celular deitado).
+- Nove ferramentas migradas; abas conforme a especificação (Planilha→Etiquetas: Produtos/Colunas/Formato/Criar etiquetas; Racha: Pessoas/Itens/Gorjeta/Resultado; Imagens: Texto e Adesivos em abas próprias).
+- Exemplos editáveis que **não salvam** até a primeira edição: Etiquetas, Imagens (foto + texto + adesivo em camadas), PDF (3 páginas, offline), QR (3 por tipo), Planilha→Etiquetas, Sorteio, Racha. Sair sem editar não deixa nada guardado.
+- Sorteio: "Desfazer limpeza" do histórico. Ícones em SVG (sem ╱▭◯ ×). Alvos de toque ≥ 44 px nos controles principais.
+
+---
+
 # Relatório de testes — Coding v28 (auditoria de 18/10)
 
 Tudo abaixo foi **executado de verdade num navegador (Chromium/Playwright)** contra a versão publicada em `main`.
