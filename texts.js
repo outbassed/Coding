@@ -41,6 +41,7 @@
   let histTimer = null;
   let statsTimer = null;
   let toolbarFrame = 0;
+  let sheetUi = null; // folha inferior do celular
   let internalDrag = false;
   let replaceTarget = null;
   let drag = null;
@@ -408,6 +409,7 @@
     savedRange = range.cloneRange();
     syncImageBar();
     imgBar.hidden = false;
+    if (sheetUi && sheetUi.active) sheetUi.reveal("img", "half");
     overlay.hidden = false;
     positionOverlay();
     layoutSoon();
@@ -1263,6 +1265,57 @@
     window.addEventListener("coding:shown", () => { if (!root.hidden) layoutSoon(); });
     window.addEventListener("beforeprint", () => { if (!root.hidden) hydrate(editor, true); });
     window.addEventListener("afterprint", () => { if (!root.hidden) hydrate(editor, false); });
+
+    /* ---------- celular: folha inferior (Inserir / Formatar / Estilos / Imagens / Arquivo) ---------- */
+    const groups = toolbar.querySelectorAll(".tx-group");
+    const undoGroup = groups[0];
+    const imgNote = document.createElement("p");
+    imgNote.className = "hint tx-imgnote";
+    imgNote.textContent = "Toque numa imagem do documento para mudar o tamanho, o alinhamento ou removê-la.";
+    const filePane = document.createElement("div");
+    filePane.className = "tx-filepane";
+    filePane.innerHTML =
+      '<button type="button" class="btn primary" data-go="printButton"><svg class="icon" aria-hidden="true"><use href="#ic-print"/></svg><span>Imprimir ou salvar em PDF</span></button>' +
+      '<button type="button" class="btn subtle" data-go="exportButton"><svg class="icon" aria-hidden="true"><use href="#ic-download"/></svg><span>Salvar projeto (.json)</span></button>' +
+      '<button type="button" class="btn subtle" data-go="importButton"><svg class="icon" aria-hidden="true"><use href="#ic-upload"/></svg><span>Abrir projeto (.json)</span></button>';
+    filePane.addEventListener("click", (e) => { const b = e.target.closest("[data-go]"); if (b) byId(b.dataset.go).click(); });
+    sheetUi = C.shell.create({
+      ws: root, id: "texto", host: root.querySelector(".tx-main"), label: "Controles do texto", defaultState: "collapsed",
+      tabs: [
+        { key: "ins", label: "Inserir", icon: "ic-plus", nodes: () => [groups[5], groups[4]] },
+        { key: "fmt", label: "Formatar", icon: "ic-type", nodes: () => [groups[2], groups[3]] },
+        { key: "sty", label: "Estilos", icon: "ic-sliders", nodes: () => [groups[1]] },
+        { key: "img", label: "Imagens", icon: "ic-image", nodes: () => [imgBar, imgNote] },
+        { key: "arq", label: "Arquivo", icon: "ic-page", nodes: () => [groups[6], filePane] }
+      ]
+    });
+    // botões da folha não tiram o foco do texto (o teclado e a seleção continuam)
+    sheetUi.sheet.addEventListener("mousedown", (e) => { if (e.target.closest("button:not(.sh-handle):not(.sh-step):not(.sh-tab)")) e.preventDefault(); });
+    // desfazer/refazer ficam sempre à mão, na barra de status
+    const undoHome = { parent: undoGroup.parentNode, next: undoGroup.nextSibling };
+    const statusLeft = root.querySelector(".tx-status .status-left");
+    const placeUndo = () => {
+      if (C.shell.mq.matches) statusLeft.prepend(undoGroup);
+      else undoHome.parent.insertBefore(undoGroup, undoHome.next);
+    };
+    placeUndo();
+    C.shell.mq.addEventListener("change", placeUndo);
+    // o cursor nunca fica escondido atrás da folha ou do teclado
+    function keepCaretVisible() {
+      if (!C.shell.mq.matches || root.hidden || !editor.contains(document.activeElement) && document.activeElement !== editor) return;
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      let r = sel.getRangeAt(0).cloneRange(); r.collapse(false);
+      let rect = r.getClientRects()[0] || (r.startContainer.nodeType === 1 ? r.startContainer.getBoundingClientRect() : null);
+      if (!rect || (!rect.height && !rect.width)) return;
+      const box = scroll.getBoundingClientRect();
+      const pad = 28;
+      if (rect.bottom > box.bottom - pad) scroll.scrollTop += rect.bottom - box.bottom + pad;
+      else if (rect.top < box.top + pad) scroll.scrollTop -= box.top + pad - rect.top;
+    }
+    editor.addEventListener("input", () => requestAnimationFrame(keepCaretVisible));
+    window.addEventListener("coding:keyboard", () => setTimeout(keepCaretVisible, 80));
+    if ("ResizeObserver" in window) new ResizeObserver(() => { layoutSoon(); keepCaretVisible(); }).observe(scroll);
 
     C.register({
       type: "texts",

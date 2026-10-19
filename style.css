@@ -1147,3 +1147,23 @@ body { --nav-w: 0px; --nav-h: 0px; }
 .sh-on .lb-print .btn { min-height: 48px; justify-content: center; }
 .sh-on .item-list .item-card input, .sh-on .item-list .item-card textarea { min-height: 44px; }
 .sh-on#labelsWs > .sh-sheet { order: 3; }
+
+/* v29 — Texto na folha inferior */
+.sh-on.texts-ws .tx-toolbar { display: none; }
+.sh-on.texts-ws .tx-main { overflow: hidden; }
+.sh-on.texts-ws .tx-scroll { flex: 1; min-height: 0; }
+.sh-on.texts-ws .tx-status .status-left { display: flex; align-items: center; gap: 8px; }
+.sh-on.texts-ws #txPages { display: none; }
+.sh-on .sh-pane .tx-group { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.sh-on .sh-pane .tx-btn { min-width: 44px; min-height: 44px; }
+.sh-on .sh-pane .tx-select { min-height: 44px; }
+.sh-on .sh-pane .tx-font { min-width: 150px; }
+.sh-on .sh-pane .tx-imgbar { background: transparent; border: 0; padding: 4px 0; }
+.sh-on .sh-pane .tx-imgbar:not([hidden]) ~ .tx-imgnote { display: none; }
+.sh-on .sh-pane .tx-imgnote { margin: 8px 2px; }
+.sh-on .sh-pane .tx-width input[type="range"] { min-height: 32px; }
+.sh-on .tx-status .tx-group { gap: 2px; }
+.sh-on .tx-status .tx-btn { min-width: 44px; min-height: 40px; }
+.sh-on .tx-filepane { display: flex; flex-direction: column; gap: 10px; flex: 1 1 100%; padding-top: 6px; }
+.sh-on .tx-filepane .btn { min-height: 48px; justify-content: center; }
+.sh-on.texts-ws .tx-status { height: auto; min-height: 48px; }
