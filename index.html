@@ -496,7 +496,7 @@
         <button class="btn subtle" type="button" data-tool="sign">Assinatura</button>
         <button class="btn subtle" type="button" data-tool="image">Imagem</button>
         <button class="btn subtle" type="button" data-tool="hl">Realçar</button>
-        <button class="btn subtle" type="button" data-tool="cover">Cobrir</button>
+        <button class="btn subtle" type="button" data-tool="cover" title="Põe um retângulo branco por cima. O texto de baixo continua no arquivo: NÃO serve para esconder dados sigilosos.">Cobrir visualmente</button>
         <span class="pdf-sep"></span>
         <input id="pdfColor" type="color" value="#111111" aria-label="Cor do texto" title="Cor do texto">
         <button id="pdfBigger" class="btn subtle" type="button" title="Aumentar o item">A+</button>
@@ -625,9 +625,13 @@
             </div>
             <label class="tv-check"><input type="checkbox" id="imLock" checked> Manter proporção</label>
             <button class="btn" type="button" data-im="resize">Mudar tamanho</button>
+            <hr>
+            <button class="btn" type="button" data-im="restore" title="Desfaz tudo e volta à foto como foi aberta (dá para usar Desfazer)">Voltar à foto original</button>
           </div>
           <div class="im-pane" data-pane="fil" hidden>
+            <p class="tv-info" id="imFilName" role="status">Sem filtro</p>
             <div class="im-filters" id="imFilters"></div>
+            <label class="tv-field"><span>Intensidade <b id="imFilAmtV">100</b>%</span><input type="range" id="imFilAmt" min="0" max="100" value="100" disabled></label>
             <button class="btn" type="button" data-im="surprise">🎲 Surpreenda-me</button>
             <hr>
             <button class="btn" type="button" data-im="collage">🧩 Fazer colagem</button>

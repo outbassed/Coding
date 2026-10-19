@@ -542,6 +542,7 @@
         const start = f.lho + 30 + nlen + elen;
         const data = u8.subarray(start, start + f.csize);
         const raw = f.method === 0 ? data : f.method === 8 ? await inflateRaw(data) : null;
+        if (raw && raw.length > 80000000) throw new Error("arquivo descompactado grande demais");
         return raw ? dec.decode(raw) : null;
       }
     };
@@ -575,12 +576,24 @@
         shared.push(Array.from(si.getElementsByTagName("t")).map((t) => t.textContent).join(""));
       });
     }
-    const doc = parse(await zip.read(sheetPath));
+    const xmlText = await zip.read(sheetPath);
+    if (!xmlText || xmlText.length > 60000000) throw new Error("planilha grande demais");
+    const doc = parse(xmlText);
     const out = [];
+    let lastRow = 0;
     Array.from(doc.getElementsByTagName("row")).forEach((r) => {
+      // respeita o número da linha do arquivo (<row r="3">): linhas vazias no meio continuam no lugar
+      let rn = parseInt(r.getAttribute("r"), 10);
+      if (!(rn >= 1)) rn = lastRow + 1;
+      lastRow = rn;
+      if (rn > 20000) return;
       const arr = [];
+      let nextCol = 0;
       Array.from(r.getElementsByTagName("c")).forEach((c) => {
-        const idx = colIndex(c.getAttribute("r") || "A");
+        const ref = c.getAttribute("r");
+        const idx = ref ? colIndex(ref) : nextCol;
+        nextCol = idx + 1;
+        if (idx > 300) return;
         const t = c.getAttribute("t");
         const v = c.getElementsByTagName("v")[0];
         let val = "";
@@ -591,9 +604,12 @@
         arr[idx] = val;
       });
       for (let i = 0; i < arr.length; i++) if (arr[i] === undefined) arr[i] = "";
-      out.push(arr);
+      out[rn - 1] = arr;
     });
-    return out.filter((r) => r.some((c) => String(c).trim() !== ""));
+    for (let i = 0; i < out.length; i++) if (!out[i]) out[i] = [];
+    while (out.length && !out[out.length - 1].some((c) => String(c).trim() !== "")) out.pop();
+    // Planilha → Etiquetas ignora linhas vazias (depois de já estarem na posição certa); Planilhas mantém tudo
+    return withFormulas ? out : out.filter((r) => r.some((c) => String(c).trim() !== ""));
   }
 
   async function readFile(file, withFormulas) {

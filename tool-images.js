@@ -54,8 +54,9 @@
   let ratio = "";
 
   function defaults() {
-    return { name: "Imagem sem título", w: 0, h: 0, fmt: "image/jpeg", quality: 85, outSize: 0, thumb: "", origId: "", curId: "", objects: [], color: "#e53935", rot0: 0 };
+    return { name: "Imagem sem título", w: 0, h: 0, fmt: "image/jpeg", quality: 85, outSize: 0, thumb: "", origId: "", curId: "", objects: [], color: "#e53935", rot0: 0, filter: { id: "", amt: 100 } };
   }
+  const FILTER_IDS = ["bw", "sepia", "vintage", "neon", "sunset", "cool", "cartoon", "vivid", "fade", "neg", "pixel"];
   const okId = (v) => typeof v === "string" && /^[a-z0-9]{4,24}$/.test(v) ? v : "";
   const newId = () => (C.util.uid() + C.util.uid()).replace(/[^a-z0-9]/g, "").slice(0, 14);
   const hex = (v, d) => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : d;
@@ -98,7 +99,8 @@
       origId: okId(o.origId) || (first ? cur : ""), curId: cur,
       objects: (Array.isArray(o.objects) ? o.objects.slice(0, 40) : []).map(normObj).filter(Boolean),
       color: hex(o.color, d.color),
-      rot0: first && [90, 180, 270].includes(first.rotate) ? first.rotate : 0
+      rot0: first && [90, 180, 270].includes(first.rotate) ? first.rotate : 0,
+      filter: { id: o.filter && FILTER_IDS.includes(o.filter.id) ? o.filter.id : "", amt: o.filter ? C.util.toInt(o.filter.amt, 100, 0, 100) : 100 }
     };
   }
 
@@ -223,7 +225,7 @@
   const touchBase = () => { baseRev++; };
   function takeSnap() {
     if (!lastCopy || lastRev !== baseRev) { lastCopy = clone(base); lastRev = baseRev; }
-    return { base: lastCopy, objs: objs.map(cloneObj), w, h };
+    return { base: lastCopy, objs: objs.map(cloneObj), w, h, filter: { ...state.filter } };
   }
   function trimHistory() {
     const seen = new Set();
@@ -244,7 +246,8 @@
     bx.drawImage(s.base, 0, 0);
     w = s.w; h = s.h;
     objs = s.objs.map(cloneObj);
-    sel = null; crop = null; adj = null; clearAdjUi();
+    state.filter = { ...(s.filter || { id: "", amt: 100 }) };
+    sel = null; crop = null; adj = null; clearAdjUi(); syncFilterUi();
     baseRev++; lastCopy = s.base; lastRev = baseRev;
     layout();
     changed();
@@ -296,7 +299,7 @@
       const k = Math.min(w / origBmp.width, h / origBmp.height);
       cx.drawImage(origBmp, (w - origBmp.width * k) / 2, (h - origBmp.height * k) / 2, origBmp.width * k, origBmp.height * k);
     } else {
-      if (adj) cx.drawImage(adj.out, 0, 0, w, h); else cx.drawImage(base, 0, 0);
+      if (adj) cx.drawImage(adj.out, 0, 0, w, h); else cx.drawImage(shown(), 0, 0);
       objs.forEach((o) => drawObj(cx, o));
     }
     drawOverlay();
@@ -350,7 +353,7 @@
     if (!dirtyImg || !has || !docId || !C.store.images) return;
     dirtyImg = false;
     const id = docId;
-    let blob = await toBlobP(base, "image/webp", 0.92);
+    let blob = await toBlobP(base, "image/webp", 1);
     if (!blob || blob.type !== "image/webp") blob = await toBlobP(base, "image/png");
     if (!blob || id !== docId) return;
     if (!state.curId) state.curId = newId();
@@ -365,7 +368,7 @@
     const tx = t.getContext("2d");
     tx.fillStyle = "#fff"; tx.fillRect(0, 0, t.width, t.height);
     tx.scale(k, k);
-    tx.drawImage(base, 0, 0);
+    tx.drawImage(shown(true), 0, 0);
     objs.forEach((o) => drawObj(tx, o));
     state.thumb = t.toDataURL("image/jpeg", 0.7);
     C.scheduleSave();
@@ -452,28 +455,74 @@
     return t;
   }
   let filtersDirty = true;
-  function markFilters() { filtersDirty = true; if (!$('[data-pane="fil"]').hidden) buildFilters(); }
+  let thumbRev = -1;
+  function markFilters() { if (thumbRev === baseRev) return; filtersDirty = true; if (!$('[data-pane="fil"]').hidden) buildFilters(); }
   function buildFilters() {
     const box = byId("imFilters");
-    filtersDirty = false;
+    filtersDirty = false; thumbRev = baseRev;
     box.replaceChildren();
     const src = has ? smallCopy(96) : null;
-    FILTERS.forEach((f) => {
+    [{ id: "", name: "Normal", e: "" }, ...FILTERS].forEach((f) => {
       const b = document.createElement("button");
-      b.type = "button"; b.className = "im-filter"; b.title = f.name;
+      b.type = "button"; b.className = "im-filter"; b.title = f.id ? f.name : "Sem filtro"; b.dataset.fid = f.id;
       const c = document.createElement("canvas");
-      if (src) { c.width = src.width; c.height = src.height; c.getContext("2d").drawImage(src, 0, 0); applyFilterTo(c, f); }
-      const s = document.createElement("span"); s.textContent = f.e + " " + f.name;
+      if (src) { c.width = src.width; c.height = src.height; c.getContext("2d").drawImage(src, 0, 0); if (f.id) applyFilterTo(c, f); }
+      const s = document.createElement("span"); s.textContent = f.id ? f.name : "Normal (sem filtro)";
       b.append(c, s);
-      b.addEventListener("click", () => applyFilter(f));
+      b.addEventListener("click", () => setFilter(f.id));
       box.append(b);
     });
+    syncFilterUi();
   }
-  function applyFilter(f) {
+  /* O filtro é só um "estado": a foto de verdade (base) nunca é alterada por ele.
+     Trocar de filtro SUBSTITUI o anterior; "Normal" tira o filtro; a intensidade vai de 0 a 100%. */
+  let fc = null, fcKey = "", fcRev = -1;
+  const curFilter = () => FILTERS.find((f) => f.id === state.filter.id) || null;
+  function shown(force) {
+    const f = curFilter();
+    if (!f || state.filter.amt <= 0) return base;
+    const key = f.id + ":" + state.filter.amt;
+    if (fc && fcKey === key && fcRev === baseRev && fc.width === base.width && fc.height === base.height) return fc;
+    if (drag && !force) return base; // durante o traço mostra a base; o filtro volta ao soltar
+    const full = clone(base);
+    applyFilterTo(full, f);
+    if (state.filter.amt >= 100) fc = full;
+    else { fc = clone(base); const g = fc.getContext("2d"); g.globalAlpha = state.filter.amt / 100; g.drawImage(full, 0, 0); }
+    fcKey = key; fcRev = baseRev;
+    return fc;
+  }
+  function syncFilterUi() {
+    const f = curFilter();
+    ws.querySelectorAll(".im-filter").forEach((b) => b.classList.toggle("is-on", (b.dataset.fid || "") === (f ? f.id : "")));
+    const amt = byId("imFilAmt");
+    amt.value = String(state.filter.amt);
+    amt.disabled = !f;
+    byId("imFilAmtV").textContent = state.filter.amt;
+    byId("imFilName").textContent = f ? "Filtro: " + f.name + " (" + state.filter.amt + "%)" : "Sem filtro";
+  }
+  function setFilter(id, amt) {
     if (!has) return;
-    pushUndo(); touchBase();
-    const busyEnd = base.width * base.height > 4e6 ? C.busy("Aplicando o filtro…") : null;
-    setTimeout(() => { applyFilterTo(base, f); changed(); if (busyEnd) busyEnd(); }, 20);
+    const next = { id, amt: id ? (amt === undefined ? (state.filter.id ? state.filter.amt : 100) : amt) : 100 };
+    if (next.id === state.filter.id && next.amt === state.filter.amt) return;
+    pushUndo();
+    state.filter = next;
+    syncFilterUi();
+    changed(false);
+  }
+  function applyFilter(f) { setFilter(f.id); }
+  async function restoreOriginal() {
+    if (!has || !origBlob) { C.toast("Esta imagem não tem uma foto original guardada."); return; }
+    if (hasWork() && !window.confirm("Voltar para a foto original? Desenhos, textos, cortes, ajustes e filtros serão desfeitos (você ainda poderá usar Desfazer).")) return;
+    const end = C.busy("Voltando para a original…");
+    try {
+      const info = await decode(origBlob);
+      pushUndo();
+      objs = []; sel = null; crop = null;
+      state.filter = { id: "", amt: 100 };
+      setBaseCanvas(info.canvas);
+      view.zoom = 0; layout(); syncFilterUi();
+      dirtyImg = true; changed();
+    } catch (_) { C.toast("Não consegui abrir a foto original."); } finally { end(); }
   }
 
   /* ajustes (brilho, contraste, cores, calor) com prévia ao vivo */
@@ -551,9 +600,9 @@
       const info = await decode(file);
       const oldIds = [state.origId, state.curId].filter(Boolean);
       undoSt = []; redoSt = []; lastCopy = null; lastRev = -1;
-      objs = []; sel = null; crop = null; adj = null; clearAdjUi();
+      objs = []; sel = null; crop = null; adj = null; clearAdjUi(); state.filter = { id: "", amt: 100 };
       setBaseCanvas(info.canvas);
-      let blob = !info.scaled && file.size < 12e6 && /^image\/(jpeg|png|webp)$/.test(file.type) ? file : await toBlobP(info.canvas, "image/webp", 0.95);
+      let blob = !info.scaled && file.size < 12e6 && /^image\/(jpeg|png|webp)$/.test(file.type) ? file : await toBlobP(info.canvas, "image/webp", 1);
       if (!blob) blob = await toBlobP(info.canvas, "image/png");
       origBlob = blob; origBmp = null;
       state.origId = newId(); state.curId = "";
@@ -572,7 +621,7 @@
     if (hasWork() && !window.confirm("Começar uma tela em branco neste documento? Tudo o que está nesta imagem será perdido.\n\nDica: use Novo na barra de cima para começar outra tela sem perder esta.")) return;
     const oldIds = [state.origId, state.curId].filter(Boolean);
     undoSt = []; redoSt = []; lastCopy = null; lastRev = -1;
-    objs = []; sel = null; crop = null; adj = null; clearAdjUi();
+    objs = []; sel = null; crop = null; adj = null; clearAdjUi(); state.filter = { id: "", amt: 100 };
     const c = newCanvas(bw, bh);
     if (!transparent) { const k = c.getContext("2d"); k.fillStyle = "#ffffff"; k.fillRect(0, 0, bw, bh); }
     setBaseCanvas(c);
@@ -727,6 +776,7 @@
       let big = nc;
       if (Math.max(nc.width, nc.height) > LIMIT) { const k = LIMIT / Math.max(nc.width, nc.height); big = newCanvas(nc.width * k, nc.height * k); big.getContext("2d").drawImage(nc, 0, 0, big.width, big.height); }
       if (has) { pushUndo(); objs = []; sel = null; } else { undoSt = []; redoSt = []; }
+      state.filter = { id: "", amt: 100 };
       touchBase();
       setBaseCanvas(big); view.zoom = 0; layout();
       dirtyImg = true; changed(); syncButtons();
@@ -742,7 +792,7 @@
     if (white) { g.fillStyle = "#ffffff"; g.fillRect(0, 0, c.width, c.height); }
     g.imageSmoothingQuality = "high";
     g.scale(c.width / w, c.height / h);
-    g.drawImage(base, 0, 0);
+    g.drawImage(shown(true), 0, 0);
     objs.forEach((o) => drawObj(g, o));
     return c;
   }
@@ -1113,7 +1163,8 @@
     cropok: applyCrop, cropno: () => setTool("move"),
     adjok: adjApply, adjno: () => { clearAdjUi(); paint(); },
     rotl: () => rotate(-1), rotr: () => rotate(1), flipx: () => flip(true), flipy: () => flip(false), resize: resizeTo,
-    surprise: () => applyFilter(FILTERS[Math.floor(Math.random() * FILTERS.length)]),
+    surprise: () => { const pool = FILTERS.filter((f) => f.id !== state.filter.id); setFilter(pool[Math.floor(Math.random() * pool.length)].id, 100); },
+    restore: restoreOriginal,
     collage: () => { byId("imColl").hidden = !byId("imColl").hidden; },
     download: downloadImg, copy: copyImg, share: shareImg, sticker: stickerExport
   };
@@ -1171,6 +1222,13 @@
   ui.strokeOn.addEventListener("change", () => objEdit((o) => { o.strokeOn = ui.strokeOn.checked; }));
   ui.objSize.addEventListener("input", () => objEdit((o) => { const k = Number(ui.objSize.value) / o.size; o.size = Number(ui.objSize.value); if (o.t === "balloon") { o.tx *= k; o.ty *= k; } }));
   ADJ.forEach((id) => byId(id).addEventListener("input", adjInput));
+  let filBurst = false;
+  byId("imFilAmt").addEventListener("input", () => {
+    if (!state.filter.id) return;
+    if (!filBurst) { pushUndo(); filBurst = true; setTimeout(() => { filBurst = false; }, 1200); }
+    state.filter.amt = Number(byId("imFilAmt").value);
+    syncFilterUi(); changed(false);
+  });
   byId("imFr").addEventListener("input", () => { byId("imFrV").textContent = byId("imFr").value; });
   byId("imW").addEventListener("input", () => { if (byId("imLock").checked && w) byId("imH").value = String(Math.max(1, Math.round((Number(byId("imW").value) * h) / w))); });
   byId("imH").addEventListener("input", () => { if (byId("imLock").checked && h) byId("imW").value = String(Math.max(1, Math.round((Number(byId("imH").value) * w) / h))); });
@@ -1337,7 +1395,7 @@
     const orphans = records.filter((r) => !keep.has(r.id)).map((r) => r.id);
     if (orphans.length && cur) C.store.deleteImages(orphans).catch(() => {});
     if (tok !== openTok) return;
-    layout(); syncButtons(); filtersDirty = true;
+    layout(); syncButtons(); filtersDirty = true; syncFilterUi();
     setTool(has ? "move" : "move");
     C.setPrimary(undefined, false);
   }

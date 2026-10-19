@@ -17,15 +17,31 @@
   }
   const shuffle = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const lines = (t) => String(t || "").split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
-  const brl = (n) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const num = (v, d, a, b) => { v = Number(v); return Number.isFinite(v) ? clamp(v, a, b) : d; };
-  function parseMoney(s) {
-    s = String(s || "").replace(/[R$\s]/g, "");
-    if (!s) return 0;
-    if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
-    else if ((s.match(/\./g) || []).length > 1) s = s.replace(/\./g, "");
-    const v = Number(s);
-    return Number.isFinite(v) && v >= 0 ? v : 0;
+  // Dinheiro sempre em CENTAVOS inteiros: nada de 0,1 + 0,2 virar 0,30000000000000004.
+  const brl = (cents) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  /* Aceita 1234 · 1234,56 · 1.234,56 · R$ 1.234,56 · 12.5 · 1.234 (= mil duzentos e trinta e quatro). Devolve centavos ou null se não der para entender. */
+  function parseMoney(raw) {
+    let t = String(raw || "").replace(/R\$|\s/g, "");
+    if (!t) return 0;
+    if (!/^[\d.,]+$/.test(t)) return null;
+    let int, frac = "";
+    if (t.includes(",")) {
+      const parts = t.split(",");
+      if (parts.length > 2 || !/^\d{0,2}$/.test(parts[1]) || !/^(\d+|\d{1,3}(\.\d{3})+)?$/.test(parts[0])) return null;
+      int = parts[0].replace(/\./g, ""); frac = parts[1];
+    } else if (t.includes(".")) {
+      if (/^\d{1,3}(\.\d{3})+$/.test(t)) int = t.replace(/\./g, "");          // 1.234 = mil duzentos e trinta e quatro
+      else if (/^\d+\.\d{1,2}$/.test(t)) { [int, frac] = t.split("."); }        // 12.5 = doze e cinquenta
+      else return null;
+    } else int = t;
+    if (int.length > 9) return null;
+    return Number(int || "0") * 100 + Number((frac + "00").slice(0, 2));
+  }
+  // Reparte "cents" entre n pessoas sem perder nem sobrar centavo: as primeiras recebem 1 centavo a mais.
+  function splitCents(cents, n, start = 0) {
+    const base = Math.floor(cents / n), rem = cents - base * n;
+    return Array.from({ length: n }, (_, i) => base + (((i - start % n + n) % n) < rem ? 1 : 0));
   }
   const mark = () => C.scheduleSave();
 
@@ -260,29 +276,39 @@
   }
   let eqText = "", itText = "";
   function calcEq() {
-    const total = parseMoney(ss.total), tipV = total * ss.tip / 100, grand = total + tipV;
-    let each = ss.people ? grand / ss.people : 0;
-    let extra = 0;
-    if (ss.round && each > 0) { const r = Math.ceil(each - 1e-9); extra = r * ss.people - grand; each = r; }
-    sui.each.textContent = brl(each);
-    sui.detail.textContent = total ? "Conta " + brl(total) + " + gorjeta " + brl(tipV) + " = " + brl(grand) + (extra > 0.004 ? " · sobra " + brl(extra) : "") : "Escreva o total da conta.";
-    eqText = total ? "🧾 Racha-conta\nConta: " + brl(total) + " + gorjeta de " + ss.tip + "% (" + brl(tipV) + ") = " + brl(grand) + "\nDividido por " + ss.people + ": " + brl(each) + " para cada um" : "";
     sui.tipV.textContent = ss.tip + "%";
+    const total = parseMoney(ss.total);
+    if (total === null) { sui.each.textContent = "—"; sui.detail.textContent = "Não entendi o valor. Use assim: 240 ou 1.234,56"; eqText = ""; return; }
+    const n = Math.max(1, ss.people);
+    const tip = Math.round((total * ss.tip) / 100), grand = total + tip;
+    let parts = splitCents(grand, n), extra = 0;
+    if (ss.round && grand > 0) { const each = Math.ceil(grand / n / 100) * 100; extra = each * n - grand; parts = new Array(n).fill(each); }
+    const hi = Math.max(...parts), lo = Math.min(...parts), nHi = parts.filter((v) => v === hi).length;
+    sui.each.textContent = brl(hi);
+    let det = total ? "Conta " + brl(total) + " + gorjeta " + brl(tip) + " = " + brl(grand) : "Escreva o total da conta.";
+    if (total && hi !== lo) det += "\n" + nHi + (nHi === 1 ? " pessoa paga " : " pessoas pagam ") + brl(hi) + " e " + (n - nHi) + (n - nHi === 1 ? " paga " : " pagam ") + brl(lo) + " (para não sobrar nem faltar centavo).";
+    if (total && extra > 0) det += "\nSobra " + brl(extra) + " por causa do arredondamento.";
+    sui.detail.textContent = det;
+    eqText = total ? "🧾 Racha-conta\nConta: " + brl(total) + " + gorjeta de " + ss.tip + "% (" + brl(tip) + ") = " + brl(grand) + "\nDividido por " + n + ": " + (hi === lo ? brl(hi) + " para cada um" : nHi + " × " + brl(hi) + " e " + (n - nHi) + " × " + brl(lo)) + (extra > 0 ? "\nSobra " + brl(extra) + " (arredondamento)" : "") : "";
   }
   function calcItems() {
     const n = ss.names.length, paid = new Array(n).fill(0);
-    let loose = 0, sum = 0;
-    ss.items.forEach((it) => {
-      const p = parseMoney(it.price); sum += p;
-      const who = it.who.filter((i) => i < n);
-      if (!who.length) { if (p) loose++; return; }
-      who.forEach((i) => { paid[i] += p / who.length; });
+    const pending = [];
+    let sum = 0, bad = 0;
+    ss.items.forEach((it, k) => {
+      const p = parseMoney(it.price);
+      if (p === null) { bad++; return; }
+      const who = [...new Set(it.who.filter((i) => i < n))];
+      if (!who.length) { if (p) pending.push(it.name || "Item " + (k + 1)); return; }
+      sum += p;
+      splitCents(p, who.length, k).forEach((v, j) => { paid[who[j]] += v; });
     });
     sui.tipV2.textContent = ss.tip2 + "%";
     sui.result.replaceChildren();
-    let txt = "🧾 Racha-conta (por itens)\n";
+    let txt = "🧾 Racha-conta (por itens)\n", grand = 0;
     paid.forEach((v, i) => {
-      const tot = v * (1 + ss.tip2 / 100);
+      const tot = v + Math.round((v * ss.tip2) / 100);
+      grand += tot;
       const row = document.createElement("div"); row.className = "fn-row2";
       const a = document.createElement("span"); a.textContent = ss.names[i];
       const b = document.createElement("strong"); b.textContent = brl(tot);
@@ -290,10 +316,19 @@
       txt += ss.names[i] + ": " + brl(tot) + "\n";
     });
     const foot = document.createElement("p"); foot.className = "tv-info";
-    foot.textContent = "Itens " + brl(sum) + " + gorjeta " + ss.tip2 + "% = " + brl(sum * (1 + ss.tip2 / 100)) + (loose ? " · " + loose + (loose === 1 ? " item sem ninguém marcado" : " itens sem ninguém marcado") : "");
+    foot.textContent = "Itens " + brl(sum) + " + gorjeta " + ss.tip2 + "% = " + brl(grand) + " (soma de todos os valores acima)";
     sui.result.append(foot);
-    txt += "Total com " + ss.tip2 + "% de gorjeta: " + brl(sum * (1 + ss.tip2 / 100));
-    itText = txt;
+    if (bad) { const w = document.createElement("p"); w.className = "tv-msg"; w.textContent = bad + (bad === 1 ? " item tem um preço que não entendi (use 12,50 ou 1.234,56) e ficou de fora." : " itens têm um preço que não entendi e ficaram de fora."); sui.result.append(w); }
+    if (pending.length) {
+      const w = document.createElement("div"); w.className = "fn-pending";
+      const t = document.createElement("p"); t.textContent = "⚠ Sem ninguém marcado (não entram na conta): " + pending.join(", ") + ".";
+      const btn = document.createElement("button"); btn.type = "button"; btn.className = "btn"; btn.textContent = "Dividir entre todos";
+      btn.addEventListener("click", () => { ss.items.forEach((it) => { if (!it.who.some((i) => i < n) && parseMoney(it.price)) it.who = ss.names.map((_, i) => i); }); mark(); renderItems(); calcItems(); });
+      w.append(t, btn); sui.result.append(w);
+      txt += "Atenção: sem ninguém marcado: " + pending.join(", ") + "\n";
+    }
+    txt += "Total com " + ss.tip2 + "% de gorjeta: " + brl(grand);
+    itText = pending.length ? "" : txt;
   }
   function renderPeople() {
     sui.plist.replaceChildren();
@@ -343,7 +378,7 @@
   }
   async function copyText() {
     const t = ss.tab === "eq" ? eqText : itText;
-    if (!t) { C.toast("Preencha a conta primeiro."); return; }
+    if (!t) { C.toast(ss.tab === "items" ? "Resolva os itens sem ninguém marcado antes de copiar." : "Preencha a conta primeiro."); return; }
     try { await navigator.clipboard.writeText(t); C.toast("Resumo copiado! É só colar no grupo."); } catch (_) { C.toast("Seu navegador não deixou copiar."); }
   }
   sws.addEventListener("click", (e) => {
@@ -370,7 +405,7 @@
     type: "split",
     defaults: sDefaults, normalize: sNormalize,
     payload(doc) { return { format: "coding-document", version: 4, type: "split", ...doc.state }; },
-    info(doc) { const t = parseMoney(doc.state.total); return doc.state.tab === "eq" && t ? brl(t * (1 + doc.state.tip / 100)) + " · " + doc.state.people + " pessoas" : doc.state.items.length + " itens"; },
+    info(doc) { const t = parseMoney(doc.state.total); return doc.state.tab === "eq" && t ? brl(t + Math.round((t * doc.state.tip) / 100)) + " · " + doc.state.people + " pessoas" : doc.state.items.length + " itens"; },
     snippet(doc) { const s = doc.state; return s.tab === "eq" ? [s.total ? "Total R$ " + s.total : "", s.people + " pessoas", "Gorjeta " + s.tip + "%"].filter(Boolean) : s.items.map((i) => i.name + " " + i.price).slice(0, 7); },
     open(doc) {
       ss = doc.state;

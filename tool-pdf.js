@@ -335,6 +335,7 @@
 
   /* ------------------------------ editor de página ------------------------------ */
   let cur = null;         // página em edição
+  let coverWarned = false;
   let tool = "";          // "", text, hl, cover
   let selAnn = null;
   let viewW = 0;          // largura em px da folha na tela
@@ -344,7 +345,7 @@
     tool = tool === name ? "" : name;
     $.editor.querySelectorAll("[data-tool]").forEach((b) => b.classList.toggle("on", b.dataset.tool === tool));
     $.sheet.classList.toggle("drawing", tool === "hl" || tool === "cover" || tool === "text");
-    $.hint.textContent = tool === "text" ? "Toque na página onde quer escrever." : tool === "hl" || tool === "cover" ? "Arraste sobre a página para marcar a área." : "Escolha uma ferramenta. Arraste para mover; toque duas vezes no texto para editar.";
+    $.hint.textContent = tool === "text" ? "Toque na página onde quer escrever." : tool === "cover" ? "Arraste sobre a área. Atenção: isto só cobre por cima; o texto original continua dentro do PDF e pode ser copiado." : tool === "hl" ? "Arraste sobre a página para marcar a área." : "Escolha uma ferramenta. Arraste para mover; toque duas vezes no texto para editar.";
   }
 
   async function openEditor(page) {
@@ -464,6 +465,7 @@
       setTool("");
       startTextEdit(el, t);
     } else if (tool === "hl" || tool === "cover") {
+      if (tool === "cover" && !coverWarned) { coverWarned = true; C.toast("Cobrir só esconde por cima: o texto continua no PDF. Não use para dados sigilosos."); }
       e.preventDefault();
       const [u, v] = posIn(e);
       const a2 = { type: "rect", kind: tool, u, v, w: 0, h: 0, id: 0 };
@@ -729,7 +731,7 @@
         { label: "Assinatura…", run: openSignature },
         { label: "Imagem…", run: pickImage },
         { label: "Realçar área", run: () => setTool("hl") },
-        { label: "Cobrir área", run: () => setTool("cover") },
+        { label: "Cobrir visualmente", run: () => setTool("cover") },
         { sep: true },
         { label: "Aumentar o item", run: () => scaleSelected(1.15), disabled: !selAnn },
         { label: "Diminuir o item", run: () => scaleSelected(1 / 1.15), disabled: !selAnn },

@@ -1008,3 +1008,8 @@ body { --nav-w: 0px; --nav-h: 0px; }
 @media (max-width: 800px) { .fn-split { grid-template-columns: minmax(0, 1fr); } .fn-pay strong { font-size: 38px; } }
 .docs-count { margin-left: 10px; padding: 2px 9px; border-radius: 999px; background: #ffffff12; color: var(--muted); font-size: 12px; font-weight: 700; cursor: help; }
 .docs-count.is-full { background: #f0b27a33; color: #f0b27a; }
+
+.im-filter.is-on { border-color: var(--accent); background: #769ff82a; }
+.fn-pending { padding: 10px 12px; border-radius: 10px; background: #f0b27a22; border: 1px solid #f0b27a66; display: flex; flex-direction: column; gap: 8px; }
+.fn-pending p { margin: 0; font-size: 13px; }
+#spDetail { white-space: pre-line; }
