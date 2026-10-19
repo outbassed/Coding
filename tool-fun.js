@@ -57,11 +57,15 @@
     min: byId("drMin"), max: byId("drMax"), qty: byId("drQty"), unique: byId("drUnique"), nums: byId("drNums")
   };
   const wx = dui.wheel.getContext("2d");
+  // Exemplo fictício: dá para girar a roleta e sortear times sem digitar nada.
+  const D_EX = { names: "Ana\nBia\nCaio\nDuda\nEdu\nFê", teamNames: "Ana\nBia\nCaio\nDuda\nEdu\nFê" };
   let ds = dDefaults();
+  let clearedWinners = null;
+  let dSheet = null, sSheet = null, dTabsFn = null, sTabsFn = null; // folha inferior do celular (shell.js)
   let angle = 0, spinning = false, animId = 0;
 
   function dDefaults() {
-    return { name: "Sorteio sem título", tab: "names", names: "", teamNames: "", teamCount: 2, remove: false, winners: [], diceN: 1, diceS: 6, coin: { h: 0, t: 0 }, min: 1, max: 100, qty: 1, unique: true };
+    return { name: "Sorteio sem título", tab: "names", names: D_EX.names, teamNames: D_EX.teamNames, teamCount: 2, remove: false, winners: [], diceN: 1, diceS: 6, coin: { h: 0, t: 0 }, min: 1, max: 100, qty: 1, unique: true };
   }
   function dNormalize(src) {
     const o = src && typeof src === "object" ? src : {};
@@ -121,16 +125,21 @@
     if (ds.winners.length) {
       const h = document.createElement("div"); h.className = "fn-sub"; h.textContent = "Já saíram";
       const clr = document.createElement("button"); clr.type = "button"; clr.className = "chip"; clr.textContent = "Limpar";
-      clr.addEventListener("click", () => { ds.winners = []; mark(); dInfo(); drawWheel(); });
+      clr.addEventListener("click", () => { clearedWinners = ds.winners.slice(); ds.winners = []; mark(); dInfo(); drawWheel(); });
       dui.winners.append(h);
       ds.winners.slice().reverse().forEach((w, i) => { const s = document.createElement("span"); s.className = "fn-tag"; s.textContent = (ds.winners.length - i) + "º " + w; dui.winners.append(s); });
       dui.winners.append(clr);
+    } else if (clearedWinners && clearedWinners.length) {
+      const undo = document.createElement("button"); undo.type = "button"; undo.className = "chip"; undo.textContent = "Desfazer limpeza";
+      undo.addEventListener("click", () => { ds.winners = clearedWinners; clearedWinners = null; mark(); dInfo(); drawWheel(); });
+      dui.winners.append(undo);
     }
   }
   function spin() {
     if (spinning) return;
     const list = pool();
     if (list.length < 2) { dui.result.textContent = "Escreva pelo menos 2 nomes."; return; }
+    clearedWinners = null;
     spinning = true; dui.spin.disabled = true; dui.result.textContent = "";
     const win = rnd(list.length), step = (Math.PI * 2) / list.length;
     // o ponteiro fica no alto (-90°): o centro do setor vencedor precisa parar ali
@@ -223,6 +232,7 @@
     ds.tab = t;
     dws.querySelectorAll("[data-dt]").forEach((b) => b.classList.toggle("is-on", b.dataset.dt === t));
     dws.querySelectorAll("[data-dp]").forEach((p) => { p.hidden = p.dataset.dp !== t; });
+    if (dSheet && dTabsFn) dSheet.setTabs(dTabsFn(t));
     if (t === "names") drawWheel();
   }
   function dPrimary() { ({ names: spin, teams: teamsGo, dice: roll, coin: flip, num: numGo })[ds.tab](); }
@@ -266,10 +276,21 @@
     total: byId("spTotal"), people: byId("spPeople"), tip: byId("spTip"), tipV: byId("spTipV"), round: byId("spRound"), each: byId("spEach"), detail: byId("spDetail"),
     tip2: byId("spTip2"), tipV2: byId("spTipV2"), plist: byId("spPeopleList"), newPerson: byId("spNewPerson"), items: byId("spItems"), result: byId("spResult")
   };
+  // Exemplo fictício de conta: 4 pessoas, 6 itens (somam R$ 240,00) e gorjeta de 10%.
+  function sSample() {
+    return {
+      total: "240,00", people: 4, tip: 10, round: false, tip2: 10, names: ["Ana", "Bia", "Caio", "Duda"],
+      items: [
+        { name: "Pizza grande", price: "68,00", who: [0, 1, 2, 3] }, { name: "Refrigerante 2L", price: "12,00", who: [0, 1, 2, 3] },
+        { name: "Sobremesa", price: "24,00", who: [1, 2] }, { name: "Cerveja artesanal", price: "36,00", who: [0, 2] },
+        { name: "Porção de batata", price: "30,00", who: [0, 3] }, { name: "Petiscos", price: "70,00", who: [0, 1, 2, 3] }
+      ]
+    };
+  }
   let ss = sDefaults();
 
   function sDefaults() {
-    return { name: "Conta sem título", tab: "eq", total: "", people: 4, tip: 10, round: false, tip2: 10, names: ["Pessoa 1", "Pessoa 2"], items: [] };
+    return { name: "Conta sem título", tab: "eq", ...sSample() };
   }
   function sNormalize(src) {
     const o = src && typeof src === "object" ? src : {};
@@ -344,7 +365,7 @@
       const chip = document.createElement("span"); chip.className = "fn-tag";
       const inp = document.createElement("input"); inp.value = nm; inp.setAttribute("aria-label", "Nome da pessoa " + (i + 1)); inp.size = Math.max(4, nm.length);
       inp.addEventListener("input", () => { ss.names[i] = inp.value.slice(0, 40) || "Pessoa " + (i + 1); inp.size = Math.max(4, inp.value.length); mark(); calcItems(); renderItems(true); });
-      const x = document.createElement("button"); x.type = "button"; x.textContent = "×"; x.title = "Tirar"; x.setAttribute("aria-label", "Tirar " + nm);
+      const x = document.createElement("button"); x.type = "button"; x.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#ic-close"/></svg>'; x.title = "Tirar"; x.setAttribute("aria-label", "Tirar " + nm);
       x.addEventListener("click", () => {
         if (ss.names.length <= 1) return;
         ss.names.splice(i, 1);
@@ -383,6 +404,7 @@
     ss.tab = t;
     sws.querySelectorAll("[data-st]").forEach((b) => b.classList.toggle("is-on", b.dataset.st === t));
     sws.querySelectorAll("[data-sp]").forEach((p) => { p.hidden = p.dataset.sp !== t; });
+    if (sSheet && sTabsFn) sSheet.setTabs(sTabsFn(t));
   }
   async function copyText() {
     const t = ss.tab === "eq" ? eqText : itText;
@@ -423,4 +445,69 @@
     close() {},
     print: copyText, primaryIsPrint: false, shareable: false
   });
+
+  /* ============================== Celular: folha inferior (shell.js) ============================== */
+
+  // Restaurar exemplo: pergunta antes de trocar o que a pessoa já escreveu.
+  byId("drSample").addEventListener("click", () => {
+    const same = ds.names.trim() === D_EX.names && ds.teamNames.trim() === D_EX.teamNames;
+    if (!same && (lines(ds.names).length || lines(ds.teamNames).length) && !window.confirm("Trocar as listas de nomes atuais pelo exemplo?")) return;
+    ds.names = D_EX.names; ds.teamNames = D_EX.teamNames; ds.winners = []; clearedWinners = null;
+    dui.names.value = ds.names; dui.teamNames.value = ds.teamNames;
+    mark(); dInfo(); drawWheel(); C.toast("Exemplo restaurado.");
+  });
+  function sRestore() {
+    const ex = sSample();
+    const same = JSON.stringify([ss.total, ss.people, ss.tip, ss.round, ss.tip2, ss.names, ss.items]) === JSON.stringify([ex.total, ex.people, ex.tip, ex.round, ex.tip2, ex.names, ex.items]);
+    const hasWork = Boolean(ss.total.trim() || ss.items.length);
+    if (!same && hasWork && !window.confirm("Trocar a conta atual pelo exemplo?")) return;
+    Object.assign(ss, ex);
+    sui.total.value = ss.total; sui.people.value = String(ss.people); sui.tip.value = String(ss.tip); sui.round.checked = ss.round; sui.tip2.value = String(ss.tip2);
+    renderPeople(); renderItems(); calcEq(); calcItems(); mark(); C.toast("Exemplo restaurado.");
+  }
+  byId("spSampleEq").addEventListener("click", sRestore);
+  byId("spSampleIt").addEventListener("click", sRestore);
+
+  if (C.shell) {
+    const lbl = (el) => (el.closest("label") || el);
+    function dTabs(mode) {
+      if (mode === "teams") return [
+        { key: "part", label: "Participantes", icon: "ic-users", nodes: () => [lbl(dui.teamNames)] },
+        { key: "conf", label: "Configurações", icon: "ic-sliders", nodes: () => [lbl(dui.teamCount)] }
+      ];
+      if (mode === "dice") return [{ key: "conf", label: "Configurações", icon: "ic-sliders", nodes: () => [dws.querySelector('[data-dp="dice"] .fn-controls')] }];
+      if (mode === "coin") return [{ key: "stat", label: "Estatísticas", icon: "ic-hash", nodes: () => [dui.coinStat] }];
+      if (mode === "num") return [{ key: "conf", label: "Configurações", icon: "ic-sliders", nodes: () => [dws.querySelector('[data-dp="num"] .fn-controls'), lbl(dui.unique)] }];
+      return [
+        { key: "part", label: "Participantes", icon: "ic-users", nodes: () => [lbl(dui.names)] },
+        { key: "conf", label: "Configurações", icon: "ic-sliders", nodes: () => [lbl(dui.remove), dui.count, byId("drSample")] },
+        { key: "hist", label: "Histórico", icon: "ic-list", nodes: () => [dui.winners] }
+      ];
+    }
+    const SEQ = [...sws.querySelectorAll('[data-sp="eq"] .fn-col:first-child > *')];
+    const SIT = [...sws.querySelectorAll('[data-sp="items"] .fn-col:first-child > *')];
+    function sTabs(mode) {
+      if (mode === "items") return [
+        { key: "people", label: "Pessoas", icon: "ic-users", nodes: () => SIT.slice(0, 3) },
+        { key: "items", label: "Itens", icon: "ic-receipt", nodes: () => SIT.slice(3, 6) },
+        { key: "tip", label: "Gorjeta", icon: "ic-sliders", nodes: () => [SIT[6], SIT[7]] }
+      ];
+      return [
+        { key: "bill", label: "Conta", icon: "ic-receipt", nodes: () => [SEQ[0], SEQ[1]] },
+        { key: "tip", label: "Gorjeta", icon: "ic-sliders", nodes: () => [SEQ[2], SEQ[3], SEQ[4]] }
+      ];
+    }
+    dTabsFn = dTabs; sTabsFn = sTabs;
+    dSheet = C.shell.create({ ws: dws, id: "sorteio", host: dws.querySelector(".fn-body"), label: "Controles do sorteio", tabs: dTabs(ds.tab), defaultState: "collapsed" });
+    sSheet = C.shell.create({ ws: sws, id: "racha", host: sws.querySelector(".fn-body"), label: "Controles da conta", tabs: sTabs(ss.tab), defaultState: "half" });
+
+    // O botão principal de "Times" fica na área de resultado (em cima), não escondido na folha.
+    const goBtn = byId("drTeamGo"), goHome = goBtn.parentNode, goNext = goBtn.nextSibling;
+    const placeGo = () => {
+      const teams = byId("drTeams");
+      if (C.shell.mq.matches) { if (goBtn.parentNode !== teams.parentNode) teams.parentNode.insertBefore(goBtn, teams); }
+      else if (goBtn.parentNode !== goHome) goHome.insertBefore(goBtn, goNext && goNext.parentNode === goHome ? goNext : null);
+    };
+    C.shell.mq.addEventListener("change", placeGo); placeGo();
+  }
 })();

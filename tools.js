@@ -63,8 +63,18 @@
   let cstate = codesDefaults();
   let cDocId = null;
 
+  // Exemplos válidos e editáveis para cada tipo (todos fictícios).
+  function allSamples() {
+    return {
+    qr: [{ content: "https://exemplo.com.br", label: "Nosso site", copies: 1 }, { content: "Mesa 12 · Cardápio do dia", label: "Mesa 12", copies: 1 }, { content: "WIFI:T:WPA;S:CasaWifi;P:senha1234;;", label: "Wi-Fi da casa", copies: 1 }],
+    code128: [{ content: "PROD-001", label: "Caneta azul", copies: 2 }, { content: "PROD-002", label: "Caderno 96 folhas", copies: 2 }, { content: "LOTE2026-10", label: "Lote de outubro", copies: 1 }],
+    ean13: [{ content: "7891000100103", label: "Produto A", copies: 2 }, { content: "7892000200282", label: "Produto B", copies: 2 }, { content: "7893000300354", label: "Produto C", copies: 1 }]
+    };
+  }
+  function sampleOf(kind) { const s = allSamples(); return (s[kind] || s.qr).map((i) => ({ ...i })); }
+  function sameItems(a, b) { return a.length === b.length && a.every((x, i) => x.content === b[i].content && x.label === b[i].label && x.copies === b[i].copies); }
   function codesDefaults() {
-    return { name: "Códigos sem título", kind: "qr", items: [{ content: "123456789012", label: "Exemplo", copies: 2 }], cols: 2, orient: "portrait", size: 35, showText: true, cut: true };
+    return { name: "Códigos sem título", kind: "qr", items: sampleOf("qr"), cols: 2, orient: "portrait", size: 35, showText: true, cut: true };
   }
   const MAX_CODE_ROWS = 300;
   function normalizeItems(o) {
@@ -111,6 +121,8 @@
   }
 
   function readCodesForm() {
+    // Trocar o tipo com os exemplos ainda intactos troca também os exemplos (assim nunca sobra um código inválido para o novo tipo).
+    if (codes.type.value !== cstate.kind && sameItems(cstate.items, sampleOf(cstate.kind))) { cstate.items = sampleOf(codes.type.value); renderRows(); }
     cstate.kind = codes.type.value;
     cstate.cols = Number(codes.cols.value);
     cstate.orient = codes.orient.value;
@@ -456,8 +468,10 @@
   const MAX_COLS = 30;
   let sstate = sheetDefaults();
 
+  // Tabela de exemplo (fictícia) para testar sem importar arquivo.
+  function SHEET_SAMPLE() { return [["Código", "Descrição", "Cópias"], ["190847", "ÁRVORE DE NATAL 240CM", "4"], ["250311", "PISCA-PISCA 100 LEDS", "2"], ["300512", "BOLA VERMELHA 8CM", "12"], ["410233", "GUIRLANDA DOURADA 2M", "3"], ["520874", "LAÇO DE CETIM VERDE", "6"]]; }
   function sheetDefaults() {
-    return { name: "Planilha sem título", rows: [], header: false, colCode: 0, colDesc: -1, colCopies: -1, defCopies: 1 };
+    return { name: "Planilha sem título", rows: SHEET_SAMPLE(), header: true, colCode: 0, colDesc: 1, colCopies: 2, defCopies: 1 };
   }
   function sheetNormalize(src) {
     const o = src && typeof src === "object" ? src : {};
@@ -737,6 +751,16 @@
     showSheet(); C.scheduleSave();
     const first = sheet.table.querySelector("tr.is-head + tr input"); if (first) first.focus();
   }
+  function useSheetSample() {
+    const ex = SHEET_SAMPLE();
+    const same = JSON.stringify(sstate.rows) === JSON.stringify(ex);
+    const hasWork = sstate.rows.some((r) => r.some((c) => String(c).trim()));
+    if (!same && hasWork && !window.confirm("Trocar a tabela atual pelo exemplo?")) return;
+    sstate.rows = ex; sstate.header = true; sstate.colCode = 0; sstate.colDesc = 1; sstate.colCopies = 2;
+    sheet.msg.textContent = "Exemplo carregado: mude qualquer célula, apague ou adicione linhas.";
+    showSheet(); C.scheduleSave();
+  }
+  byId("sheetSample").addEventListener("click", useSheetSample);
   sheet.addRow.addEventListener("click", addSheetRow);
   sheet.manual.addEventListener("click", startManual);
 
@@ -822,5 +846,32 @@
     menuItems: sheetMenu
   });
 
+
+  /* ============================ Celular: folha inferior (shell.js) ============================ */
+  if (C.shell) {
+    const kids = (ws, sel) => [...ws.querySelectorAll(sel)];
+    const CF = kids(codes.ws, ".tv-form > *"); // 0 tipo, 1 códigos, 2 aviso, 3 colunas/folha, 4 tamanho, 5 texto, 6 corte, 7 info
+    const exp = document.createElement("div");
+    exp.className = "sh-export";
+    exp.innerHTML = '<button class="btn primary" type="button" id="codesPrintM"><svg class="icon" aria-hidden="true"><use href="#ic-print"/></svg> Imprimir / salvar PDF</button><p class="tv-info">Na janela de impressão escolha "Salvar como PDF". O tamanho no papel não depende do zoom da tela.</p>';
+    exp.querySelector("button").addEventListener("click", () => C.print());
+    C.shell.create({
+      ws: codes.ws, id: "codigos", host: codes.ws.querySelector(".tv-body"), label: "Controles dos códigos",
+      tabs: [
+        { key: "cod", label: "Códigos", icon: "ic-qr", nodes: () => [CF[0], CF[1], CF[2]] },
+        { key: "apa", label: "Aparência", icon: "ic-sliders", nodes: () => [CF[4], CF[5], CF[6]] },
+        { key: "pag", label: "Página", icon: "ic-page", nodes: () => [CF[3], CF[7]] },
+        { key: "exp", label: "Exportar", icon: "ic-download", nodes: () => [exp] }
+      ]
+    });
+    const SF = [kids(sheet.ws, ".tv-form > p.tv-info")[0], sheet.pick.parentNode, sheet.fromCalc.closest("label"), sheet.msg];
+    C.shell.create({
+      ws: sheet.ws, id: "planilha-etiquetas", host: sheet.ws.querySelector(".tv-body"), label: "Controles de planilha para etiquetas", defaultState: "collapsed",
+      tabs: [
+        { key: "prod", label: "Produtos", icon: "ic-list", nodes: () => SF },
+        { key: "col", label: "Colunas", icon: "ic-viewgrid", nodes: () => [sheet.step2.querySelector(".tv-grid3"), sheet.header.closest(".tv-row")] }
+      ]
+    });
+  }
   /* ================================ início ================================ */
 })();

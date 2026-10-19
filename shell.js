@@ -2,7 +2,10 @@
    Em telas estreitas (até 899px) a área de trabalho fica em cima e os controles ficam numa
    "folha" embaixo, com 3 estados (recolhida, meia, expandida). Em telas largas nada muda:
    os elementos voltam ao lugar original e a folha some.
-   Uso: Coding.shell.create({ ws, host, tabs: [{ key, label, icon, nodes | pane }], native }) */
+   Uso: Coding.shell.create({ ws, host, id, tabs: [{ key, label, icon, nodes | pane }], native, defaultState })
+   - nodes: função que devolve os elementos que vão para a aba (voltam ao lugar no desktop)
+   - pane: elemento que já é um painel (ferramenta troca as abas sozinha quando native = true)
+   - setTabs(tabs): troca as abas (ex.: Sorteio muda de modo) */
 (() => {
   "use strict";
 
@@ -20,21 +23,23 @@
 
   /* Teclado virtual: calcula quanto da tela ele cobre e empurra a folha para cima. */
   let kb = 0;
+  const relayout = () => all.forEach((s) => { if (s.active) s.layout(); });
   function syncKeyboard() {
     const vv = window.visualViewport;
     const next = vv ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : 0;
     kb = next > 90 ? next : 0;
     document.documentElement.style.setProperty("--sh-kb", kb + "px");
     document.documentElement.classList.toggle("sh-keyboard", kb > 0);
-    all.forEach((s) => { if (s.active) s.layout(); });
+    relayout();
     window.dispatchEvent(new CustomEvent("coding:keyboard", { detail: { height: kb } }));
   }
-  document.addEventListener("focusout", () => setTimeout(() => all.forEach((s) => { if (s.active) s.layout(); }), 50));
-  document.addEventListener("focusin", () => setTimeout(() => all.forEach((s) => { if (s.active) s.layout(); }), 50));
+  document.addEventListener("focusout", () => setTimeout(relayout, 50));
+  document.addEventListener("focusin", () => setTimeout(relayout, 50));
   if (window.visualViewport) { window.visualViewport.addEventListener("resize", syncKeyboard); window.visualViewport.addEventListener("scroll", syncKeyboard); }
 
   function create(opts) {
-    const { ws, host, tabs, native = false, label = "Controles", id = "geral", defaultState = "half" } = opts;
+    const { ws, host, native = false, label = "Controles", id = "geral", defaultState = "half" } = opts;
+    let tabs = opts.tabs;
     const moved = []; // { node, parent, next } para devolver ao lugar no desktop
     const sheet = document.createElement("section");
     sheet.className = "sh-sheet";
@@ -53,26 +58,31 @@
     const handle = sheet.querySelector(".sh-handle");
     const btnUp = sheet.querySelector(".sh-up");
     const btnDown = sheet.querySelector(".sh-down");
+    let panes = new Map();
 
-    const panes = new Map();
-    tabs.forEach((t) => {
-      const b = document.createElement("button");
-      b.type = "button"; b.className = "sh-tab"; b.setAttribute("role", "tab"); b.dataset.shTab = t.key;
-      if (native) b.dataset.tab = t.key;
-      b.innerHTML = (t.icon ? svg(t.icon) : "") + `<span>${t.label}</span>`;
-      tabsEl.appendChild(b);
-      const pane = t.pane || Object.assign(document.createElement("div"), { className: "sh-pane" });
-      if (!t.pane && native) pane.dataset.pane = t.key;
-      panes.set(t.key, { pane, tab: b, spec: t });
-    });
-
-    const inst = { sheet, active: false, state: readPref(id, defaultState), tab: tabs[0].key, layout, setState, show, reveal, destroyed: false };
+    const inst = { sheet, active: false, state: readPref(id, defaultState), tab: tabs[0].key, layout, setState, show, reveal, setTabs };
     all.push(inst);
+
+    function buildTabs() {
+      tabsEl.replaceChildren(); panes = new Map();
+      tabs.forEach((t) => {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "sh-tab"; b.setAttribute("role", "tab"); b.dataset.shTab = t.key;
+        if (native) b.dataset.tab = t.key;
+        b.innerHTML = (t.icon ? svg(t.icon) : "") + `<span>${t.label}</span>`;
+        tabsEl.appendChild(b);
+        const pane = t.pane || Object.assign(document.createElement("div"), { className: "sh-pane" });
+        if (!t.pane && native) pane.dataset.pane = t.key;
+        panes.set(t.key, { pane, tab: b, spec: t });
+      });
+      if (!panes.has(inst.tab)) inst.tab = tabs[0].key;
+    }
+    buildTabs();
 
     /* ---------- alturas ---------- */
     function heights() {
       const H = Math.max(240, (host.clientHeight || 0) - kb); // o teclado já tira espaço da área útil
-      const strip = (sheet.querySelector(".sh-head").offsetHeight || 22) + (tabsEl.offsetHeight || 52);
+      const strip = (sheet.querySelector(".sh-head").offsetHeight || 40) + (tabsEl.offsetHeight || 52);
       const collapsed = strip + 2;
       const half = clamp(Math.round(H * 0.42), collapsed + 120, Math.max(collapsed + 120, H - 150));
       const expanded = clamp(Math.round(H * 0.72), half + 40, Math.max(half + 40, H - 110));
@@ -84,7 +94,8 @@
       // com o teclado aberto e o foco fora da folha (ex.: editando uma célula), a folha encolhe para não esconder o campo
       const eff = kb > 0 && !sheet.contains(document.activeElement) ? "collapsed" : inst.state;
       sheet.style.setProperty("--sh-h", h[eff] + "px");
-      document.documentElement.style.setProperty("--sh-open", h[eff] + "px"); document.documentElement.classList.add("sh-has");
+      document.documentElement.style.setProperty("--sh-open", h[eff] + "px");
+      document.documentElement.classList.add("sh-has");
       sheet.dataset.state = inst.state;
       btnUp.disabled = inst.state === "expanded";
       btnDown.disabled = inst.state === "collapsed";
@@ -94,11 +105,6 @@
       if (!STATES.includes(s)) return;
       inst.state = s; if (persist) writePref(id, s);
       layout();
-    }
-    function reveal(key, min = "half") {
-      const p = panes.get(key); if (!p || !inst.active) return;
-      if (inst.tab !== key) p.tab.click();
-      if (STATES.indexOf(inst.state) < STATES.indexOf(min)) setState(min, false); // abre sem gravar como preferência
     }
     const step = (d) => setState(STATES[clamp(STATES.indexOf(inst.state) + d, 0, 2)]);
     btnUp.addEventListener("click", () => step(1));
@@ -111,7 +117,7 @@
     handle.addEventListener("pointerdown", (e) => {
       if (e.button !== undefined && e.button !== 0) return;
       const h = heights();
-      drag = { y: e.clientY, h0: h[inst.state], h, moved: false, t: performance.now() };
+      drag = { y: e.clientY, h0: h[inst.state], h, moved: false };
       handle.setPointerCapture(e.pointerId);
       sheet.classList.add("is-dragging");
     });
@@ -136,31 +142,28 @@
     handle.addEventListener("pointercancel", endDrag);
 
     /* ---------- abas ---------- */
+    function paintTabs() { panes.forEach((p, k) => { p.tab.classList.toggle("is-on", k === inst.tab); p.tab.setAttribute("aria-selected", String(k === inst.tab)); }); }
     function show(key, { expand = true } = {}) {
       if (!panes.has(key)) return;
-      inst.tab = key;
-      panes.forEach((p, k) => {
-        p.tab.classList.toggle("is-on", k === key);
-        p.tab.setAttribute("aria-selected", String(k === key));
-        if (!native) p.pane.hidden = k !== key;
-      });
+      inst.tab = key; paintTabs();
+      panes.forEach((p, k) => { if (!native) p.pane.hidden = k !== key; });
       if (expand && inst.state === "collapsed") setState("half");
-      const cb = tabs.find((t) => t.key === key).onShow; if (cb) cb();
+      const cb = panes.get(key).spec.onShow; if (cb) cb();
+    }
+    function reveal(key, min = "half") {
+      const p = panes.get(key); if (!p || !inst.active) return;
+      if (inst.tab !== key) p.tab.click();
+      if (STATES.indexOf(inst.state) < STATES.indexOf(min)) setState(min, false); // abre sem gravar como preferência
     }
     tabsEl.addEventListener("click", (e) => {
       const b = e.target.closest(".sh-tab"); if (!b) return;
       const key = b.dataset.shTab;
       if (key === inst.tab && inst.state !== "collapsed") { if (native) return; setState("collapsed"); return; }
       if (!native) show(key);
-      else { // a ferramenta troca o painel pelo atributo data-tab; aqui só cuidamos da folha
-        inst.tab = key; panes.forEach((p, k) => { p.tab.classList.toggle("is-on", k === key); p.tab.setAttribute("aria-selected", String(k === key)); });
-        if (inst.state === "collapsed") setState("half");
-      }
+      else { inst.tab = key; paintTabs(); if (inst.state === "collapsed") setState("half"); }
     });
-    if (native) {
-      // quando a ferramenta muda de aba sozinha, a folha acompanha
-      ws.addEventListener("click", (e) => { const t = e.target.closest("[data-tab]:not(.sh-tab)"); if (t && inst.active) { inst.tab = t.dataset.tab; panes.forEach((p, k) => p.tab.classList.toggle("is-on", k === inst.tab)); } });
-    }
+    // quando a ferramenta muda de aba sozinha (native), a folha acompanha
+    if (native) ws.addEventListener("click", (e) => { const t = e.target.closest("[data-tab]:not(.sh-tab)"); if (t && inst.active) { inst.tab = t.dataset.tab; paintTabs(); } });
 
     /* ---------- teclado: o campo ativo precisa continuar visível ---------- */
     sheet.addEventListener("focusin", (e) => {
@@ -171,35 +174,51 @@
 
     /* ---------- montar / desmontar conforme a largura ---------- */
     function adopt(node) { if (!node || moved.some((m) => m.node === node)) return; moved.push({ node, parent: node.parentNode, next: node.nextSibling }); }
-    function mount() {
-      if (inst.active) return;
-      inst.active = true;
+    function release() {
+      // devolve na ordem inversa para manter a posição original
+      for (let i = moved.length - 1; i >= 0; i--) { const m = moved[i]; if (m.parent) m.parent.insertBefore(m.node, m.next && m.next.parentNode === m.parent ? m.next : null); }
+      moved.length = 0;
+      panes.forEach((p) => { if (p.spec.pane) p.pane.hidden = false; });
+    }
+    function fill() {
       panes.forEach((p) => {
-        const nodes = p.spec.nodes ? p.spec.nodes() : [];
+        const nodes = (p.spec.nodes ? p.spec.nodes() : []).filter(Boolean);
         nodes.forEach((n) => { adopt(n); p.pane.appendChild(n); });
         if (p.spec.pane) adopt(p.spec.pane);
         bodyEl.appendChild(p.pane);
       });
+    }
+    function mount() {
+      if (inst.active) return;
+      inst.active = true;
+      fill();
       host.appendChild(sheet);
       sheet.hidden = false;
       ws.classList.add("sh-on");
       inst.state = readPref(id, defaultState);
       show(inst.tab, { expand: false });
-      if (native) { const t = panes.get(inst.tab).tab; t.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
+      if (native) panes.get(inst.tab).tab.dispatchEvent(new MouseEvent("click", { bubbles: true }));
       layout();
       requestAnimationFrame(layout);
     }
     function unmount() {
       if (!inst.active) return;
       inst.active = false;
-      // devolve na ordem inversa para manter a posição original
-      for (let i = moved.length - 1; i >= 0; i--) { const m = moved[i]; if (m.parent) m.parent.insertBefore(m.node, m.next && m.next.parentNode === m.parent ? m.next : null); }
-      moved.length = 0;
-      panes.forEach((p) => { if (p.spec.pane) p.pane.hidden = false; });
+      release();
       sheet.hidden = true; sheet.remove();
-      document.documentElement.style.removeProperty("--sh-open"); if (!all.some((x) => x !== inst && x.active)) document.documentElement.classList.remove("sh-has");
+      document.documentElement.style.removeProperty("--sh-open");
+      if (!all.some((x) => x !== inst && x.active)) document.documentElement.classList.remove("sh-has");
       ws.classList.remove("sh-on");
       if (native) { ws.querySelectorAll(".im-pane").forEach((p, i) => { p.hidden = i !== 0; }); ws.querySelectorAll(".im-tabs button").forEach((b, i) => b.classList.toggle("is-on", i === 0)); }
+    }
+    function setTabs(next, keep) {
+      tabs = next;
+      const was = inst.active;
+      if (was) release();
+      buildTabs();
+      if (keep && panes.has(keep)) inst.tab = keep;
+      bodyEl.replaceChildren();
+      if (was) { fill(); show(inst.tab, { expand: false }); layout(); }
     }
     function apply() { if (mq.matches) mount(); else unmount(); }
     mq.addEventListener("change", apply);
@@ -210,5 +229,5 @@
     return inst;
   }
 
-  C.shell = { create, STATES, syncKeyboard };
+  C.shell = { create, STATES, syncKeyboard, mq };
 })();

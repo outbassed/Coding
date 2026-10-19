@@ -499,6 +499,7 @@
         <div class="tv-row">
           <button id="sheetPick" class="btn primary" type="button"><svg class="icon"><use href="#ic-upload"/></svg><span class="btn-label">Escolher arquivo</span></button>
           <button id="sheetManual" class="btn" type="button" title="Montar a lista direto na tela, sem arquivo"><svg class="icon"><use href="#ic-pencil"/></svg><span class="btn-label">Digitar à mão</span></button>
+          <button id="sheetSample" class="btn subtle" type="button" title="Carregar uma tabela de exemplo"><svg class="icon"><use href="#ic-undo"/></svg><span class="btn-label">Usar exemplo</span></button>
           <input id="sheetFile" type="file" accept=".xlsx,.csv,.tsv,.txt,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
         </div>
         <label class="tv-field"><span>Ou use uma planilha do Coding</span><select id="sheetFromCalc"></select></label>
@@ -731,6 +732,7 @@
             <label class="tv-field"><span>Quem participa? (um nome por linha)</span><textarea id="drNames" rows="8" placeholder="Ana&#10;Bia&#10;Caio&#10;Duda"></textarea></label>
             <label class="tv-check"><input type="checkbox" id="drRemove"> Tirar quem já foi sorteado</label>
             <p class="tv-info" id="drCount"></p>
+            <button class="btn subtle" type="button" id="drSample"><svg class="icon" aria-hidden="true"><use href="#ic-undo"/></svg> Restaurar exemplo</button>
             <div class="fn-hist" id="drWinners"></div>
           </div>
           <div class="fn-col fn-center">
@@ -789,6 +791,7 @@
             <label class="tv-field"><span>Quantas pessoas?</span><div class="fn-stepper"><button class="cbtn" type="button" data-step="-1" aria-label="Menos uma pessoa">−</button><input id="spPeople" type="number" min="1" max="99" value="4" inputmode="numeric"><button class="cbtn" type="button" data-step="1" aria-label="Mais uma pessoa">+</button></div></label>
             <div class="tv-field"><span>Gorjeta: <b id="spTipV">10%</b></span><input type="range" id="spTip" aria-label="Gorjeta em porcentagem" min="0" max="30" value="10"><div class="im-btnrow" id="spTipChips"><button class="chip" type="button" data-tip="0">0%</button><button class="chip" type="button" data-tip="5">5%</button><button class="chip" type="button" data-tip="10">10%</button><button class="chip" type="button" data-tip="12">12%</button><button class="chip" type="button" data-tip="15">15%</button></div></div>
             <label class="tv-check"><input type="checkbox" id="spRound"> Arredondar para cima (sobra para a gorjeta)</label>
+            <button class="btn subtle" type="button" id="spSampleEq"><svg class="icon" aria-hidden="true"><use href="#ic-undo"/></svg> Restaurar exemplo</button>
           </div>
           <div class="fn-col fn-center"><div class="fn-pay"><span>Cada um paga</span><strong id="spEach">R$ 0,00</strong><small id="spDetail"></small></div><button class="btn" type="button" id="spCopyEq"><svg class="icon" aria-hidden="true"><use href="#ic-copy"/></svg> Copiar resumo</button></div>
         </div>
@@ -803,6 +806,7 @@
             <div id="spItems"></div>
             <button class="btn" type="button" id="spAddItem">+ Item</button>
             <div class="tv-field"><span>Gorjeta: <b id="spTipV2">10%</b></span><input type="range" id="spTip2" min="0" max="30" value="10"></div>
+            <button class="btn subtle" type="button" id="spSampleIt"><svg class="icon" aria-hidden="true"><use href="#ic-undo"/></svg> Restaurar exemplo</button>
           </div>
           <div class="fn-col"><div class="fn-sub">Cada um paga</div><div id="spResult" class="fn-resultlist"></div><button class="btn" type="button" id="spCopyIt"><svg class="icon" aria-hidden="true"><use href="#ic-copy"/></svg> Copiar resumo</button></div>
         </div>

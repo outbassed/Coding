@@ -1089,3 +1089,42 @@ body { --nav-w: 0px; --nav-h: 0px; }
 .sh-on .sh-pane .cselect { min-height: 44px; }
 .sh-on.calc-ws .calc-fbar { padding: 4px 8px; }
 .sh-on.calc-ws .calc-scroll { touch-action: pan-x pan-y; }
+
+/* Sorteio e Racha-conta no celular: resultado em cima, controles na folha */
+.sh-on .fn-body { overflow: hidden; }
+.sh-on .fn-tabs { overflow-x: auto; }
+.sh-on .fn-pane { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 12px 8px; gap: 10px; }
+.sh-on .fn-split { display: flex; flex-direction: column; gap: 10px; }
+.sh-on .fn-split > .fn-col:first-child { display: none; }
+.sh-on .fn-wheelbox { width: min(82vw, calc(100dvh - var(--sh-open, 260px) - 330px)); min-width: 130px; }
+.sh-on .fn-big { min-height: 48px; font-size: 16px; }
+.sh-on .fn-result { font-size: 22px; }
+.sh-on .fn-pay { padding: 18px 22px; }
+.sh-on .fn-pay strong { font-size: 38px; }
+.sh-on .fn-dice { min-height: 72px; }
+.sh-on .fn-coin { width: 140px; height: 140px; }
+.sh-on .fn-bignum { min-height: 72px; font-size: 56px; }
+.sh-on .sh-pane { display: flex; flex-direction: column; gap: 12px; padding: 12px 14px 6px; }
+.sh-on .sh-pane .fn-controls { justify-content: flex-start; }
+.sh-on .sh-pane textarea { min-height: 120px; }
+.sh-on .sh-pane .btn, .sh-on .sh-pane .chip { min-height: 44px; }
+.sh-on .fn-tag button { min-width: 28px; min-height: 28px; display: inline-grid; place-items: center; }
+.sh-on .fn-tag button .icon { width: 14px; height: 14px; margin: 0; }
+.fn-tag button .icon { width: 14px; height: 14px; margin: 0; }
+
+.fn-itemtop .fn-inp { min-width: 0; }
+.fn-itemtop .fn-price { flex: 0 0 84px; }
+.sh-on .fn-itemtop { flex-wrap: wrap; }
+.sh-on .fn-itemtop .fn-inp:first-child { flex: 1 1 100%; }
+.sh-on .fn-itemtop .fn-price { flex: 1 1 auto; }
+
+/* QR e Planilha → Etiquetas no celular */
+.sh-on .tv-body { display: flex; flex-direction: column; overflow: hidden; }
+.sh-on .tv-preview { flex: 1; min-height: 0; padding: 8px; }
+.sh-on .tv-body > .tv-form { display: none; }
+.sh-on .tv-body.tv-single { align-items: stretch; justify-items: stretch; }
+.sh-on .tv-single > .tv-form { display: flex; flex: 1; min-height: 0; overflow-y: auto; width: 100%; padding: 10px 12px; }
+.sh-on .sh-pane .tv-row { flex-wrap: wrap; }
+.sh-on .sh-pane .tv-field select, .sh-on .sh-pane .tv-field input { min-height: 44px; }
+.sh-export { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; }
+.sh-export .btn { min-height: 48px; }
