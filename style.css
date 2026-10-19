@@ -1136,3 +1136,14 @@ body { --nav-w: 0px; --nav-h: 0px; }
 .sh-on .pdf-msg { margin: 4px 12px; }
 .sh-on .sh-note { flex: 1 1 100%; margin: 2px 2px 0; }
 @media (max-width: 899px) { .pdf-ebar { flex-wrap: wrap; overflow-x: visible; } .pdf-ebar .btn { min-height: 44px; } }
+
+/* v29 — Etiquetas na folha inferior */
+.sh-on#labelsWs { display: flex; flex-direction: column; }
+.sh-on#labelsWs > .panel { display: none; }
+.sh-on#labelsWs > .preview { flex: 1; min-height: 0; }
+.sh-on .sh-pane > .pane { display: flex; padding: 12px 14px calc(16px + var(--safe-bottom)); }
+.sh-on#labelsWs #panelToggle { display: none; }
+.sh-on .lb-print { display: flex; flex-direction: column; gap: 12px; padding: 14px; }
+.sh-on .lb-print .btn { min-height: 48px; justify-content: center; }
+.sh-on .item-list .item-card input, .sh-on .item-list .item-card textarea { min-height: 44px; }
+.sh-on#labelsWs > .sh-sheet { order: 3; }

@@ -91,7 +91,10 @@
   let printBlockedReason = "";
   let renderPending = false;
 
+  let curTab = "itens";
   function setTab(tab) {
+    curTab = tab;
+    if (C.shell && C.shell.mq.matches && document.querySelector("#labelsWs.sh-on")) return; // no celular, quem troca de aba é a folha inferior
     document.querySelectorAll(".tab").forEach((button) => {
       const active = button.dataset.tab === tab;
       button.classList.toggle("is-active", active);
@@ -693,6 +696,26 @@
     if (mobileQuery.addEventListener) mobileQuery.addEventListener("change", () => { if (root.hidden) return; applyZoom(); updatePages(false); });
 
     setTab("itens");
+    // Celular: os controles vão para a folha inferior compartilhada (Itens / Formato / Página / Imprimir-PDF)
+    const printPane = document.createElement("div");
+    printPane.className = "lb-print";
+    printPane.innerHTML =
+      '<p class="hint" id="lbPrintInfo">Confira a pré-visualização acima. A impressão usa o tamanho real das etiquetas.</p>' +
+      '<button id="lbPrintM" class="btn primary" type="button"><svg class="icon" aria-hidden="true"><use href="#ic-print"/></svg><span>Imprimir ou salvar em PDF</span></button>' +
+      '<p class="hint">No diálogo de impressão do celular, escolha "Salvar como PDF" para gerar o arquivo.</p>';
+    printPane.querySelector("#lbPrintM").addEventListener("click", () => byId("printButton").click());
+    // na folha, cada seção fica sempre "visível" (quem esconde é a aba); no desktop volta ao normal
+    const sec = (name) => { const el = root.querySelector('.pane[data-pane="' + name + '"]'); el.hidden = false; return el; };
+    C.shell.mq.addEventListener("change", () => { if (!C.shell.mq.matches) setTab(curTab); });
+    C.shell.create({
+      ws: root, id: "etiquetas", host: root, label: "Controles das etiquetas",
+      tabs: [
+        { key: "itens", label: "Itens", icon: "ic-list", nodes: () => [sec("itens")] },
+        { key: "formato", label: "Formato", icon: "ic-type", nodes: () => [sec("formato")] },
+        { key: "pagina", label: "Página", icon: "ic-page", nodes: () => [sec("pagina")] },
+        { key: "imprimir", label: "Imprimir / PDF", icon: "ic-print", nodes: () => [printPane] }
+      ]
+    });
     C.register({
       type: "labels",
       defaults, normalize, payload, info, open, print, menuItems, viewItems,
