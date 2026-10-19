@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#101722">
-  <meta name="description" content="Coding: etiquetas A4 com vários códigos e descrições, e editor de texto, planilhas e mais, prontos para imprimir.">
+  <meta name="description" content="Coding: suíte offline com etiquetas A4, textos, planilhas, QR e código de barras, PDF, imagens, sorteio e racha-conta. Tudo fica no seu aparelho.">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Coding">
@@ -771,7 +771,7 @@
           <div class="fn-col">
             <label class="tv-field"><span>Total da conta (R$)</span><input id="spTotal" inputmode="decimal" placeholder="Ex.: 240,00"></label>
             <label class="tv-field"><span>Quantas pessoas?</span><div class="fn-stepper"><button class="cbtn" type="button" data-step="-1" aria-label="Menos uma pessoa">−</button><input id="spPeople" type="number" min="1" max="99" value="4" inputmode="numeric"><button class="cbtn" type="button" data-step="1" aria-label="Mais uma pessoa">+</button></div></label>
-            <div class="tv-field"><span>Gorjeta: <b id="spTipV">10%</b></span><input type="range" id="spTip" min="0" max="30" value="10"><div class="im-btnrow" id="spTipChips"><button class="chip" type="button" data-tip="0">0%</button><button class="chip" type="button" data-tip="5">5%</button><button class="chip" type="button" data-tip="10">10%</button><button class="chip" type="button" data-tip="12">12%</button><button class="chip" type="button" data-tip="15">15%</button></div></div>
+            <div class="tv-field"><span>Gorjeta: <b id="spTipV">10%</b></span><input type="range" id="spTip" aria-label="Gorjeta em porcentagem" min="0" max="30" value="10"><div class="im-btnrow" id="spTipChips"><button class="chip" type="button" data-tip="0">0%</button><button class="chip" type="button" data-tip="5">5%</button><button class="chip" type="button" data-tip="10">10%</button><button class="chip" type="button" data-tip="12">12%</button><button class="chip" type="button" data-tip="15">15%</button></div></div>
             <label class="tv-check"><input type="checkbox" id="spRound"> Arredondar para cima (sobra para a gorjeta)</label>
           </div>
           <div class="fn-col fn-center"><div class="fn-pay"><span>Cada um paga</span><strong id="spEach">R$ 0,00</strong><small id="spDetail"></small></div><button class="btn" type="button" id="spCopyEq"><svg class="icon" aria-hidden="true"><use href="#ic-copy"/></svg> Copiar resumo</button></div>

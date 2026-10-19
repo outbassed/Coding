@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Coding — Etiquetas e Textos",
   "short_name": "Coding",
-  "description": "Etiquetas A4 com vários códigos e descrições, e editor de textos básico (Coding Textos) com imagens, prontos para imprimir.",
+  "description": "Suíte offline e descontraída: etiquetas A4, textos, planilhas, QR e código de barras, editor de PDF, editor de imagens, sorteio e racha-conta. Funciona sem internet e guarda tudo no seu aparelho.",
   "lang": "pt-BR",
   "dir": "ltr",
   "start_url": "./",

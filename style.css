@@ -322,7 +322,7 @@ select { cursor: pointer; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; scroll-behavior: auto !important; }
+  * { transition: none !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
 }
 
 /* Tela inicial: tipos de documento */
@@ -1032,3 +1032,8 @@ body { --nav-w: 0px; --nav-h: 0px; }
 .tv-rowdel:hover { background: #3b2630; color: #ff9aa5; }
 .tv-rowdel .icon { width: 14px; height: 14px; }
 #sheetWs .tv-table-wrap { max-height: 46vh; overflow: auto; }
+
+/* Toque: alvos de pelo menos 40 px */
+@media (pointer: coarse) {
+  .icon-btn, #homeSelect, #homeSort, #homeView, .item-head .icon-btn, .tv-rowdel { min-width: 40px; min-height: 40px; }
+}
