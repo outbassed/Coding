@@ -102,6 +102,15 @@
       btnUp.disabled = inst.state === "expanded";
       btnDown.disabled = inst.state === "collapsed";
       handle.setAttribute("aria-expanded", String(inst.state !== "collapsed"));
+      requestAnimationFrame(keepFocusVisible); setTimeout(keepFocusVisible, 260);
+    }
+    // se a folha encolheu (teclado, giro de tela), o campo em edição dentro dela continua à vista
+    function keepFocusVisible() {
+      const el = document.activeElement;
+      if (!inst.active || !el || !bodyEl.contains(el) || !el.matches("input,textarea,select,[contenteditable]")) return;
+      const b = bodyEl.getBoundingClientRect(), r = el.getBoundingClientRect();
+      if (r.bottom > b.bottom - 4) bodyEl.scrollTop += r.bottom - b.bottom + 12;
+      else if (r.top < b.top + 4) bodyEl.scrollTop -= b.top - r.top + 12;
     }
     function setState(s, persist = true) {
       if (!STATES.includes(s)) return;

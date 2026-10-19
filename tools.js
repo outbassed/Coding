@@ -745,7 +745,8 @@
     const last = sheet.table.querySelector("tr:last-child input"); if (last) last.focus();
   }
   function startManual() {
-    if (sstate.rows.length && !window.confirm("Começar uma lista nova? A tabela atual será substituída.")) return;
+    const untouched = JSON.stringify(sstate.rows) === JSON.stringify(SHEET_SAMPLE()); // exemplo intocado: pode trocar sem perguntar
+    if (sstate.rows.length && !untouched && !window.confirm("Começar uma lista nova? A tabela atual será substituída.")) return;
     sstate.rows = [["Código", "Descrição", "Cópias"], ["", "", "1"], ["", "", "1"], ["", "", "1"]];
     sstate.header = true; sstate.colCode = 0; sstate.colDesc = 1; sstate.colCopies = 2;
     sheet.msg.textContent = "Preencha a tabela. A primeira linha é o título das colunas.";

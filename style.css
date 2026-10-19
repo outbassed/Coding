@@ -1209,3 +1209,4 @@ body { --nav-w: 0px; --nav-h: 0px; }
 @media (max-height: 460px) and (max-width: 899px) { .sh-head, .sh-handle, .sh-step { height: 34px; } .sh-handle span { top: 14px; } }
 .sh-on .sh-body input[type="range"] { min-height: 32px; margin: 4px 0; }
 .sh-on .sh-body select, .sh-on .sh-body input[type="color"] { min-height: 44px; }
+.sh-on #imText { min-height: 56px; height: 64px; }
