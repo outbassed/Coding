@@ -4,6 +4,15 @@ Lista de pedidos pendentes. Quando o dono do projeto mandar **"Iniciar update"**
 
 ## Próximo update
 
+### Auditoria completa (documento do dono, 18/10) — plano em fases
+Conferido no código: **P0-01** (importar `.coding.json` v4 de Imagens/Sorteio/Racha é recusado), **P1-06** (`vendor/pdf*.js` e `pdf-lib` fora do pré-cache), **P1-07** (`1.234` vira 1,234; centavos em ponto flutuante), **P1-05** (xlsx ignora o número da linha), **P0-04** ("Cobrir" só pinta de branco), **P1-08/09** (documento novo é gravado antes de editar; `slice(0,30)` na abertura).
+- **Fase 1, confiabilidade:** aceitar v4 e testar exportar→importar dos 9 tipos; rascunho em memória (só vai para Recentes após mudança real; abrir sem editar não regrava nem muda a data); gravação em fila; limite de 30 com favoritos protegidos e contador X/30 (pedido anterior); confirmação certa ao trocar foto/tela em branco.
+- **Fase 2, lógica:** filtros de Imagens não destrutivos (Normal, intensidade 0–100%, um filtro por vez, preservado ao reabrir); xlsx respeitando `row r=`; Racha-conta em centavos e valores em pt-BR; "Cobrir visualmente" com aviso claro.
+- **Fase 3, visual:** todos os ícones de controle em SVG (emoji só como conteúdo do usuário: adesivos); Planilha→Etiquetas com campos visuais (código, descrição, cópias).
+- **Fase 4:** responsividade (320–1920 px), pré-cache offline do PDF, `manifest` atualizado, acessibilidade.
+- **Fase 5:** regressão com relatório PASSOU/FALHOU, README/ROADMAP, publicar. **Fase 6 (P3):** só com aprovação.
+- Horário local do aparelho (pedido anterior) entra junto.
+
 ### Limite automático de documentos (pedido de 18/10)
 - Ao passar de 30 documentos, o Coding apaga sozinho o mais antigo que **não** seja favorito. Favoritos nunca são apagados automaticamente, só à mão. Se os 30 forem favoritos, avisa e não cria o novo até liberar espaço.
 - Avisar com um toast ("Apaguei «nome» (o mais antigo) para abrir espaço") e deixar claro no README e na tela inicial que favoritar protege o documento.
