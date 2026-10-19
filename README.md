@@ -1,9 +1,13 @@
 # Coding
 
-App de documentos para o dia a dia, com dois modos:
+App de documentos e ferramentas para o dia a dia, que funciona offline. Principais programas:
 
 - **Etiquetas**: editor de etiquetas A4 para identificar caixas e produtos, com **vários códigos e descrições**, paginação automática e impressão/PDF.
 - **Texto**: editor de texto básico, como um Word enxuto, com formatação essencial e **imagens** dentro da folha.
+- **Planilhas**: tabelas com fórmulas, como um Excel simples.
+- **Imagens**: editor divertido, estilo Paint + edição de fotos.
+- **Sorteio** e **Racha-conta**: roleta, dado, moeda, times e divisão da conta.
+- Ainda: QR e código de barras, Planilha → Etiquetas e Editor de PDF.
 
 Funciona como site e como aplicativo instalável (PWA), inclusive offline. Sem frameworks, backend ou contas.
 
@@ -25,6 +29,21 @@ Funciona como site e como aplicativo instalável (PWA), inclusive offline. Sem f
 - Ao digitar uma fórmula, clicar em outra célula insere a referência. Copiar/colar e Ctrl+D/Ctrl+R ajustam as referências; inserir e excluir linhas e colunas atualizam as fórmulas.
 - Negrito, itálico, sublinhado, alinhamento, cor de fundo e do texto, formato de número (Geral, Número, Moeda R$, Porcentagem), AutoSoma (Alt+=), ordenar, desfazer/refazer (Ctrl+Z/Y).
 - **Importar** `.xlsx`, `.csv` ou `.tsv` (abre como novo documento) e **baixar** como `.xlsx` (com fórmulas e formatação) ou `.csv`. Imprimir pelo Ctrl+P. Limites: 500 linhas, 52 colunas, 20 000 células preenchidas.
+
+- **Sem digitar fórmulas**: botão **Σ** (Somar, Média, Maior, Menor, Contar) e **Funções** (ajudante: escolha a função, clique nas células e veja o resultado antes de colocar). Ao digitar `=`, aparecem sugestões de funções (Tab aceita).
+- **Cores** estilo Google Planilhas: grade pronta, linha padrão, cores personalizadas (+ e conta-gotas) e **Redefinir**; a cor muda ao vivo enquanto você arrasta no seletor.
+- **Modelos prontos**: Lista de compras, Controle de gastos, Placar, Dividir a conta, Notas da turma e Estoque.
+
+### Imagens
+- Abra uma foto (ou Câmera, Ctrl+V, arrastar) ou comece em **branco**. Fotos muito grandes são reduzidas para 2560 px (1800 px no celular) para o editor ficar rápido.
+- **Desenhar**: lápis, pincel, marca-texto, spray, borracha (apaga até ficar transparente), balde, conta-gotas, linha, seta, retângulo, círculo, borrar e pixelar uma área.
+- **Textos e adesivos** movíveis (arraste, gire, aumente): texto com fontes e contorno, **Meme**, balão de fala, emojis e uma foto por cima.
+- **Cortar** com proporções, girar, espelhar, mudar tamanho, brilho/contraste/cores/calor, 11 filtros (+ *Surpreenda-me*), molduras (borda, polaroid, cantos redondos, círculo, vinheta) e colagem.
+- **Salvar**: JPG, PNG ou WebP com qualidade e tamanho, copiar, compartilhar e **figurinha de WhatsApp** (512×512 WebP). Desfazer/refazer (Ctrl+Z/Y) e botão **Original** (segure) para comparar. O que você fez fica salvo no aparelho.
+
+### Sorteio e Racha-conta
+- **Sorteio**: roleta de nomes (opção de tirar quem já saiu), sorteio de times, dado (1 a 6 dados de 4 a 100 lados), moeda e número (com ou sem repetir). Usa números aleatórios do navegador (`crypto`).
+- **Racha-conta**: divide igualmente (total, pessoas, gorjeta, arredondar) ou **por itens** (quem comeu o quê) e copia um resumo para o grupo.
 
 ### Texto
 - Folha A4 em retrato ou paisagem, com margens de 20 mm (cima/baixo) e 18 mm (laterais).
@@ -61,7 +80,7 @@ Ctrl+N e Ctrl+T pertencem ao navegador e não podem ser usados. "Colar" pelo men
 - `#/continuar`: abre o último documento
 - `#/ferramentas`: página com todos os programas; `#/ferramentas/codigos`, `/planilha`, `/pdf` e `/imagens` abrem o documento mais recente da ferramenta
 - `#/qr/ID`, `#/planilha/ID`, `#/pdf/ID` e `#/imagens/ID`: abrem um documento salvo daquela ferramenta (também aceitam o nome); `#/novo/qr`, `#/novo/planilha`, `#/novo/pdf` e `#/novo/imagens` criam um novo
-- `#/label/ID` (etiquetas) e `#/texts/ID` (textos), também aceitam o nome do documento; `#/doc/ID` continua funcionando
+- `#/etiquetas/ID`, `#/texto/ID`, `#/planilhas/ID`, `#/sorteio/ID`, `#/racha/ID`: documentos salvos (os antigos `#/label/ID` e `#/texts/ID` e `#/doc/ID` continuam abrindo); `#/novo/sorteio` e `#/novo/racha` criam um novo
 - O botão **Link** copia um endereço que cria uma cópia do documento em quem abrir. **O link não leva imagens** (elas aparecem como "Imagem indisponível"); para levar as imagens, use **Salvar (.json)**.
 
 ## Armazenamento
@@ -81,6 +100,7 @@ A instalação exige HTTPS (o GitHub Pages já oferece) ou `localhost`.
 - `texts.js`: modo Texto (editor, sanitização, histórico, imagens)
 - `calc-engine.js`: motor de fórmulas das Planilhas (sem dependências)
 - `tool-calc.js`: modo Planilhas (grade, edição, formatação, CSV/xlsx)
+- `tool-images.js`: editor de Imagens; `tool-fun.js`: Sorteio e Racha-conta; `tool-pdf.js`: Editor de PDF
 - `exemplos/`: foto de exemplo da ferramenta Imagens (créditos na própria tela)
 - `menu.js`: menu de clique direito e atalhos
 - `manifest.webmanifest`: dados do aplicativo instalável

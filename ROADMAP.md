@@ -4,40 +4,21 @@ Lista de pedidos pendentes. Quando o dono do projeto mandar **"Iniciar update"**
 
 ## Próximo update
 
-### Planilhas: cor ao vivo (pedido de 18/10)
-- Seletor de cor estilo Google Planilhas: botão **Redefinir**, grade de cores prontas (tons de cinza, cores vivas e 5 níveis claros/escuros de cada), linha "padrão" com 8 cores comuns, "cores personalizadas" com + e conta-gotas, e cor mais usada lembrada. Vale para fundo e texto.
-- Cor de fundo e do texto mudam enquanto o seletor de cor é arrastado (evento `input`), sem precisar confirmar; o desfazer conta como uma única alteração.
-
-### Tela inicial: selecionar documentos (pedido de 18/10)
-- Botão "Selecionar" nos Documentos recentes: marcar um ou vários cartões (caixinha), "Selecionar todos", contador "N selecionados", barra com Excluir (com confirmação), Favoritar e Cancelar. Esc sai do modo. Funciona em grade e em lista, e respeita busca/filtro ("selecionar todos" marca só o que está visível).
-
-### Pesquisa de ferramentas semelhantes (18/10)
-- Ideias a aprovar: Scanner/OCR (tesseract.js, Apache-2.0, offline), Câmbio e conversor (Frankfurter, sem chave), CEP/CNPJ/feriados (BrasilAPI), roleta/sorteio, racha-conta, QR criativo, cartão/convite, comprimir PDF e imagem, juntar fotos em PDF.
-
-### Hora oficial de Brasília (pedido de 18/10)
-- Relógio/hora real no fuso de Brasília (`America/Sao_Paulo`) ou do estado escolhido (Amazonas, Acre, Fernando de Noronha…), usado em "Hoje/Agora" das Planilhas, datas dos documentos e um mini-relógio. Base: `Intl` com o fuso (funciona offline); API de hora só para corrigir relógio errado do aparelho (a testar qual responde, ex.: worldtimeapi).
-
-### Cartões compactos com ⓘ (pedido de 18/10)
-- Nos cartões de documentos, a linha de detalhes fica curta (só a data, ex.: "18 out") e o resto (tipo, nº de células/palavras/etiquetas, data e hora completas) vai num balão que abre pelo ⓘ (toque no celular, passar o mouse/foco no PC).
-
-### Links em português (pedido de 18/10)
-- Trocar `#/label/` por `#/etiquetas/` e `#/texts/` por `#/texto/` (e `#/qr/`, `#/pdf/`, `#/imagens/`, `#/planilhas/` seguem em português). Os links antigos (`/label/`, `/texts/`) continuam abrindo, só deixam de ser os principais.
-
-### Lista de melhorias aprovada para análise (18/10)
-- Imagens: virar editor simples, estilo Paint + edição básica de foto (só o essencial, sem foco profissional), e consertar o travamento com fotos grandes.
-- Planilhas: funções por botão (fx), somar com um toque, sem digitar `;` nem intervalos.
-- QR com formulários prontos, Etiquetas com tamanhos prontos, Texto com tabelas/cabeçalho/.docx, PDF com anotações melhores, modelos, pastas e backup geral.
-
-### Ainda fora do Texts (fica para depois)
-Tabelas, exportar para `.docx`, cabeçalho/rodapé, comentários, corretor ortográfico próprio (o do navegador continua valendo), recortar e girar imagem, imagem solta sobre o texto (posição livre) e imagem de fundo.
+_(vazio — mande novos pedidos e diga "Iniciar update")_
 
 ## Ideias ainda não aprovadas
 - Salvar modelos próprios (por exemplo "meu padrão" com fontes e tamanhos).
 - Duplicar documento na tela inicial.
 - Tamanhos de etiqueta fixos (por exemplo 10 × 5 cm).
 - Contador "faltam X etiquetas" para completar a última folha.
+- Ainda não feitos da pesquisa de ferramentas: Scanner/OCR (tesseract.js), Câmbio (Frankfurter), CEP/CNPJ/feriados (BrasilAPI), comprimir PDF, juntar fotos em PDF, cartão/convite. Precisam de internet para as APIs; a testar fora do ambiente de desenvolvimento.
+- QR com formulários prontos, Etiquetas com tamanhos prontos, Texto com tabelas/cabeçalho/.docx, modelos, pastas e backup geral.
 
 ## Feito
+- **v23 (18/10)** Planilhas: paleta de cores estilo Google (Redefinir, grade pronta, cores personalizadas, conta-gotas) que muda ao vivo; Σ com Somar/Média/Maior/Menor/Contar; **Ajudante de funções** (escolher a função, clicar nas células, ver o resultado antes de colocar); sugestões ao digitar `=`; modelos prontos (Lista de compras, Controle de gastos, Placar, Dividir a conta, Notas, Estoque).
+- **v23** Imagens reescrito como editor casual (Paint + foto): lápis, pincel, marca-texto, spray, borracha, balde, conta-gotas, formas, texto, meme, balão, adesivos, foto por cima, borrar/pixelar, cortar com proporções, girar/espelhar/redimensionar, brilho/contraste/cores/calor, 11 filtros, molduras, colagem, figurinha de WhatsApp, desfazer/refazer, comparar com o original, JPG/PNG/WebP com qualidade e tamanho. Fotos grandes são reduzidas automaticamente (sem travar).
+- **v23** Novas ferramentas **Sorteio** (roleta de nomes, times, dado, moeda, número) e **Racha-conta** (dividir igual ou por itens, com gorjeta e resumo para copiar).
+- **v22** Links em português (`#/etiquetas/`, `#/texto/`, os antigos continuam abrindo), hora oficial de Brasília (ou outra região) via cabeçalho `Date` do servidor, seleção em lote na tela inicial e balão ⓘ com os detalhes dos documentos.
 - **Tela inicial estilo Google Docs** (busca, faixa "Iniciar um novo documento", recentes em grade ou lista com miniaturas, filtro por tipo, ordenar, favoritos), **Planilhas** (grade com fórmulas, formatação, CSV/xlsx), nomes **Etiquetas** e **Texto** (sem "Coding"), ícones novos de Início e Ferramentas, foto de exemplo em Imagens (crédito @wsilvasjb / Pexels) e barra lateral recolhida em todos os documentos.
 - **Ferramentas como documentos completos**: QR e barras, Etiquetas por planilha, Editor de PDF e Imagens agora têm nome, histórico e favoritos por tipo, links próprios (`#/qr/ID`…), barra do topo igual (Novo, Salvar .json, Abrir, Link), menu de clique direito com submenus e atalhos. PDF e imagens ficam guardados no aparelho e vão dentro do .json.
 - **Editor de PDF** (abrir, juntar, girar, mover/arrastar, excluir, extrair, dividir em .zip, anotar com texto/realce/cobrir, assinatura desenhada e imagem) e **Imagens** (redimensionar, cortar por proporção, girar, comprimir, converter JPG/PNG/WebP, baixar em .zip).
