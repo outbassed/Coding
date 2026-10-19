@@ -17,6 +17,9 @@ Lista de pedidos pendentes. Quando o dono do projeto mandar **"Iniciar update"**
 ### Hora oficial de Brasília (pedido de 18/10)
 - Relógio/hora real no fuso de Brasília (`America/Sao_Paulo`) ou do estado escolhido (Amazonas, Acre, Fernando de Noronha…), usado em "Hoje/Agora" das Planilhas, datas dos documentos e um mini-relógio. Base: `Intl` com o fuso (funciona offline); API de hora só para corrigir relógio errado do aparelho (a testar qual responde, ex.: worldtimeapi).
 
+### Cartões compactos com ⓘ (pedido de 18/10)
+- Nos cartões de documentos, a linha de detalhes fica curta (só a data, ex.: "18 out") e o resto (tipo, nº de células/palavras/etiquetas, data e hora completas) vai num balão que abre pelo ⓘ (toque no celular, passar o mouse/foco no PC).
+
 ### Links em português (pedido de 18/10)
 - Trocar `#/label/` por `#/etiquetas/` e `#/texts/` por `#/texto/` (e `#/qr/`, `#/pdf/`, `#/imagens/`, `#/planilhas/` seguem em português). Os links antigos (`/label/`, `/texts/`) continuam abrindo, só deixam de ser os principais.
 
