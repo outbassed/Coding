@@ -4,7 +4,13 @@ Lista de pedidos pendentes. Quando o dono do projeto mandar **"Iniciar update"**
 
 ## Próximo update
 
-_(vazio — mande novos pedidos e diga "Iniciar update")_
+### Limite automático de documentos (pedido de 18/10)
+- Ao passar de 30 documentos, o Coding apaga sozinho o mais antigo que **não** seja favorito. Favoritos nunca são apagados automaticamente, só à mão. Se os 30 forem favoritos, avisa e não cria o novo até liberar espaço.
+- Avisar com um toast ("Apaguei «nome» (o mais antigo) para abrir espaço") e deixar claro no README e na tela inicial que favoritar protege o documento.
+
+### Horário local no relógio (pedido de 18/10)
+- Acrescentar na lista de regiões a opção **"Horário do aparelho (local)"**, que usa o fuso do próprio aparelho e funciona offline.
+- Padrão: online usa **Brasília** ou a **última região escolhida** (já salva); a opção local fica sempre disponível, inclusive sem internet.
 
 ## Ideias ainda não aprovadas
 - Salvar modelos próprios (por exemplo "meu padrão" com fontes e tamanhos).
