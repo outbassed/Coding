@@ -342,7 +342,7 @@
     { id: "codes", group: "tools", short: "QR e barras", name: "QR e código de barras", desc: "Em folha A4, vários por página", primary: ["Imprimir / PDF", "#ic-print"] },
     { id: "sheet", group: "tools", short: "Planilha → Etiquetas", name: "Planilha → Etiquetas", desc: "Uma etiqueta por linha do CSV ou Excel", primary: ["Criar etiquetas", "#ic-tag"] },
     { id: "pdf", group: "tools", short: "PDF", name: "Editor de PDF", desc: "Anotar, assinar, juntar, dividir e reordenar", primary: ["Baixar PDF", "#ic-download"] },
-    { id: "images", group: "tools", short: "Imagens", name: "Imagens", desc: "Redimensionar, cortar, comprimir e converter", primary: ["Baixar tudo", "#ic-download"] }
+    { id: "images", group: "tools", short: "Imagens", name: "Imagens", desc: "Editar fotos e desenhar, no estilo Paint", primary: ["Baixar imagem", "#ic-download"] }
   ];
   const NAV_KEY = "coding-nav-v1";
   const navPrefs = (() => {
