@@ -84,7 +84,12 @@ Ctrl+N e Ctrl+T pertencem ao navegador e não podem ser usados. "Colar" pelo men
 - O botão **Link** copia um endereço que cria uma cópia do documento em quem abrir. **O link não leva imagens** (elas aparecem como "Imagem indisponível"); para levar as imagens, use **Salvar (.json)**.
 
 ## Armazenamento
-A biblioteca fica no **IndexedDB** do navegador (até 30 documentos), o que permite guardar imagens. Documentos salvos nas versões anteriores (`localStorage`) são migrados sozinhos. Se o navegador não oferecer IndexedDB, o app usa `localStorage` e desativa as imagens. **Salvar** baixa um `.coding.json` (com as imagens, no caso do Texts); **Abrir** importa como um documento novo e abre também arquivos de versões antigas.
+A biblioteca fica no **IndexedDB** do navegador (até **30 documentos**, contador "X/30" na tela inicial), o que permite guardar imagens. Documentos salvos nas versões anteriores (`localStorage`) são migrados sozinhos. Se o navegador não oferecer IndexedDB, o app usa `localStorage` e desativa as imagens.
+- **Rascunhos:** um documento **novo e vazio** fica só na memória: se você sair sem mexer, ele some e não ocupa um dos 30 lugares. Ele entra na biblioteca na primeira alteração real (digitar, importar uma foto/arquivo, renomear, favoritar). Trocar de aba, painel ou zoom não conta como edição.
+- **Abrir sem editar** não regrava o documento nem muda a data de "alterado".
+- **Limite de 30:** ao salvar o 31º documento real, o mais antigo (pela última edição) que **não** seja favorito é apagado, com aviso. Favoritos (estrela) nunca são apagados sozinhos; se os 30 forem favoritos, o novo não é salvo e o app explica como liberar espaço.
+- **Salvar com segurança:** as gravações entram numa fila; se faltar espaço, o status mostra "Não foi possível salvar" e a alteração continua pendente (nada é dado como salvo sem estar).
+- **Salvar (.json)** baixa um `.coding.json` (com as imagens, no caso de Imagens); **Abrir** importa como documento novo. Formatos aceitos: versões 1 a 3 (documentos antigos) e **4** (Imagens, Sorteio e Racha-conta).
 
 ## Instalar como aplicativo
 - **Android/Chrome e computador (Chrome/Edge):** use o botão **Instalar** do app ou o ícone de instalação da barra de endereço.

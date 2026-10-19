@@ -5,6 +5,7 @@
   const LS_KEY = "coding-library-v1";
   const PANEL_KEY = "coding-panel-hidden";
   const MAX_DOCS = 30;
+  const SUPPORTED_VERSIONS = [1, 2, 3, 4]; // versões aceitas de .coding.json (1–3 antigas; 4 = Imagens, Sorteio e Racha-conta)
   const FONTS = ["Arial", "Arial Black", "Impact", "Verdana", "Georgia", "Times New Roman", "Courier New", "Trebuchet MS", "Tahoma"];
 
   const byId = (id) => document.getElementById(id);
@@ -166,7 +167,9 @@
     }
 
     function lsWrite() {
-      localStorage.setItem(LS_KEY, JSON.stringify({ currentId: lib.currentId, docs: lib.docs }));
+      const saved = {};
+      Object.values(lib.docs).forEach((d) => { if (!d.draft) saved[d.id] = d; });
+      localStorage.setItem(LS_KEY, JSON.stringify({ currentId: saved[lib.currentId] ? lib.currentId : null, docs: saved }));
     }
 
     async function loadAll() {
@@ -267,32 +270,84 @@
 
   /* ---------- Salvamento ---------- */
 
-  let dirty = false;
+  // Estados: rascunho (só na memória) → alterado → salvando → salvo (ou erro, que mantém o "alterado").
+  let dirty = false;      // houve mudança de CONTEÚDO ainda não gravada
+  let uiDirty = false;    // só preferências visuais (aba, painel…): nunca muda a data de edição
   let saveTimer;
   let warnedStorage = false;
+  let chain = Promise.resolve();
+
+  const realDocs = () => Object.values(lib.docs).filter((d) => !d.draft);
+  function enqueue(fn) { const run = chain.then(fn); chain = run.catch(() => {}); return run; }
+
+  // Escolhe quem sai quando o 31º documento real é salvo: o mais antigo que não é favorito.
+  function pickVictim(doc) {
+    const others = realDocs().filter((d) => d.id !== doc.id);
+    if (others.length < MAX_DOCS) return { room: true, victim: null };
+    const old = others.filter((d) => !d.fav).sort((a, b) => a.updatedAt - b.updatedAt)[0];
+    return old ? { room: true, victim: old } : { room: false, victim: null };
+  }
+  const FULL_FAVS = "Você já tem " + MAX_DOCS + " documentos favoritos. Tire a estrela de algum ou exclua um para salvar outro.";
+  async function evict(victim) {
+    await removeDoc(victim.id);
+    toast("Apaguei “" + (victim.state.name || "sem título") + "” (o mais antigo que não era favorito) para abrir espaço. Favoritos nunca são apagados sozinhos.");
+  }
 
   function persist() {
     const doc = cur();
-    if (!doc) return;
+    if (!doc) return Promise.resolve();
+    const content = dirty, ui = uiDirty;
+    if (!content && !ui) return Promise.resolve();            // nada mudou: não regrava
+    if (doc.draft && !content) return Promise.resolve();      // rascunho intocado fica fora da biblioteca
     const mode = modes[doc.type];
-    if (mode && mode.collect) mode.collect(doc);
-    if (dirty) { doc.updatedAt = clock.now(); dirty = false; }
-    store.putDoc(doc)
-      .then(() => store.putMeta("currentId", doc.id))
-      .then(() => setSaved("Salvo neste aparelho"))
-      .catch(() => {
-        setSaved("Armazenamento indisponível");
-        if (!warnedStorage) { warnedStorage = true; toast("Sem espaço para salvar neste aparelho. Use Salvar (.json) para guardar uma cópia."); }
-      });
+    if (mode && mode.collect && content) mode.collect(doc);
+    dirty = false; uiDirty = false;
+    const stamp = content ? clock.now() : doc.updatedAt;
+    setSaved("Salvando…");
+    return enqueue(async () => {
+      let victim = null;
+      const wasDraft = Boolean(doc.draft);
+      if (wasDraft) {
+        const r = pickVictim(doc);
+        if (!r.room) { dirty = true; setSaved("Não salvo: biblioteca cheia de favoritos"); toast(FULL_FAVS); return; }
+        victim = r.victim;
+        doc.draft = false;
+      }
+      try {
+        await store.putDoc({ id: doc.id, type: doc.type, fav: doc.fav === true, updatedAt: stamp, state: doc.state });
+        if (content) doc.updatedAt = stamp;
+        await store.putMeta("currentId", doc.id);
+      } catch (e) {
+        if (wasDraft) doc.draft = true;
+        throw e;
+      }
+      if (victim && lib.docs[victim.id]) await evict(victim);
+      setSaved("Salvo neste aparelho");
+    }).catch(() => {
+      dirty = dirty || content; uiDirty = uiDirty || ui;
+      setSaved("Não foi possível salvar");
+      if (!warnedStorage) { warnedStorage = true; toast("Sem espaço para salvar neste aparelho. Use Salvar (.json) para guardar uma cópia e libere espaço."); }
+    });
   }
 
-  function flushSave() { clearTimeout(saveTimer); persist(); }
+  function flushSave() { clearTimeout(saveTimer); return persist(); }
 
-  function scheduleSave() {
-    dirty = true;
-    setSaved("Salvando...");
+  // scheduleSave() = o conteúdo mudou. scheduleSave({ ui: true }) = só uma preferência visual.
+  function scheduleSave(opts) {
+    if (opts && opts.ui) uiDirty = true; else dirty = true;
+    const doc = cur();
+    setSaved(doc && doc.draft && !dirty ? "Sem alterações" : "Alterações pendentes");
     clearTimeout(saveTimer);
     saveTimer = setTimeout(persist, 300);
+  }
+
+  // Rascunhos que ninguém editou somem ao sair: não entram na biblioteca nem gastam um dos 30 lugares.
+  function discardDrafts(exceptId) {
+    Object.values(lib.docs).forEach((d) => { if (d.draft && d.id !== exceptId && !(d.id === lib.currentId && dirty)) delete lib.docs[d.id]; });
+    if (lib.currentId && !lib.docs[lib.currentId]) {
+      const newest = realDocs().sort((a, b) => b.updatedAt - a.updatedAt)[0];
+      lib.currentId = newest ? newest.id : null;
+    }
   }
 
   /* ---------- Rotas ---------- */
@@ -312,7 +367,7 @@
     if (lib.docs[arg]) return arg;
     const wanted = slug(arg);
     if (!wanted) return null;
-    const hit = Object.values(lib.docs).sort((a, b) => b.updatedAt - a.updatedAt).find((d) => slug(d.state.name) === wanted);
+    const hit = Object.values(lib.docs).filter((d) => !d.draft).sort((a, b) => b.updatedAt - a.updatedAt).find((d) => slug(d.state.name) === wanted);
     return hit ? hit.id : null;
   }
 
@@ -429,6 +484,7 @@
     const previous = cur();
     if (previous && modes[previous.type] && modes[previous.type].close) modes[previous.type].close();
     lib.currentId = id;
+    discardDrafts(id);
     showWorkspace(doc.type);
     byId("documentName").value = doc.state.name;
     let release = null;
@@ -443,7 +499,8 @@
     }
     if (token !== openToken) return false;
     hideHome();
-    persist();
+    setSaved(doc.draft ? "Sem alterações" : "Salvo neste aparelho");
+    if (!doc.draft) enqueue(() => store.putMeta("currentId", doc.id)).catch(() => {});   // só lembra qual está aberto; não regrava o documento
     setRoute(docHash(id), opts.replace);
     return true;
   }
@@ -457,21 +514,28 @@
   async function createDoc(type, source, opts = {}) {
     const mode = modes[type];
     if (!mode) return false;
-    if (Object.keys(lib.docs).length >= MAX_DOCS) {
-      toast("Limite de " + MAX_DOCS + " documentos. Exclua algum na tela inicial.");
-      return false;
-    }
-    flushSave();
+    await flushSave();
+    const hasContent = Boolean(source) || Boolean(opts.images && opts.images.length);
     const id = uid();
     const doc = { id, type, updatedAt: clock.now(), state: mode.normalize(source || mode.defaults()) };
+    if (!hasContent) {
+      // "Novo" vazio: rascunho só na memória. Entra na biblioteca quando houver uma alteração de verdade.
+      doc.draft = true;
+      lib.docs[id] = doc;
+      return openDoc(id, opts);
+    }
+    const room = pickVictim(doc);
+    if (!room.room) { toast(FULL_FAVS); return false; }
     try {
       for (const image of opts.images || []) await store.putImage({ ...image, docId: id });
+      await store.putDoc({ id, type, fav: false, updatedAt: doc.updatedAt, state: doc.state });
       lib.docs[id] = doc;
-      await store.putDoc(doc);
     } catch (_) {
-      lib.docs[id] = doc;
-      toast("Não foi possível guardar todas as imagens neste aparelho.");
+      try { await store.deleteDoc(id); } catch (e) { /* ignorado */ }
+      toast("Não consegui guardar este documento neste aparelho (sem espaço?). Nada foi apagado.");
+      return false;
     }
+    if (room.victim && lib.docs[room.victim.id]) await evict(room.victim);
     return openDoc(id, opts);
   }
 
@@ -525,7 +589,7 @@
 
   function visibleDocs() {
     const q = fold(searchTerm.trim());
-    let list = Object.values(lib.docs);
+    let list = realDocs();
     if (homePrefs.filter === "favs") list = list.filter((d) => d.fav);
     else if (TYPES.includes(homePrefs.filter)) list = list.filter((d) => d.type === homePrefs.filter);
     if (q) list = list.filter((d) => fold(d.state.name).includes(q) || fold(TYPE_META[d.type].name).includes(q) || fold(snippetOf(d).join(" ")).includes(q));
@@ -536,7 +600,7 @@
 
   function renderFilter() {
     const sel = byId("homeFilter");
-    const all = Object.values(lib.docs);
+    const all = realDocs();
     if (homePrefs.filter !== "all" && homePrefs.filter !== "favs" && !TYPES.includes(homePrefs.filter)) homePrefs.filter = "all";
     const opts = [["all", "Todos os tipos (" + all.length + ")"], ["favs", "Favoritos (" + all.filter((d) => d.fav).length + ")"]]
       .concat(PROGRAMS.map((p) => [p.id, p.short + " (" + all.filter((d) => d.type === p.id).length + ")"]));
@@ -684,7 +748,7 @@
   function favPicked() {
     const docs = [...picked].map((id) => lib.docs[id]).filter(Boolean);
     const makeFav = !docs.every((d) => d.fav);
-    docs.forEach((d) => { d.fav = makeFav; store.putDoc(d).catch(() => {}); });
+    docs.forEach((d) => { d.fav = makeFav; store.putDoc({ id: d.id, type: d.type, fav: d.fav === true, updatedAt: d.updatedAt, state: d.state }).catch(() => {}); });
     renderHome();
     toast(makeFav ? "Adicionados aos favoritos." : "Removidos dos favoritos.");
   }
@@ -693,15 +757,19 @@
     renderFilter();
     const grid = byId("docGrid");
     grid.className = "doc-grid" + (homePrefs.view === "list" ? " is-list" : "");
-    if (selMode && !Object.keys(lib.docs).length) selMode = false;
+    if (selMode && !realDocs().length) selMode = false;
     const list = visibleDocs();
     grid.replaceChildren(...list.map(docCard));
     const empty = byId("docEmpty");
-    const total = Object.keys(lib.docs).length;
+    const total = realDocs().length;
     empty.hidden = list.length > 0;
     empty.textContent = !total ? "Nenhum documento ainda. Escolha um programa acima para começar."
       : searchTerm.trim() ? "Nada encontrado para “" + searchTerm.trim() + "”."
       : homePrefs.filter === "favs" ? "Nenhum favorito ainda. Toque na estrela de um documento." : "Nenhum documento deste tipo.";
+    const cnt = byId("docsCount");
+    cnt.textContent = total + "/" + MAX_DOCS;
+    cnt.title = "Você pode guardar até " + MAX_DOCS + " documentos. Ao salvar mais um, o mais antigo que não for favorito é apagado. Favoritos (estrela) ficam protegidos.";
+    cnt.classList.toggle("is-full", total >= MAX_DOCS);
     byId("docsTitle").textContent = homePrefs.filter === "favs" ? "Favoritos" : searchTerm.trim() ? "Resultados" : "Documentos recentes";
     [...picked].forEach((id) => { if (!lib.docs[id]) picked.delete(id); });
     updateSelUi();
@@ -714,7 +782,8 @@
     const doc = lib.docs[id || lib.currentId];
     if (!doc) return;
     doc.fav = !doc.fav;
-    store.putDoc(doc).catch(() => setSaved("Armazenamento indisponível"));
+    if (doc.draft) { dirty = true; flushSave(); }
+    else store.putDoc({ id: doc.id, type: doc.type, fav: doc.fav === true, updatedAt: doc.updatedAt, state: doc.state }).catch(() => setSaved("Não foi possível salvar"));
     toast(doc.fav ? "Adicionado aos favoritos." : "Removido dos favoritos.");
     if (!homeEl.hidden) renderHome();
   }
@@ -723,6 +792,7 @@
 
   function showHome(opts = {}) {
     flushSave();
+    discardDrafts(null);
     setRoute("#/", opts.replace);
     if (!opts.keepSearch) { searchTerm = ""; byId("homeSearch").value = ""; }
     renderHome();
@@ -759,7 +829,7 @@
   }
 
   function openLatest(type, opts) {
-    const latest = Object.values(lib.docs).filter((d) => d.type === type).sort((a, b) => b.updatedAt - a.updatedAt)[0];
+    const latest = realDocs().filter((d) => d.type === type).sort((a, b) => b.updatedAt - a.updatedAt)[0];
     if (latest) return openDoc(latest.id, opts || {});
     return createDoc(type, null, opts || {});
   }
@@ -822,8 +892,9 @@
   async function exportProject() {
     const doc = cur();
     if (!doc) return;
-    flushSave();
+    await flushSave();
     const mode = modes[doc.type];
+    if (mode.collect) mode.collect(doc);
     const release = busy("Preparando o arquivo…");
     try {
       const payload = mode.exportPayload ? await mode.exportPayload(doc) : mode.payload(doc);
@@ -845,7 +916,7 @@
   }
 
   async function importData(data, opts = {}) {
-    if (!data || typeof data !== "object" || data.format !== "coding-document" || ![1, 2, 3].includes(data.version)) throw new Error("Formato inválido");
+    if (!data || typeof data !== "object" || data.format !== "coding-document" || !SUPPORTED_VERSIONS.includes(data.version)) throw new Error("Formato inválido");
     const type = asType(data.type);
     const mode = modes[type];
     const prepared = mode.prepareImport ? await mode.prepareImport(data) : { state: data, images: [] };
@@ -891,7 +962,7 @@
       const name = toText(data.name, "Documento", 80).trim() || "Documento";
       release();
       if (window.confirm("Abrir o documento compartilhado “" + name + "”? Ele será salvo como um novo documento neste aparelho.")) {
-        data.version = 3;
+        if (!SUPPORTED_VERSIONS.includes(data.version)) data.version = 3;
         if (await importData(data, { replace: true })) return;
       }
     } catch (_) {
@@ -1169,7 +1240,7 @@
       try { loaded = await store.loadAll(); } catch (e) { loaded = { currentId: null, docs: [] }; }
     }
     const docs = {};
-    loaded.docs.slice(0, MAX_DOCS).forEach((d) => {
+    loaded.docs.forEach((d) => {
       if (!d || typeof d.id !== "string") return;
       const type = asType(d.type);
       if (!modes[type]) return;
@@ -1178,6 +1249,8 @@
       } catch (_) { /* documento corrompido é ignorado */ }
     });
     lib.docs = docs;
+    const overflow = Object.keys(docs).length - MAX_DOCS;
+    if (overflow > 0) setTimeout(() => toast("Você tem " + Object.keys(docs).length + " documentos (o limite agora é " + MAX_DOCS + "). Nada foi apagado; ao salvar um novo, o mais antigo sem estrela sai."), 1500);
     const newest = Object.values(docs).sort((a, b) => b.updatedAt - a.updatedAt)[0];
     lib.currentId = docs[loaded.currentId] ? loaded.currentId : (newest ? newest.id : null);
     if (!store.images) document.documentElement.dataset.noImages = "1";
@@ -1190,7 +1263,7 @@
     util: { byId, clamp, uid, toInt, toText, toFont, toAlign, toBool, FONTS },
     lib, store, modes,
     register(mode) { modes[mode.type] = mode; },
-    toast, setSaved, scheduleSave, flushSave, busy,
+    toast, setSaved, scheduleSave, flushSave, busy, SUPPORTED_VERSIONS,
     setPrimary, asType, programs: PROGRAMS, primaryLabel() { const d = cur(); return d ? TYPE_META[d.type].primary[0] : "Imprimir / PDF"; }, cur, curMode, toggleFav, isFav, openDoc, createDoc, newDoc, goHome, print, exportProject, copyShareLink,
     openImport() { byId("importInput").click(); },
     PANEL_KEY,

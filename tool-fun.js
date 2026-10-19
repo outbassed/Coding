@@ -203,7 +203,7 @@
   }
   function dPrimary() { ({ names: spin, teams: teamsGo, dice: roll, coin: flip, num: numGo })[ds.tab](); }
 
-  dws.addEventListener("click", (e) => { const b = e.target.closest("[data-dt]"); if (b) { showDTab(b.dataset.dt); mark(); } });
+  dws.addEventListener("click", (e) => { const b = e.target.closest("[data-dt]"); if (b) { showDTab(b.dataset.dt); C.scheduleSave({ ui: true }); } });
   dui.spin.addEventListener("click", spin);
   byId("drTeamGo").addEventListener("click", teamsGo);
   byId("drRoll").addEventListener("click", roll);
@@ -347,7 +347,7 @@
     try { await navigator.clipboard.writeText(t); C.toast("Resumo copiado! É só colar no grupo."); } catch (_) { C.toast("Seu navegador não deixou copiar."); }
   }
   sws.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-st]"); if (t) { showSTab(t.dataset.st); mark(); return; }
+    const t = e.target.closest("[data-st]"); if (t) { showSTab(t.dataset.st); C.scheduleSave({ ui: true }); return; }
     const st = e.target.closest("[data-step]"); if (st) { ss.people = clamp(ss.people + Number(st.dataset.step), 1, 99); sui.people.value = String(ss.people); mark(); calcEq(); return; }
     const tp = e.target.closest("[data-tip]"); if (tp) { ss.tip = Number(tp.dataset.tip); sui.tip.value = String(ss.tip); mark(); calcEq(); }
   });

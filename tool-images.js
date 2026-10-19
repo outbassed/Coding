@@ -541,9 +541,11 @@
     byId("imW").value = String(w); byId("imH").value = String(h);
     layout();
   }
+  // Há trabalho a perder? Vale para quem acabou de editar e também para um documento salvo e reaberto.
+  function hasWork() { return has && (undoSt.length > 0 || objs.length > 0 || Boolean(state.curId) || dirtyImg); }
   async function loadBase(file) {
     if (!C.store.images) { C.toast("Este navegador não guarda arquivos: o editor de imagens fica indisponível."); return; }
-    if (has && undoSt.length && !window.confirm("Abrir outra foto? O que você fez nesta será perdido (baixe antes, se quiser guardar).")) return;
+    if (hasWork() && !window.confirm("Trocar a foto deste documento? As alterações feitas nela (desenhos, textos, filtros, cortes) serão perdidas.\n\nDica: use Novo na barra de cima para abrir outra foto num documento separado, sem perder esta.")) return;
     const end = C.busy("Preparando a foto…");
     try {
       const info = await decode(file);
@@ -567,7 +569,7 @@
     } finally { end(); }
   }
   async function loadBlank(bw, bh, transparent) {
-    if (has && undoSt.length && !window.confirm("Começar uma tela nova? O que você fez nesta será perdido.")) return;
+    if (hasWork() && !window.confirm("Começar uma tela em branco neste documento? Tudo o que está nesta imagem será perdido.\n\nDica: use Novo na barra de cima para começar outra tela sem perder esta.")) return;
     const oldIds = [state.origId, state.curId].filter(Boolean);
     undoSt = []; redoSt = []; lastCopy = null; lastRev = -1;
     objs = []; sel = null; crop = null; adj = null; clearAdjUi();
