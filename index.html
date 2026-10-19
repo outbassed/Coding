@@ -135,6 +135,8 @@
     <symbol id="ic-home" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></symbol>
     <symbol id="ic-tools" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.1L3 17.7 6.3 21l6.3-6.3a4 4 0 0 0 5.1-5.4l-2.8 2.8-2.5-.6-.6-2.5z"/></symbol>
     <symbol id="ic-qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h3M20 17v4"/></symbol>
+    <symbol id="ic-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></symbol>
+    <symbol id="ic-checkbox" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="m8 12.2 3 3 5-6"/></symbol>
     <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
     <symbol id="ic-sort" viewBox="0 0 24 24"><path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3"/></symbol>
     <symbol id="ic-viewgrid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
@@ -533,6 +535,7 @@
       <div class="home-top-in">
         <div class="home-logo"><span class="brand-icon"><svg class="icon"><use href="#ic-file"/></svg></span><strong>Coding</strong></div>
         <label class="home-search"><svg class="icon" aria-hidden="true"><use href="#ic-search"/></svg><input id="homeSearch" type="search" placeholder="Pesquisar documentos" autocomplete="off" aria-label="Pesquisar documentos"></label>
+        <label class="home-clock" title="Hora oficial. Toque para trocar a região."><span id="homeTime" aria-live="off"></span><select id="homeZone" aria-label="Região do fuso horário"></select></label>
         <button id="homeImport" class="btn subtle" type="button"><svg class="icon"><use href="#ic-upload"/></svg><span class="btn-label">Abrir arquivo</span></button>
       </div>
     </div>
@@ -545,9 +548,20 @@
     <section class="home-docs home-wrap" aria-labelledby="docsTitle">
       <div class="docs-bar">
         <h2 id="docsTitle">Documentos recentes</h2>
-        <select id="homeFilter" class="docs-select" aria-label="Filtrar por tipo"></select>
-        <button id="homeSort" class="icon-btn" type="button" title="Ordenar" aria-label="Ordenar"><svg class="icon"><use href="#ic-sort"/></svg></button>
-        <button id="homeView" class="icon-btn" type="button" title="Alternar grade e lista" aria-label="Alternar grade e lista"><svg class="icon"><use href="#ic-list"/></svg></button>
+        <div class="docs-tools" id="docsTools">
+          <select id="homeFilter" class="docs-select" aria-label="Filtrar por tipo"></select>
+          <button id="homeSelect" class="icon-btn" type="button" title="Selecionar documentos" aria-label="Selecionar documentos"><svg class="icon"><use href="#ic-checkbox"/></svg></button>
+          <button id="homeSort" class="icon-btn" type="button" title="Ordenar" aria-label="Ordenar"><svg class="icon"><use href="#ic-sort"/></svg></button>
+          <button id="homeView" class="icon-btn" type="button" title="Alternar grade e lista" aria-label="Alternar grade e lista"><svg class="icon"><use href="#ic-list"/></svg></button>
+        </div>
+        <div class="sel-bar" id="selBar" hidden>
+          <button id="selAll" class="btn subtle" type="button" aria-pressed="false"><svg class="icon"><use href="#ic-checkbox"/></svg><span class="btn-label">Selecionar todos</span></button>
+          <span id="selCount" class="sel-count" role="status"></span>
+          <span class="sel-grow"></span>
+          <button id="selFav" class="btn subtle" type="button" disabled><svg class="icon"><use href="#ic-star"/></svg><span class="btn-label">Favoritar</span></button>
+          <button id="selDel" class="btn danger" type="button" disabled><svg class="icon"><use href="#ic-trash"/></svg><span class="btn-label">Excluir</span></button>
+          <button id="selCancel" class="btn subtle" type="button">Cancelar</button>
+        </div>
       </div>
       <div id="docGrid" class="doc-grid"></div>
       <p id="docEmpty" class="docs-empty" hidden></p>

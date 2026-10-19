@@ -803,3 +803,36 @@ body { --nav-w: 0px; --nav-h: 0px; }
 .row-item .ri-del { width: 38px; height: 38px; }
 .rows-add { align-self: flex-start; margin-top: 4px; }
 @media (max-width: 520px) { .row-item { grid-template-columns: minmax(0, 1fr) 64px 38px; } .row-item .ri-label { grid-column: 1 / 3; grid-row: 2; } }
+
+/* ===== v22: seleção em lote, ⓘ, relógio ===== */
+.btn.danger { background: #5a2f38; color: #ffd9de; border-color: #8a4452; }
+.btn.danger:hover:not(:disabled) { background: #70384a; }
+.btn:disabled { opacity: .45; cursor: default; }
+.home-clock { flex: none; display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 6px 0 12px; border-radius: 999px; background: #1d2839; color: var(--text); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.home-clock select { max-width: 120px; height: 30px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; text-overflow: ellipsis; }
+.home-clock select option { color: #111; }
+.docs-tools { display: flex; align-items: center; gap: 8px; }
+.docs-tools[hidden], .sel-bar[hidden], #docsTitle[hidden] { display: none; }
+.sel-bar { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sel-grow { flex: 1; }
+.sel-count { font-size: 13.5px; font-weight: 650; color: #cfe0ff; }
+#selAll[aria-pressed="true"] { background: #3d63ad66; border-color: #5b7fc4; }
+.doc-check { position: absolute; left: 8px; top: 8px; width: 24px; height: 24px; display: none; place-items: center; border-radius: 7px; border: 2px solid #ffffffcc; background: #0f141d99; color: transparent; }
+.doc-check .icon { width: 16px; height: 16px; stroke-width: 3; }
+.doc-grid.is-selecting .doc-check { display: grid; }
+.doc-grid.is-selecting .thumb-open { display: none; }
+.doc-card.is-picked { border-color: #6f93dd; box-shadow: 0 0 0 2px #6f93dd; }
+.doc-card.is-picked .doc-check { background: #3d63ad; border-color: #fff; color: #fff; }
+.doc-grid.is-selecting .doc-actions { display: none; }
+.doc-grid.is-selecting .doc-open { cursor: pointer; }
+.doc-grid.is-list .doc-check { position: static; flex: none; margin-right: 4px; }
+.doc-grid.is-list.is-selecting .doc-thumb { overflow: visible; }
+.info-btn .icon { width: 18px; height: 18px; }
+.thumb-page.is-photo { background-size: cover; background-position: center; padding: 0; }
+.doc-pop { position: fixed; z-index: 90; width: min(260px, calc(100vw - 16px)); padding: 12px 14px; border-radius: 12px; background: #0f141df2; color: var(--text); border: 1px solid #4a5f85; box-shadow: 0 14px 34px #000a; font-size: 12.5px; display: flex; flex-direction: column; gap: 6px; }
+.doc-pop[hidden] { display: none; }
+.doc-pop strong { font-size: 13.5px; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-pop div { display: flex; justify-content: space-between; gap: 12px; }
+.doc-pop span { color: var(--muted); flex: none; }
+.doc-pop b { font-weight: 600; text-align: right; }
+@media (max-width: 899px) { .home-clock select { max-width: 88px; } .home-clock { order: 2; } #homeImport { order: 2; } }

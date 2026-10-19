@@ -19,6 +19,49 @@
   const toAlign = (value, fallback) => ["left", "center", "right"].includes(value) ? value : fallback;
   const toBool = (value, fallback) => typeof value === "boolean" ? value : fallback;
 
+  /* ---------- Relógio: hora de Brasília (ou da sua região) e correção do relógio do aparelho ---------- */
+
+  const ZONES = [
+    ["America/Sao_Paulo", "Brasília (SP, RJ, MG, BA, GO, sul e nordeste)"],
+    ["America/Manaus", "Manaus (AM, RR, RO)"],
+    ["America/Cuiaba", "Cuiabá (MT, MS)"],
+    ["America/Rio_Branco", "Rio Branco (AC)"],
+    ["America/Noronha", "Fernando de Noronha"]
+  ];
+  const ZONE_KEY = "coding-zone";
+  const MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  const clock = {
+    offset: 0,
+    zone: (() => { try { const z = localStorage.getItem(ZONE_KEY); if (ZONES.some((x) => x[0] === z)) return z; } catch (_) { /* padrão */ } return "America/Sao_Paulo"; })(),
+    now() { return Date.now() + this.offset; },
+    setZone(z) { if (!ZONES.some((x) => x[0] === z)) return; this.zone = z; try { localStorage.setItem(ZONE_KEY, z); } catch (_) { /* sem armazenamento */ } },
+    parts(ts, opts) {
+      try { return new Intl.DateTimeFormat("pt-BR", { timeZone: this.zone, ...opts }); } catch (_) { return new Intl.DateTimeFormat("pt-BR", opts); }
+    },
+    short(ts) { const p = this.parts(ts, { day: "2-digit", month: "numeric" }).formatToParts(new Date(ts)); const d = p.find((x) => x.type === "day").value; const m = Number(p.find((x) => x.type === "month").value); return d + " " + MONTHS[m - 1]; },
+    full(ts) { return this.parts(ts, { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(ts)); },
+    time(ts) { return this.parts(ts, { hour: "2-digit", minute: "2-digit" }).format(new Date(ts === undefined ? this.now() : ts)); },
+    zoneName() { const z = ZONES.find((x) => x[0] === this.zone); return z ? z[1].split(" (")[0] : "Brasília"; }
+  };
+  /* A data vem do cabeçalho "Date" do próprio servidor do app: sem API de terceiros, sem chave e sem bloqueio de CORS. */
+  async function syncClock() {
+    if (!/^https?:$/.test(location.protocol) || navigator.onLine === false) return;
+    try {
+      const t0 = Date.now();
+      const res = await fetch(location.pathname, { method: "HEAD", cache: "no-store" });
+      const t1 = Date.now();
+      const header = res.headers.get("date");
+      if (!header) return;
+      const server = Date.parse(header);
+      if (!Number.isFinite(server)) return;
+      clock.offset = server - (t0 + t1) / 2;
+      if (Math.abs(clock.offset) > 60000) {
+        const min = Math.round(Math.abs(clock.offset) / 60000);
+        toast("O relógio do seu aparelho está " + min + (min === 1 ? " minuto " : " minutos ") + (clock.offset > 0 ? "atrasado" : "adiantado") + ". O Coding usa a hora certa de " + clock.zoneName() + ".");
+      }
+    } catch (_) { /* sem internet: usa o relógio do aparelho */ }
+  }
+
   const modes = {};
   const lib = { docs: {}, currentId: null };
   let toastTimer;
@@ -233,7 +276,7 @@
     if (!doc) return;
     const mode = modes[doc.type];
     if (mode && mode.collect) mode.collect(doc);
-    if (dirty) { doc.updatedAt = Date.now(); dirty = false; }
+    if (dirty) { doc.updatedAt = clock.now(); dirty = false; }
     store.putDoc(doc)
       .then(() => store.putMeta("currentId", doc.id))
       .then(() => setSaved("Salvo neste aparelho"))
@@ -289,7 +332,7 @@
     pdf: ["pdf"],
     images: ["imagens", "imagem", "images"]
   };
-  const ROUTE_NAME = { labels: "label", texts: "texts", calc: "planilhas", codes: "qr", sheet: "planilha", pdf: "pdf", images: "imagens" };
+  const ROUTE_NAME = { labels: "etiquetas", texts: "texto", calc: "planilhas", codes: "qr", sheet: "planilha", pdf: "pdf", images: "imagens" };
   const typeFromRoute = (name) => TYPES.find((t) => ROUTE_ALIASES[t].includes(name)) || null;
   const asType = (t) => (TYPES.includes(t) ? t : "labels");
   const PROGRAMS = [
@@ -416,7 +459,7 @@
     }
     flushSave();
     const id = uid();
-    const doc = { id, type, updatedAt: Date.now(), state: mode.normalize(source || mode.defaults()) };
+    const doc = { id, type, updatedAt: clock.now(), state: mode.normalize(source || mode.defaults()) };
     try {
       for (const image of opts.images || []) await store.putImage({ ...image, docId: id });
       lib.docs[id] = doc;
@@ -435,8 +478,7 @@
 
   function docInfo(doc) {
     const mode = modes[doc.type];
-    const when = new Date(doc.updatedAt).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-    return (mode && mode.info ? mode.info(doc) + " · " : "") + when;
+    return (mode && mode.info ? mode.info(doc) + " · " : "") + clock.short(doc.updatedAt);
   }
 
   /* ---------- Tela inicial (estilo Google Docs) ---------- */
@@ -499,35 +541,49 @@
     sel.value = homePrefs.filter;
   }
 
+  let selMode = false;
+  const picked = new Set();
+
   function docCard(d) {
     const name = d.state.name.trim() || "Documento sem título";
     const meta = TYPE_META[d.type];
     const li = document.createElement("li");
-    li.className = "doc-card t-" + d.type + (d.id === lib.currentId ? " is-current" : "");
+    li.className = "doc-card t-" + d.type + (d.id === lib.currentId ? " is-current" : "") + (picked.has(d.id) ? " is-picked" : "");
+    li.dataset.id = d.id;
     const open = document.createElement("button");
     open.type = "button";
     open.className = "doc-open";
     open.dataset.open = d.id;
     open.title = name;
+    if (selMode) open.setAttribute("aria-pressed", String(picked.has(d.id)));
     const thumb = document.createElement("span");
     thumb.className = "doc-thumb";
     const page = document.createElement("span");
     page.className = "thumb-page";
-    const lines = snippetOf(d);
-    if (lines.length) lines.forEach((l) => { const row = document.createElement("span"); row.textContent = l; page.append(row); });
-    else page.classList.add("is-blank");
+    const mode = modes[d.type];
+    const pic = mode && mode.thumb ? mode.thumb(d) : "";
+    if (pic) { page.classList.add("is-photo"); page.style.backgroundImage = 'url("' + pic + '")'; }
+    else {
+      const lines = snippetOf(d);
+      if (lines.length) lines.forEach((l) => { const row = document.createElement("span"); row.textContent = l; page.append(row); });
+      else page.classList.add("is-blank");
+    }
     thumb.append(page);
     const badge = document.createElement("span");
     badge.className = "thumb-type";
     badge.innerHTML = '<svg class="pi"><use href="' + meta.icon + '"/></svg>';
     thumb.append(badge);
-    if (d.id === lib.currentId) { const cur = document.createElement("span"); cur.className = "thumb-open"; cur.textContent = "Aberto"; thumb.append(cur); }
+    if (d.id === lib.currentId) { const c = document.createElement("span"); c.className = "thumb-open"; c.textContent = "Aberto"; thumb.append(c); }
+    const check = document.createElement("span");
+    check.className = "doc-check";
+    check.innerHTML = '<svg class="icon"><use href="#ic-check"/></svg>';
+    thumb.append(check);
     const text = document.createElement("span");
     text.className = "doc-text";
     const title = document.createElement("strong");
     title.textContent = name;
     const info = document.createElement("small");
-    info.textContent = meta.short + " · " + docInfo(d);
+    info.textContent = meta.short + " · " + clock.short(d.updatedAt);
     text.append(title, info);
     open.append(thumb, text);
     const star = document.createElement("button");
@@ -538,6 +594,12 @@
     star.setAttribute("aria-label", (d.fav ? "Remover dos favoritos: " : "Adicionar aos favoritos: ") + name);
     star.title = d.fav ? "Remover dos favoritos" : "Adicionar aos favoritos";
     star.innerHTML = '<svg class="icon"><use href="#ic-star"/></svg>';
+    const inf = document.createElement("button");
+    inf.type = "button";
+    inf.className = "icon-btn info-btn";
+    inf.dataset.info = d.id;
+    inf.setAttribute("aria-label", "Detalhes de " + name);
+    inf.innerHTML = '<svg class="icon"><use href="#ic-info"/></svg>';
     const del = document.createElement("button");
     del.type = "button";
     del.className = "icon-btn danger";
@@ -547,15 +609,88 @@
     del.innerHTML = '<svg class="icon"><use href="#ic-trash"/></svg>';
     const actions = document.createElement("span");
     actions.className = "doc-actions";
-    actions.append(star, del);
+    actions.append(inf, star, del);
     li.append(open, actions);
     return li;
+  }
+
+  /* ---- balão de detalhes (ⓘ) ---- */
+  const pop = document.createElement("div");
+  pop.className = "doc-pop";
+  pop.setAttribute("role", "tooltip");
+  pop.hidden = true;
+  document.body.append(pop);
+  let popFor = null;
+  let popTimer = 0;
+  function showPop(btn) {
+    clearTimeout(popTimer);
+    const doc = lib.docs[btn.dataset.info];
+    if (!doc) return;
+    const mode = modes[doc.type];
+    const rows = [["Tipo", TYPE_META[doc.type].name], ["Conteúdo", mode && mode.info ? mode.info(doc) : "—"], ["Alterado", clock.full(doc.updatedAt)], ["Favorito", doc.fav ? "Sim" : "Não"]];
+    pop.replaceChildren();
+    const h = document.createElement("strong");
+    h.textContent = doc.state.name.trim() || "Documento sem título";
+    pop.append(h);
+    rows.forEach(([k, v]) => { const r = document.createElement("div"); const a = document.createElement("span"); a.textContent = k; const b = document.createElement("b"); b.textContent = v; r.append(a, b); pop.append(r); });
+    pop.hidden = false;
+    popFor = btn;
+    const box = btn.getBoundingClientRect();
+    const w = pop.offsetWidth, hgt = pop.offsetHeight;
+    let left = clamp(box.right - w, 8, window.innerWidth - w - 8);
+    let top = box.bottom + 6;
+    if (top + hgt > window.innerHeight - 8) top = Math.max(8, box.top - hgt - 6);
+    pop.style.left = left + "px";
+    pop.style.top = top + "px";
+  }
+  function hidePop() { clearTimeout(popTimer); pop.hidden = true; popFor = null; }
+
+  /* ---- seleção em lote ---- */
+  function updateSelUi() {
+    const bar = byId("selBar");
+    bar.hidden = !selMode;
+    byId("docsTools").hidden = selMode;
+    byId("docsTitle").hidden = selMode;
+    const visible = visibleDocs();
+    const all = visible.length > 0 && visible.every((d) => picked.has(d.id));
+    byId("selAll").setAttribute("aria-pressed", String(all));
+    byId("selAll").querySelector(".btn-label").textContent = all ? "Limpar seleção" : "Selecionar todos";
+    const n = picked.size;
+    byId("selCount").textContent = n === 0 ? "Nenhum selecionado" : n + (n === 1 ? " selecionado" : " selecionados");
+    byId("selDel").disabled = n === 0;
+    byId("selFav").disabled = n === 0;
+    const allFav = n > 0 && [...picked].every((id) => lib.docs[id] && lib.docs[id].fav);
+    byId("selFav").querySelector(".btn-label").textContent = allFav ? "Tirar dos favoritos" : "Favoritar";
+    byId("docGrid").classList.toggle("is-selecting", selMode);
+  }
+  function enterSelect(id) { selMode = true; if (id) picked.add(id); hidePop(); renderHome(); }
+  function exitSelect() { selMode = false; picked.clear(); renderHome(); }
+  function togglePick(id) { if (picked.has(id)) picked.delete(id); else picked.add(id); const li = byId("docGrid").querySelector('[data-id="' + id + '"]'); if (li) { li.classList.toggle("is-picked", picked.has(id)); li.querySelector(".doc-open").setAttribute("aria-pressed", String(picked.has(id))); } updateSelUi(); }
+  function pickAll() { const visible = visibleDocs(); const all = visible.length > 0 && visible.every((d) => picked.has(d.id)); visible.forEach((d) => { if (all) picked.delete(d.id); else picked.add(d.id); }); renderHome(); }
+  async function deletePicked() {
+    const ids = [...picked].filter((id) => lib.docs[id]);
+    if (!ids.length) return;
+    if (!window.confirm("Excluir " + ids.length + (ids.length === 1 ? " documento" : " documentos") + "? Esta ação não pode ser desfeita.")) return;
+    for (const id of ids) await removeDoc(id);
+    if (ids.includes(lib.currentId)) { lib.currentId = null; persist(); }
+    picked.clear();
+    selMode = false;
+    renderHome();
+    toast(ids.length + (ids.length === 1 ? " documento excluído." : " documentos excluídos."));
+  }
+  function favPicked() {
+    const docs = [...picked].map((id) => lib.docs[id]).filter(Boolean);
+    const makeFav = !docs.every((d) => d.fav);
+    docs.forEach((d) => { d.fav = makeFav; store.putDoc(d).catch(() => {}); });
+    renderHome();
+    toast(makeFav ? "Adicionados aos favoritos." : "Removidos dos favoritos.");
   }
 
   function renderHome() {
     renderFilter();
     const grid = byId("docGrid");
     grid.className = "doc-grid" + (homePrefs.view === "list" ? " is-list" : "");
+    if (selMode && !Object.keys(lib.docs).length) selMode = false;
     const list = visibleDocs();
     grid.replaceChildren(...list.map(docCard));
     const empty = byId("docEmpty");
@@ -565,6 +700,8 @@
       : searchTerm.trim() ? "Nada encontrado para “" + searchTerm.trim() + "”."
       : homePrefs.filter === "favs" ? "Nenhum favorito ainda. Toque na estrela de um documento." : "Nenhum documento deste tipo.";
     byId("docsTitle").textContent = homePrefs.filter === "favs" ? "Favoritos" : searchTerm.trim() ? "Resultados" : "Documentos recentes";
+    [...picked].forEach((id) => { if (!lib.docs[id]) picked.delete(id); });
+    updateSelUi();
     byId("homeView").querySelector("use").setAttribute("href", homePrefs.view === "list" ? "#ic-viewgrid" : "#ic-list");
     byId("homeView").title = homePrefs.view === "list" ? "Ver em grade" : "Ver em lista";
     byId("homeSort").title = homePrefs.sort === "name" ? "Ordenado de A a Z (tocar: mais recentes)" : "Mais recentes primeiro (tocar: ordenar de A a Z)";
@@ -947,10 +1084,15 @@
     fileOpt.innerHTML = '<span class="home-ic"><svg class="icon"><use href="#ic-upload"/></svg></span><span class="home-txt"><strong>Abrir arquivo .json</strong><small>Projeto salvo antes</small></span>';
     byId("newSheetList").append(fileOpt);
     byId("homeImport").addEventListener("click", () => byId("importInput").click());
-    byId("docGrid").addEventListener("click", (e) => {
+    const grid = byId("docGrid");
+    let pressTimer = 0, suppress = false;
+    grid.addEventListener("click", (e) => {
+      const infoBtn = e.target.closest("[data-info]");
+      if (infoBtn) { e.stopPropagation(); if (popFor === infoBtn && !pop.hidden) hidePop(); else showPop(infoBtn); return; }
       const open = e.target.closest("[data-open]");
       const del = e.target.closest("[data-del]");
       const fav = e.target.closest("[data-fav]");
+      if (suppress) { suppress = false; return; }
       if (fav) { toggleFav(fav.dataset.fav); return; }
       if (del) {
         const doc = lib.docs[del.dataset.del];
@@ -958,8 +1100,33 @@
         removeDoc(del.dataset.del).then(() => { if (lib.currentId === del.dataset.del) { lib.currentId = null; persist(); } renderHome(); });
         return;
       }
-      if (open) openDoc(open.dataset.open);
+      if (open) { if (selMode) togglePick(open.dataset.open); else openDoc(open.dataset.open); }
     });
+    grid.addEventListener("pointerdown", (e) => {
+      const open = e.target.closest("[data-open]");
+      if (!open || selMode || e.pointerType === "mouse") return;
+      clearTimeout(pressTimer);
+      pressTimer = setTimeout(() => { suppress = true; enterSelect(open.dataset.open); }, 520);
+    });
+    ["pointerup", "pointercancel", "pointermove", "pointerleave"].forEach((ev) => grid.addEventListener(ev, () => clearTimeout(pressTimer)));
+    grid.addEventListener("mouseover", (e) => { const b = e.target.closest("[data-info]"); if (b && window.matchMedia("(hover: hover)").matches) showPop(b); });
+    grid.addEventListener("mouseout", (e) => { if (e.target.closest("[data-info]") && !pop.matches(":hover")) popTimer = setTimeout(hidePop, 160); });
+    grid.addEventListener("focusin", (e) => { const b = e.target.closest("[data-info]"); if (b) showPop(b); });
+    grid.addEventListener("focusout", (e) => { if (e.target.closest("[data-info]")) popTimer = setTimeout(hidePop, 160); });
+    document.addEventListener("pointerdown", (e) => { if (!pop.hidden && !pop.contains(e.target) && !e.target.closest("[data-info]")) hidePop(); });
+    window.addEventListener("scroll", hidePop, true);
+    byId("homeSelect").addEventListener("click", () => enterSelect());
+    byId("selAll").addEventListener("click", pickAll);
+    byId("selDel").addEventListener("click", deletePicked);
+    byId("selFav").addEventListener("click", favPicked);
+    byId("selCancel").addEventListener("click", exitSelect);
+    const zone = byId("homeZone");
+    zone.replaceChildren(...ZONES.map(([v, l]) => { const o = document.createElement("option"); o.value = v; o.textContent = l; return o; }));
+    zone.value = clock.zone;
+    const tick = () => { byId("homeTime").textContent = clock.time(); };
+    zone.addEventListener("change", () => { clock.setZone(zone.value); tick(); renderHome(); toast("Hora de " + clock.zoneName() + "."); });
+    tick();
+    setInterval(() => { if (!homeEl.hidden) tick(); }, 15000);
     byId("homeSearch").addEventListener("input", (e) => { searchTerm = e.target.value; renderHome(); });
     byId("homeSearch").addEventListener("keydown", (e) => {
       if (e.key === "Escape" && e.target.value) { e.stopPropagation(); e.target.value = ""; searchTerm = ""; renderHome(); }
@@ -967,7 +1134,12 @@
     byId("homeFilter").addEventListener("change", (e) => { homePrefs.filter = e.target.value; saveHomePrefs(); renderHome(); });
     byId("homeSort").addEventListener("click", () => { homePrefs.sort = homePrefs.sort === "name" ? "recent" : "name"; saveHomePrefs(); renderHome(); toast(homePrefs.sort === "name" ? "Ordenado de A a Z." : "Mais recentes primeiro."); });
     byId("homeView").addEventListener("click", () => { homePrefs.view = homePrefs.view === "list" ? "grid" : "list"; saveHomePrefs(); renderHome(); });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && (!homeEl.hidden || !toolsEl.hidden) && cur() && !document.querySelector("dialog[open]")) continueEditing(); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (!pop.hidden) { hidePop(); return; }
+      if (selMode && !homeEl.hidden) { exitSelect(); return; }
+      if ((!homeEl.hidden || !toolsEl.hidden) && cur() && !document.querySelector("dialog[open]")) continueEditing();
+    });
     byId("exportButton").addEventListener("click", exportProject);
     byId("shareButton").addEventListener("click", copyShareLink);
     byId("importButton").addEventListener("click", () => byId("importInput").click());
@@ -1008,6 +1180,7 @@
     if (!store.images) document.documentElement.dataset.noImages = "1";
     await handleRoute();
     finishBoot();
+    syncClock();
   }
 
   window.Coding = {
@@ -1017,7 +1190,8 @@
     toast, setSaved, scheduleSave, flushSave, busy,
     setPrimary, asType, programs: PROGRAMS, primaryLabel() { const d = cur(); return d ? TYPE_META[d.type].primary[0] : "Imprimir / PDF"; }, cur, curMode, toggleFav, isFav, openDoc, createDoc, newDoc, goHome, print, exportProject, copyShareLink,
     openImport() { byId("importInput").click(); },
-    PANEL_KEY
+    PANEL_KEY,
+    time: { now: () => clock.now(), zone: () => clock.zone, short: (t) => clock.short(t), full: (t) => clock.full(t), clock }
   };
 
   const start = () => { boot().catch((error) => { console.error(error); bootMessage("Não foi possível iniciar o aplicativo."); const retry = byId("bootRetry"); if (retry) retry.hidden = false; }); };
