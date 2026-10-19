@@ -322,7 +322,7 @@
   const appEl = document.querySelector(".app");
   const toolsEl = byId("tools");
   const navEl = byId("mainNav");
-  const TYPES = ["labels", "texts", "calc", "codes", "sheet", "pdf", "images"];
+  const TYPES = ["labels", "texts", "calc", "codes", "sheet", "pdf", "images", "draw", "split"];
   const ROUTE_ALIASES = {
     labels: ["label", "labels", "etiqueta", "etiquetas"],
     texts: ["texts", "text", "texto", "textos"],
@@ -330,9 +330,11 @@
     calc: ["planilhas", "calc", "tabela", "excel"],
     sheet: ["planilha", "sheet", "planilha-etiquetas", "etiquetas-planilha"],
     pdf: ["pdf"],
-    images: ["imagens", "imagem", "images"]
+    images: ["imagens", "imagem", "images"],
+    draw: ["sorteio", "sortear", "draw"],
+    split: ["racha", "racha-conta", "dividir", "split"]
   };
-  const ROUTE_NAME = { labels: "etiquetas", texts: "texto", calc: "planilhas", codes: "qr", sheet: "planilha", pdf: "pdf", images: "imagens" };
+  const ROUTE_NAME = { labels: "etiquetas", texts: "texto", calc: "planilhas", codes: "qr", sheet: "planilha", pdf: "pdf", images: "imagens", draw: "sorteio", split: "racha" };
   const typeFromRoute = (name) => TYPES.find((t) => ROUTE_ALIASES[t].includes(name)) || null;
   const asType = (t) => (TYPES.includes(t) ? t : "labels");
   const PROGRAMS = [
@@ -342,11 +344,13 @@
     { id: "codes", group: "tools", short: "QR e barras", name: "QR e código de barras", desc: "Em folha A4, vários por página", primary: ["Imprimir / PDF", "#ic-print"] },
     { id: "sheet", group: "tools", short: "Planilha → Etiquetas", name: "Planilha → Etiquetas", desc: "Uma etiqueta por linha do CSV ou Excel", primary: ["Criar etiquetas", "#ic-tag"] },
     { id: "pdf", group: "tools", short: "PDF", name: "Editor de PDF", desc: "Anotar, assinar, juntar, dividir e reordenar", primary: ["Baixar PDF", "#ic-download"] },
-    { id: "images", group: "tools", short: "Imagens", name: "Imagens", desc: "Editar fotos e desenhar, no estilo Paint", primary: ["Baixar imagem", "#ic-download"] }
+    { id: "images", group: "tools", short: "Imagens", name: "Imagens", desc: "Editar fotos e desenhar, no estilo Paint", primary: ["Baixar imagem", "#ic-download"] },
+    { id: "draw", group: "tools", short: "Sorteio", name: "Sorteio", desc: "Roleta de nomes, times, dado, moeda e número", primary: ["Sortear de novo", "#ic-swap"] },
+    { id: "split", group: "tools", short: "Racha-conta", name: "Racha-conta", desc: "Divida a conta do restaurante com gorjeta", primary: ["Copiar resumo", "#ic-copy"] }
   ];
   const NAV_KEY = "coding-nav-v1";
   const navPrefs = (() => {
-    const base = { labels: true, texts: true, calc: true, codes: false, sheet: false, pdf: false, images: false };
+    const base = { labels: true, texts: true, calc: true, codes: false, sheet: false, pdf: false, images: false, draw: false, split: false };
     try { const s = JSON.parse(localStorage.getItem(NAV_KEY) || "null"); if (s && typeof s === "object") PROGRAMS.forEach((p) => { if (typeof s[p.id] === "boolean") base[p.id] = s[p.id]; }); } catch (_) { /* padrão */ }
     return base;
   })();
@@ -515,7 +519,6 @@
       } else if (doc.type === "codes") lines = (st.items || []).map((i) => [i.content, i.label].filter(Boolean).join("  "));
       else if (doc.type === "sheet") lines = (st.rows || []).slice(0, 8).map((r) => (Array.isArray(r) ? r.join(" · ") : ""));
       else if (doc.type === "pdf") lines = (st.files || []).map((f) => f.name);
-      else if (doc.type === "images") lines = (st.items || []).map((i) => i.name);
     } catch (_) { lines = []; }
     return lines.map((l) => clip(l, 34)).filter(Boolean).slice(0, 7);
   }
