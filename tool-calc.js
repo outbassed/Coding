@@ -17,7 +17,7 @@
   const ui = {
     ws: byId("calcWs"), tools: document.querySelector("#calcWs .calc-tools"), scroll: byId("calcScroll"), host: byId("calcHost"), table: byId("calcTable"),
     sel: byId("calcSel"), act: byId("calcAct"), editor: byId("calcEditor"), name: byId("calcCell"), formula: byId("calcFormula"),
-    status: byId("calcStatus"), fmt: byId("calcFmt"), bg: byId("calcBg"), fg: byId("calcFg"), bgSw: byId("calcBgSw"), fgSw: byId("calcFgSw"), file: byId("calcFile")
+    status: byId("calcStatus"), fmt: byId("calcFmt"), bgSw: byId("calcBgSw"), fgSw: byId("calcFgSw"), file: byId("calcFile"), pop: byId("calcPop"), hint: byId("calcHint"), fx: byId("calcFx")
   };
 
   /* ---------------- Estado ---------------- */
@@ -241,8 +241,8 @@
     ui.tools.querySelector('[data-act="italic"]').setAttribute("aria-pressed", String(!!cell.i));
     ui.tools.querySelector('[data-act="underline"]').setAttribute("aria-pressed", String(!!cell.u));
     ui.fmt.value = cell.n || "";
-    ui.bgSw.style.background = cell.bg || "";
-    ui.fgSw.style.color = cell.fg || "";
+    ui.bgSw.style.setProperty("--c", cell.bg || "#ffffff");
+    ui.fgSw.style.setProperty("--c", cell.fg || "#e8edf6");
     ui.tools.querySelector('[data-act="undo"]').disabled = !hist.length;
     ui.tools.querySelector('[data-act="redo"]').disabled = !redoStack.length;
   }
@@ -250,7 +250,7 @@
   function updateStatus() {
     const R = rect();
     const multi = R.r0 !== R.r1 || R.c0 !== R.c1;
-    if (!multi) { ui.status.textContent = cellCount() ? "" : "Dica: clique numa célula e digite. Fórmulas começam com =, por exemplo =SOMA(A1:A5)."; return; }
+    if (!multi) { ui.status.textContent = cellCount() ? "" : "Dica: clique numa célula e digite. Para contas, selecione os números e use Σ ou o botão Funções."; return; }
     let sum = 0, n = 0, any = 0;
     const scan = (r, c) => { const v = cx.get(r, c); if (v !== null) any++; if (typeof v === "number") { sum += v; n++; } };
     if ((R.r1 - R.r0 + 1) * (R.c1 - R.c0 + 1) > 5000) Object.keys(state.cells).forEach((k) => { const [r, c] = k.split(",").map(Number); if (r >= R.r0 && r <= R.r1 && c >= R.c0 && c <= R.c1) scan(r, c); });
@@ -267,6 +267,7 @@
     syncBar();
     updateStatus();
     if (!keepReveal) reveal(sel.fr, sel.fc);
+    if (typeof fxOpen === "function" && fxOpen() && fxField && fxField.dataset.pick && fxItem) { fxField.value = rangeStr(); fxPreview(); }
   }
 
   function growTo(r, c) {
@@ -464,24 +465,25 @@
     });
   }
 
-  function autoSum() {
+  function autoSum(fn) {
+    fn = fn || "SOMA";
     const R = rect();
     const num = (r, c) => typeof cx.get(r, c) === "number";
     mutate(() => {
       if (R.r1 > R.r0) {
-        for (let c = R.c0; c <= R.c1; c++) if (R.r1 + 1 < MAXR) setCell(R.r1 + 1, c, { v: "=SOMA(" + refOf(R.r0, c) + ":" + refOf(R.r1, c) + ")", n: (getCell(R.r1, c) || {}).n, b: true });
+        for (let c = R.c0; c <= R.c1; c++) if (R.r1 + 1 < MAXR) setCell(R.r1 + 1, c, { v: "=" + fn + "(" + refOf(R.r0, c) + ":" + refOf(R.r1, c) + ")", n: (getCell(R.r1, c) || {}).n, b: true });
         if (R.r1 + 1 >= state.rows) { state.rows = Math.min(MAXR, R.r1 + 2); }
       } else if (R.c1 > R.c0) {
-        if (R.c1 + 1 < MAXC) setCell(R.r0, R.c1 + 1, { v: "=SOMA(" + refOf(R.r0, R.c0) + ":" + refOf(R.r0, R.c1) + ")" });
+        if (R.c1 + 1 < MAXC) setCell(R.r0, R.c1 + 1, { v: "=" + fn + "(" + refOf(R.r0, R.c0) + ":" + refOf(R.r0, R.c1) + ")" });
         if (R.c1 + 1 >= state.cols) state.cols = Math.min(MAXC, R.c1 + 2);
       } else {
         let r = sel.ar - 1;
         while (r >= 0 && num(r, sel.ac)) r--;
-        if (r < sel.ar - 1) { setCell(sel.ar, sel.ac, { v: "=SOMA(" + refOf(r + 1, sel.ac) + ":" + refOf(sel.ar - 1, sel.ac) + ")" }); return; }
+        if (r < sel.ar - 1) { setCell(sel.ar, sel.ac, { v: "=" + fn + "(" + refOf(r + 1, sel.ac) + ":" + refOf(sel.ar - 1, sel.ac) + ")" }); return; }
         let c = sel.ac - 1;
         while (c >= 0 && num(sel.ar, c)) c--;
-        if (c < sel.ac - 1) setCell(sel.ar, sel.ac, { v: "=SOMA(" + refOf(sel.ar, c + 1) + ":" + refOf(sel.ar, sel.ac - 1) + ")" });
-        else setCell(sel.ar, sel.ac, { v: "=SOMA()" });
+        if (c < sel.ac - 1) setCell(sel.ar, sel.ac, { v: "=" + fn + "(" + refOf(sel.ar, c + 1) + ":" + refOf(sel.ar, sel.ac - 1) + ")" });
+        else setCell(sel.ar, sel.ac, { v: "=" + fn + "()" });
       }
     }, true);
   }
@@ -750,9 +752,14 @@
   /* ---------------- Barra de ferramentas ---------------- */
 
   ui.tools.addEventListener("click", (e) => {
+    const pal = e.target.closest("[data-pal]");
+    if (pal) { openPalette(pal.dataset.pal, pal); return; }
     const b = e.target.closest("[data-act]");
     if (!b) return;
     const a = b.dataset.act;
+    if (a === "sumMenu") { openSumMenu(b); return; }
+    if (a === "fx") { toggleFx(); return; }
+    if (a === "templates") { openTemplates(b); return; }
     if (a === "undo") undo();
     else if (a === "redo") redo();
     else if (a === "bold") toggle("b");
@@ -761,15 +768,12 @@
     else if (a === "al-l") applyFmt({ a: "l" });
     else if (a === "al-c") applyFmt({ a: "c" });
     else if (a === "al-r") applyFmt({ a: "r" });
-    else if (a === "sum") autoSum();
     else if (a === "ins-row") insertLines("r", false);
     else if (a === "ins-col") insertLines("c", false);
     else if (a === "import") ui.file.click();
     if (a !== "import") focusGrid();
   });
   ui.fmt.addEventListener("change", () => { applyFmt({ n: ui.fmt.value || undefined }); focusGrid(); });
-  ui.bg.addEventListener("change", () => { applyFmt({ bg: ui.bg.value }); focusGrid(); });
-  ui.fg.addEventListener("change", () => { applyFmt({ fg: ui.fg.value }); focusGrid(); });
   ui.file.addEventListener("change", () => { const f = ui.file.files && ui.file.files[0]; ui.file.value = ""; if (f) importFile(f); });
 
   /* ---------------- Importar e exportar ---------------- */
@@ -1004,6 +1008,396 @@
     ];
   }
 
+  /* ---------------- Painéis flutuantes (paleta, contas rápidas, modelos) ---------------- */
+
+  let popKind = null, popAnchor = null, live = false;
+  function placePop(el, anchor) {
+    const b = anchor.getBoundingClientRect();
+    const w = el.offsetWidth, h = el.offsetHeight;
+    el.style.left = clamp(b.left, 8, window.innerWidth - w - 8) + "px";
+    let top = b.bottom + 6;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, b.top - h - 6);
+    el.style.top = top + "px";
+  }
+  function closePop() { ui.pop.hidden = true; popKind = null; popAnchor = null; live = false; }
+  function openPop(kind, anchor, build) {
+    if (popKind === kind) { closePop(); return; }
+    closePop();
+    ui.pop.replaceChildren();
+    ui.pop.className = "calc-pop pop-" + kind;
+    build(ui.pop);
+    ui.pop.hidden = false;
+    popKind = kind; popAnchor = anchor;
+    placePop(ui.pop, anchor);
+  }
+  document.addEventListener("pointerdown", (e) => { if (!ui.pop.hidden && !ui.pop.contains(e.target) && !(popAnchor && popAnchor.contains(e.target))) closePop(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !ui.pop.hidden) { e.stopPropagation(); closePop(); } }, true);
+  window.addEventListener("resize", closePop);
+
+  const mkBtn = (cls, html, title) => { const b = document.createElement("button"); b.type = "button"; b.className = cls; if (html) b.innerHTML = html; if (title) b.title = title; return b; };
+  const mkText = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; e.textContent = text; return e; };
+
+  /* ---- paleta de cores (estilo Google Planilhas) ---- */
+  const GRAYS = ["#000000", "#434343", "#666666", "#999999", "#b7b7b7", "#cccccc", "#d9d9d9", "#efefef", "#f3f3f3", "#ffffff"];
+  const VIVID = ["#980000", "#ff0000", "#ff9900", "#ffff00", "#00ff00", "#00ffff", "#4a86e8", "#0000ff", "#9900ff", "#ff00ff"];
+  const BASIC = ["#000000", "#ffffff", "#4285f4", "#ea4335", "#fbbc04", "#34a853", "#ff6d01", "#46bdc6"];
+  const SHADES = [0.8, 0.6, 0.4, -0.2, -0.4, -0.6];
+  function shade(hex, t) {
+    const n = parseInt(hex.slice(1), 16);
+    const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(t >= 0 ? v + (255 - v) * t : v * (1 + t)));
+    return "#" + ch.map((v) => v.toString(16).padStart(2, "0")).join("");
+  }
+  const CUSTOM_KEY = "coding-calc-colors";
+  const loadCustom = () => { try { const a = JSON.parse(localStorage.getItem(CUSTOM_KEY) || "[]"); return Array.isArray(a) ? a.filter(colorOk).slice(0, 8) : []; } catch (_) { return []; } };
+  const saveCustom = (c) => { try { const a = [c.toLowerCase(), ...loadCustom().filter((x) => x.toLowerCase() !== c.toLowerCase())].slice(0, 8); localStorage.setItem(CUSTOM_KEY, JSON.stringify(a)); } catch (_) { /* sem armazenamento */ } };
+
+  function applyColor(kind, color, final) {
+    if (!live) { pushHist(); live = true; }
+    forRect((r, c) => { setCell(r, c, { [kind]: color }); });
+    C.scheduleSave();
+    repaint(); drawSel(); syncBar();
+    if (final) live = false;
+  }
+
+  function openPalette(kind, anchor) {
+    openPop("pal-" + kind, anchor, (box) => {
+      const cur = ((getCell(sel.ar, sel.ac) || {})[kind] || "").toLowerCase();
+      const reset = mkBtn("pal-reset", '<svg class="icon"><use href="#ic-undo"/></svg><span>Redefinir</span>', kind === "bg" ? "Tirar a cor de fundo" : "Voltar para a cor padrão do texto");
+      reset.addEventListener("click", () => { applyColor(kind, undefined, true); closePop(); focusGrid(); });
+      box.append(reset);
+      const swatch = (color) => {
+        const b = mkBtn("sw-c" + (cur === color.toLowerCase() ? " is-on" : ""), cur === color.toLowerCase() ? '<svg class="icon"><use href="#ic-check"/></svg>' : "", color);
+        b.style.background = color;
+        b.dataset.light = String(parseInt(color.slice(1), 16) > 0x999999 ? 1 : 0);
+        b.addEventListener("click", () => { applyColor(kind, color, true); closePop(); focusGrid(); });
+        return b;
+      };
+      const grid = document.createElement("div");
+      grid.className = "pal-grid";
+      GRAYS.forEach((c) => grid.append(swatch(c)));
+      VIVID.forEach((c) => grid.append(swatch(c)));
+      SHADES.forEach((t) => VIVID.forEach((c) => grid.append(swatch(shade(c, t)))));
+      box.append(grid);
+      box.append(mkText("div", "pal-title", "PADRÃO"));
+      const basic = document.createElement("div");
+      basic.className = "pal-row";
+      BASIC.forEach((c) => basic.append(swatch(c)));
+      box.append(basic);
+      box.append(mkText("div", "pal-title", "CORES PERSONALIZADAS"));
+      const row = document.createElement("div");
+      row.className = "pal-row";
+      const plus = document.createElement("label");
+      plus.className = "sw-plus";
+      plus.title = "Criar uma cor (muda enquanto você arrasta)";
+      plus.innerHTML = '<svg class="icon"><use href="#ic-plus"/></svg>';
+      const input = document.createElement("input");
+      input.type = "color";
+      input.value = colorOk(cur) ? cur : (kind === "bg" ? "#fff2a8" : "#c0392b");
+      input.setAttribute("aria-label", "Escolher uma cor personalizada");
+      input.addEventListener("input", () => applyColor(kind, input.value, false));
+      input.addEventListener("change", () => { applyColor(kind, input.value, true); saveCustom(input.value); });
+      plus.append(input);
+      row.append(plus);
+      if (window.EyeDropper) {
+        const eye = mkBtn("sw-eye", '<svg class="icon"><use href="#ic-eye"/></svg>', "Pegar uma cor de qualquer lugar da tela");
+        eye.addEventListener("click", async () => { try { const r = await new window.EyeDropper().open(); applyColor(kind, r.sRGBHex, true); saveCustom(r.sRGBHex); closePop(); focusGrid(); } catch (_) { /* cancelado */ } });
+        row.append(eye);
+      }
+      loadCustom().forEach((c) => row.append(swatch(c)));
+      box.append(row);
+    });
+  }
+
+  /* ---- contas rápidas (Σ) ---- */
+  function openSumMenu(anchor) {
+    openPop("sum", anchor, (box) => {
+      box.append(mkText("div", "pal-title", "SELECIONE OS NÚMEROS E ESCOLHA"));
+      [["SOMA", "Somar", "soma tudo"], ["MÉDIA", "Média", "o valor do meio"], ["MÁXIMO", "Maior valor", "o maior número"], ["MÍNIMO", "Menor valor", "o menor número"], ["CONT.NÚM", "Contar", "quantos números"]].forEach(([fn, name, d]) => {
+        const b = mkBtn("pop-item", "<strong></strong><small></small>");
+        b.querySelector("strong").textContent = name;
+        b.querySelector("small").textContent = d;
+        b.addEventListener("click", () => { closePop(); autoSum(fn); focusGrid(); });
+        box.append(b);
+      });
+      box.append(mkText("p", "pop-note", "O resultado aparece logo abaixo (ou à direita) das células selecionadas."));
+    });
+  }
+
+  /* ---- modelos prontos ---- */
+  const HEAD = { b: true, bg: "#c9f0d2" };
+  function build(rows, opt) {
+    const cells = {};
+    rows.forEach((row, r) => row.forEach((v, c) => {
+      if (v === "" || v === undefined) return;
+      const cell = { v: String(v) };
+      if (r === 0) Object.assign(cell, HEAD);
+      const f = opt && opt.fmt && opt.fmt[c];
+      if (f && r > 0) cell.n = f;
+      if (opt && opt.bold && opt.bold.includes(r)) cell.b = true;
+      cells[key(r, c)] = cell;
+    }));
+    return { name: opt.name, rows: Math.max(DEFR, rows.length + 5), cols: DEFC, widths: opt.widths || {}, cells };
+  }
+  const blankSafe = (n, f) => Array.from({ length: n }, (_, i) => f(i + 2));
+  const TEMPLATES = [
+    { name: "Lista de compras", desc: "Itens, quantidade, preço e total", make: () => build([["Item", "Quantidade", "Preço", "Total"], ["Arroz", "2", "6,5", "=B2*C2"], ["Feijão", "1", "8", "=B3*C3"], ["Leite", "6", "4,5", "=B4*C4"], ...blankSafe(11, (r) => ["", "", "", `=SE(B${r}="";"";B${r}*C${r})`]).slice(3), [], ["", "", "Total geral", "=SOMA(D2:D15)"]], { name: "Lista de compras", fmt: { 2: "brl", 3: "brl" }, bold: [13], widths: { 0: 160, 2: 110, 3: 120 } }) },
+    { name: "Controle de gastos", desc: "Quanto gastei e em quê", make: () => build([["Data", "Descrição", "Categoria", "Valor", "", "Categoria", "Total gasto"], ["18/10", "Mercado", "Comida", "120", "", "Comida", "=SOMASE(C2:C100;F2;D2:D100)"], ["19/10", "Ônibus", "Transporte", "18,5", "", "Transporte", "=SOMASE(C2:C100;F3;D2:D100)"], ["20/10", "Cinema", "Lazer", "45", "", "Lazer", "=SOMASE(C2:C100;F4;D2:D100)"], ["", "", "", "", "", "", ""], ["", "", "Total", "=SOMA(D2:D100)", "", "Total geral", "=SOMA(D2:D100)"]], { name: "Controle de gastos", fmt: { 3: "brl", 6: "brl" }, bold: [5], widths: { 1: 160, 2: 120, 5: 120, 6: 120 } }) },
+    { name: "Placar do jogo", desc: "Pontos por rodada e total", make: () => build([["Jogador", "Rodada 1", "Rodada 2", "Rodada 3", "Rodada 4", "Total"], ...[1, 2, 3, 4, 5, 6].map((i) => ["Jogador " + i, "", "", "", "", `=SOMA(B${i + 1}:E${i + 1})`])], { name: "Placar do jogo", widths: { 0: 130 } }) },
+    { name: "Dividir a conta", desc: "Cada um com a sua parte e gorjeta", make: () => build([["Pessoa", "Consumiu", "Gorjeta 10%", "Total"], ["Ana", "50", "=B2*10%", "=B2+C2"], ["Bia", "35", "=B3*10%", "=B3+C3"], ["Caio", "62", "=B4*10%", "=B4+C4"], [], ["Soma", "=SOMA(B2:B4)", "=SOMA(C2:C4)", "=SOMA(D2:D4)"]], { name: "Dividir a conta", fmt: { 1: "brl", 2: "brl", 3: "brl" }, bold: [5], widths: { 0: 130, 1: 110, 2: 110, 3: 110 } }) },
+    { name: "Notas da turma", desc: "Média e situação de cada aluno", make: () => build([["Aluno", "Nota 1", "Nota 2", "Nota 3", "Média", "Situação"], ...[2, 3, 4, 5, 6, 7].map((r) => [r === 2 ? "Ana" : r === 3 ? "Bia" : "", r === 2 ? "8" : r === 3 ? "5,5" : "", r === 2 ? "7" : r === 3 ? "6" : "", r === 2 ? "9" : r === 3 ? "4,5" : "", `=SE(B${r}="";"";MÉDIA(B${r}:D${r}))`, `=SE(E${r}="";"";SE(E${r}>=6;"Aprovado";"Recuperação"))`])], { name: "Notas da turma", fmt: { 4: "num" }, widths: { 0: 130, 5: 120 } }) },
+    { name: "Estoque simples", desc: "Aviso quando está acabando", make: () => build([["Produto", "Quantidade", "Mínimo", "Aviso"], ["Caneta", "12", "10", '=SE(B2<C2;"Repor";"OK")'], ["Caderno", "3", "5", '=SE(B3<C3;"Repor";"OK")'], ["Lápis", "40", "20", '=SE(B4<C4;"Repor";"OK")'], ...[5, 6, 7, 8].map((r) => ["", "", "", `=SE(B${r}="";"";SE(B${r}<C${r};"Repor";"OK"))`])], { name: "Estoque simples", widths: { 0: 150, 3: 100 } }) }
+  ];
+  function openTemplates(anchor) {
+    openPop("tpl", anchor, (box) => {
+      box.append(mkText("div", "pal-title", "COMEÇAR DE UM MODELO"));
+      TEMPLATES.forEach((t) => {
+        const b = mkBtn("pop-item", "<strong></strong><small></small>");
+        b.querySelector("strong").textContent = t.name;
+        b.querySelector("small").textContent = t.desc;
+        b.addEventListener("click", () => { closePop(); C.createDoc("calc", t.make()); });
+        box.append(b);
+      });
+      box.append(mkText("p", "pop-note", "O modelo abre como um novo documento. O atual continua salvo."));
+    });
+  }
+
+  /* ---------------- Ajudante de funções (sem escrever fórmulas) ---------------- */
+
+  const OPS = [["=", "é igual a"], [">", "é maior que"], ["<", "é menor que"], [">=", "é maior ou igual a"], ["<=", "é menor ou igual a"], ["<>", "é diferente de"]];
+  const R = (label, opt) => ({ k: "range", label, ...opt });
+  const FX = [
+    { g: "Contas", items: [
+      { fn: "SOMA", name: "Somar", desc: "Soma os números de várias células", args: [R("Somar estas células")] },
+      { fn: "MÉDIA", name: "Média", desc: "A média dos números", args: [R("Calcular a média de")] },
+      { fn: "MÁXIMO", name: "Maior valor", desc: "Acha o maior número", args: [R("Procurar o maior entre")] },
+      { fn: "MÍNIMO", name: "Menor valor", desc: "Acha o menor número", args: [R("Procurar o menor entre")] },
+      { fn: "CONT.NÚM", name: "Contar números", desc: "Quantas células têm número", args: [R("Contar em")] },
+      { fn: "ARRED", name: "Arredondar", desc: "Deixa o número com poucas casas", args: [{ k: "value", label: "Número ou célula" }, { k: "num", label: "Casas depois da vírgula", def: "2" }] }
+    ] },
+    { g: "Condições", items: [
+      { fn: "SE", name: "Se… então… senão", desc: "Mostra uma coisa ou outra, conforme um teste", args: [{ k: "test", label: "Se isto for verdade" }, { k: "value", label: "Mostrar isto" }, { k: "value", label: "Senão, mostrar isto" }] },
+      { fn: "SOMASE", name: "Somar só se…", desc: "Soma só o que combina com uma condição", args: [R("Olhar estas células"), { k: "crit", label: "Quando o valor" }, R("Somar estas células", { opt: true })] },
+      { fn: "CONT.SE", name: "Contar se…", desc: "Conta quantas células combinam", args: [R("Olhar estas células"), { k: "crit", label: "Quando o valor" }] },
+      { fn: "SEERRO", name: "Se der erro…", desc: "Troca uma mensagem de erro por outra coisa", args: [{ k: "value", label: "Conta ou célula" }, { k: "value", label: "Se der erro, mostrar" }] }
+    ] },
+    { g: "Procurar", items: [
+      { fn: "PROCV", name: "Procurar numa tabela", desc: "Acha um item e traz outra coluna (ex.: preço pelo nome)", args: [{ k: "value", label: "O que procurar (nome ou célula)" }, R("Tabela onde procurar"), { k: "num", label: "Qual coluna trazer (1, 2, 3…)", def: "2" }, { k: "fixed", v: "FALSO" }] }
+    ] },
+    { g: "Texto", items: [
+      { fn: "CONCATENAR", name: "Juntar textos", desc: "Une textos e células em um só", args: [{ k: "value", label: "Primeiro" }, { k: "value", label: "Segundo" }, { k: "value", label: "Terceiro", opt: true }] },
+      { fn: "MAIÚSCULA", name: "TUDO MAIÚSCULO", desc: "Passa o texto para maiúsculas", args: [{ k: "value", label: "Texto ou célula" }] },
+      { fn: "MINÚSCULA", name: "tudo minúsculo", desc: "Passa o texto para minúsculas", args: [{ k: "value", label: "Texto ou célula" }] },
+      { fn: "ESQUERDA", name: "Primeiras letras", desc: "Pega o começo de um texto", args: [{ k: "value", label: "Texto ou célula" }, { k: "num", label: "Quantas letras", def: "3" }] },
+      { fn: "NÚM.CARACT", name: "Contar letras", desc: "Quantas letras tem o texto", args: [{ k: "value", label: "Texto ou célula" }] }
+    ] },
+    { g: "Data e hora", items: [
+      { fn: "HOJE", name: "Data de hoje", desc: "Mostra a data de hoje (hora de Brasília)", args: [] },
+      { fn: "AGORA", name: "Data e hora agora", desc: "Mostra a data e a hora de agora", args: [] }
+    ] }
+  ];
+  const FX_DESC = {};
+  FX.forEach((g) => g.items.forEach((i) => { FX_DESC[X.strip(i.fn)] = i.desc; }));
+
+  let fxItem = null, fxField = null, fxTarget = null;
+  const fxOpen = () => !ui.fx.hidden;
+  function rangeStr() { const R2 = rect(); return R2.r0 === R2.r1 && R2.c0 === R2.c1 ? refOf(R2.r0, R2.c0) : refOf(R2.r0, R2.c0) + ":" + refOf(R2.r1, R2.c1); }
+  const quote = (t) => '"' + String(t).replace(/"/g, '""') + '"';
+  const looksValue = (v) => /^[+-]?\d+([.,]\d+)?%?$/.test(v) || /^\$?[A-Za-z]{1,2}\$?\d+(:\$?[A-Za-z]{1,2}\$?\d+)?$/.test(v);
+  const asValue = (v) => { v = v.trim(); if (v === "") return ""; if (v[0] === "=") return v.slice(1); return looksValue(v) ? v : quote(v); };
+  const asCrit = (op, v) => { v = v.trim(); if (v === "") return ""; return op === "=" && /^[+-]?\d+([.,]\d+)?$/.test(v) ? v : quote((op === "=" ? "" : op) + v); };
+
+  function fxFormula() {
+    if (!fxItem) return "";
+    const parts = [];
+    fxItem.args.forEach((a, i) => {
+      const f = ui.fx.querySelectorAll("[data-arg='" + i + "']");
+      if (a.k === "fixed") { parts.push(a.v); return; }
+      if (a.k === "test") { const l = asValue(f[0].value), op = f[1].value, r = asValue(f[2].value); parts.push(l === "" || r === "" ? "" : l + op + r); return; }
+      if (a.k === "crit") { parts.push(asCrit(f[0].value, f[1].value)); return; }
+      const v = f[0].value.trim();
+      parts.push(a.k === "range" || a.k === "num" ? v.replace(/;|,/g, a.k === "range" ? ":" : ",") : asValue(v));
+    });
+    let n = parts.length;
+    while (n > 0 && parts[n - 1] === "" && fxItem.args[n - 1].opt) n--;
+    return "=" + fxItem.fn + "(" + parts.slice(0, n).join(";") + ")";
+  }
+  const ERR_TEXT = { "#DIV/0!": "divisão por zero", "#NOME?": "algo não foi reconhecido", "#VALOR!": "um valor não é número", "#REF!": "célula inválida", "#CICLO!": "uma célula depende dela mesma", "#ERRO!": "faltou preencher algo", "#N/D": "não encontrei" };
+  function fxPreview() {
+    const out = ui.fx.querySelector(".fx-result");
+    if (!out) return;
+    const f = fxFormula();
+    const missing = fxItem.args.some((a, i) => !a.opt && a.k !== "fixed" && Array.from(ui.fx.querySelectorAll("[data-arg='" + i + "']")).some((el) => el.tagName === "INPUT" && el.type !== "hidden" && el.value.trim() === "" && !(a.k === "test" && el !== ui.fx.querySelectorAll("[data-arg='" + i + "']")[0] && false)));
+    if (missing) { out.textContent = "Preencha os campos para ver o resultado."; out.className = "fx-result"; return; }
+    let v;
+    try { v = X.previewFormula(f, state.cells); } catch (_) { v = X.E("#ERRO!"); }
+    if (v instanceof X.XErr) { out.textContent = "Ainda não dá: " + (ERR_TEXT[v.code] || v.code); out.className = "fx-result is-err"; }
+    else { out.textContent = "Resultado: " + (X.showValue(v) || "(vazio)"); out.className = "fx-result is-ok"; }
+    ui.fx.querySelector(".fx-code").textContent = f;
+  }
+
+  function fxList() {
+    fxItem = null; fxField = null;
+    const box = ui.fx;
+    box.replaceChildren();
+    const head = document.createElement("div");
+    head.className = "fx-head";
+    head.append(mkText("strong", "", "Funções"));
+    const x = mkBtn("icon-btn fx-x", '<svg class="icon"><use href="#ic-close"/></svg>', "Fechar");
+    x.addEventListener("click", () => { box.hidden = true; focusGrid(); });
+    head.append(x);
+    box.append(head, mkText("p", "fx-note", "Escolha o que você quer fazer. Eu monto a conta para você, sem precisar escrever nada."));
+    const search = document.createElement("input");
+    search.type = "search"; search.className = "fx-search"; search.placeholder = "Buscar (ex.: somar, média, se…)"; search.setAttribute("aria-label", "Buscar função");
+    box.append(search);
+    const list = document.createElement("div");
+    list.className = "fx-list";
+    box.append(list);
+    const draw = () => {
+      const q = X.strip(search.value.trim());
+      list.replaceChildren();
+      FX.forEach((g) => {
+        const items = g.items.filter((i) => !q || X.strip(i.name + " " + i.desc + " " + i.fn).includes(q));
+        if (!items.length) return;
+        list.append(mkText("div", "pal-title", g.g.toUpperCase()));
+        items.forEach((i) => {
+          const b = mkBtn("pop-item", "<strong></strong><small></small>");
+          b.querySelector("strong").textContent = i.name;
+          b.querySelector("small").textContent = i.desc;
+          b.addEventListener("click", () => fxForm(i));
+          list.append(b);
+        });
+      });
+      if (!list.children.length) list.append(mkText("p", "fx-note", "Nada encontrado. Tente outra palavra."));
+    };
+    search.addEventListener("input", draw);
+    draw();
+  }
+
+  function fxForm(item) {
+    fxItem = item; fxField = null;
+    const box = ui.fx;
+    box.replaceChildren();
+    const head = document.createElement("div");
+    head.className = "fx-head";
+    const back = mkBtn("icon-btn fx-x", '<svg class="icon"><use href="#ic-left"/></svg>', "Voltar");
+    back.addEventListener("click", fxList);
+    head.append(back, mkText("strong", "", item.name));
+    const x = mkBtn("icon-btn fx-x", '<svg class="icon"><use href="#ic-close"/></svg>', "Fechar");
+    x.addEventListener("click", () => { box.hidden = true; focusGrid(); });
+    head.append(x);
+    box.append(head, mkText("p", "fx-note", item.desc));
+    const form = document.createElement("div");
+    form.className = "fx-form";
+    box.append(form);
+    const pickable = (inp) => { inp.addEventListener("focus", () => { fxField = inp; form.querySelectorAll(".is-picking").forEach((e) => e.classList.remove("is-picking")); if (inp.dataset.pick) inp.classList.add("is-picking"); }); inp.addEventListener("input", fxPreview); };
+    item.args.forEach((a, i) => {
+      if (a.k === "fixed") return;
+      const lab = document.createElement("label");
+      lab.className = "fx-field";
+      lab.append(mkText("span", "", a.label + (a.opt ? " (opcional)" : "")));
+      if (a.k === "test") {
+        const row = document.createElement("div"); row.className = "fx-row";
+        const l = document.createElement("input"); l.dataset.arg = i; l.dataset.pick = "1"; l.placeholder = "célula ou valor"; pickable(l);
+        const op = document.createElement("select"); op.dataset.arg = i; OPS.forEach(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; op.append(o); }); op.value = ">="; op.addEventListener("change", fxPreview);
+        const r = document.createElement("input"); r.dataset.arg = i; r.placeholder = "valor"; pickable(r);
+        row.append(l, op, r); lab.append(row);
+      } else if (a.k === "crit") {
+        const row = document.createElement("div"); row.className = "fx-row";
+        const op = document.createElement("select"); op.dataset.arg = i; OPS.forEach(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; op.append(o); }); op.addEventListener("change", fxPreview);
+        const v = document.createElement("input"); v.dataset.arg = i; v.placeholder = "valor ou texto"; pickable(v);
+        row.append(op, v); lab.append(row);
+      } else {
+        const inp = document.createElement("input");
+        inp.dataset.arg = i;
+        if (a.k === "range") { inp.dataset.pick = "1"; inp.placeholder = "Clique ou arraste nas células da planilha"; }
+        else if (a.k === "num") { inp.value = a.def || ""; inp.inputMode = "numeric"; }
+        else { inp.placeholder = "texto, número ou clique numa célula"; inp.dataset.pick = "1"; }
+        pickable(inp);
+        lab.append(inp);
+      }
+      form.append(lab);
+    });
+    const first = form.querySelector("[data-pick]");
+    const tgt = document.createElement("label");
+    tgt.className = "fx-field";
+    tgt.append(mkText("span", "", "Mostrar o resultado na célula"));
+    const t = document.createElement("input");
+    t.className = "fx-target"; t.value = refOf(fxTarget.r, fxTarget.c); t.setAttribute("aria-label", "Célula do resultado");
+    tgt.append(t);
+    form.append(tgt);
+    box.append(mkText("div", "fx-result", ""), mkText("code", "fx-code", ""));
+    const ok = mkBtn("btn primary fx-ok", "Colocar na planilha");
+    ok.addEventListener("click", () => {
+      const ref = X.parseRef(t.value.trim().toUpperCase());
+      if (!ref) { C.toast("Escreva uma célula válida, como D5."); return; }
+      const f = fxFormula();
+      mutate(() => { setCell(ref.r, ref.c, { v: f }); }, false);
+      box.hidden = true;
+      select(ref.r, ref.c);
+      focusGrid();
+    });
+    box.append(ok);
+    if (first) { first.focus(); }
+    fxPreview();
+  }
+
+  function toggleFx() {
+    if (fxOpen()) { ui.fx.hidden = true; return; }
+    if (editing) commitEdit();
+    fxTarget = { r: sel.ar, c: sel.ac };
+    ui.fx.hidden = false;
+    fxList();
+  }
+
+  /* ---------------- Sugestões enquanto digita =fórmula ---------------- */
+
+  const FNLIST = X.functionNames();
+  function hintToken(ed) {
+    const v = ed.value;
+    if (v[0] !== "=") return null;
+    const pos = ed.selectionStart === null ? v.length : ed.selectionStart;
+    const m = /(?:^=|[^A-Za-zÀ-ÿ0-9_.$])([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.]*)$/.exec(v.slice(0, pos));
+    return m ? { text: m[1], start: pos - m[1].length, end: pos } : null;
+  }
+  let hintMatches = [];
+  function updateHint() {
+    const ed = editing ? editorEl() : null;
+    const tok = ed ? hintToken(ed) : null;
+    if (!tok) { ui.hint.hidden = true; hintMatches = []; return; }
+    const q = X.strip(tok.text);
+    hintMatches = FNLIST.filter((f) => f.key.startsWith(q) && f.key !== q).slice(0, 6);
+    if (!hintMatches.length) { ui.hint.hidden = true; return; }
+    ui.hint.replaceChildren(...hintMatches.map((f, i) => {
+      const b = mkBtn("hint-item" + (i === 0 ? " is-first" : ""), "<strong></strong><small></small>");
+      b.querySelector("strong").textContent = f.pt;
+      b.querySelector("small").textContent = FX_DESC[f.key] || "";
+      b.addEventListener("mousedown", (e) => { e.preventDefault(); acceptHint(f); });
+      return b;
+    }));
+    const box = ed.getBoundingClientRect();
+    ui.hint.hidden = false;
+    ui.hint.style.left = clamp(box.left, 8, window.innerWidth - ui.hint.offsetWidth - 8) + "px";
+    ui.hint.style.top = box.bottom + 4 + "px";
+  }
+  function acceptHint(f) {
+    const ed = editorEl();
+    const tok = hintToken(ed);
+    if (!tok) return;
+    const ins = f.pt + "(";
+    ed.value = ed.value.slice(0, tok.start) + ins + ed.value.slice(tok.end);
+    const p = tok.start + ins.length;
+    ed.setSelectionRange(p, p);
+    if (editing.via === "cell") ui.formula.value = ed.value; else ui.editor.value = ed.value;
+    ui.hint.hidden = true;
+    ed.focus();
+  }
+  [ui.editor, ui.formula].forEach((el) => {
+    el.addEventListener("input", updateHint);
+    el.addEventListener("keyup", (e) => { if (!["Tab", "Enter", "Escape"].includes(e.key)) updateHint(); });
+    el.addEventListener("keydown", (e) => { if (e.key === "Tab" && !ui.hint.hidden && hintMatches.length) { e.preventDefault(); e.stopPropagation(); acceptHint(hintMatches[0]); } else if (e.key === "Escape") ui.hint.hidden = true; }, true);
+    el.addEventListener("blur", () => { setTimeout(() => { ui.hint.hidden = true; }, 120); });
+  });
+
   /* ---------------- Integração com o núcleo ---------------- */
 
   function snippet(doc) {
@@ -1032,6 +1426,8 @@
     ui.scroll.scrollLeft = 0;
     renderGrid();
   }
+
+  X.clock = { now: () => C.time.now(), get zone() { return C.time.zone(); } };
 
   C.register({
     type: "calc",

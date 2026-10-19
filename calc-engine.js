@@ -449,9 +449,17 @@
   def("SUBSTITUIR", "SUBSTITUTE", (a) => { const s = text(a[0]); const from = text(a[1]); return from ? s.split(from).join(text(a[2])) : s; });
   def("VALOR", "VALUE", (a) => { const v = checkErr(scalar(a[0])); if (typeof v === "number") return v; const n = parseNum(toText(v)); if (Number.isNaN(n)) throw E("#VALOR!"); return n; });
   def("TEXTO", "TEXT", (a) => { const n = num(a[0]); const f = text(a[1]); const d = (f.split(".")[1] || f.split(",")[1] || "").replace(/[^0#]/g, "").length; if (/%/.test(f)) return nf("pct").format(n); return new Intl.NumberFormat("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: /[#.,]\s*[#0]{3}/.test(f) && /#,##|#\.##/.test(f) }).format(n); });
-  const two = (n) => String(n).padStart(2, "0");
-  def("HOJE", "TODAY", () => { const d = new Date(); return two(d.getDate()) + "/" + two(d.getMonth() + 1) + "/" + d.getFullYear(); });
-  def("AGORA", "NOW", () => { const d = new Date(); return two(d.getDate()) + "/" + two(d.getMonth() + 1) + "/" + d.getFullYear() + " " + two(d.getHours()) + ":" + two(d.getMinutes()); });
+  function clockText(withTime) {
+    const c = api.clock || {};
+    const ts = c.now ? c.now() : Date.now();
+    const o = { day: "2-digit", month: "2-digit", year: "numeric" };
+    if (withTime) { o.hour = "2-digit"; o.minute = "2-digit"; }
+    let fmt;
+    try { fmt = new Intl.DateTimeFormat("pt-BR", { timeZone: c.zone || "America/Sao_Paulo", ...o }); } catch (_) { fmt = new Intl.DateTimeFormat("pt-BR", o); }
+    return fmt.format(new Date(ts)).replace(", ", " ");
+  }
+  def("HOJE", "TODAY", () => clockText(false));
+  def("AGORA", "NOW", () => clockText(true));
   def("ÉNÚM", "ISNUMBER", (a) => typeof scalar(a[0]) === "number");
   def("ÉTEXTO", "ISTEXT", (a) => typeof scalar(a[0]) === "string");
   def("ÉCÉL.VAZIA", "ISBLANK", (a) => scalar(a[0]) === null);
@@ -602,7 +610,15 @@
     return out;
   }
 
-  const api = { XErr, E, MAXC, MAXR, colName, colIndex, parseRef, refText, parseNum, literal, makeCx, showValue, fmtNum, generalNum, toText, shiftFormula, remapFormula, reemit, parse, tokenize };
+  function previewFormula(formula, cells) {
+    const temp = { ...cells };
+    temp["99999,0"] = { v: formula };
+    const v = makeCx(temp).get(99999, 0);
+    return v;
+  }
+  function functionNames() { const seen = new Set(); const out = []; Object.values(FN).forEach((d) => { if (!seen.has(d.pt)) { seen.add(d.pt); out.push({ pt: d.pt, en: d.en, key: strip(d.pt) }); } }); return out.sort((a, b) => a.pt.localeCompare(b.pt, "pt-BR")); }
+
+  const api = { clock: { now: () => Date.now(), zone: "America/Sao_Paulo" }, previewFormula, functionNames, strip, XErr, E, MAXC, MAXR, colName, colIndex, parseRef, refText, parseNum, literal, makeCx, showValue, fmtNum, generalNum, toText, shiftFormula, remapFormula, reemit, parse, tokenize };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.CodingCalc = api;
 })(typeof window !== "undefined" ? window : globalThis);
