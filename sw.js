@@ -23,6 +23,7 @@ const ASSETS = [
   "vendor/pdf.worker.min.js",
   "vendor/pdf-lib.min.js",
   "exemplos/praia.jpg",
+  "exemplos/exemplo.pdf",
   "manifest.webmanifest",
   "icons/icon.svg",
   "icons/icon-192.png",

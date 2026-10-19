@@ -537,6 +537,8 @@
       <button id="pdfAnnot" class="btn primary" type="button" disabled><svg class="icon"><use href="#ic-edit"/></svg><span>Anotar / assinar</span></button>
       <button id="pdfExtract" class="btn subtle" type="button" disabled title="Baixar só as páginas selecionadas">Extrair</button>
       <button id="pdfSplit" class="btn subtle" type="button" disabled title="Um PDF por página, em um .zip">Dividir</button>
+      <button id="pdfSign" class="btn subtle m-only" type="button" disabled title="Abrir a página selecionada já com a ferramenta de assinatura"><svg class="icon" aria-hidden="true"><use href="#ic-pencil"/></svg><span>Assinar a página</span></button>
+      <button id="pdfDownload" class="btn primary m-only" type="button" disabled title="Baixar o PDF com as alterações"><svg class="icon" aria-hidden="true"><use href="#ic-download"/></svg><span>Baixar PDF</span></button>
     </div>
     <p id="pdfMsg" class="tv-msg pdf-msg" role="status"></p>
     <div class="pdf-main" id="pdfMain">
@@ -544,6 +546,10 @@
         <svg class="pi" aria-hidden="true"><use href="#pi-pdf"/></svg>
         <strong>Abra um PDF para começar</strong>
         <span>Arraste o arquivo para cá ou toque em <b>Abrir</b>. Tudo acontece neste aparelho.</span>
+        <div class="pdf-start">
+          <button id="pdfEmptyOpen" class="btn primary" type="button"><svg class="icon" aria-hidden="true"><use href="#ic-upload"/></svg><span>Abrir arquivo</span></button>
+          <button id="pdfSample" class="btn" type="button"><svg class="icon" aria-hidden="true"><use href="#ic-file"/></svg><span>Começar com exemplo</span></button>
+        </div>
       </div>
       <div id="pdfGrid" class="pdf-grid" hidden></div>
     </div>

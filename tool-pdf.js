@@ -13,6 +13,7 @@
   const $ = {
     ws: byId("pdfWs"), bar: byId("pdfBar"), msg: byId("pdfMsg"), main: byId("pdfMain"), empty: byId("pdfEmpty"), grid: byId("pdfGrid"),
     file: byId("pdfFile"), open: byId("pdfOpen"), merge: byId("pdfMerge"),
+    sign: byId("pdfSign"), download: byId("pdfDownload"), sample: byId("pdfSample"), emptyOpen: byId("pdfEmptyOpen"),
     selAll: byId("pdfSelAll"), rotL: byId("pdfRotL"), rotR: byId("pdfRotR"), moveL: byId("pdfMoveL"), moveR: byId("pdfMoveR"),
     del: byId("pdfDel"), annot: byId("pdfAnnot"), extract: byId("pdfExtract"), split: byId("pdfSplit"),
     editor: byId("pdfEditor"), stage: byId("pdfStage"), sheet: byId("pdfSheet"), canvas: byId("pdfCanvas"), over: byId("pdfOver"),
@@ -53,7 +54,16 @@
     return { name: C.util.toText(o.name, "PDF sem título", 80), files: fl, pages: pg, seq };
   }
   const nextSeq = () => ++state.seq;
-  function setPages(arr) { pages = arr; state.pages = arr; C.scheduleSave(); }
+  // O PDF de exemplo só é guardado no aparelho na primeira edição de verdade (ver loadSample).
+  function persistUnsaved() {
+    files.forEach((f) => {
+      if (!f.unsaved) return;
+      f.unsaved = false;
+      C.store.putImage({ id: f.id, docId, blob: new Blob([f.bytes], { type: "application/pdf" }), mime: "application/pdf", name: f.name }).catch(() => C.toast("Não foi possível guardar o PDF de exemplo neste aparelho."));
+    });
+  }
+  function touch() { persistUnsaved(); C.scheduleSave(); }
+  function setPages(arr) { pages = arr; state.pages = arr; touch(); }
 
   /* ------------------------------ bibliotecas ------------------------------ */
   const loadScript = (src) => new Promise((resolve, reject) => {
@@ -136,6 +146,9 @@
     [$.rotL, $.rotR, $.moveL, $.moveR, $.del, $.extract].forEach((b) => { b.disabled = !n; });
     $.annot.disabled = n !== 1;
     $.split.disabled = !has;
+    $.sign.disabled = n !== 1;
+    $.download.disabled = !has;
+    $.download.querySelector("span").textContent = n ? "Baixar seleção" : "Baixar PDF";
     C.setPrimary(n ? "Baixar seleção" : "Baixar PDF", !has);
   }
 
@@ -154,7 +167,7 @@
       pn.className = "pn";
       pn.textContent = "Página " + (i + 1);
       card.append(canvas, pn);
-      if (page.ann.length) { const b = document.createElement("span"); b.className = "badge"; b.textContent = "✎ " + page.ann.length; card.append(b); }
+      if (page.ann.length) { const b = document.createElement("span"); b.className = "badge"; b.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#ic-pencil"/></svg>'; b.append(String(page.ann.length)); card.append(b); }
       $.grid.append(card);
       todo.push([page, canvas]);
     });
@@ -218,7 +231,7 @@
     if (list.some((p) => p.ann.length)) { say("Tire as anotações da página antes de girar."); return; }
     say("");
     list.forEach((p) => { p.extra = (p.extra + delta + 360) % 360; });
-    C.scheduleSave();
+    touch();
     renderGrid();
   }
   $.rotL.addEventListener("click", () => rotate(270));
@@ -418,7 +431,7 @@
   }
 
   const posIn = (e) => { const r = $.over.getBoundingClientRect(); return [clamp((e.clientX - r.left) / r.width, 0, 1), clamp((e.clientY - r.top) / r.height, 0, 1)]; };
-  const addAnn = (a) => { a.id = nextSeq(); cur.ann.push(a); C.scheduleSave(); return a; };
+  const addAnn = (a) => { a.id = nextSeq(); cur.ann.push(a); touch(); return a; };
 
   function startTextEdit(el, a) {
     el.contentEditable = "true";
@@ -432,9 +445,9 @@
       el.removeEventListener("blur", finish);
       el.contentEditable = "false";
       const t = el.innerText.replace(/\n+$/, "");
-      if (!t.trim()) { cur.ann = cur.ann.filter((x) => x !== a); selAnn = null; el.remove(); C.scheduleSave(); return; }
+      if (!t.trim()) { cur.ann = cur.ann.filter((x) => x !== a); selAnn = null; el.remove(); touch(); return; }
       a.text = t;
-      C.scheduleSave();
+      touch();
     };
     el.addEventListener("blur", finish);
   }
@@ -501,12 +514,12 @@
   const endGesture = () => {
     const g = gesture;
     gesture = null;
-    if (g && g.kind !== "draw") C.scheduleSave();
+    if (g && g.kind !== "draw") touch();
     if (!g || g.kind !== "draw") return;
     if (g.a.w < 0.01 || g.a.h < 0.005) { g.el.remove(); return; }
     cur.ann.push(g.a);
     g.a.id = nextSeq();
-    C.scheduleSave();
+    touch();
     g.el.dataset.aid = g.a.id;
     select(g.a);
   };
@@ -523,7 +536,7 @@
     if (!selAnn) return;
     cur.ann = cur.ann.filter((x) => x !== selAnn);
     selAnn = null;
-    C.scheduleSave();
+    touch();
     renderAnns();
   }
   $.remove.addEventListener("click", removeSelected);
@@ -532,12 +545,12 @@
     if (!a) return;
     if (a.type === "text") a.size = clamp(a.size * f, 0.008, 0.2);
     else { const ratio = a.w * viewW / (a.h * sheetH()); a.w = clamp(a.w * f, 0.03, 1 - a.u); a.h = a.type === "image" ? a.w * viewW / ratio / sheetH() : clamp(a.h * f, 0.01, 1 - a.v); }
-    C.scheduleSave();
+    touch();
     renderAnns();
   }
   $.bigger.addEventListener("click", () => scaleSelected(1.15));
   $.smaller.addEventListener("click", () => scaleSelected(1 / 1.15));
-  $.color.addEventListener("input", () => { if (selAnn && selAnn.type === "text") { selAnn.color = $.color.value; const el = $.over.querySelector('[data-aid="' + selAnn.id + '"]'); if (el) el.style.color = selAnn.color; C.scheduleSave(); } });
+  $.color.addEventListener("input", () => { if (selAnn && selAnn.type === "text") { selAnn.color = $.color.value; const el = $.over.querySelector('[data-aid="' + selAnn.id + '"]'); if (el) el.style.color = selAnn.color; touch(); } });
   document.addEventListener("keydown", (e) => {
     if ($.editor.hidden) return;
     if ((e.key === "Delete" || e.key === "Backspace") && selAnn && !(e.target.isContentEditable)) { e.preventDefault(); removeSelected(); }
@@ -713,7 +726,7 @@
       state.files = keepFiles.map((l) => ({ id: l.id, name: l.name }));
       state.pages = state.pages.filter((p) => remap.has(p.src)).map((p) => { p.src = remap.get(p.src); return p; });
       pages = state.pages;
-      C.scheduleSave();
+      touch();
     }
     keepFiles.forEach((l) => files.push(l));
     state.pages = state.pages.filter((p) => p.idx < files[p.src].doc.numPages);
@@ -721,6 +734,41 @@
     say(state.files.length && !files.length ? "Não encontrei os arquivos deste documento neste aparelho." : "");
     renderGrid();
   }
+
+
+  /* ---------- PDF de exemplo (incluído no app, funciona sem internet) ---------- */
+  async function loadSample() {
+    if (!C.store.images) { say("Este navegador não guarda arquivos grandes: o editor de PDF fica indisponível."); return; }
+    if (pages.length && !window.confirm("Trocar o PDF deste documento pelo exemplo? As páginas e anotações atuais serão descartadas.")) return;
+    say("Abrindo o exemplo…");
+    try { await loadLibs(); } catch (_) { say("Não foi possível carregar o leitor de PDF. Verifique a internet e tente de novo."); return; }
+    let bytes;
+    try { const r = await fetch("exemplos/exemplo.pdf"); if (!r.ok) throw new Error("http " + r.status); bytes = new Uint8Array(await r.arrayBuffer()); }
+    catch (_) { say("Não consegui carregar o exemplo. Tente de novo ou abra um PDF seu."); return; }
+    let doc;
+    try { doc = await window.pdfjsLib.getDocument({ data: bytes.slice() }).promise; } catch (_) { say("Não consegui abrir o exemplo."); return; }
+    const old = files.map((f) => f.id);
+    files.forEach((f) => { try { f.doc.destroy(); } catch (_) { /* ignorado */ } });
+    files.length = 0; sel.clear();
+    if (old.length) C.store.deleteImages(old).catch(() => {});
+    const id = newId();
+    // Sem gravar nada ainda: ver o exemplo não cria documento. A primeira edição guarda uma cópia (persistUnsaved).
+    files.push({ id, name: "Documento de exemplo.pdf", bytes, doc, lib: null, unsaved: true });
+    state.files = [{ id, name: "Documento de exemplo.pdf" }];
+    const add = [];
+    for (let i = 0; i < doc.numPages; i++) add.push({ id: nextSeq(), src: 0, idx: i, extra: 0, ann: [] });
+    pages = state.pages = add;
+    say("");
+    renderGrid();
+  }
+  $.sample.addEventListener("click", loadSample);
+  $.emptyOpen.addEventListener("click", () => $.open.click());
+  $.sign.addEventListener("click", async () => {
+    const p = selected()[0]; if (!p) return;
+    await openEditor(p);
+    const b = $.editor.querySelector('[data-tool="sign"]'); if (b) b.click();
+  });
+  $.download.addEventListener("click", () => savePdf());
 
   /* menu de clique direito */
   function menuItems(target) {
@@ -784,5 +832,25 @@
     shareable: false,
     menuItems
   });
+
+  /* ---------- Celular: páginas em cima, comandos na folha inferior (shell.js) ---------- */
+  if (C.shell) {
+    const note = document.createElement("p");
+    note.className = "tv-info sh-note";
+    note.textContent = "Cobrir visualmente só põe um retângulo por cima: o texto original continua dentro do arquivo. Não use para esconder dados sigilosos.";
+    const sigNote = document.createElement("p");
+    sigNote.className = "tv-info sh-note";
+    sigNote.textContent = "Selecione uma página e toque em Assinar a página. Sua assinatura fica salva só neste aparelho.";
+    C.shell.create({
+      ws: $.ws, id: "pdf", host: $.ws, label: "Controles do PDF", defaultState: "half",
+      tabs: [
+        { key: "pag", label: "Páginas", icon: "ic-viewgrid", nodes: () => [$.open, $.merge, $.selAll, $.sample.closest("#pdfEmpty") ? null : $.sample] },
+        { key: "org", label: "Organizar", icon: "ic-sort", nodes: () => [$.rotL, $.rotR, $.moveL, $.moveR, $.del] },
+        { key: "ann", label: "Anotar", icon: "ic-edit", nodes: () => [$.annot, note] },
+        { key: "sig", label: "Assinar", icon: "ic-pencil", nodes: () => [$.sign, sigNote] },
+        { key: "exp", label: "Exportar", icon: "ic-download", nodes: () => [$.download, $.extract, $.split] }
+      ]
+    });
+  }
   updateButtons();
 })();
