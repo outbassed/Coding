@@ -945,19 +945,9 @@ body { --nav-w: 0px; --nav-h: 0px; }
 .im-filters { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .im-filter { display: flex; flex-direction: column; gap: 4px; padding: 5px; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--text); font-size: 12px; font-weight: 650; }
 .im-filter:hover { border-color: var(--accent); }
-.im-filter canvas { width: 100%; height: 70px; object-fit: cover; border-radius: 6px; background: #232d3e; }
+.im-filter canvas { width: 100%; height: 76px; object-fit: cover; border-radius: 6px; background: #232d3e; }
 .im-coll { display: flex; flex-direction: column; gap: 8px; }
 .im-zoom { min-width: 64px; }
-@media (max-width: 900px) {
-  .im-main { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; overflow-y: auto; }
-  .im-tools { display: flex; flex-direction: row; overflow-x: auto; overflow-y: hidden; border-right: 0; border-bottom: 1px solid var(--line-soft); padding: 6px; }
-  .im-tool { min-width: 58px; }
-  .im-gap { width: 1px; height: auto; margin: 6px 4px; }
-  .im-center { min-height: 56vh; }
-  .im-side { border-left: 0; border-top: 1px solid var(--line-soft); max-height: none; }
-  .im-pane { overflow: visible; }
-}
-@media (max-width: 560px) { .im-l { display: none; } .im-top .cbtn:first-child .im-l, .im-top .cbtn:nth-child(2) .im-l { display: inline; } }
 
 /* ---- v23: Sorteio e Racha-conta ---- */
 .fn-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; background: #0b0f16; }
@@ -1036,4 +1026,85 @@ body { --nav-w: 0px; --nav-h: 0px; }
 /* Toque: alvos de pelo menos 40 px */
 @media (pointer: coarse) {
   .icon-btn, #homeSelect, #homeSort, #homeView, .item-head .icon-btn, .tv-rowdel { min-width: 40px; min-height: 40px; }
+}
+
+/* Imagens: molduras em camadas */
+.im-fradds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.im-fradd { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--text); font-size: 13px; font-weight: 650; text-align: left; }
+.im-fradd:hover { border-color: var(--accent); }
+.im-fradd .icon { width: 20px; height: 20px; flex: none; }
+.im-frlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.im-frrow { display: flex; align-items: center; gap: 2px; border: 1px solid var(--line); border-radius: 10px; background: transparent; padding: 2px; }
+.im-frrow.is-sel { border-color: var(--accent); background: #769ff82a; }
+.im-frrow.is-off .fr-name { opacity: .5; text-decoration: line-through; }
+.fr-name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 8px; border: 0; background: transparent; color: var(--text); font-size: 13px; font-weight: 650; text-align: left; }
+.fr-name .icon { width: 18px; height: 18px; flex: none; }
+.fr-btn { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); flex: none; }
+.fr-btn:hover:not(:disabled) { background: #ffffff18; color: var(--text); }
+.fr-btn:disabled { opacity: .3; }
+.fr-btn.danger:hover:not(:disabled) { background: #3b2630; color: #ff9aa5; }
+.fr-btn .icon { width: 16px; height: 16px; }
+.im-fropts { display: flex; flex-direction: column; gap: 12px; padding-top: 4px; border-top: 1px solid var(--line-soft); }
+.im-fropts:empty { display: none; }
+.fr-title { margin: 8px 0 0; font-weight: 700; color: var(--text); }
+.im-fropts .tv-field.is-inline { flex-direction: row; align-items: center; justify-content: space-between; }
+.im-fropts input[type="color"] { width: 46px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: none; }
+.im-fropts input[type="text"] { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); color: var(--text); font: inherit; }
+
+/* ===== Imagens no celular: foto em cima, ferramentas e abas embaixo (como um app) ===== */
+@media (max-width: 900px) {
+  .im-top { padding: 4px 8px; gap: 2px; }
+  .im-top .cbtn { min-height: 38px; }
+  .im-top .im-l { display: none; }
+  .im-top .cbtn:first-child .im-l, .im-top .cbtn:nth-child(2) .im-l { display: inline; }
+  .im-main { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .im-center { order: 1; flex: 1 1 0; min-height: 0; }
+  .im-tools { order: 2; flex: none; display: flex; flex-direction: row; align-items: stretch; overflow-x: auto; overflow-y: hidden; border-right: 0; border-top: 1px solid var(--line-soft); padding: 4px 6px; gap: 2px; scrollbar-width: none; }
+  .im-tools::-webkit-scrollbar { display: none; }
+  .im-tool { min-width: 58px; padding: 5px 4px 4px; }
+  .im-tool .im-l { display: block; font-size: 10px; white-space: nowrap; }
+  .im-tool .im-e .icon { width: 22px; height: 22px; }
+  .im-gap { width: 1px; height: auto; margin: 6px 4px; flex: none; }
+  .im-side { order: 3; flex: none; display: flex; flex-direction: column-reverse; border-left: 0; border-top: 1px solid var(--line-soft); }
+  .im-side:not(.is-open) .im-pane { display: none !important; }
+  .im-side.is-open .im-pane { max-height: min(42dvh, 340px); overflow-y: auto; border-top: 1px solid var(--line-soft); padding: 12px 14px calc(12px + var(--safe-bottom)); }
+  .im-side:not(.is-open) .im-tabs { padding-bottom: var(--safe-bottom); }
+  .im-tabs button { min-height: 44px; position: relative; }
+  .im-side:not(.is-open) .im-tabs button.is-on { color: var(--muted); border-bottom-color: transparent; }
+  .im-stage { padding: 8px; }
+  /* opções da ferramenta: uma faixa só, com rolagem para o lado */
+  .im-opts { flex-wrap: nowrap; overflow-x: auto; gap: 8px 12px; padding: 6px 10px; scrollbar-width: none; }
+  .im-opts::-webkit-scrollbar { display: none; }
+  .im-opts > * { flex: none; }
+  .im-obj { flex-wrap: nowrap; width: max-content; }
+  .im-obj textarea { flex: 0 0 170px; height: 38px; min-height: 38px; padding: 8px 10px; }
+  .im-grow { min-width: 130px; }
+  .im-ratios { flex-wrap: nowrap; }
+  .im-stk { display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, 40px); max-height: none; overflow-x: auto; overflow-y: hidden; max-width: calc(100vw - 20px); flex: none; }
+  .im-tip { flex: none; max-width: calc(100vw - 20px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+  .im-empty { padding: 12px; }
+  body:has(#imagesWs:not([hidden])) .toast { top: calc(58px + var(--safe-top)); bottom: auto; }
+}
+/* celular deitado: painéis ao lado, como no computador */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 520px) {
+  .im-main { display: grid; grid-template-columns: 62px minmax(0, 1fr) 250px; overflow: hidden; }
+  .im-center { order: 0; }
+  .im-tools { order: 0; flex-direction: column; overflow-y: auto; overflow-x: hidden; border-top: 0; border-right: 1px solid var(--line-soft); padding: 4px 2px; }
+  .im-gap { width: auto; height: 1px; margin: 4px 6px; }
+  .im-side { order: 0; flex-direction: column; border-left: 1px solid var(--line-soft); border-top: 0; min-height: 0; }
+  .im-side:not(.is-open) .im-pane { display: flex !important; }
+  .im-side:not(.is-open) .im-pane[hidden] { display: none !important; }
+  .im-side .im-pane, .im-side.is-open .im-pane { max-height: none; flex: 1; min-height: 0; overflow-y: auto; border-top: 0; }
+  .im-tabs button { min-height: 38px; }
+  .im-side:not(.is-open) .im-tabs button.is-on { color: var(--text); border-bottom-color: var(--accent-soft); }
+}
+
+@media (max-width: 900px) {
+  .im-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .im-filter { padding: 4px; font-size: 11px; }
+  .im-filter canvas { height: 58px; }
+  .im-fradds { display: flex; overflow-x: auto; gap: 6px; padding-bottom: 2px; scrollbar-width: none; }
+  .im-fradds::-webkit-scrollbar { display: none; }
+  .im-fradd { flex: none; padding: 8px 12px; }
+  .fr-intro { display: none; }
 }

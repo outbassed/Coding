@@ -44,8 +44,11 @@ Reprodução parcial: `python3 tests/final.py` (com a pasta servida em `http://l
 | 28 | Backup da biblioteca (6 docs) → apagar tudo → restaurar → 6 docs, continua após recarregar | PASSOU |
 | 29 | JPG de PNG transparente com fundo vermelho: canto vermelho, centro azul preservado; seletor some em PNG | PASSOU |
 | 30 | Barra de seleção sem overflow a 320 e 375 px; regressão geral e `tests/final.py` 12/12 | PASSOU |
+| 31–58 | Fase 7 – Imagens (`tests/imagens.py`, 28 verificações em navegador): molduras em camadas (7 tipos, adicionar/ocultar/reordenar/apagar, desfazer/refazer, tamanho e cor exportados, círculo transparente, 9:16, persistência após recarregar), texto (alinhamento/sombra/opacidade salvos), melhorar automático, endireitar, celular 390×780 (sem sobreposição, painel abre/recolhe, sem rolagem lateral) | PASSOU |
 
 ## Não testado (sem maquiagem)
+
+- **Imagens**: zoom com dois dedos foi testado só com toques simulados; paisagem no celular e backup/importação de documento com molduras não têm teste automático.
 
 - **Celular de verdade** (toque, teclado virtual, câmera): só simulei telas pequenas no navegador.
 - **Armazenamento cheio** (quota do navegador estourada): o aviso “Não foi possível salvar” existe, mas não provoquei a falha.

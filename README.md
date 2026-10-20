@@ -40,7 +40,8 @@ Funciona como site e como aplicativo instalável (PWA), inclusive offline. Sem f
 - Abra uma foto (ou Câmera, Ctrl+V, arrastar) ou comece em **branco**. Fotos muito grandes são reduzidas para 2560 px (1800 px no celular) para o editor ficar rápido.
 - **Desenhar**: lápis, pincel, marca-texto, spray, borracha (apaga até ficar transparente), balde, conta-gotas, linha, seta, retângulo, círculo, borrar e pixelar uma área.
 - **Textos e adesivos** movíveis (arraste, gire, aumente): texto com fontes e contorno, **Meme**, balão de fala, emojis e uma foto por cima.
-- **Cortar** com proporções, girar, espelhar, mudar tamanho, brilho/contraste/cores/calor, 11 filtros (+ *Surpreenda-me*), molduras (borda, polaroid, cantos redondos, círculo, vinheta) e colagem.
+- **Cortar** com proporções, girar, espelhar, mudar tamanho, brilho/contraste/cores/calor, 11 filtros (+ *Surpreenda-me*), **molduras em camadas** (borda, polaroid, cantos redondos, círculo, vinheta, fundo desfocado para story, filme), cada uma com suas próprias opções — clicar de novo **adiciona outra camada**, dá para ocultar, reordenar e apagar —, nitidez, **endireitar**, **melhorar automático** e colagem. No celular a foto ocupa a tela, com ferramentas embaixo e painéis que abrem como gaveta; use dois dedos para dar zoom.
+- Textos também têm alinhamento, sombra, fundo e opacidade.
 - **Salvar**: JPG, PNG ou WebP com qualidade e tamanho, copiar, compartilhar e **figurinha de WhatsApp** (512×512 WebP). Desfazer/refazer (Ctrl+Z/Y) e botão **Original** (segure) para comparar. O que você fez fica salvo no aparelho.
 
 ### Sorteio e Racha-conta

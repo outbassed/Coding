@@ -150,6 +150,10 @@
     <symbol id="ic-viewgrid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
     <symbol id="ic-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></symbol>
     <symbol id="ic-keys" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+    <symbol id="ic-sparkle" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></symbol>
+    <symbol id="ic-blurbg" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="2 2.4"/><rect x="8" y="8" width="8" height="8" rx="1"/></symbol>
+    <symbol id="ic-film" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M7 5v14M17 5v14M3 9h4M3 15h4M17 9h4M17 15h4"/></symbol>
+    <symbol id="ic-unsee" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7c2 0 3.700.6 5.200 1.500M22 12s-3.600 7-10 7c-2 0-3.700-.6-5.200-1.500M9.900 9.900a3 3 0 0 0 4.200 4.200M3 3l18 18"/></symbol>
     <symbol id="ic-rounded" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="7"/></symbol>
     <symbol id="ic-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></symbol>
     <symbol id="ic-vignette" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/></symbol>
@@ -610,8 +614,8 @@
         </div>
         <div class="im-center">
           <div class="im-opts" id="imOpts">
-            <label class="im-opt" data-for="pencil brush marker spray bucket line arrow rect ellipse text meme balloon frame"><span>Cor</span><input type="color" id="imColor" value="#e53935"></label>
-            <div class="im-swatches" data-for="pencil brush marker spray bucket line arrow rect ellipse text meme balloon frame" id="imSwatches"></div>
+            <label class="im-opt" data-for="pencil brush marker spray bucket line arrow rect ellipse text meme balloon"><span>Cor</span><input type="color" id="imColor" value="#e53935"></label>
+            <div class="im-swatches" data-for="pencil brush marker spray bucket line arrow rect ellipse text meme balloon" id="imSwatches"></div>
             <label class="im-opt im-grow" data-for="pencil brush marker spray eraser line arrow rect ellipse blur pixel"><span>Tamanho <b id="imSizeOut">8</b></span><input type="range" id="imSize" min="1" max="120" value="8"></label>
             <label class="im-check" data-for="rect ellipse"><input type="checkbox" id="imFill"> Preencher</label>
             <label class="im-check" data-for="bucket"><span>Força</span><input type="range" id="imTol" min="0" max="120" value="32"></label>
@@ -619,9 +623,16 @@
               <textarea id="imText" rows="2" placeholder="Escreva aqui…" aria-label="Texto"></textarea>
               <select id="imFont" aria-label="Letra"><option value="sans">Normal</option><option value="serif">Clássica</option><option value="mono">Máquina</option><option value="hand">Manuscrita</option><option value="impact">Impacto</option></select>
               <button class="cbtn" type="button" id="imBold" title="Negrito"><b>N</b></button>
+              <button class="cbtn" type="button" id="imAlL" title="Alinhar à esquerda" aria-label="Alinhar à esquerda"><svg class="icon" aria-hidden="true"><use href="#ic-alignleft"/></svg></button>
+              <button class="cbtn is-on" type="button" id="imAlC" title="Centralizar" aria-label="Centralizar"><svg class="icon" aria-hidden="true"><use href="#ic-center"/></svg></button>
+              <button class="cbtn" type="button" id="imAlR" title="Alinhar à direita" aria-label="Alinhar à direita"><svg class="icon" aria-hidden="true"><use href="#ic-alignright"/></svg></button>
               <label class="im-opt"><span>Contorno</span><input type="color" id="imStroke" value="#000000"></label>
               <label class="im-check"><input type="checkbox" id="imStrokeOn"> Usar</label>
+              <label class="im-check"><input type="checkbox" id="imShadow"> Sombra</label>
+              <label class="im-check"><input type="checkbox" id="imBox"> Fundo</label>
+              <label class="im-opt"><input type="color" id="imBoxC" value="#000000" aria-label="Cor do fundo do texto"></label>
               <label class="im-opt im-grow"><span>Tamanho</span><input type="range" id="imObjSize" min="10" max="900" value="80"></label>
+              <label class="im-opt im-grow"><span>Opacidade</span><input type="range" id="imObjAlpha" min="10" max="100" value="100"></label>
               <button class="cbtn" type="button" data-im="objfront" title="Trazer para a frente"><svg class="icon" aria-hidden="true"><use href="#ic-up"/></svg></button>
               <button class="cbtn" type="button" data-im="objdup" title="Duplicar"><svg class="icon" aria-hidden="true"><use href="#ic-copy"/></svg></button>
               <button class="cbtn danger" type="button" data-im="objdel" title="Apagar (Delete)"><svg class="icon" aria-hidden="true"><use href="#ic-trash"/></svg></button>
@@ -661,7 +672,12 @@
             <label class="tv-field"><span>Contraste <b id="imCoV">0</b></span><input type="range" id="imCo" min="-100" max="100" value="0"></label>
             <label class="tv-field"><span>Cores <b id="imSaV">0</b></span><input type="range" id="imSa" min="-100" max="100" value="0"></label>
             <label class="tv-field"><span>Calor <b id="imWaV">0</b></span><input type="range" id="imWa" min="-100" max="100" value="0"></label>
+            <label class="tv-field"><span>Nitidez <b id="imShV">0</b></span><input type="range" id="imSh" min="0" max="100" value="0"></label>
             <div class="im-btnrow"><button class="btn primary" type="button" data-im="adjok">Aplicar</button><button class="btn subtle" type="button" data-im="adjno">Zerar</button></div>
+            <button class="btn" type="button" data-im="auto" title="Acerta contraste e cores sozinho (dá para desfazer)"><svg class="icon" aria-hidden="true"><use href="#ic-sparkle"/></svg> Melhorar automático</button>
+            <hr>
+            <label class="tv-field"><span>Endireitar <b id="imStV">0</b>°</span><input type="range" id="imSt" min="-20" max="20" step="0.5" value="0"></label>
+            <div class="im-btnrow"><button class="btn" type="button" data-im="stok">Aplicar</button><button class="btn subtle" type="button" data-im="stno">Zerar</button></div>
             <hr>
             <div class="tv-row">
               <label class="tv-field"><span>Largura (px)</span><input id="imW" type="number" min="1" max="12000" inputmode="numeric"></label>
@@ -685,10 +701,12 @@
             </div>
           </div>
           <div class="im-pane" data-pane="fra" hidden>
-            <p class="tv-info">A cor vem da barra acima (Cor).</p>
-            <label class="tv-field"><span>Espessura <b id="imFrV">6</b>%</span><input type="range" id="imFr" min="1" max="25" value="6"></label>
-            <div class="im-btnrow"><button class="btn" type="button" data-frame="border"><svg class="icon" aria-hidden="true"><use href="#ic-frame"/></svg> Borda</button><button class="btn" type="button" data-frame="polaroid"><svg class="icon" aria-hidden="true"><use href="#ic-polaroid"/></svg> Polaroid</button><button class="btn" type="button" data-frame="rounded"><svg class="icon" aria-hidden="true"><use href="#ic-rounded"/></svg> Cantos redondos</button><button class="btn" type="button" data-frame="circle"><svg class="icon" aria-hidden="true"><use href="#ic-circle"/></svg> Círculo</button><button class="btn" type="button" data-frame="vignette"><svg class="icon" aria-hidden="true"><use href="#ic-vignette"/></svg> Vinheta</button></div>
-            <p class="tv-info">Cantos redondos e círculo deixam o fundo transparente: salve em PNG ou WebP.</p>
+            <p class="tv-info fr-intro">Cada moldura é uma camada com opções próprias. A foto original não muda: dá para ocultar, reordenar e apagar.</p>
+            <div class="im-fradds" id="imFrAdd" role="group" aria-label="Adicionar moldura"></div>
+            <p class="tv-info" id="imFrEmpty">Nenhuma moldura ainda. Toque em uma acima para adicionar.</p>
+            <ul class="im-frlist" id="imFrList" aria-label="Camadas de moldura (a de cima fica por fora)"></ul>
+            <div class="im-fropts" id="imFrOpts"></div>
+            <p class="tv-info" id="imFrHint" hidden>Cantos transparentes: salve em PNG ou WebP, ou use “Pintar o fundo dos cantos”.</p>
           </div>
           <div class="im-pane" data-pane="out" hidden>
             <label class="tv-field"><span>Formato</span><select id="imFmt"><option value="image/jpeg">JPG (menor)</option><option value="image/png">PNG (sem perdas)</option><option value="image/webp">WebP (moderno)</option></select></label>

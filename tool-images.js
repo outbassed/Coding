@@ -54,7 +54,7 @@
   let ratio = "";
 
   function defaults() {
-    return { name: "Imagem sem título", w: 0, h: 0, fmt: "image/jpeg", quality: 85, outSize: 0, thumb: "", origId: "", curId: "", objects: [], color: "#e53935", bg: "#ffffff", rot0: 0, filter: { id: "", amt: 100 } };
+    return { name: "Imagem sem título", w: 0, h: 0, fmt: "image/jpeg", quality: 85, outSize: 0, thumb: "", origId: "", curId: "", objects: [], color: "#e53935", bg: "#ffffff", rot0: 0, filter: { id: "", amt: 100 }, frames: [] };
   }
   const FILTER_IDS = ["bw", "sepia", "vintage", "neon", "sunset", "cool", "cartoon", "vivid", "fade", "neg", "pixel"];
   const okId = (v) => typeof v === "string" && /^[a-z0-9]{4,24}$/.test(v) ? v : "";
@@ -66,7 +66,7 @@
     if (!o || typeof o !== "object") return null;
     const t = ["text", "emoji", "balloon", "img"].includes(o.t) ? o.t : "";
     if (!t) return null;
-    const r = { t, x: num(o.x, 0, -20000, 20000), y: num(o.y, 0, -20000, 20000), size: num(o.size, 60, 4, 6000), rot: num(o.rot, 0, -7, 7) };
+    const r = { t, x: num(o.x, 0, -20000, 20000), y: num(o.y, 0, -20000, 20000), size: num(o.size, 60, 4, 6000), rot: num(o.rot, 0, -7, 7), alpha: num(o.alpha, 1, 0.05, 1) };
     if (t === "emoji") r.ch = C.util.toText(o.ch, "😀", 8);
     if (t === "text" || t === "balloon") {
       r.text = C.util.toText(o.text, "", 400);
@@ -76,6 +76,10 @@
       r.stroke = hex(o.stroke, "#000000");
       r.strokeOn = Boolean(o.strokeOn);
       r.caps = Boolean(o.caps);
+      r.align = ["l", "c", "r"].includes(o.align) ? o.align : "c";
+      r.shadow = Boolean(o.shadow);
+      r.box = Boolean(o.box);
+      r.boxColor = hex(o.boxColor, "#000000");
     }
     if (t === "balloon") { r.tx = num(o.tx, -r.size, -20000, 20000); r.ty = num(o.ty, r.size * 2, -20000, 20000); }
     if (t === "img") {
@@ -101,8 +105,270 @@
       objects: (Array.isArray(o.objects) ? o.objects.slice(0, 40) : []).map(normObj).filter(Boolean),
       color: hex(o.color, d.color),
       rot0: first && [90, 180, 270].includes(first.rotate) ? first.rotate : 0,
-      filter: { id: o.filter && FILTER_IDS.includes(o.filter.id) ? o.filter.id : "", amt: o.filter ? C.util.toInt(o.filter.amt, 100, 0, 100) : 100 }
+      filter: { id: o.filter && FILTER_IDS.includes(o.filter.id) ? o.filter.id : "", amt: o.filter ? C.util.toInt(o.filter.amt, 100, 0, 100) : 100 },
+      frames: normFrames(o.frames)
     };
+  }
+
+
+  /* ---------------- Molduras: camadas não destrutivas ---------------- */
+  /* Cada moldura é uma camada com opções próprias. A de índice 0 fica rente à foto; a última fica por fora.
+     Elas só mudam a tela e a imagem salva: a foto original continua intacta e dá para ligar, desligar, reordenar e apagar. */
+
+  const FR_MAX = 6;
+  const FR_KINDS = {
+    border: { name: "Borda", icon: "frame", def: { size: 6, color: "#ffffff", style: "solid", radius: 0, where: "out" }, fields: [
+      ["size", "range", "Espessura", 1, 30, "%"], ["color", "color", "Cor"],
+      ["style", "select", "Estilo", [["solid", "Lisa"], ["double", "Dupla"], ["dashed", "Tracejada"]]],
+      ["radius", "range", "Cantos arredondados", 0, 50, "%"],
+      ["where", "select", "Posição", [["out", "Por fora da foto"], ["in", "Por cima da foto"]]]] },
+    polaroid: { name: "Polaroid", icon: "polaroid", def: { size: 5, bottom: 22, color: "#fbfaf6", caption: "", capColor: "#333333", font: "hand" }, fields: [
+      ["size", "range", "Margem", 1, 20, "%"], ["bottom", "range", "Margem de baixo", 8, 45, "%"], ["color", "color", "Cor do papel"],
+      ["caption", "text", "Legenda"], ["capColor", "color", "Cor da legenda"],
+      ["font", "select", "Letra da legenda", [["hand", "Manuscrita"], ["sans", "Normal"], ["serif", "Clássica"], ["mono", "Máquina"]]]] },
+    rounded: { name: "Cantos redondos", icon: "rounded", def: { radius: 12, bgOn: false, bg: "#ffffff" }, fields: [
+      ["radius", "range", "Arredondamento", 1, 50, "%"], ["bgOn", "check", "Pintar o fundo dos cantos"], ["bg", "color", "Cor do fundo"]] },
+    circle: { name: "Círculo", icon: "circle", def: { shape: "circle", bgOn: false, bg: "#ffffff" }, fields: [
+      ["shape", "select", "Forma", [["circle", "Círculo (corta em quadrado)"], ["oval", "Oval (mantém o tamanho)"]]],
+      ["bgOn", "check", "Pintar o fundo dos cantos"], ["bg", "color", "Cor do fundo"]] },
+    vignette: { name: "Vinheta", icon: "vignette", def: { strength: 55, size: 45, color: "#000000" }, fields: [
+      ["strength", "range", "Intensidade", 5, 100, "%"], ["size", "range", "Área clara", 0, 100, "%"], ["color", "color", "Cor"]] },
+    blur: { name: "Fundo desfocado", icon: "blurbg", def: { ratio: "1:1", blur: 30, dim: 20 }, fields: [
+      ["ratio", "select", "Formato", [["1:1", "Quadrado 1:1"], ["4:5", "Retrato 4:5"], ["9:16", "Story 9:16"], ["16:9", "Paisagem 16:9"], ["4:3", "Paisagem 4:3"]]],
+      ["blur", "range", "Desfoque", 5, 80, ""], ["dim", "range", "Escurecer", 0, 80, "%"]] },
+    film: { name: "Filme", icon: "film", def: { size: 9, color: "#111111", holes: true }, fields: [
+      ["size", "range", "Tamanho", 4, 20, "%"], ["color", "color", "Cor"], ["holes", "check", "Furinhos"]] }
+  };
+  function normFrame(o) {
+    const K = o && typeof o === "object" ? FR_KINDS[o.kind] : null;
+    if (!K) return null;
+    const r = { id: okId(o.id) || newId(), kind: o.kind, on: o.on !== false };
+    K.fields.forEach(([key, type, , a, b]) => {
+      const d = K.def[key], v = o[key];
+      if (type === "range") r[key] = num(v, d, a, b);
+      else if (type === "color") r[key] = hex(v, d);
+      else if (type === "select") r[key] = a.some((x) => x[0] === v) ? v : d;
+      else if (type === "check") r[key] = typeof v === "boolean" ? v : d;
+      else r[key] = C.util.toText(v, d, 60);
+    });
+    return r;
+  }
+  function normFrames(arr) { return (Array.isArray(arr) ? arr.slice(0, FR_MAX) : []).map(normFrame).filter(Boolean); }
+  const frCopy = (arr) => arr.map((f) => ({ ...f }));
+  const luma = (c) => { const n = parseInt(c.slice(1), 16); return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; };
+
+  // Tamanho de cada camada e onde a foto fica dentro dela (só deslocamentos: a foto nunca é esticada).
+  function frGeo(f, iw, ih) {
+    const m = Math.min(iw, ih), I = { ow: iw, oh: ih, dx: 0, dy: 0 };
+    if (f.kind === "border") { if (f.where === "in") return I; const p = Math.max(1, Math.round(m * f.size / 100)); return { ow: iw + 2 * p, oh: ih + 2 * p, dx: p, dy: p }; }
+    if (f.kind === "polaroid") { const p = Math.max(1, Math.round(m * f.size / 100)), b = Math.max(1, Math.round(m * f.bottom / 100)); return { ow: iw + 2 * p, oh: ih + p + b, dx: p, dy: p }; }
+    if (f.kind === "circle" && f.shape === "circle") { const s = Math.min(iw, ih); return { ow: s, oh: s, dx: -Math.round((iw - s) / 2), dy: -Math.round((ih - s) / 2) }; }
+    if (f.kind === "blur") {
+      const [a, b] = f.ratio.split(":").map(Number), r = a / b;
+      let ow = iw, oh = ih;
+      if (iw / ih > r) oh = iw / r; else ow = ih * r;
+      ow = Math.round(ow); oh = Math.round(oh);
+      return { ow, oh, dx: Math.round((ow - iw) / 2), dy: Math.round((oh - ih) / 2) };
+    }
+    if (f.kind === "film") { const p = Math.max(2, Math.round(m * f.size / 100)), side = Math.round(p * 0.5), strip = Math.round(p * 1.7); return { ow: iw + 2 * side, oh: ih + 2 * strip, dx: side, dy: strip }; }
+    return I;
+  }
+  function frGeoAll(fs, pw, ph) {
+    let iw = pw, ih = ph, L = 0, T = 0;
+    const geos = [];
+    fs.forEach((f) => {
+      let g = frGeo(f, iw, ih);
+      if (g.ow > 9000 || g.oh > 9000 || g.ow * g.oh > 50e6) g = { ow: iw, oh: ih, dx: 0, dy: 0 };
+      g.iw = iw; g.ih = ih; geos.push(g);
+      L += g.dx; T += g.dy; iw = g.ow; ih = g.oh;
+    });
+    return { W: iw, H: ih, L, T, geos };
+  }
+  function ringPath(g, W, H, p, r) { // "anel" de largura p (a borda), com a abertura no meio
+    g.beginPath();
+    rrectPath(g, 0, 0, W, H, r);
+    rrectPath(g, p, p, Math.max(1, W - 2 * p), Math.max(1, H - 2 * p), Math.max(0, r - p));
+  }
+  function rrectPath(g, x, y, ww, hh, r) {
+    r = Math.max(0, Math.min(r, ww / 2, hh / 2));
+    g.moveTo(x + r, y); g.arcTo(x + ww, y, x + ww, y + hh, r); g.arcTo(x + ww, y + hh, x, y + hh, r); g.arcTo(x, y + hh, x, y, r); g.arcTo(x, y, x + ww, y, r); g.closePath();
+  }
+  let blurCache = { key: "", c: null };
+  function blurBackdrop(f, ow, oh) {
+    const key = [ow, oh, f.blur, baseRev, state.filter.id, state.filter.amt].join(":");
+    if (blurCache.c && (blurCache.key === key || drag)) return blurCache.c;
+    const src = shown(true);
+    const k = 3 + f.blur * 0.55;
+    const s1 = newCanvas(Math.max(4, ow / k), Math.max(4, oh / k));
+    const c1 = s1.getContext("2d"); c1.imageSmoothingQuality = "high";
+    const cover = Math.max(s1.width / src.width, s1.height / src.height);
+    c1.drawImage(src, (s1.width - src.width * cover) / 2, (s1.height - src.height * cover) / 2, src.width * cover, src.height * cover);
+    const s2 = newCanvas(Math.max(3, s1.width / 2), Math.max(3, s1.height / 2));
+    const c2 = s2.getContext("2d"); c2.imageSmoothingQuality = "high"; c2.drawImage(s1, 0, 0, s2.width, s2.height);
+    const out = newCanvas(ow, oh);
+    const co = out.getContext("2d"); co.imageSmoothingQuality = "high"; co.drawImage(s2, 0, 0, ow, oh);
+    blurCache = { key, c: out };
+    return out;
+  }
+  function frBack(g, f, gm) {
+    if ((f.kind === "rounded" || f.kind === "circle") && f.bgOn) { g.fillStyle = f.bg; g.fillRect(0, 0, gm.ow, gm.oh); }
+  }
+  function frClip(g, f, gm) {
+    const m = Math.min(gm.ow, gm.oh);
+    if (f.kind === "border" && f.radius > 0) { g.beginPath(); rrectPath(g, 0, 0, gm.ow, gm.oh, m * f.radius / 100); g.clip(); }
+    else if (f.kind === "rounded") { g.beginPath(); rrectPath(g, 0, 0, gm.ow, gm.oh, m * f.radius / 100); g.clip(); }
+    else if (f.kind === "circle") { g.beginPath(); g.ellipse(gm.ow / 2, gm.oh / 2, gm.ow / 2, gm.oh / 2, 0, 0, 7); g.clip(); }
+  }
+  function frUnder(g, f, gm) {
+    const { ow, oh } = gm, m = Math.min(gm.iw, gm.ih);
+    if (f.kind === "border" && f.where === "out") { g.fillStyle = f.color; g.fillRect(0, 0, ow, oh); }
+    else if (f.kind === "polaroid") { g.fillStyle = f.color; g.fillRect(0, 0, ow, oh); }
+    else if (f.kind === "blur") {
+      g.drawImage(blurBackdrop(f, ow, oh), 0, 0, ow, oh);
+      if (f.dim > 0) { g.fillStyle = "rgba(0,0,0," + (f.dim / 100).toFixed(2) + ")"; g.fillRect(0, 0, ow, oh); }
+    } else if (f.kind === "film") {
+      g.fillStyle = f.color; g.fillRect(0, 0, ow, oh);
+      if (f.holes) {
+        const p = Math.max(2, Math.round(m * f.size / 100)), strip = Math.round(p * 1.7), hs = strip * 0.36, step = hs * 1.9;
+        g.fillStyle = luma(f.color) > 0.5 ? "rgba(0,0,0,.55)" : "rgba(255,255,255,.88)";
+        for (let x = step / 2; x < ow - hs; x += step) {
+          g.beginPath(); rrectPath(g, x, (strip - hs) / 2, hs * 1.15, hs, hs * 0.25); g.fill();
+          g.beginPath(); rrectPath(g, x, oh - strip + (strip - hs) / 2, hs * 1.15, hs, hs * 0.25); g.fill();
+        }
+      }
+    }
+  }
+  function frOver(g, f, gm) {
+    const { ow, oh } = gm, m = Math.min(gm.iw, gm.ih);
+    if (f.kind === "border") {
+      const p = Math.max(1, Math.round(m * f.size / 100)), r = f.radius > 0 ? Math.min(ow, oh) * f.radius / 100 : 0;
+      if (f.where === "in") { g.save(); g.fillStyle = f.color; ringPath(g, ow, oh, p, r); g.fill("evenodd"); g.restore(); }
+      if (f.style !== "solid") {
+        g.save();
+        g.strokeStyle = luma(f.color) > 0.5 ? "rgba(0,0,0,.55)" : "rgba(255,255,255,.8)";
+        const lw = Math.max(1, p * 0.1);
+        g.lineWidth = lw;
+        const line = (inset) => { g.beginPath(); rrectPath(g, inset, inset, ow - 2 * inset, oh - 2 * inset, Math.max(0, r - inset)); g.stroke(); };
+        if (f.style === "double") { line(p * 0.28); line(p * 0.72); }
+        else { g.setLineDash([p * 0.55, p * 0.4]); line(p * 0.5); }
+        g.restore();
+      }
+    } else if (f.kind === "polaroid" && f.caption.trim()) {
+      const p = Math.max(1, Math.round(m * f.size / 100)), top = p + gm.ih, areaH = oh - top;
+      let size = Math.max(8, areaH * 0.42);
+      g.save();
+      g.fillStyle = f.capColor; g.textAlign = "center"; g.textBaseline = "middle";
+      for (let i = 0; i < 12; i++) { g.font = Math.round(size) + "px " + (FONTS[f.font] || FONTS.sans); if (g.measureText(f.caption).width <= ow * 0.88) break; size *= 0.88; }
+      g.fillText(f.caption, ow / 2, top + areaH / 2, ow * 0.92);
+      g.restore();
+    } else if (f.kind === "vignette") {
+      const r1 = Math.hypot(ow, oh) / 2, r0 = r1 * (f.size / 100) * 0.85, c = rgba(f.color);
+      const gr = g.createRadialGradient(ow / 2, oh / 2, r0, ow / 2, oh / 2, r1);
+      gr.addColorStop(0, "rgba(" + c.join(",") + ",0)"); gr.addColorStop(1, "rgba(" + c.join(",") + "," + (f.strength / 100 * 0.95).toFixed(2) + ")");
+      g.fillStyle = gr; g.fillRect(0, 0, ow, oh);
+    }
+  }
+  // Desenha a pilha de molduras ao redor da foto. drawPhoto(g) desenha a foto (e textos) na origem (0,0).
+  function frDraw(g, i, fs, geos, drawPhoto) {
+    if (i < 0) { drawPhoto(g); return; }
+    const f = fs[i], gm = geos[i];
+    g.save();
+    frBack(g, f, gm);
+    frClip(g, f, gm);
+    frUnder(g, f, gm);
+    g.save(); g.translate(gm.dx, gm.dy); frDraw(g, i - 1, fs, geos, drawPhoto); g.restore();
+    frOver(g, f, gm);
+    g.restore();
+  }
+  let fg = { W: 0, H: 0, L: 0, T: 0, geos: [], fs: [] };
+  const framesOn = () => (tool === "crop" ? [] : state.frames.filter((f) => f.on));
+  function refreshGeom() { const fs = framesOn(); fg = { ...frGeoAll(fs, w, h), fs }; }
+
+
+  /* ---- tela das molduras: lista de camadas + opções da camada escolhida ---- */
+  let frSelId = "";
+  function frFixSel() { if (!state.frames.some((f) => f.id === frSelId)) frSelId = state.frames.length ? state.frames[state.frames.length - 1].id : ""; }
+  const frSel = () => state.frames.find((f) => f.id === frSelId) || null;
+  const mkEl = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+  const frIcon = (id) => { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("class", "icon"); s.setAttribute("aria-hidden", "true"); const u = document.createElementNS("http://www.w3.org/2000/svg", "use"); u.setAttribute("href", "#ic-" + id); s.append(u); return s; };
+  function frChanged(geom) { if (geom) layout(); changed(false); }
+  function frRebuildAfter(fn) { pushUndo(); fn(); frFixSel(); renderFrameUi(); layout(); changed(false); }
+  function addFrame(kind) {
+    if (!has) { C.toast("Abra uma foto ou comece uma tela em branco primeiro."); return; }
+    if (state.frames.length >= FR_MAX) { C.toast("Limite de " + FR_MAX + " molduras. Apague uma para colocar outra."); return; }
+    const K = FR_KINDS[kind];
+    frRebuildAfter(() => { const f = { id: newId(), kind, on: true, ...K.def }; state.frames.push(f); frSelId = f.id; });
+  }
+  function moveFrame(id, dir) { // dir +1 = mais para fora, -1 = mais para perto da foto
+    const i = state.frames.findIndex((f) => f.id === id), j = i + dir;
+    if (i < 0 || j < 0 || j >= state.frames.length) return;
+    frRebuildAfter(() => { const [f] = state.frames.splice(i, 1); state.frames.splice(j, 0, f); });
+  }
+  function delFrame(id) { frRebuildAfter(() => { state.frames = state.frames.filter((f) => f.id !== id); }); }
+  function toggleFrame(id) { const f = state.frames.find((x) => x.id === id); if (f) frRebuildAfter(() => { f.on = !f.on; }); }
+  function frField(f, [key, type, label, a, b, unit]) {
+    const wrap = mkEl("label", type === "check" ? "tv-check" : "tv-field");
+    const set = (v, geom) => { undoBurst(); f[key] = v; frChanged(geom); };
+    const geomKeys = ["size", "bottom", "radius", "ratio", "shape", "where"];
+    const geom = geomKeys.includes(key) || (f.kind === "blur" && key === "blur") ;
+    if (type === "range") {
+      const sp = mkEl("span"); sp.append(label + " "); const out = mkEl("b", "", f[key] + (unit || "")); sp.append(out);
+      const inp = mkEl("input"); inp.type = "range"; inp.min = a; inp.max = b; inp.value = f[key];
+      inp.addEventListener("input", () => { out.textContent = inp.value + (unit || ""); set(Number(inp.value), geom && key !== "blur"); });
+      wrap.append(sp, inp);
+    } else if (type === "color") {
+      const sp = mkEl("span", "", label); const inp = mkEl("input"); inp.type = "color"; inp.value = f[key];
+      inp.addEventListener("input", () => set(inp.value, false)); wrap.append(sp, inp); wrap.classList.add("is-inline");
+    } else if (type === "select") {
+      const sp = mkEl("span", "", label); const sel2 = mkEl("select");
+      a.forEach(([v, l]) => { const o = mkEl("option", "", l); o.value = v; sel2.append(o); });
+      sel2.value = f[key];
+      sel2.addEventListener("change", () => set(sel2.value, geomKeys.includes(key)));
+      wrap.append(sp, sel2);
+    } else if (type === "check") {
+      const inp = mkEl("input"); inp.type = "checkbox"; inp.checked = Boolean(f[key]);
+      inp.addEventListener("change", () => set(inp.checked, false)); wrap.append(inp, " " + label);
+    } else {
+      const sp = mkEl("span", "", label); const inp = mkEl("input"); inp.type = "text"; inp.maxLength = 60; inp.value = f[key]; inp.placeholder = "Escreva aqui…";
+      inp.addEventListener("input", () => set(inp.value, false)); wrap.append(sp, inp);
+    }
+    return wrap;
+  }
+  function renderFrameUi() {
+    const add = byId("imFrAdd"), list = byId("imFrList"), opts = byId("imFrOpts"), empty = byId("imFrEmpty");
+    if (!add) return;
+    if (!add.children.length) {
+      Object.entries(FR_KINDS).forEach(([kind, K]) => {
+        const b = mkEl("button", "im-fradd"); b.type = "button"; b.title = "Adicionar: " + K.name;
+        b.append(frIcon(K.icon), mkEl("span", "", K.name));
+        b.addEventListener("click", () => addFrame(kind));
+        add.append(b);
+      });
+    }
+    frFixSel();
+    list.replaceChildren();
+    empty.hidden = state.frames.length > 0;
+    [...state.frames].reverse().forEach((f, idx, arr) => {
+      const K = FR_KINDS[f.kind];
+      const row = mkEl("li", "im-frrow" + (f.id === frSelId ? " is-sel" : "") + (f.on ? "" : " is-off"));
+      const eye = mkEl("button", "fr-btn"); eye.type = "button"; eye.append(frIcon(f.on ? "see" : "unsee")); eye.title = f.on ? "Ocultar" : "Mostrar"; eye.setAttribute("aria-label", (f.on ? "Ocultar " : "Mostrar ") + K.name); eye.setAttribute("aria-pressed", String(f.on));
+      eye.addEventListener("click", () => toggleFrame(f.id));
+      const name = mkEl("button", "fr-name"); name.type = "button"; name.append(frIcon(K.icon), mkEl("span", "", K.name));
+      name.addEventListener("click", () => { frSelId = f.id; renderFrameUi(); });
+      const up = mkEl("button", "fr-btn"); up.type = "button"; up.append(frIcon("up")); up.title = "Mais para fora"; up.setAttribute("aria-label", "Mover " + K.name + " para fora"); up.disabled = idx === 0;
+      up.addEventListener("click", () => moveFrame(f.id, 1));
+      const dn = mkEl("button", "fr-btn"); dn.type = "button"; dn.append(frIcon("down")); dn.title = "Mais para perto da foto"; dn.setAttribute("aria-label", "Mover " + K.name + " para perto da foto"); dn.disabled = idx === arr.length - 1;
+      dn.addEventListener("click", () => moveFrame(f.id, -1));
+      const del = mkEl("button", "fr-btn danger"); del.type = "button"; del.append(frIcon("trash")); del.title = "Apagar moldura"; del.setAttribute("aria-label", "Apagar " + K.name);
+      del.addEventListener("click", () => delFrame(f.id));
+      row.append(eye, name, up, dn, del);
+      list.append(row);
+    });
+    opts.replaceChildren();
+    const f = frSel();
+    if (f) { const K = FR_KINDS[f.kind]; opts.append(mkEl("p", "tv-info fr-title", "Opções: " + K.name)); K.fields.forEach((fd) => opts.append(frField(f, fd))); }
+    const hint = byId("imFrHint");
+    hint.hidden = !state.frames.some((f) => f.on && (f.kind === "rounded" || f.kind === "circle" || (f.kind === "border" && f.radius > 0)) && !((f.kind === "rounded" || f.kind === "circle") && f.bgOn));
   }
 
   /* ---------------- Objetos (textos, adesivos, balões, fotos) ---------------- */
@@ -121,18 +387,27 @@
   const lum = (c) => { const n = parseInt(c.slice(1), 16); return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; };
   function drawText(ctx, o, cxo, cyo, m) {
     ctx.font = fontOf(o);
-    ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.lineJoin = "round";
     ctx.miterLimit = 2;
-    const ls = linesOf(o);
-    const top = cyo - (ls.length * o.size * 1.2) / 2 + o.size * 0.6;
+    const ls = linesOf(o), tw = m && m.tw ? m.tw : 0;
+    const al = o.t === "balloon" ? "c" : (o.align || "c");
+    ctx.textAlign = al === "l" ? "left" : al === "r" ? "right" : "center";
+    const x = al === "l" ? cxo - tw / 2 : al === "r" ? cxo + tw / 2 : cxo;
+    const th = ls.length * o.size * 1.2, top = cyo - th / 2 + o.size * 0.6;
+    if (o.box && o.t === "text") {
+      const pad = o.size * 0.25;
+      ctx.save(); ctx.fillStyle = o.boxColor; rrect(ctx, cxo - tw / 2 - pad, cyo - th / 2 - pad * 0.3, tw + pad * 2, th + pad * 0.6, o.size * 0.22); ctx.fill(); ctx.restore();
+    }
+    ctx.save();
+    if (o.shadow && o.t === "text") { ctx.shadowColor = "rgba(0,0,0,.65)"; ctx.shadowBlur = o.size * 0.14; ctx.shadowOffsetX = o.size * 0.04; ctx.shadowOffsetY = o.size * 0.05; }
     ls.forEach((l, i) => {
       const y = top + i * o.size * 1.2;
-      if (o.strokeOn || o.caps) { ctx.lineWidth = Math.max(2, o.size * 0.16); ctx.strokeStyle = o.caps && !o.strokeOn ? "#000000" : o.stroke; ctx.strokeText(l, cxo, y); }
+      if (o.strokeOn || o.caps) { ctx.lineWidth = Math.max(2, o.size * 0.16); ctx.strokeStyle = o.caps && !o.strokeOn ? "#000000" : o.stroke; ctx.strokeText(l, x, y); }
       ctx.fillStyle = o.t === "balloon" ? (lum(o.color) > 0.5 ? "#111111" : "#ffffff") : o.color;
-      ctx.fillText(l, cxo, y);
+      ctx.fillText(l, x, y);
     });
+    ctx.restore();
   }
   function rrect(ctx, x, y, ww, hh, r) {
     r = Math.min(r, ww / 2, hh / 2);
@@ -151,6 +426,7 @@
     ctx.save();
     ctx.translate(o.x, o.y);
     ctx.rotate(o.rot);
+    if (o.alpha !== undefined && o.alpha < 1) ctx.globalAlpha = o.alpha;
     const m = measure(o);
     if (o.t === "emoji") {
       ctx.font = Math.round(o.size) + "px " + EMOJI_FONT;
@@ -226,7 +502,7 @@
   const touchBase = () => { baseRev++; };
   function takeSnap() {
     if (!lastCopy || lastRev !== baseRev) { lastCopy = clone(base); lastRev = baseRev; }
-    return { base: lastCopy, objs: objs.map(cloneObj), w, h, filter: { ...state.filter } };
+    return { base: lastCopy, objs: objs.map(cloneObj), w, h, filter: { ...state.filter }, frames: frCopy(state.frames) };
   }
   function trimHistory() {
     const seen = new Set();
@@ -248,7 +524,8 @@
     w = s.w; h = s.h;
     objs = s.objs.map(cloneObj);
     state.filter = { ...(s.filter || { id: "", amt: 100 }) };
-    sel = null; crop = null; adj = null; clearAdjUi(); syncFilterUi();
+    state.frames = frCopy(s.frames || []);
+    sel = null; crop = null; adj = null; clearAdjUi(); syncFilterUi(); frFixSel(); renderFrameUi();
     baseRev++; lastCopy = s.base; lastRev = baseRev;
     layout();
     changed();
@@ -278,13 +555,14 @@
     ui.wrap.hidden = !has;
     ui.empty.hidden = has;
     ws.classList.toggle("has-image", has);
-    if (!has) return;
-    for (const c of [ui.cv, ui.ov]) { if (c.width !== w) c.width = w; if (c.height !== h) c.height = h; }
+    if (!has) { fg = { W: 0, H: 0, L: 0, T: 0, geos: [], fs: [] }; return; }
+    refreshGeom();
+    for (const c of [ui.cv, ui.ov]) { if (c.width !== fg.W) c.width = fg.W; if (c.height !== fg.H) c.height = fg.H; }
     const av = { w: Math.max(80, ui.stage.clientWidth - 24), h: Math.max(80, ui.stage.clientHeight - 24) };
-    const fit = Math.min(av.w / w, av.h / h, 3);
+    const fit = Math.min(av.w / fg.W, av.h / fg.H, 3);
     view.scale = view.zoom ? view.zoom : fit;
-    ui.wrap.style.width = Math.round(w * view.scale) + "px";
-    ui.wrap.style.height = Math.round(h * view.scale) + "px";
+    ui.wrap.style.width = Math.round(fg.W * view.scale) + "px";
+    ui.wrap.style.height = Math.round(fg.H * view.scale) + "px";
     ui.zoom.textContent = view.zoom ? Math.round(view.scale * 100) + "%" : "Ajustar";
     paint();
   }
@@ -295,18 +573,23 @@
   }
   function paintNow() {
     if (!has) return;
-    cx.clearRect(0, 0, w, h);
-    if (showOrig && origBmp) {
-      const k = Math.min(w / origBmp.width, h / origBmp.height);
-      cx.drawImage(origBmp, (w - origBmp.width * k) / 2, (h - origBmp.height * k) / 2, origBmp.width * k, origBmp.height * k);
-    } else {
-      if (adj) cx.drawImage(adj.out, 0, 0, w, h); else cx.drawImage(shown(), 0, 0);
-      objs.forEach((o) => drawObj(cx, o));
-    }
+    cx.clearRect(0, 0, fg.W, fg.H);
+    frDraw(cx, fg.fs.length - 1, fg.fs, fg.geos, (g) => {
+      g.save(); g.beginPath(); g.rect(0, 0, w, h); g.clip();
+      if (showOrig && origBmp) {
+        const k = Math.min(w / origBmp.width, h / origBmp.height);
+        g.drawImage(origBmp, (w - origBmp.width * k) / 2, (h - origBmp.height * k) / 2, origBmp.width * k, origBmp.height * k);
+      } else {
+        drawPhotoSrc(g, adj ? adj.out : shown());
+        objs.forEach((o) => drawObj(g, o));
+      }
+      g.restore();
+    });
     drawOverlay();
   }
   function drawOverlay() {
-    ox.clearRect(0, 0, w, h);
+    ox.clearRect(0, 0, fg.W, fg.H);
+    ox.save(); ox.translate(fg.L, fg.T);
     const px = 1 / view.scale;
     if (tool === "crop" && crop) {
       ox.fillStyle = "rgba(0,0,0,.55)";
@@ -333,6 +616,7 @@
       dot(hs.rot, "#7b61ff", "⟳");
       if (hs.tail) dot(hs.tail, "#ff7a45", "◆");
     }
+    ox.restore();
   }
 
   /* ---------------- Salvar no aparelho ---------------- */
@@ -363,15 +647,7 @@
   }
   function makeThumb() {
     if (!has) return;
-    const k = Math.min(1, 240 / Math.max(w, h));
-    const t = document.createElement("canvas");
-    t.width = Math.max(1, Math.round(w * k)); t.height = Math.max(1, Math.round(h * k));
-    const tx = t.getContext("2d");
-    tx.fillStyle = "#fff"; tx.fillRect(0, 0, t.width, t.height);
-    tx.scale(k, k);
-    tx.drawImage(shown(true), 0, 0);
-    objs.forEach((o) => drawObj(tx, o));
-    state.thumb = t.toDataURL("image/jpeg", 0.7);
+    state.thumb = composite(240, "#ffffff").toDataURL("image/jpeg", 0.7);
     C.scheduleSave();
   }
 
@@ -463,7 +739,7 @@
     const box = byId("imFilters");
     filtersDirty = false; thumbRev = baseRev;
     box.replaceChildren();
-    const src = has ? smallCopy(96) : null;
+    const src = has ? smallCopy(180) : null;
     [{ id: "", name: "Normal", e: "" }, ...FILTERS].forEach((f) => {
       const b = document.createElement("button");
       b.type = "button"; b.className = "im-filter"; b.title = f.id ? f.name : "Sem filtro"; b.dataset.fid = f.id;
@@ -520,7 +796,7 @@
       const info = await decode(origBlob);
       pushUndo();
       objs = []; sel = null; crop = null;
-      state.filter = { id: "", amt: 100 };
+      state.filter = { id: "", amt: 100 }; state.frames = []; frSelId = ""; renderFrameUi();
       setBaseCanvas(info.canvas);
       view.zoom = 0; layout(); syncFilterUi();
       dirtyImg = true; changed();
@@ -528,7 +804,51 @@
   }
 
   /* ajustes (brilho, contraste, cores, calor) com prévia ao vivo */
-  const ADJ = ["imBr", "imCo", "imSa", "imWa"];
+  const ADJ = ["imBr", "imCo", "imSa", "imWa", "imSh"];
+  function sharpen(id, amt) { // realce de bordas: mistura a imagem com uma versão "afiada" (kernel 3x3)
+    const W2 = id.width, H2 = id.height, s = id.data, o = new Uint8ClampedArray(s);
+    for (let y = 1; y < H2 - 1; y++) for (let x = 1; x < W2 - 1; x++) {
+      const i = (y * W2 + x) * 4;
+      for (let k = 0; k < 3; k++) {
+        const v = 5 * s[i + k] - s[i - 4 + k] - s[i + 4 + k] - s[i - W2 * 4 + k] - s[i + W2 * 4 + k];
+        o[i + k] = s[i + k] + (v - s[i + k]) * amt;
+      }
+    }
+    s.set(o);
+  }
+  function autoEnhance() {
+    if (!has) return;
+    const d = bx.getImageData(0, 0, w, h), px = d.data, hist = new Uint32Array(256);
+    let n = 0;
+    for (let i = 0; i < px.length; i += 16) { if (px[i + 3] < 8) continue; hist[Math.round(0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2])]++; n++; }
+    if (!n) return;
+    let acc = 0, lo = 0, hi = 255;
+    for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= n * 0.01) { lo = v; break; } }
+    acc = 0;
+    for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc >= n * 0.01) { hi = v; break; } }
+    if (hi - lo < 24) { C.toast("Esta imagem já está bem equilibrada."); return; }
+    const a = 255 / (hi - lo), o = -lo / (hi - lo);
+    pushUndo(); touchBase();
+    applyMatrix(d, chain([a, 0, 0, 0, o, 0, a, 0, 0, o, 0, 0, a, 0, o, 0, 0, 0, 1, 0], M.sat(1.08)));
+    bx.putImageData(d, 0, 0);
+    changed();
+    C.toast("Cores e contraste melhorados. Dá para desfazer.");
+  }
+  /* endireitar: gira um pouco e amplia só o necessário para não sobrar canto vazio */
+  let strDeg = 0;
+  function strScale(rad) { const c = Math.abs(Math.cos(rad)), s = Math.abs(Math.sin(rad)); return Math.max(c + (h / w) * s, c + (w / h) * s); }
+  function drawPhotoSrc(g, src) {
+    if (!strDeg) { g.drawImage(src, 0, 0, w, h); return; }
+    const rad = (strDeg * Math.PI) / 180;
+    g.save(); g.translate(w / 2, h / 2); g.rotate(rad); g.scale(strScale(rad), strScale(rad)); g.drawImage(src, -w / 2, -h / 2, w, h); g.restore();
+  }
+  function clearStr() { strDeg = 0; byId("imSt").value = "0"; byId("imStV").textContent = "0"; }
+  function strApply() {
+    if (!has || !strDeg) return;
+    const rad = (strDeg * Math.PI) / 180, k = strScale(rad);
+    geo(() => { const nc = newCanvas(w, h); const c = nc.getContext("2d"); c.imageSmoothingQuality = "high"; c.translate(w / 2, h / 2); c.rotate(rad); c.scale(k, k); c.drawImage(base, -w / 2, -h / 2); return nc; });
+    clearStr();
+  }
   function adjMatrix() {
     const v = ADJ.map((id) => Number(byId(id).value) / 100);
     return chain(M.bright(1 + v[0] * 0.5), M.contrast(1 + v[1] * 0.6), M.sat(1 + v[2]), M.warm(v[3]));
@@ -543,6 +863,8 @@
     c.drawImage(adj.src, 0, 0);
     const id = c.getImageData(0, 0, adj.out.width, adj.out.height);
     applyMatrix(id, adjMatrix());
+    const sh = Number(byId("imSh").value) / 100;
+    if (sh > 0) sharpen(id, sh);
     c.putImageData(id, 0, 0);
     paint();
   }
@@ -552,6 +874,8 @@
     pushUndo(); touchBase();
     const id = bx.getImageData(0, 0, w, h);
     applyMatrix(id, m);
+    const sh = Number(byId("imSh").value) / 100;
+    if (sh > 0) sharpen(id, sh);
     bx.putImageData(id, 0, 0);
     clearAdjUi();
     changed();
@@ -593,7 +917,7 @@
     layout();
   }
   // Há trabalho a perder? Vale para quem acabou de editar e também para um documento salvo e reaberto.
-  function hasWork() { return has && (undoSt.length > 0 || objs.length > 0 || Boolean(state.curId) || dirtyImg); }
+  function hasWork() { return has && (undoSt.length > 0 || objs.length > 0 || state.frames.length > 0 || Boolean(state.curId) || dirtyImg); }
   async function loadBase(file) {
     if (!C.store.images) { C.toast("Este navegador não guarda arquivos: o editor de imagens fica indisponível."); return; }
     if (hasWork() && !window.confirm("Trocar a foto deste documento? As alterações feitas nela (desenhos, textos, filtros, cortes) serão perdidas.\n\nDica: use Novo na barra de cima para abrir outra foto num documento separado, sem perder esta.")) return;
@@ -602,7 +926,7 @@
       const info = await decode(file);
       const oldIds = [state.origId, state.curId].filter(Boolean);
       undoSt = []; redoSt = []; lastCopy = null; lastRev = -1;
-      objs = []; sel = null; crop = null; adj = null; clearAdjUi(); state.filter = { id: "", amt: 100 };
+      objs = []; sel = null; crop = null; adj = null; clearAdjUi(); state.filter = { id: "", amt: 100 }; state.frames = []; frSelId = ""; renderFrameUi();
       setBaseCanvas(info.canvas);
       let blob = !info.scaled && file.size < 12e6 && /^image\/(jpeg|png|webp)$/.test(file.type) ? file : await toBlobP(info.canvas, "image/webp", 1);
       if (!blob) blob = await toBlobP(info.canvas, "image/png");
@@ -614,7 +938,7 @@
       if (oldIds.length) C.store.deleteImages(oldIds).catch(() => {});
       dirtyImg = true; changed();
       syncButtons(); setTool("move");
-      if (info.scaled) C.toast("Foto grande: reduzi de " + info.ow + "×" + info.oh + " para " + w + "×" + h + " para o editor ficar rápido.");
+      if (info.scaled) C.toast("Foto reduzida para " + w + "×" + h + " (o editor fica mais rápido).");
     } catch (_) {
       C.toast("Não consegui abrir esta foto. Se for HEIC, tente converter para JPG ou tirar um print.");
     } finally { end(); }
@@ -623,7 +947,7 @@
     if (hasWork() && !window.confirm("Começar uma tela em branco neste documento? Tudo o que está nesta imagem será perdido.\n\nDica: use Novo na barra de cima para começar outra tela sem perder esta.")) return;
     const oldIds = [state.origId, state.curId].filter(Boolean);
     undoSt = []; redoSt = []; lastCopy = null; lastRev = -1;
-    objs = []; sel = null; crop = null; adj = null; clearAdjUi(); state.filter = { id: "", amt: 100 };
+    objs = []; sel = null; crop = null; adj = null; clearAdjUi(); state.filter = { id: "", amt: 100 }; state.frames = []; frSelId = ""; renderFrameUi();
     const c = newCanvas(bw, bh);
     if (!transparent) { const k = c.getContext("2d"); k.fillStyle = "#ffffff"; k.fillRect(0, 0, bw, bh); }
     setBaseCanvas(c);
@@ -657,7 +981,7 @@
   }
   const mid = () => ({ x: w / 2, y: h / 2 });
   function addText() {
-    addObj({ t: "text", ...mid(), size: Math.round(Math.min(w, h) * 0.09), rot: 0, text: "Seu texto", color: ui.color.value, font: "sans", bold: true, stroke: "#000000", strokeOn: false, caps: false });
+    addObj({ t: "text", ...mid(), size: Math.round(Math.min(w, h) * 0.09), rot: 0, text: "Seu texto", color: ui.color.value, font: "sans", bold: true, stroke: "#000000", strokeOn: false, caps: false, align: "c", shadow: false, box: false, boxColor: "#000000", alpha: 1 });
     ui.text.focus(); ui.text.select();
   }
   function addBalloon() {
@@ -733,26 +1057,6 @@
     geo(() => { const nc = newCanvas(c.w, c.h); nc.getContext("2d").drawImage(base, c.x, c.y, c.w, c.h, 0, 0, c.w, c.h); return nc; });
     setTool("move");
   }
-  function frame(kind) {
-    if (!has) return;
-    const pct = Number(byId("imFr").value) / 100;
-    const pad = Math.max(2, Math.round(Math.min(w, h) * pct));
-    const color = ui.color.value;
-    if (kind === "vignette") {
-      pushUndo(); touchBase();
-      const g = bx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.25, w / 2, h / 2, Math.hypot(w, h) / 2);
-      g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0," + (0.25 + pct * 2.6).toFixed(2) + ")");
-      bx.fillStyle = g; bx.fillRect(0, 0, w, h);
-      changed();
-      return;
-    }
-    geo(() => {
-      if (kind === "border") { const nc = newCanvas(w + pad * 2, h + pad * 2); const c = nc.getContext("2d"); c.fillStyle = color; c.fillRect(0, 0, nc.width, nc.height); c.drawImage(base, pad, pad); return nc; }
-      if (kind === "polaroid") { const nc = newCanvas(w + pad * 2, h + pad * 4.2); const c = nc.getContext("2d"); c.fillStyle = "#fbfaf6"; c.fillRect(0, 0, nc.width, nc.height); c.drawImage(base, pad, pad); return nc; }
-      if (kind === "rounded") { const nc = newCanvas(w, h); const c = nc.getContext("2d"); rrect(c, 0, 0, w, h, Math.min(w, h) * pct * 2.6); c.clip(); c.drawImage(base, 0, 0); return nc; }
-      const s = Math.min(w, h); const nc = newCanvas(s, s); const c = nc.getContext("2d"); c.beginPath(); c.arc(s / 2, s / 2, s / 2, 0, 7); c.clip(); c.drawImage(base, (s - w) / 2, (s - h) / 2); return nc;
-    });
-  }
   async function collage(mode, files) {
     const list = Array.from(files || []).slice(0, mode === "g" ? 3 : 3);
     if (!list.length) return;
@@ -778,7 +1082,7 @@
       let big = nc;
       if (Math.max(nc.width, nc.height) > LIMIT) { const k = LIMIT / Math.max(nc.width, nc.height); big = newCanvas(nc.width * k, nc.height * k); big.getContext("2d").drawImage(nc, 0, 0, big.width, big.height); }
       if (has) { pushUndo(); objs = []; sel = null; } else { undoSt = []; redoSt = []; }
-      state.filter = { id: "", amt: 100 };
+      state.filter = { id: "", amt: 100 }; state.frames = []; frSelId = ""; renderFrameUi();
       touchBase();
       setBaseCanvas(big); view.zoom = 0; layout();
       dirtyImg = true; changed(); syncButtons();
@@ -787,15 +1091,23 @@
 
   /* ---------------- Exportar ---------------- */
 
+  const outFrames = () => state.frames.filter((f) => f.on);
+  function outDims() { const G = frGeoAll(outFrames(), w, h); return { W: G.W, H: G.H }; }
+  // A imagem final = foto + textos + todas as molduras ligadas. `white`: true usa o fundo do JPG; ou passe uma cor.
   function composite(maxSide, white) {
-    const k = maxSide ? Math.min(1, maxSide / Math.max(w, h)) : 1;
-    const c = newCanvas(w * k, h * k);
+    const fs = outFrames(), G = frGeoAll(fs, w, h);
+    const k = maxSide ? Math.min(1, maxSide / Math.max(G.W, G.H)) : 1;
+    const c = newCanvas(G.W * k, G.H * k);
     const g = c.getContext("2d");
-    if (white) { g.fillStyle = state.bg || "#ffffff"; g.fillRect(0, 0, c.width, c.height); }
+    if (white) { g.fillStyle = typeof white === "string" ? white : (state.bg || "#ffffff"); g.fillRect(0, 0, c.width, c.height); }
     g.imageSmoothingQuality = "high";
-    g.scale(c.width / w, c.height / h);
-    g.drawImage(shown(true), 0, 0);
-    objs.forEach((o) => drawObj(g, o));
+    g.scale(c.width / G.W, c.height / G.H);
+    frDraw(g, fs.length - 1, fs, G.geos, (gg) => {
+      gg.save(); gg.beginPath(); gg.rect(0, 0, w, h); gg.clip();
+      gg.drawImage(shown(true), 0, 0);
+      objs.forEach((o) => drawObj(gg, o));
+      gg.restore();
+    });
     return c;
   }
   async function outBlob() {
@@ -815,8 +1127,8 @@
       const tok = ++estTok;
       const b = await outBlob();
       if (tok !== estTok || !b) return;
-      const k = state.outSize ? Math.min(1, state.outSize / Math.max(w, h)) : 1;
-      ui.est.textContent = Math.round(w * k) + "×" + Math.round(h * k) + " px · cerca de " + fmtKB(b.size);
+      const D = outDims(), k = state.outSize ? Math.min(1, state.outSize / Math.max(D.W, D.H)) : 1;
+      ui.est.textContent = Math.round(D.W * k) + "×" + Math.round(D.H * k) + " px · cerca de " + fmtKB(b.size);
     }, 450);
   }
   let estTok = 0;
@@ -941,7 +1253,6 @@
   function showOpts() {
     const tokens = [tool];
     if (tool === "move" && sel) { tokens.push("obj"); if (sel.t === "text" || sel.t === "balloon") tokens.push("text"); }
-    if (!$('[data-pane="fra"]').hidden) tokens.push("frame");
     $$("[data-for]").forEach((el) => { el.hidden = !el.dataset.for.split(" ").some((t) => tokens.includes(t)); });
     ui.tip.textContent = TIPS[tool] || "";
     ui.tip.hidden = !TIPS[tool] || (tool === "move" && sel);
@@ -950,8 +1261,10 @@
   function setTool(t) {
     if (t === "picker" && tool !== "picker") prevTool = tool;
     if (tool === "crop" && t !== "crop") crop = null;
+    const wasCrop = tool === "crop";
     tool = t;
     if (t !== "move") sel = null;
+    if ((t === "crop") !== wasCrop && has && state.frames.some((f) => f.on)) layout();
     $$("[data-tool]").forEach((b) => b.classList.toggle("is-on", b.dataset.tool === t));
     ws.dataset.tool = t;
     ui.ov.style.cursor = t === "move" ? "default" : "crosshair";
@@ -965,11 +1278,18 @@
   function syncObjUi() {
     if (!sel) return;
     const txt = sel.t === "text" || sel.t === "balloon";
-    ["imText", "imFont", "imBold", "imStroke", "imStrokeOn"].forEach((id) => { const el = byId(id); (el.closest("label") || el).hidden = !txt; });
+    ["imText", "imFont", "imBold", "imStroke", "imStrokeOn", "imAlL", "imAlC", "imAlR", "imShadow", "imBox", "imBoxC"].forEach((id) => { const el = byId(id); (el.closest("label") || el).hidden = !txt; });
+    byId("imAlL").hidden = byId("imAlC").hidden = byId("imAlR").hidden = !(sel.t === "text");
+    (byId("imShadow").closest("label")).hidden = !(sel.t === "text");
+    (byId("imBox").closest("label")).hidden = !(sel.t === "text");
+    (byId("imBoxC").closest("label")).hidden = !(sel.t === "text");
     if (txt) {
       ui.text.value = sel.text; ui.font.value = sel.font; ui.stroke.value = sel.stroke; ui.strokeOn.checked = sel.strokeOn; ui.color.value = sel.color;
       ui.bold.classList.toggle("is-on", sel.bold);
+      byId("imShadow").checked = Boolean(sel.shadow); byId("imBox").checked = Boolean(sel.box); byId("imBoxC").value = sel.boxColor || "#000000";
+      ["l", "c", "r"].forEach((k) => byId("imAl" + k.toUpperCase()).classList.toggle("is-on", (sel.align || "c") === k));
     }
+    byId("imObjAlpha").value = String(Math.round((sel.alpha === undefined ? 1 : sel.alpha) * 100));
     ui.objSize.max = String(Math.round(Math.max(w, h)));
     ui.objSize.value = String(Math.round(sel.size));
   }
@@ -982,7 +1302,7 @@
     C.scheduleSave();
   }
 
-  function pt(e) { const r = ui.ov.getBoundingClientRect(); return { x: ((e.clientX - r.left) * w) / r.width, y: ((e.clientY - r.top) * h) / r.height }; }
+  function pt(e) { const r = ui.ov.getBoundingClientRect(); return { x: ((e.clientX - r.left) * fg.W) / r.width - fg.L, y: ((e.clientY - r.top) * fg.H) / r.height - fg.T }; }
   function commitSnap(s) { undoSt.push(s); redoSt = []; trimHistory(); syncButtons(); }
 
   function strokeSetup(g, px) {
@@ -1041,7 +1361,34 @@
     crop = { x: sx > 0 ? anchor.x : anchor.x - cw, y: sy > 0 ? anchor.y : anchor.y - ch, w: Math.max(1, cw), h: Math.max(1, ch) };
   }
 
+  /* dois dedos: pinça para dar zoom e arrastar a foto (cancela o traço que tinha começado) */
+  const pointers = new Map();
+  let pinch = null;
+  function abortDrag() {
+    if (!drag) return;
+    const d = drag; drag = null;
+    if (d.timer) clearInterval(d.timer);
+    if (DRAWERS.includes(tool) || d.mode === "done") { const s = undoSt.pop(); if (s) restore(s); syncButtons(); }
+    paint();
+  }
+  function pinchPts() { const [a, b] = [...pointers.values()]; return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 }; }
+  function startPinch() { abortDrag(); const q = pinchPts(); pinch = { d0: q.d, s0: view.scale, mx: q.mx, my: q.my }; }
+  function movePinch() {
+    const q = pinchPts(), r = ui.ov.getBoundingClientRect();
+    const fx = (pinch.mx - r.left) / r.width, fy = (pinch.my - r.top) / r.height;
+    view.zoom = clamp(pinch.s0 * q.d / pinch.d0, 0.05, 8);
+    layout();
+    const r2 = ui.ov.getBoundingClientRect();
+    ui.stage.scrollLeft += r2.left + fx * r2.width - q.mx;
+    ui.stage.scrollTop += r2.top + fy * r2.height - q.my;
+    pinch.mx = q.mx; pinch.my = q.my;
+  }
+  const dropPointer = (e) => { pointers.delete(e.pointerId); if (pinch && pointers.size < 2) pinch = null; };
+  ui.ov.addEventListener("pointerup", dropPointer);
+  ui.ov.addEventListener("pointercancel", dropPointer);
+
   ui.ov.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "touch") { pointers.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pointers.size === 2 && has) { e.preventDefault(); startPinch(); return; } if (pinch) return; }
     if (!has || drag || showOrig || (e.button && e.button > 0)) return;
     e.preventDefault();
     const p = pt(e);
@@ -1081,12 +1428,14 @@
   });
   function pick(p) {
     const x = clamp(Math.floor(p.x), 0, w - 1), y = clamp(Math.floor(p.y), 0, h - 1);
-    const d = cx.getImageData(x, y, 1, 1).data;
+    const d = cx.getImageData(Math.round(x + fg.L), Math.round(y + fg.T), 1, 1).data;
     if (d[3] < 10) return;
     const c = "#" + [d[0], d[1], d[2]].map((v) => v.toString(16).padStart(2, "0")).join("");
     ui.color.value = c; state.color = c;
   }
   ui.ov.addEventListener("pointermove", (e) => {
+    if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch) { if (pointers.size >= 2) movePinch(); return; }
     if (!drag || e.pointerId !== drag.id) return;
     const p = pt(e);
     drag.last = p;
@@ -1163,7 +1512,7 @@
     objfront: () => { if (sel) { pushUndo(); objs.splice(objs.indexOf(sel), 1); objs.push(sel); changed(false); } },
     objdup: () => { if (sel) { pushUndo(); const c = { ...sel, x: sel.x + sel.size * 0.3, y: sel.y + sel.size * 0.3 }; objs.push(c); select(c); changed(false); } },
     cropok: applyCrop, cropno: () => setTool("move"),
-    adjok: adjApply, adjno: () => { clearAdjUi(); paint(); },
+    adjok: adjApply, adjno: () => { clearAdjUi(); paint(); }, auto: autoEnhance, stok: strApply, stno: () => { clearStr(); paint(); },
     rotl: () => rotate(-1), rotr: () => rotate(1), flipx: () => flip(true), flipy: () => flip(false), resize: resizeTo,
     surprise: () => { const pool = FILTERS.filter((f) => f.id !== state.filter.id); setFilter(pool[Math.floor(Math.random() * pool.length)].id, 100); },
     restore: restoreOriginal,
@@ -1171,14 +1520,15 @@
     download: downloadImg, copy: copyImg, share: shareImg, sticker: stickerExport
   };
   ws.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-im],[data-tool],[data-add],[data-frame],[data-coll],[data-tab],[data-ratio]");
-    if (!t || !ws.contains(t)) return;
+    const t = e.target.closest("[data-im],[data-tool],[data-add],[data-coll],[data-tab],[data-ratio]");
+    if (!t || t === ws || !ws.contains(t)) return; // (o próprio workspace carrega data-tool; ignorar)
     if (t.dataset.im) { const f = actions[t.dataset.im]; if (f) f(t); }
-    else if (t.dataset.tool) setTool(t.dataset.tool);
+    else if (t.dataset.tool) { byId("imSide").classList.remove("is-open"); setTool(t.dataset.tool); }
     else if (t.dataset.add) { const a = t.dataset.add; if (a === "text") addText(); else if (a === "meme") addMeme(); else if (a === "balloon") addBalloon(); else if (a === "photo") { if (!has) C.toast("Abra uma foto primeiro."); else byId("imObjFile").click(); } }
-    else if (t.dataset.frame) frame(t.dataset.frame);
     else if (t.dataset.coll) { collMode = t.dataset.coll; byId("imCollFiles").click(); }
     else if (t.dataset.tab) {
+      const side = byId("imSide"), same = t.classList.contains("is-on");
+      side.classList.toggle("is-open", !(same && side.classList.contains("is-open"))); // no celular: tocar de novo na aba recolhe o painel
       $$("[data-tab]").forEach((b) => b.classList.toggle("is-on", b === t));
       $$("[data-pane]").forEach((p) => { p.hidden = p.dataset.pane !== t.dataset.tab; });
       if (t.dataset.tab === "fil" && filtersDirty) buildFilters();
@@ -1222,8 +1572,14 @@
   ui.bold.addEventListener("click", () => objEdit((o) => { o.bold = !o.bold; ui.bold.classList.toggle("is-on", o.bold); }));
   ui.stroke.addEventListener("input", () => objEdit((o) => { o.stroke = ui.stroke.value; o.strokeOn = true; ui.strokeOn.checked = true; }));
   ui.strokeOn.addEventListener("change", () => objEdit((o) => { o.strokeOn = ui.strokeOn.checked; }));
+  ["l", "c", "r"].forEach((k) => byId("imAl" + k.toUpperCase()).addEventListener("click", () => objEdit((o) => { o.align = k; ["l", "c", "r"].forEach((q) => byId("imAl" + q.toUpperCase()).classList.toggle("is-on", q === k)); })));
+  byId("imShadow").addEventListener("change", () => objEdit((o) => { o.shadow = byId("imShadow").checked; }));
+  byId("imBox").addEventListener("change", () => objEdit((o) => { o.box = byId("imBox").checked; }));
+  byId("imBoxC").addEventListener("input", () => objEdit((o) => { o.box = true; o.boxColor = byId("imBoxC").value; byId("imBox").checked = true; }));
+  byId("imObjAlpha").addEventListener("input", () => objEdit((o) => { o.alpha = Number(byId("imObjAlpha").value) / 100; }));
   ui.objSize.addEventListener("input", () => objEdit((o) => { const k = Number(ui.objSize.value) / o.size; o.size = Number(ui.objSize.value); if (o.t === "balloon") { o.tx *= k; o.ty *= k; } }));
   ADJ.forEach((id) => byId(id).addEventListener("input", adjInput));
+  byId("imSt").addEventListener("input", () => { strDeg = Number(byId("imSt").value); byId("imStV").textContent = String(strDeg); paint(); });
   let filBurst = false;
   byId("imFilAmt").addEventListener("input", () => {
     if (!state.filter.id) return;
@@ -1231,7 +1587,6 @@
     state.filter.amt = Number(byId("imFilAmt").value);
     syncFilterUi(); changed(false);
   });
-  byId("imFr").addEventListener("input", () => { byId("imFrV").textContent = byId("imFr").value; });
   byId("imW").addEventListener("input", () => { if (byId("imLock").checked && w) byId("imH").value = String(Math.max(1, Math.round((Number(byId("imW").value) * h) / w))); });
   byId("imH").addEventListener("input", () => { if (byId("imLock").checked && h) byId("imW").value = String(Math.max(1, Math.round((Number(byId("imH").value) * w) / h))); });
   const outForm = () => { state.fmt = byId("imFmt").value; state.quality = Number(byId("imQ").value); state.outSize = Number(byId("imOutSize").value); byId("imQV").textContent = state.quality; byId("imQ").disabled = state.fmt === "image/png"; state.bg = byId("imBg").value; byId("imBgBox").hidden = state.fmt !== "image/jpeg"; C.scheduleSave(); updateEst(); };
@@ -1397,6 +1752,7 @@
     const orphans = records.filter((r) => !keep.has(r.id)).map((r) => r.id);
     if (orphans.length && cur) C.store.deleteImages(orphans).catch(() => {});
     if (tok !== openTok) return;
+    frSelId = ""; frFixSel(); renderFrameUi();
     layout(); syncButtons(); filtersDirty = true; syncFilterUi();
     setTool(has ? "move" : "move");
     C.setPrimary(undefined, false);
