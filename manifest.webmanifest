@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "Coding — Etiquetas e Textos",
-  "short_name": "Coding",
+  "name": "Coding Launcher",
+  "short_name": "Coding Launcher",
   "description": "Suíte offline e descontraída: etiquetas A4, textos, planilhas, QR e código de barras, editor de PDF, editor de imagens, sorteio e racha-conta. Funciona sem internet e guarda tudo no seu aparelho.",
   "lang": "pt-BR",
   "dir": "ltr",

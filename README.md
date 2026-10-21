@@ -1,4 +1,4 @@
-# Coding
+# Coding Launcher
 
 App de documentos e ferramentas para o dia a dia, que funciona offline. Principais programas:
 
