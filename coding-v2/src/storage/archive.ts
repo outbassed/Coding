@@ -24,10 +24,31 @@ function bytesToBase64(bytes: Uint8Array): string {
   for (let i = 0; i < bytes.length; i += 16384) text += String.fromCharCode(...bytes.subarray(i, i + 16384));
   return btoa(text);
 }
+/**
+ * O(n) base64 validation. The original repeated-group regexp catastrophically
+ * overflowed the JS stack for ordinary 3–4 MiB phone photos.
+ * Check encoded length and padding BEFORE calling atob, avoiding extra allocations
+ * for files exceeding the experimental 32 MiB decoded-file limit.
+ */
 function base64ToBytes(text: string): Uint8Array<ArrayBuffer> {
-  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(text)) throw new Error('Dados binários codificados incorretamente.');
+  if (text.length % 4 !== 0) throw new Error('Dados binários codificados incorretamente.');
+  const length = text.length;
+  const padding = length && text[length - 1] === '=' ? (text[length - 2] === '=' ? 2 : 1) : 0;
+  const decodedLength = length / 4 * 3 - padding;
+  if (decodedLength > MAX_BINARY) throw new Error('Imagem ou anexo excede o limite de 32 MB desta versão.');
+  for (let i = 0; i < length - padding; i++) {
+    const code = text.charCodeAt(i);
+    const valid = (code >= 65 && code <= 90) || (code >= 97 && code <= 122)
+      || (code >= 48 && code <= 57) || code === 43 || code === 47;
+    if (!valid) throw new Error('Dados binários codificados incorretamente.');
+  }
+  for (let i = length - padding; i < length; i++) {
+    if (text.charCodeAt(i) !== 61) throw new Error('Dados binários codificados incorretamente.');
+  }
+  // At least 2 alphabet characters must precede padding within the final quartet.
+  if (padding > 0 && length < 4) throw new Error('Dados binários codificados incorretamente.');
   const raw = atob(text);
-  if (raw.length > MAX_BINARY) throw new Error('Imagem ou anexo excede o limite de 32 MB desta versão.');
+  if (raw.length !== decodedLength) throw new Error('Dados binários codificados incorretamente.');
   const result = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i++) result[i] = raw.charCodeAt(i);
   return result;
