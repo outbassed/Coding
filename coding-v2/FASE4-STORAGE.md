@@ -9,7 +9,7 @@
 - O formato experimental **`.codingpack` NÃO é ZIP**. É um envelope versionado: assinatura de abertura, comprimento, manifesto JSON com o backup de metadados v2 **assinado**, seguido dos blobs originais sem base64. Cada bloco binário de 2 MiB possui SHA-256 e é verificado antes da importação atômica no banco.
 - `encodeSafeBackup` mantém `.json` para backups pequenos e devolve `.codingpack` quando o backup JSON excederia seus limites: por exemplo, **uma imagem aleatória de 33 MiB** ou **duas de 25 MiB**. O formato existente JSON v1/v2 continua com suporte.
 - As imagens são processadas por blocos (leitura e verificação); o resultado para download ainda é um `Blob`, e um app pode gravá-lo via URL de objeto ou seletor de arquivos. Não converte todos os bytes em uma string base64.
-- Foram criados testes Vitest para os limites, corrupção, origens e compatibilidade, além de teste Playwright com armazenamento IndexedDB e pacote no Chromium.
+- Foram criados testes Vitest para os limites, corrupção, origens e compatibilidade, com arquivos aleatórios. **O pacote ainda não é exercitado em Playwright:** será testado pelo fluxo real da UI após a integração. Os 152 testes Chromium existentes continuam como regressão.
 
 ## Integração do PR de Etiquetas (#1)
 
