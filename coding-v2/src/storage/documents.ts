@@ -74,7 +74,7 @@ async function legacyDatabaseNames(): Promise<string[] | null> {
   return names.map((item) => item.name).filter((name): name is string => typeof name === 'string');
 }
 
-async function readLegacyIdb(): Promise<LegacySnapshot[]> {
+async function readLegacyIdb(notes: string[]): Promise<LegacySnapshot[]> {
   // Calling open() on an unknown name would CREATE a database. Never do that.
   const names = await legacyDatabaseNames();
   if (!names?.includes(LEGACY_DB_NAME)) return [];
@@ -91,25 +91,34 @@ async function readLegacyIdb(): Promise<LegacySnapshot[]> {
     const docRequest = tx.objectStore('docs').getAll() as IDBRequest<LegacyDoc[]>;
     const imageRequest = tx.objectStore('images').getAll() as IDBRequest<LegacyImage[]>;
     const [docs, images] = await Promise.all([requestResult(docRequest), requestResult(imageRequest), done]);
+    const valid = docs.filter(validDoc);
+    const skipped = docs.length - valid.length;
+    if (skipped) notes.push(skipped + ' documento(s) sem ID válido foram ignorados no IndexedDB. Não considere o backup completo.');
+    const docIds = new Set(valid.map((doc) => doc.id));
+    let orphaned = 0;
     const groups = new Map<string, LegacyImage[]>();
     for (const image of images) {
-      if (!image || typeof image.docId !== 'string') continue;
+      if (!image || typeof image.docId !== 'string' || !docIds.has(image.docId)) { orphaned++; continue; }
       const group = groups.get(image.docId) ?? [];
       group.push(image);
       groups.set(image.docId, group);
     }
-    return docs.filter(validDoc).map((doc) => ({ source: 'indexeddb' as const, doc, images: groups.get(doc.id) ?? [] }));
+    if (orphaned) notes.push(orphaned + ' imagem(ns) órfã(s) ou sem vínculo foram encontradas. Não fazem parte do backup desta versão.');
+    return valid.map((doc) => ({ source: 'indexeddb' as const, doc, images: groups.get(doc.id) ?? [] }));
   } finally { db.close(); }
 }
 
-function readLegacyLocalStorage(): LegacySnapshot[] {
+function readLegacyLocalStorage(notes: string[]): LegacySnapshot[] {
   const raw = localStorage.getItem(LEGACY_LIBRARY_KEY);
   if (raw !== null) {
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object' || !('docs' in parsed)) throw new Error('Biblioteca antiga no localStorage inválida.');
     const docs = (parsed as { docs?: unknown }).docs;
     if (!docs || typeof docs !== 'object') throw new Error('Biblioteca antiga no localStorage inválida.');
-    return Object.values(docs).filter(validDoc).map((doc) => ({ source: 'localStorage', doc, images: [] }));
+    const items = Object.values(docs);
+    const valid = items.filter(validDoc);
+    if (valid.length !== items.length) notes.push((items.length - valid.length) + ' documento(s) inválido(s) foram ignorados no localStorage. Verifique antes de fazer backup.');
+    return valid.map((doc) => ({ source: 'localStorage', doc, images: [] }));
   }
   const older = localStorage.getItem('coding-document-v2') ?? localStorage.getItem('coding-document-v1');
   if (older) {
@@ -131,10 +140,10 @@ export async function inspectLegacy(): Promise<LegacyInspection> {
   else if (typeof indexedDB.databases !== 'function') {
     notes.push('Este navegador não permite detectar com segurança se o banco antigo existe. Não foi aberto nem criado.');
   } else {
-    try { snapshots = await readLegacyIdb(); }
+    try { snapshots = await readLegacyIdb(notes); }
     catch (err) { notes.push('Não foi possível ler o IndexedDB antigo: ' + errorText(err)); }
   }
-  try { snapshots.push(...readLegacyLocalStorage()); }
+  try { snapshots.push(...readLegacyLocalStorage(notes)); }
   catch (err) { notes.push('Não foi possível ler o localStorage antigo: ' + errorText(err)); }
   const keys = new Set<string>();
   for (const entry of snapshots) {
