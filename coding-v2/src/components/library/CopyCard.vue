@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { CopySummary } from '../../storage/documents';
-import { copyTool, formatDate, imagesText, originLabels, typeLabel } from '../../library/model';
+import { copyTool, formatDate, imagesText, originText, typeLabel } from '../../library/model';
 import AppIcon from '../ui/AppIcon.vue';
 import NavIcon from '../ui/NavIcon.vue';
 
@@ -17,7 +17,7 @@ const tool = computed(() => copyTool(props.copy));
       <span v-else class="generic" aria-hidden="true"><NavIcon name="docs" /></span>
       <span class="txt">
         <strong class="name"><span class="sr-only">Detalhes de </span>{{ copy.label }}</strong>
-        <span class="meta">{{ typeLabel(copy.type) }} · {{ originLabels[copy.source] }}</span>
+        <span class="meta">{{ typeLabel(copy.type) }} · {{ originText(copy) }}</span>
         <span class="meta">Atualizada em {{ formatDate(copy.updatedAt) }} · {{ imagesText(copy.imageCount) }}</span>
       </span>
     </button>

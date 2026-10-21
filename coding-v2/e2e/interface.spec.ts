@@ -104,14 +104,21 @@ test.describe('comportamento', () => {
     expect(bg).toBe('rgb(15, 19, 25)');
   });
 
-  test('editor: prévia identificada, comandos inativos, Voltar leva ao Launcher', async ({ page }) => {
-    await page.goto('/apps/etiquetas/');
+  test('editor de Texto: prévia identificada, comandos inativos, Voltar leva ao Launcher', async ({ page }) => {
+    await page.goto('/apps/texto/');
     await expect(page.getByText('Prévia ilustrativa')).toBeVisible();
     const enabled = await page.locator('.cmd:not([disabled])').count();
     expect(enabled).toBe(0);
     await page.getByRole('link', { name: 'Voltar ao Launcher' }).click();
-    await expect(page).toHaveURL(/\/launcher\/#\/app\/labels$/);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Etiquetas');
+    await expect(page).toHaveURL(/\/launcher\/#\/app\/texts$/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Texto');
+  });
+
+  test('editor de Etiquetas é funcional (sem aviso de prévia) e Voltar leva à biblioteca', async ({ page }) => {
+    await page.goto('/apps/etiquetas/');
+    await expect(page.getByText('Prévia ilustrativa')).toHaveCount(0);
+    await page.getByRole('link', { name: 'Voltar à biblioteca' }).click();
+    await expect(page).toHaveURL(/\/launcher\/#\/documentos$/);
   });
 
   test('não declara PWA instalável', async ({ page }) => {

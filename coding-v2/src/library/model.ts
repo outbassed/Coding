@@ -20,6 +20,9 @@ export const originLabels: Record<Source, string> = {
   backup: 'Backup importado'
 };
 
+/** Documentos criados na v2 usam origem 'backup' com este prefixo (contrato pendente com o GPT-6). */
+export const originText = (copy: { source: Source; legacyId: string }): string =>
+  copy.legacyId.startsWith('v2-labels-') ? 'Criado na v2' : originLabels[copy.source];
 export type SortKey = 'recent' | 'oldest' | 'name-asc' | 'name-desc';
 export const sortLabels: Record<SortKey, string> = {
   recent: 'Atualização mais recente',
