@@ -1,19 +1,19 @@
 <script setup lang="ts">
-import type { CopyRecord } from '../../storage/documents';
-import { formatBytes, formatDate, imagesBytes, imagesText, originLabels, typeLabel } from '../../library/model';
+import type { CopySummary } from '../../storage/documents';
+import { formatDate, imagesSizeText, imagesText, originLabels, typeLabel } from '../../library/model';
 
-defineProps<{ copy: CopyRecord; busy: boolean }>();
+defineProps<{ copy: CopySummary; busy: boolean }>();
 defineEmits<{ rename: []; export: []; duplicate: []; remove: [] }>();
 </script>
 
 <template>
   <div class="details">
     <dl class="info">
-      <div><dt>Tipo</dt><dd>{{ typeLabel(copy.snapshot.doc.type) }}</dd></div>
+      <div><dt>Tipo</dt><dd>{{ typeLabel(copy.type) }}</dd></div>
       <div><dt>Origem</dt><dd>{{ originLabels[copy.source] }}</dd></div>
       <div><dt>Atualizada em</dt><dd>{{ formatDate(copy.updatedAt) }}</dd></div>
       <div><dt>Criada em</dt><dd>{{ formatDate(copy.createdAt) }}</dd></div>
-      <div><dt>Imagens</dt><dd>{{ imagesText(copy.snapshot.images.length) }} ({{ formatBytes(imagesBytes(copy)) }})</dd></div>
+      <div><dt>Imagens</dt><dd>{{ imagesText(copy.imageCount) }} ({{ imagesSizeText(copy.imageCount, copy.imageBytes) }})</dd></div>
       <div><dt>Revisão</dt><dd>{{ copy.revision }}</dd></div>
     </dl>
     <div class="actions">

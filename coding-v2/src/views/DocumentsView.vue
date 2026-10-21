@@ -10,12 +10,13 @@ import CopyDetails from '../components/library/CopyDetails.vue';
 import ModalDialog from '../components/library/ModalDialog.vue';
 import RenameDialog, { type RenameMode } from '../components/library/RenameDialog.vue';
 import ImportWizard from '../components/library/ImportWizard.vue';
+import StoragePanel from '../components/library/StoragePanel.vue';
 import { useMediaQuery } from '../composables/useMediaQuery';
 import { LEGACY_URL } from '../shared/links';
 import { getTool, tools, type ToolId } from '../shared/catalog';
 import {
-  listCopies, getCopy, saveCopyRevision, forkCopy, deleteCopy, watchCopies, RevisionConflict, MissingCopy,
-  type CopyRecord
+  listCopySummaries, getCopy, saveCopyRevision, forkCopy, deleteCopy, watchCopies, RevisionConflict, MissingCopy,
+  type CopySummary, type CopyRecord
 } from '../storage/documents';
 import { encodeCopyBackup, decodeBackupEntries, downloadBackup, importBackupToCopies } from '../storage/archive';
 import { friendlyError } from '../library/errors';
@@ -30,7 +31,8 @@ const route = useRoute();
 const router = useRouter();
 const wide = useMediaQuery('(min-width: 900px)', true);
 
-const copies = ref<CopyRecord[]>([]);
+const copies = ref<CopySummary[]>([]);
+const storageKey = ref(0);
 const loaded = ref(false);
 const loadError = ref('');
 const busy = ref(false);
@@ -93,7 +95,8 @@ const cardFallback = (): HTMLElement | null =>
 
 async function refresh(): Promise<void> {
   try {
-    copies.value = await listCopies();
+    copies.value = await listCopySummaries();
+    storageKey.value += 1;
     loadError.value = '';
     if (selectedId.value && !copies.value.some((c) => c.id === selectedId.value)) { selectedId.value = null; detailOpen.value = false; }
   } catch (err) { loadError.value = 'Não foi possível abrir o armazenamento das cópias. ' + friendlyError(err); }
@@ -218,7 +221,10 @@ async function exportOne(): Promise<void> {
   const copy = selected.value; if (!copy || busy.value) return;
   busy.value = true; error.value = '';
   try {
-    const text = await encodeCopyBackup([toRaw(copy)]);
+    // Os bytes das imagens só são lidos agora, quando realmente precisam ser exportados.
+    const full = await getCopy(copy.id);
+    if (!full) throw new MissingCopy();
+    const text = await encodeCopyBackup([toRaw(full)]);
     await decodeBackupEntries(text);
     const safe = copy.label.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '').slice(0, 40) || 'copia';
     downloadBackup(text, 'coding-v2-' + safe + '-' + new Date().toISOString().slice(0, 10) + '.json');
@@ -230,7 +236,13 @@ async function exportAll(): Promise<void> {
   if (busy.value || !copies.value.length) return;
   busy.value = true; error.value = '';
   try {
-    const text = await encodeCopyBackup(toRaw(copies.value).map((c) => toRaw(c)));
+    const full: CopyRecord[] = [];
+    for (const summary of copies.value) { // uma cópia por vez, para não carregar todos os blobs de uma só vez
+      const record = await getCopy(summary.id);
+      if (record) full.push(toRaw(record));
+    }
+    if (!full.length) throw new MissingCopy();
+    const text = await encodeCopyBackup(full);
     await decodeBackupEntries(text);
     downloadBackup(text, 'coding-v2-copias-' + new Date().toISOString().slice(0, 10) + '.json');
     say('Backup de todas as cópias verificado. Confirme que o arquivo foi salvo no aparelho.');
@@ -391,6 +403,8 @@ const toolName = (id: ToolId): string => getTool(id).name;
       <button type="button" class="btn" :disabled="busy" @click="importInput?.click()">Importar backup do Coding 2.0</button>
       <input ref="importInput" type="file" accept=".json,application/json" class="visually-hidden" aria-label="Escolher backup JSON do Coding 2.0" @change="importFile" />
     </div>
+    <p class="muted small">Limites de cada arquivo de backup: 32 MB por imagem e 64 MB no total. Se o backup de todas as cópias não couber, exporte cópia por cópia.</p>
+    <StoragePanel :refresh-key="storageKey" @announce="say" />
     <p class="muted small">Nada nesta página abre, altera ou exclui documentos do <code>coding-db</code>. Os editores completos continuam na <a :href="LEGACY_URL">versão atual do Coding</a>.</p>
   </section>
 

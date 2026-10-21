@@ -8,9 +8,13 @@ export function friendlyError(err: unknown): string {
   if (name === 'QuotaExceededError' || /quota/i.test(message)) {
     return 'O armazenamento deste aparelho está cheio. Exporte um backup, libere espaço e tente de novo. Nada foi gravado.';
   }
-  if (err instanceof RangeError && /call stack/i.test(message)) {
-    return 'Este arquivo tem um anexo grande demais para o backup desta versão (limitação conhecida, em correção). Nada foi alterado.';
+  if (/excede o limite|excede 32 MB|mais de 2\.000/i.test(message)) {
+    return message + ' Nada foi alterado. Se for o backup de todas as cópias, exporte uma cópia por vez.';
   }
+  if (err instanceof RangeError && /call stack/i.test(message)) {
+    return 'O navegador não conseguiu processar este arquivo (falta de memória). Nada foi alterado; tente em um computador ou com um arquivo menor.';
+  }
+  if (/banco v2 bloqueado/i.test(message)) return message + ' Nada foi alterado.';
   if (name === 'VersionError') return 'O banco de cópias foi atualizado por outra versão do Coding. Recarregue a página.';
   if (name === 'AbortError' || /transação cancelada/i.test(message)) return 'O navegador cancelou a gravação. Nada foi alterado; tente de novo.';
   if (name === 'DataCloneError') return 'Este documento tem dados que o navegador não consegue guardar.';

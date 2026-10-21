@@ -29,7 +29,7 @@ test.describe('Fase 3.2 · importação guiada sem alterar o legado', () => {
     // Voltar não grava nada.
     expect((await readCopiesDb(page)).labels).toEqual([]);
     await page.getByTestId('confirm-import').click();
-    await expect(page.getByTestId('wizard-result')).toContainText('Foto de teste: cópia criada');
+    await expect(page.getByTestId('import-outcome')).toContainText('1 cópia(s) criada(s)');
     await page.getByRole('button', { name: 'Concluir' }).click();
     await expect(page.getByTestId('v2-copies').locator('li')).toHaveCount(1);
     await expect(page.getByTestId('library-status')).toContainText('1 cópia(s) criada(s)');

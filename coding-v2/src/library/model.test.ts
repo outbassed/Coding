@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { CopyRecord } from '../storage/documents';
-import { applyFilters, defaultFilters, filtersFromQuery, filtersToQuery, normalize, toolIdForType, toolsPresent } from './model';
+import type { CopySummary } from '../storage/documents';
+import { applyFilters, defaultFilters, filtersFromQuery, filtersToQuery, imagesSizeText, normalize, toolIdForType, toolsPresent } from './model';
 
-function copy(id: string, label: string, type: string, updatedAt: number, source: CopyRecord['source'] = 'backup'): CopyRecord {
-  return { id, legacyId: id, source, label, revision: 1, createdAt: 1, updatedAt, snapshot: { source, doc: { id, type }, images: [] } };
+function copy(id: string, label: string, type: string, updatedAt: number, source: CopySummary['source'] = 'backup'): CopySummary {
+  return { id, legacyId: id, source, label, revision: 1, createdAt: 1, updatedAt, type, imageCount: 0, imageBytes: null };
 }
 const list = [
   copy('1', 'Zebra', 'labels', 10), copy('2', 'Ação rápida', 'texts', 30, 'indexeddb'),
@@ -46,5 +46,10 @@ describe('modelo da biblioteca', () => {
     expect(filtersFromQuery(filtersToQuery(f))).toEqual(f);
     expect(filtersToQuery(defaultFilters())).toEqual({});
     expect(filtersFromQuery({ ferramenta: 'hack', origem: '<x>', ordem: 'nope', busca: ['a'] })).toEqual(defaultFilters());
+  });
+  it('tamanho das imagens: sem imagens, não registrado ou formatado', () => {
+    expect(imagesSizeText(0, null)).toBe('sem imagens');
+    expect(imagesSizeText(2, null)).toBe('tamanho não registrado');
+    expect(imagesSizeText(1, 3 * 1024 * 1024)).toBe('3,0 MB');
   });
 });

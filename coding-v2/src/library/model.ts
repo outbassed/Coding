@@ -1,4 +1,4 @@
-import type { CopyRecord, Source } from '../storage/documents';
+import type { CopySummary, Source } from '../storage/documents';
 import { findTool, type ToolId } from '../shared/catalog';
 
 /** Tipos gravados pelo Coding atual → ferramentas do catálogo 2.0. */
@@ -38,11 +38,11 @@ export const defaultFilters = (): LibraryFilters => ({ q: '', tool: 'all', origi
 export const normalize = (text: string): string =>
   text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('pt-BR');
 
-export function copyTool(copy: CopyRecord): ToolId | null {
-  return toolIdForType(copy.snapshot.doc.type);
+export function copyTool(copy: Pick<CopySummary, 'type'>): ToolId | null {
+  return toolIdForType(copy.type);
 }
 
-export function applyFilters(copies: readonly CopyRecord[], filters: LibraryFilters): CopyRecord[] {
+export function applyFilters(copies: readonly CopySummary[], filters: LibraryFilters): CopySummary[] {
   const q = normalize(filters.q.trim());
   const list = copies.filter((copy) => {
     if (q && !normalize(copy.label).includes(q)) return false;
@@ -50,7 +50,7 @@ export function applyFilters(copies: readonly CopyRecord[], filters: LibraryFilt
     if (filters.origin !== 'all' && copy.source !== filters.origin) return false;
     return true;
   });
-  const byName = (a: CopyRecord, b: CopyRecord) => a.label.localeCompare(b.label, 'pt-BR', { sensitivity: 'base', numeric: true });
+  const byName = (a: CopySummary, b: CopySummary) => a.label.localeCompare(b.label, 'pt-BR', { sensitivity: 'base', numeric: true });
   switch (filters.sort) {
     case 'oldest': return list.sort((a, b) => a.updatedAt - b.updatedAt);
     case 'name-asc': return list.sort(byName);
@@ -59,7 +59,7 @@ export function applyFilters(copies: readonly CopyRecord[], filters: LibraryFilt
   }
 }
 
-export function toolsPresent(copies: readonly CopyRecord[]): ToolId[] {
+export function toolsPresent(copies: readonly Pick<CopySummary, 'type'>[]): ToolId[] {
   const found = new Set<ToolId>();
   for (const copy of copies) { const id = copyTool(copy); if (id) found.add(id); }
   return [...found];
@@ -100,5 +100,6 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
   return (bytes / (1024 * 1024)).toFixed(1).replace('.', ',') + ' MB';
 }
-export const imagesBytes = (copy: { snapshot: { images: ReadonlyArray<{ blob?: Blob }> } }): number =>
-  copy.snapshot.images.reduce((sum, image) => sum + (image.blob?.size ?? 0), 0);
+/** Tamanho das imagens; cópias antigas podem não ter o total registrado. */
+export const imagesSizeText = (count: number, bytes: number | null): string =>
+  count === 0 ? 'sem imagens' : bytes === null ? 'tamanho não registrado' : formatBytes(bytes);

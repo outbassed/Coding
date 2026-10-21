@@ -2,15 +2,14 @@
 import { computed, nextTick, ref, toRaw, watch } from 'vue';
 import ModalDialog from './ModalDialog.vue';
 import AppIcon from '../ui/AppIcon.vue';
-import { createCopy, documentName, inspectLegacy, type CopyRecord, type LegacySnapshot } from '../../storage/documents';
+import { documentName, estimateStorage, importLegacySnapshotsAtomic, inspectLegacy, type CopySummary, type LegacySnapshot } from '../../storage/documents';
 import { friendlyError } from '../../library/errors';
-import { imagesText, originLabels, toolIdForType, typeLabel } from '../../library/model';
+import { formatBytes, imagesText, originLabels, toolIdForType, typeLabel } from '../../library/model';
 
-const props = defineProps<{ open: boolean; existing: readonly CopyRecord[] }>();
+const props = defineProps<{ open: boolean; existing: readonly Pick<CopySummary, 'source' | 'legacyId'>[] }>();
 const emit = defineEmits<{ close: []; done: [created: number]; announce: [text: string] }>();
 
 type Step = 'examine' | 'select' | 'confirm' | 'result';
-interface Result { key: string; name: string; ok: boolean; message: string }
 
 const step = ref<Step>('examine');
 const scanning = ref(false);
@@ -19,20 +18,31 @@ const found = ref<LegacySnapshot[]>([]);
 const notes = ref<string[]>([]);
 const selected = ref<Set<string>>(new Set());
 const error = ref('');
-const results = ref<Result[]>([]);
+const outcome = ref<{ ok: boolean; message: string } | null>(null);
+const spaceWarning = ref('');
 const heading = ref<HTMLElement | null>(null);
 
 const keyOf = (s: LegacySnapshot, index: number): string => s.source + ':' + s.doc.id + ':' + index;
 const identity = (s: LegacySnapshot): string => JSON.stringify([s.source, s.doc.id]);
 const existingIdentities = computed(() => new Set(props.existing.map((c) => JSON.stringify([c.source, c.legacyId]))));
 const hasCopy = (s: LegacySnapshot): boolean => existingIdentities.value.has(identity(s));
-const rows = computed(() => found.value.map((snapshot, index) => ({ snapshot, key: keyOf(snapshot, index), blocked: hasCopy(snapshot) })));
+// Identificadores repetidos no próprio Coding antigo derrubariam o lote inteiro; só o primeiro é importável.
+const rows = computed(() => {
+  const seen = new Set<string>();
+  return found.value.map((snapshot, index) => {
+    const id = identity(snapshot);
+    const repeated = seen.has(id); seen.add(id);
+    const reason = hasCopy(snapshot) ? 'já existe uma cópia' : repeated ? 'identificador repetido no Coding antigo' : '';
+    return { snapshot, key: keyOf(snapshot, index), blocked: reason !== '', reason };
+  });
+});
+const totalBytes = computed(() => chosen.value.reduce((sum, row) => sum + row.snapshot.images.reduce((s, img) => s + (img.blob?.size ?? 0), 0), 0));
 const selectable = computed(() => rows.value.filter((row) => !row.blocked));
 const chosen = computed(() => rows.value.filter((row) => !row.blocked && selected.value.has(row.key)));
 const stepNumber = computed(() => ({ examine: 1, select: 2, confirm: 3, result: 3 })[step.value]);
 
 watch(() => props.open, (isOpen) => {
-  if (isOpen) { step.value = 'examine'; found.value = []; notes.value = []; selected.value = new Set(); error.value = ''; results.value = []; }
+  if (isOpen) { step.value = 'examine'; found.value = []; notes.value = []; selected.value = new Set(); error.value = ''; outcome.value = null; spaceWarning.value = ''; }
 });
 async function focusHeading(): Promise<void> { await nextTick(); heading.value?.focus(); }
 
@@ -58,29 +68,35 @@ const allSelected = computed(() => selectable.value.length > 0 && selectable.val
 function toggleAll(): void {
   selected.value = allSelected.value ? new Set() : new Set(selectable.value.map((row) => row.key));
 }
-async function goConfirm(): Promise<void> { step.value = 'confirm'; await focusHeading(); }
+async function goConfirm(): Promise<void> {
+  step.value = 'confirm'; spaceWarning.value = '';
+  await focusHeading();
+  try { // aviso prévio: o tamanho das imagens é conhecido antes de gravar
+    const estimate = await estimateStorage();
+    if (estimate.quota !== null && estimate.usage !== null && totalBytes.value > 0.8 * (estimate.quota - estimate.usage)) {
+      spaceWarning.value = 'Atenção: as imagens a copiar (' + formatBytes(totalBytes.value) + ') ocupam mais de 80% do espaço livre estimado. A gravação pode falhar; se falhar, nada será criado.';
+    }
+  } catch { /* estimativa indisponível: segue sem aviso */ }
+}
 async function goBack(): Promise<void> { step.value = 'select'; await focusHeading(); }
 
 async function run(): Promise<void> {
-  running.value = true; error.value = ''; results.value = [];
-  let created = 0;
-  // Uma cópia por vez: cada documento é gravado (ou recusado) de forma independente e o relatório diz a verdade sobre cada um.
-  for (const row of chosen.value) {
-    const name = documentName(row.snapshot.doc);
-    try {
-      await createCopy(toRaw(row.snapshot));
-      created += 1;
-      results.value.push({ key: row.key, name, ok: true, message: 'Cópia criada.' });
-    } catch (err) {
-      results.value.push({ key: row.key, name, ok: false, message: friendlyError(err) });
-    }
+  running.value = true; error.value = ''; outcome.value = null;
+  const total = chosen.value.length;
+  try {
+    // Tudo ou nada: ou as cópias são criadas juntas, ou nenhuma é.
+    const created = await importLegacySnapshotsAtomic(chosen.value.map((row) => toRaw(row.snapshot)));
+    outcome.value = { ok: true, message: created + ' cópia(s) criada(s). Os documentos originais não foram alterados.' };
+    emit('announce', created + ' cópia(s) criada(s).');
+    emit('done', created);
+  } catch (err) {
+    outcome.value = { ok: false, message: friendlyError(err) + ' Nenhuma das ' + total + ' cópias foi criada.' };
+    emit('announce', outcome.value.message);
+  } finally {
+    running.value = false;
+    step.value = 'result';
+    await focusHeading();
   }
-  running.value = false;
-  step.value = 'result';
-  const failed = results.value.length - created;
-  emit('announce', created + ' cópia(s) criada(s)' + (failed ? ', ' + failed + ' não foram criadas.' : '.'));
-  emit('done', created);
-  await focusHeading();
 }
 </script>
 
@@ -115,7 +131,7 @@ async function run(): Promise<void> {
                 <AppIcon v-if="toolIdForType(row.snapshot.doc.type)" :id="toolIdForType(row.snapshot.doc.type)!" size="sm" />
                 <span class="t"><strong>{{ documentName(row.snapshot.doc) }}</strong></span>
               </label>
-              <span :id="'imp-d-' + row.key" class="d">{{ typeLabel(row.snapshot.doc.type) }} · {{ originLabels[row.snapshot.source] }} · {{ imagesText(row.snapshot.images.length) }}<template v-if="row.blocked"> · <b>Indisponível: já existe uma cópia</b></template></span>
+              <span :id="'imp-d-' + row.key" class="d">{{ typeLabel(row.snapshot.doc.type) }} · {{ originLabels[row.snapshot.source] }} · {{ imagesText(row.snapshot.images.length) }}<template v-if="row.blocked"> · <b>Indisponível: {{ row.reason }}</b></template></span>
             </li>
           </ul>
         </template>
@@ -129,7 +145,9 @@ async function run(): Promise<void> {
         <h2 id="w-h3" ref="heading" tabindex="-1" data-wizard-heading>Confirmar a criação das cópias</h2>
         <p>Serão criadas <strong>{{ chosen.length }}</strong> cópia(s) independente(s) na versão 2.0. Os documentos originais <strong>não serão alterados</strong>.</p>
         <ul class="plain"><li v-for="row in chosen" :key="row.key">{{ documentName(row.snapshot.doc) }}</li></ul>
-        <p class="muted">Cada documento é gravado separadamente; se algum falhar, você verá exatamente quais foram criados.</p>
+        <p data-testid="import-size">Tamanho das imagens a copiar: <strong>{{ formatBytes(totalBytes) }}</strong>.</p>
+        <p v-if="spaceWarning" class="err" role="alert" data-testid="space-warning">{{ spaceWarning }}</p>
+        <p class="muted">As cópias são criadas todas juntas: se algo falhar, nenhuma é criada.</p>
         <div class="actions">
           <button type="button" class="btn btn-ghost" :disabled="running" @click="goBack">Voltar</button>
           <button type="button" class="btn btn-primary" :disabled="running" :aria-busy="running" data-testid="confirm-import" @click="run">{{ running ? 'Criando…' : 'Criar ' + chosen.length + ' cópia(s)' }}</button>
@@ -138,9 +156,7 @@ async function run(): Promise<void> {
 
       <section v-else aria-labelledby="w-h4" data-testid="wizard-result">
         <h2 id="w-h4" ref="heading" tabindex="-1" data-wizard-heading>Resultado</h2>
-        <ul class="plain">
-          <li v-for="r in results" :key="r.key" :class="r.ok ? 'okc' : 'errc'"><strong>{{ r.name }}</strong>: {{ r.ok ? 'cópia criada' : 'não criada. ' + r.message }}</li>
-        </ul>
+        <p v-if="outcome" :class="outcome.ok ? 'okc' : 'errc'" data-testid="import-outcome">{{ outcome.message }}</p>
         <div class="actions"><button type="button" class="btn btn-primary" @click="emit('close')">Concluir</button></div>
       </section>
     </div>
