@@ -1,5 +1,8 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import LauncherApp from './LauncherApp.vue';
-import './styles.css';
-createApp(LauncherApp).use(createPinia()).mount('#app');
+import { createLauncherRouter } from './router';
+import './styles/tokens.css';
+import './styles/base.css';
+
+createApp(LauncherApp).use(createPinia()).use(createLauncherRouter()).mount('#app');

@@ -15,8 +15,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      # Lockfile pendente enquanto npm não está acessível localmente.
+      # Fase de transição: o package-lock.json ainda não existe, então instalamos e o exportamos.
       - run: npm install --no-audit --no-fund
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-lock
+          path: coding-v2/package-lock.json
       - run: npm run test:structure
       - run: npm run typecheck
+      - run: npm run test:unit
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: coding-v2/test-results
+          if-no-files-found: ignore
