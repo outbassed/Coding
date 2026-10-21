@@ -89,6 +89,6 @@ describe('Fase 4 · pacote binário de backup', () => {
   it('recusa pacote truncado e dados extras', async () => {
     const pack = await encodeBinaryPackage([makeCopy('short', [randomBytes(200)])]);
     await expect(decodeBinaryPackage(pack.slice(0, pack.size - 1))).rejects.toThrow('truncado');
-    await expect(decodeBinaryPackage(new NodeBlob([pack, new Uint8Array([42])]) as unknown as Blob)).rejects.toThrow('dados inesperados');
+    await expect(decodeBinaryPackage(new NodeBlob([new Uint8Array(await pack.arrayBuffer()), new Uint8Array([42])]) as unknown as Blob)).rejects.toThrow('dados inesperados');
   });
 });
