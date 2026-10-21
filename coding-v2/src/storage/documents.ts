@@ -171,13 +171,30 @@ async function openCopies(): Promise<IDBDatabase> {
       db.createObjectStore('assets', { keyPath: 'key' }).createIndex('copyId', 'copyId');
     }
   };
-  req.onblocked = () => { /* Existing v1 tabs need to close for schema v2; surface via timeout below. */ };
-  const db = await Promise.race([
-    requestResult(req),
-    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Banco v2 bloqueado por outra aba. Feche outras abas e tente de novo.')), 8000))
-  ]);
-  db.onversionchange = () => db.close();
-  return db;
+  // A timed-out open() can still resolve later; close its connection immediately.
+  // Promise.race(requestResult, timeout) used to leak that late IDB connection.
+  return new Promise<IDBDatabase>((resolve, reject) => {
+    let finished = false;
+    const timer = setTimeout(() => {
+      if (finished) return;
+      finished = true;
+      reject(new Error('Banco v2 bloqueado por outra aba. Feche outras abas e tente de novo.'));
+    }, 8000);
+    req.onsuccess = () => {
+      if (finished) { req.result.close(); return; }
+      finished = true;
+      clearTimeout(timer);
+      req.result.onversionchange = () => req.result.close();
+      resolve(req.result);
+    };
+    req.onerror = () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      reject(req.error ?? new Error('Falha ao abrir IndexedDB v2'));
+    };
+    req.onblocked = () => { /* Wait up to 8 seconds for old tabs to close. */ };
+  });
 }
 
 /**
@@ -186,9 +203,26 @@ async function openCopies(): Promise<IDBDatabase> {
  * they are hydrated transparently and safely converted on the next write.
  */
 type AssetRecord = { key: string; copyId: string; image: LegacyImage };
+type StoredCopyRecord = CopyRecord & { assetCount?: number; assetBytes?: number };
+export interface CopySummary {
+  id: string;
+  legacyId: string;
+  source: Source;
+  label: string;
+  revision: number;
+  createdAt: number;
+  updatedAt: number;
+  type?: string;
+  imageCount: number;
+  /** null for old v2 copies whose asset sizes were never indexed */
+  imageBytes: number | null;
+}
 const assetKey = (copyId: string, imageId: string) => JSON.stringify([copyId, imageId]);
-const withoutEmbeddedImages = (copy: CopyRecord): CopyRecord => ({
-  ...copy, snapshot: { ...copy.snapshot, images: [] }
+const withoutEmbeddedImages = (copy: CopyRecord): StoredCopyRecord => ({
+  ...copy,
+  assetCount: copy.snapshot.images.length,
+  assetBytes: copy.snapshot.images.reduce((sum, image) => sum + (image.blob?.size ?? 0), 0),
+  snapshot: { ...copy.snapshot, images: [] }
 });
 const hydrate = (record: CopyRecord, assets: AssetRecord[]): CopyRecord => ({
   ...record,
@@ -227,6 +261,41 @@ export async function listCopies(): Promise<CopyRecord[]> {
     const assets = requestResult(tx.objectStore('assets').getAll() as IDBRequest<AssetRecord[]>);
     const [docs, blobs] = await Promise.all([records, assets, done]);
     return docs.map((doc) => hydrate(doc, blobs)).sort((a, b) => b.updatedAt - a.updatedAt);
+  } finally { db.close(); }
+}
+
+/**
+ * Metadata-only listing for large libraries: never reads image Blob values.
+ * Existing pre-index copies have exact image counts via asset keys and unknown byte totals.
+ * Consumers must call getCopy(id) when they genuinely need image bytes.
+ */
+export async function listCopySummaries(): Promise<CopySummary[]> {
+  const db = await openCopies();
+  try {
+    const tx = db.transaction(['copies', 'assets'], 'readonly');
+    const done = committed(tx);
+    const docs = requestResult(tx.objectStore('copies').getAll() as IDBRequest<StoredCopyRecord[]>);
+    const assetKeys = requestResult(tx.objectStore('assets').getAllKeys());
+    const [copies, keys] = await Promise.all([docs, assetKeys, done]);
+    const count = new Map<string, number>();
+    for (const key of keys) {
+      if (typeof key !== 'string') continue;
+      try {
+        const parsed: unknown = JSON.parse(key);
+        if (!Array.isArray(parsed) || typeof parsed[0] !== 'string') continue;
+        count.set(parsed[0], (count.get(parsed[0]) ?? 0) + 1);
+      } catch { /* Ignore unrecognized keys, without loading their blob values. */ }
+    }
+    return copies.map((doc) => ({
+      id: doc.id, legacyId: doc.legacyId, source: doc.source,
+      label: doc.label, revision: doc.revision,
+      createdAt: doc.createdAt, updatedAt: doc.updatedAt,
+      type: typeof doc.snapshot.doc.type === 'string' ? doc.snapshot.doc.type : undefined,
+      imageCount: doc.snapshot.images.length || count.get(doc.id) || doc.assetCount || 0,
+      imageBytes: doc.snapshot.images.length
+        ? doc.snapshot.images.reduce((sum, image) => sum + (image.blob?.size ?? 0), 0)
+        : typeof doc.assetBytes === 'number' ? doc.assetBytes : null
+    })).sort((a, b) => b.updatedAt - a.updatedAt);
   } finally { db.close(); }
 }
 
@@ -291,6 +360,47 @@ export async function createCopy(snapshot: LegacySnapshot, allowDuplicate = fals
   return copy;
 }
 
+/**
+ * Import selected legacy documents as one atomic, conflict-checked batch.
+ * Use this for the Import Wizard once its UI supports all-or-nothing confirmation.
+ */
+export async function importLegacySnapshotsAtomic(snapshots: readonly LegacySnapshot[]): Promise<number> {
+  const now = Date.now();
+  const entries: CopyRecord[] = snapshots.map((snapshot) => {
+    validateSnapshot(snapshot);
+    return {
+      id: newId(), legacyId: snapshot.doc.id, source: snapshot.source,
+      label: documentName(snapshot.doc), revision: 1,
+      createdAt: now, updatedAt: now, snapshot
+    };
+  });
+  return importCopiesAtomic(entries);
+}
+
+export interface StorageEstimate {
+  supported: boolean;
+  usage: number | null;
+  quota: number | null;
+  percentage: number | null;
+  persisted: boolean | null;
+}
+/** Approximate origin-wide quota; never describe it as reserved free disk space. */
+export async function estimateStorage(): Promise<StorageEstimate> {
+  if (typeof navigator === 'undefined' || !navigator.storage?.estimate) {
+    return { supported: false, usage: null, quota: null, percentage: null, persisted: null };
+  }
+  const estimate = await navigator.storage.estimate();
+  const usage = typeof estimate.usage === 'number' ? estimate.usage : null;
+  const quota = typeof estimate.quota === 'number' ? estimate.quota : null;
+  const persisted = navigator.storage.persisted ? await navigator.storage.persisted() : null;
+  return { supported: true, usage, quota, percentage: usage !== null && quota && quota > 0 ? 100 * usage / quota : null, persisted };
+}
+/** Must be called as the result of an explicit user's click, not during page load. */
+export async function requestPersistentStorage(): Promise<boolean> {
+  if (!navigator.storage?.persist) return false;
+  return navigator.storage.persist();
+}
+
 /** Transactional revision update for the v2 only. Old legacy database never changes. */
 export async function saveCopyRevision(
   id: string, expectedRevision: number, changes: { label?: string; snapshot?: LegacySnapshot }
@@ -301,6 +411,7 @@ export async function saveCopyRevision(
   let conflict = false;
   let missing = false;
   let updated: CopyRecord | undefined;
+  let committedImages: LegacyImage[] = [];
   try {
     const tx = db.transaction(['copies', 'assets'], 'readwrite');
     const done = committed(tx);
@@ -317,6 +428,12 @@ export async function saveCopyRevision(
       const images = changes.snapshot?.images ?? fromOld;
       const mustReplace = Boolean(changes.snapshot);
       const shouldMigrate = fromOld.length > 0;
+      if (!mustReplace && !shouldMigrate) {
+        const readImages = assets.index('copyId').getAll(IDBKeyRange.only(id)) as IDBRequest<AssetRecord[]>;
+        readImages.onsuccess = () => { committedImages = readImages.result.map((record) => record.image); };
+      } else {
+        committedImages = images;
+      }
       if (mustReplace || shouldMigrate) {
         // Gather existing keys before enqueuing new assets, avoiding duplicate-key collisions.
         const keys = assets.index('copyId').getAllKeys(IDBKeyRange.only(id));
@@ -330,7 +447,13 @@ export async function saveCopyRevision(
         snapshot: { ...(changes.snapshot ?? current.snapshot), images: [] },
         revision: current.revision + 1, updatedAt: Date.now()
       };
-      copies.put(updated);
+      copies.put({
+        ...updated,
+        ...(mustReplace || shouldMigrate ? {
+          assetCount: images.length,
+          assetBytes: images.reduce((sum, image) => sum + (image.blob?.size ?? 0), 0)
+        } : {})
+      } satisfies StoredCopyRecord);
     };
     try { await done; } catch (err) {
       if (conflict) throw new RevisionConflict();
@@ -339,11 +462,10 @@ export async function saveCopyRevision(
     }
   } finally { db.close(); }
   if (!updated) throw new Error('Gravação não confirmada.');
-  // Return hydrated state when needed; callers should not receive erased image lists.
-  const saved = await getCopy(id);
-  if (!saved) throw new MissingCopy();
+  // Return precisely the revision committed by THIS transaction. Reading again
+  // could return a different window's later write and misleadingly label it ours.
   notify(id);
-  return saved;
+  return { ...updated, snapshot: { ...updated.snapshot, images: committedImages } };
 }
 
 function notify(id: string): void {
