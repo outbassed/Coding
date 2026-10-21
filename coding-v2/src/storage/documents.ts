@@ -234,14 +234,14 @@ export async function getCopy(id: string): Promise<CopyRecord | undefined> {
 }
 
 /** Entire batch is a single readwrite transaction. No partial import on quota or validation failure. */
-export async function importCopiesAtomic(records: readonly CopyRecord[]): Promise<number> {
+export async function importCopiesAtomic(records: readonly CopyRecord[], allowDuplicates = false): Promise<number> {
   if (!records.length) return 0;
   const identities = new Set<string>();
   const ids = new Set<string>();
   for (const record of records) {
     validCopy(record);
     const identity = JSON.stringify([record.source, record.legacyId]);
-    if (ids.has(record.id) || identities.has(identity)) throw new DuplicateCopy();
+    if (ids.has(record.id) || (!allowDuplicates && identities.has(identity))) throw new DuplicateCopy();
     ids.add(record.id); identities.add(identity);
   }
   const db = await openCopies();
@@ -256,7 +256,7 @@ export async function importCopiesAtomic(records: readonly CopyRecord[]): Promis
     all.onsuccess = () => {
       const existingIds = new Set(all.result.map((copy) => copy.id));
       const existingSources = new Set(all.result.map((copy) => JSON.stringify([copy.source, copy.legacyId])));
-      if (records.some((record) => existingIds.has(record.id) || existingSources.has(JSON.stringify([record.source, record.legacyId])))) {
+      if (records.some((record) => existingIds.has(record.id) || (!allowDuplicates && existingSources.has(JSON.stringify([record.source, record.legacyId]))))) {
         duplicate = true; tx.abort(); return;
       }
       for (const copy of records) {
@@ -271,14 +271,14 @@ export async function importCopiesAtomic(records: readonly CopyRecord[]): Promis
 }
 
 /** Creates a brand-new copy only if no copy from the same origin already exists. */
-export async function createCopy(snapshot: LegacySnapshot): Promise<CopyRecord> {
+export async function createCopy(snapshot: LegacySnapshot, allowDuplicate = false): Promise<CopyRecord> {
   validateSnapshot(snapshot);
   const now = Date.now();
   const copy: CopyRecord = {
     id: newId(), legacyId: snapshot.doc.id, source: snapshot.source, label: documentName(snapshot.doc),
     revision: 1, createdAt: now, updatedAt: now, snapshot
   };
-  await importCopiesAtomic([copy]);
+  await importCopiesAtomic([copy], allowDuplicate);
   return copy;
 }
 
@@ -309,12 +309,12 @@ export async function saveCopyRevision(
       const mustReplace = Boolean(changes.snapshot);
       const shouldMigrate = fromOld.length > 0;
       if (mustReplace || shouldMigrate) {
-        const cursor = assets.index('copyId').openKeyCursor(IDBKeyRange.only(id));
-        cursor.onsuccess = () => {
-          const pointer = cursor.result;
-          if (pointer) { assets.delete(pointer.primaryKey); pointer.continue(); }
+        // Gather existing keys before enqueuing new assets, avoiding duplicate-key collisions.
+        const keys = assets.index('copyId').getAllKeys(IDBKeyRange.only(id));
+        keys.onsuccess = () => {
+          for (const key of keys.result) assets.delete(key);
+          queueAssets(assets, id, images);
         };
-        queueAssets(assets, id, images);
       }
       updated = {
         ...current, label: changes.label?.trim() ?? current.label,
@@ -410,6 +410,51 @@ export async function saveCopyRevision(
   if (!updated) throw new Error('Gravação não confirmada.');
   notify(id);
   return updated;
+}
+
+/**
+ * Explicit alternative during a conflict: create a separately identified copy.
+ * Never overwrites the conflicting revision. UI must request this action explicitly.
+ */
+export async function forkCopy(id: string, label: string): Promise<CopyRecord> {
+  if (!label.trim() || label.length > 250) throw new Error('Nome da nova cópia inválido.');
+  const current = await getCopy(id);
+  if (!current) throw new MissingCopy();
+  const now = Date.now();
+  const fork: CopyRecord = {
+    ...current, id: newId(), label: label.trim(), revision: 1,
+    createdAt: now, updatedAt: now, snapshot: current.snapshot
+  };
+  await importCopiesAtomic([fork], true);
+  return fork;
+}
+
+/** Explicit deletion, isolated to the v2 database, including all referenced blobs. */
+export async function deleteCopy(id: string, expectedRevision: number): Promise<void> {
+  const db = await openCopies();
+  let conflict = false;
+  let missing = false;
+  try {
+    const tx = db.transaction(['copies', 'assets'], 'readwrite');
+    const done = committed(tx);
+    const store = tx.objectStore('copies');
+    const assets = tx.objectStore('assets');
+    const get = store.get(id) as IDBRequest<CopyRecord | undefined>;
+    get.onsuccess = () => {
+      const copy = get.result;
+      if (!copy) { missing = true; tx.abort(); return; }
+      if (copy.revision !== expectedRevision) { conflict = true; tx.abort(); return; }
+      store.delete(id);
+      const keys = assets.index('copyId').getAllKeys(IDBKeyRange.only(id));
+      keys.onsuccess = () => { for (const key of keys.result) assets.delete(key); };
+    };
+    try { await done; } catch (err) {
+      if (conflict) throw new RevisionConflict();
+      if (missing) throw new MissingCopy();
+      throw err;
+    }
+  } finally { db.close(); }
+  notify(id);
 }
 
 export function errorText(error: unknown): string {

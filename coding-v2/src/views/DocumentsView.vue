@@ -8,7 +8,7 @@ import {
   documentName, errorText, RevisionConflict,
   type LegacySnapshot, type CopyRecord
 } from '../storage/documents';
-import { encodeBackup, downloadBackup, importBackupToCopies } from '../storage/archive';
+import { encodeBackup, encodeCopyBackup, decodeBackupEntries, downloadBackup, importBackupToCopies } from '../storage/archive';
 
 const found = ref<LegacySnapshot[]>([]);
 const notes = ref<string[]>([]);
@@ -47,9 +47,10 @@ async function scan(): Promise<void> {
 async function exportListed(): Promise<void> {
   busy.value = true; error.value = '';
   try {
-    const text = await encodeBackup(found.value);
+    const text = await encodeBackup(toRaw(found.value).map((item) => toRaw(item)));
+    await decodeBackupEntries(text); // verify integrity before asking browser to download
     downloadBackup(text, 'coding-legado-backup-' + new Date().toISOString().slice(0, 10) + '.json');
-    notice.value = 'Backup dos documentos listados gerado, incluindo imagens armazenadas no IndexedDB.';
+    notice.value = 'Backup verificado. Download solicitado ao navegador; confirme que o arquivo foi salvo no dispositivo.';
   } catch (err) { error.value = errorText(err); }
   finally { busy.value = false; }
 }
@@ -57,9 +58,10 @@ async function exportCopies(): Promise<void> {
   busy.value = true; error.value = '';
   try {
     // Each saved copy carries the raw document and its associated image blobs.
-    const text = await encodeBackup(copies.value.map((copy) => copy.snapshot));
+    const text = await encodeCopyBackup(toRaw(copies.value).map((copy) => toRaw(copy)));
+    await decodeBackupEntries(text);
     downloadBackup(text, 'coding-v2-copias-' + new Date().toISOString().slice(0, 10) + '.json');
-    notice.value = 'Backup dos conteúdos das cópias v2 gerado.';
+    notice.value = 'Backup completo das cópias verificado, incluindo nomes e revisões. Confira o download no dispositivo.';
   } catch (err) { error.value = errorText(err); }
   finally { busy.value = false; }
 }
@@ -89,7 +91,7 @@ async function saveName(doc: CopyRecord): Promise<void> {
   } catch (err) {
     saveState.value = 'error';
     error.value = err instanceof RevisionConflict
-      ? 'Conflito de versão: outra janela alterou esta cópia. Sua edição não foi sobrescrita. Faça backup do nome e atualize a biblioteca.'
+      ? 'Conflito de versão: outra janela alterou esta cópia. Seu nome digitado continua no campo. Você pode cancelar, atualizar e criar outra cópia. Nada foi sobrescrito.'
       : errorText(err);
   } finally { busy.value = false; }
 }
@@ -98,9 +100,10 @@ async function importFile(event: Event): Promise<void> {
   const file = input.files?.[0]; if (!file) return;
   busy.value = true; saveState.value = 'saving'; error.value = '';
   try {
+    if (file.size > 64 * 1024 * 1024) throw new Error('Arquivo acima do limite experimental de 64 MB.');
     const count = await importBackupToCopies(await file.text());
     await refreshCopies();
-    notice.value = count + ' documento(s) importado(s) como cópias isoladas. Nada foi gravado no banco antigo.';
+    notice.value = count + ' documento(s) restaurado(s) integralmente no banco v2. Nada foi gravado no banco antigo.';
     saveState.value = 'saved';
   } catch (err) { saveState.value = 'error'; error.value = 'Importação não concluída: ' + errorText(err); }
   finally { busy.value = false; if (importInput.value) importInput.value.value = ''; }
@@ -174,7 +177,7 @@ function displayType(s: LegacySnapshot): string { return typeof s.doc.type === '
       <button class="btn" type="button" :disabled="busy" @click="importInput?.click()">Importar backup do Coding 2.0</button>
       <input ref="importInput" type="file" accept=".json,application/json" class="visually-hidden" aria-label="Escolher backup JSON do Coding 2.0" @change="importFile" />
     </div>
-    <p class="muted note">Importar adiciona novas cópias; nunca substitui documentos existentes. O backup exporta conteúdo original e imagens, não os nomes ou números de revisão definidos apenas na v2.</p>
+    <p class="muted note">Backups novos incluem conteúdo, imagens, nome, ID, revisão e origem da cópia. Importar é transacional: falhas não deixam documentos parcialmente restaurados. Reimportar uma cópia já existente gera aviso de duplicação, nunca substituição silenciosa. O formato antigo experimental também é aceito.</p>
   </section>
 </template>
 
