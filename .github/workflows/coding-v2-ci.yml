@@ -15,8 +15,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: coding-v2/package-lock.json
+      # Lockfile pendente enquanto npm não está acessível localmente.
       - run: npm install --no-audit --no-fund
       - run: npm run test:structure
       - run: npm run typecheck
