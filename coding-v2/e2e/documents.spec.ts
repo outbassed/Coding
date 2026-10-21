@@ -113,6 +113,9 @@ test.describe('Fase 3 · ponte sem alterar legado', () => {
     await page.getByRole('button', { name: 'Salvar nome' }).click();
     await expect(page.getByRole('alert')).toContainText('Conflito de versão');
     await page.getByRole('button', { name: 'Atualizar biblioteca' }).click();
+    // Never drop unfinished form input just because another tab changed the record.
+    await expect(page.getByRole('textbox', { name: 'Novo nome da cópia' })).toHaveValue('Nome da primeira janela');
+    await page.getByRole('button', { name: 'Cancelar' }).click();
     await expect(page.getByTestId('v2-copies').getByText('Alterado fora desta janela')).toBeVisible();
   });
 });
