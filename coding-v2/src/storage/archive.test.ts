@@ -16,7 +16,7 @@ afterAll(() => vi.unstubAllGlobals());
 function snapshot(): LegacySnapshot {
   const data: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
   data['$codingV2BinaryType'] = 'ordinary user text';
-  data.constructor = 'a harmless user-defined field';
+  Object.defineProperty(data, 'constructor', { value: 'a harmless user-defined field', enumerable: true, configurable: true });
   data.different = [undefined, NaN, Infinity, -Infinity, -0];
   data.pixels = new Uint8ClampedArray([0, 1, 2, 250, 255]);
   data.big = new BigInt64Array([17n, -25n]);
@@ -25,7 +25,7 @@ function snapshot(): LegacySnapshot {
   return {
     source: 'indexeddb',
     doc: { id: 'original-1', type: 'images', state: { name: 'Foto antiga', ...data } },
-    images: [{ id: 'img-1', docId: 'original-1', blob: new NodeBlob([new Uint8Array([0, 1, 2, 250, 255])], { type: 'image/webp' }), mime: 'image/webp' }]
+    images: [{ id: 'img-1', docId: 'original-1', blob: new NodeBlob([new Uint8Array([0, 1, 2, 250, 255])], { type: 'image/webp' }) as unknown as Blob, mime: 'image/webp' }]
   };
 }
 
