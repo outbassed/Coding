@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref, toRaw } from 'vue';
 import PageHeader from '../components/ui/PageHeader.vue';
 import SaveStatus, { type SaveState } from '../components/editor/SaveStatus.vue';
 import { LEGACY_URL } from '../shared/links';
@@ -66,7 +66,7 @@ async function exportCopies(): Promise<void> {
 async function copy(snapshot: LegacySnapshot): Promise<void> {
   busy.value = true; saveState.value = 'saving'; error.value = '';
   try {
-    await createCopy(snapshot);
+    await createCopy(toRaw(snapshot));
     await refreshCopies();
     saveState.value = 'saved';
     notice.value = 'Cópia independente criada na v2. O documento original não foi alterado.';
