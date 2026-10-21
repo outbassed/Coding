@@ -93,3 +93,40 @@ describe('Fase 3.1 · backup binário fiel', () => {
     await expect(encodeBackup([source])).rejects.toThrow('Objeto complexo não suportado');
   });
 });
+
+describe('Fase 3.3 · arquivos maiores que fotos de celular', () => {
+  it.each([3, 10, 32])('exporta e restaura um Blob real de %i MiB sem estourar a pilha', async (megabytes) => {
+    const size = megabytes * 1024 * 1024;
+    const data = new Uint8Array(size);
+    data[0] = 17;
+    data[size - 1] = 237;
+    const photo = snapshot();
+    photo.images = [{
+      id: 'photo-large', docId: photo.doc.id,
+      blob: new NodeBlob([data], { type: 'image/jpeg' }) as unknown as Blob,
+      mime: 'image/jpeg'
+    }];
+    const backup = await encodeBackup([photo]);
+    expect(backup.length).toBeGreaterThan(size);
+    const [restored] = await decodeBackup(backup);
+    expect(restored.images).toHaveLength(1);
+    const blob = restored.images[0].blob!;
+    expect(blob.size).toBe(size);
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    expect(bytes[0]).toBe(17);
+    expect(bytes[size - 1]).toBe(237);
+  }, 150_000);
+
+  it('rejeita base64 malformado em arquivo v1, sem tentar gravar nada', async () => {
+    const bad = JSON.stringify({
+      schema: 'coding-v2-safe-backup', version: 1,
+      entries: [{
+        source: 'backup', doc: { id: 'bad' },
+        images: [{ id: 'image', docId: 'bad', blob: {
+          $codingV2BinaryType: 'blob', mime: 'image/jpeg', base64: 'AB?='
+        } }]
+      }]
+    });
+    await expect(decodeBackupEntries(bad)).rejects.toThrow('Dados binários codificados incorretamente');
+  });
+});
