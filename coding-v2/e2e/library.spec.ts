@@ -53,7 +53,8 @@ test.describe('duas abas reais editando o mesmo documento (A1)', () => {
       await axeClean(b);
       await b.getByRole('button', { name: 'Cancelar e não sobrescrever' }).click();
       await expect(b.getByRole('dialog')).toHaveCount(0);
-      await expect(b.locator('[data-copy-card]')).toBeFocused();
+      // O foco volta para o botão que iniciou a renomeação (o painel de detalhes, no computador).
+      await expect(b.getByRole('button', { name: 'Renomear cópia de Nome da aba A' })).toBeFocused();
       const db = await readCopiesDb(b);
       expect(db.labels).toEqual(['Nome da aba A']);
       expect(db.revisions).toEqual([2]);

@@ -57,6 +57,7 @@ watch(() => props.open, async (isOpen) => {
 @media (min-width: 900px) { .v-sheet { width: min(520px, calc(100vw - 24px)); } }
 @media (prefers-reduced-motion: no-preference) {
   .v-sheet[open] { animation: rise .18s ease-out; }
-  @keyframes rise { from { transform: translateY(24px); opacity: .6; } to { transform: none; opacity: 1; } }
+  /* Só transform: animar a opacidade deixaria o contraste do texto abaixo do mínimo durante a entrada. */
+  @keyframes rise { from { transform: translateY(24px); } to { transform: none; } }
 }
 </style>
