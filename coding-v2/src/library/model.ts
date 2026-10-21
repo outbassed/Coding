@@ -17,7 +17,8 @@ export function typeLabel(type: unknown): string {
 export const originLabels: Record<Source, string> = {
   indexeddb: 'Coding atual (IndexedDB)',
   localStorage: 'Coding atual (localStorage)',
-  backup: 'Backup importado'
+  backup: 'Backup importado',
+  v2: 'Criado na v2'
 };
 
 export type SortKey = 'recent' | 'oldest' | 'name-asc' | 'name-desc';
@@ -66,7 +67,7 @@ export function toolsPresent(copies: readonly Pick<CopySummary, 'type'>[]): Tool
 }
 
 const SORTS = Object.keys(sortLabels) as SortKey[];
-const ORIGINS: Source[] = ['indexeddb', 'localStorage', 'backup'];
+const ORIGINS: Source[] = ['indexeddb', 'localStorage', 'backup', 'v2'];
 const one = (value: unknown): string => (typeof value === 'string' ? value : '');
 
 /** Lê os filtros da URL ignorando valores desconhecidos. */
