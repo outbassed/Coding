@@ -352,66 +352,6 @@ export function watchCopies(callback: () => void): () => void {
   return () => { window.removeEventListener('coding-v2:copy-committed', onLocal); channel?.close(); };
 }
 
-/** Explicitly creates a fresh copy; no writes to the legacy database. */
-export async function createCopy(snapshot: LegacySnapshot): Promise<CopyRecord> {
-  if (!validDoc(snapshot.doc) || !Array.isArray(snapshot.images)) throw new Error('Documento inválido.');
-  const now = Date.now();
-  const record: CopyRecord = {
-    id: newId(), legacyId: snapshot.doc.id, source: snapshot.source,
-    label: documentName(snapshot.doc), revision: 1, createdAt: now, updatedAt: now,
-    snapshot
-  };
-  const db = await openCopies();
-  try {
-    const tx = db.transaction('copies', 'readwrite');
-    const done = committed(tx);
-    tx.objectStore('copies').add(record);
-    await done; // "saved" is only true AFTER oncomplete
-  } finally { db.close(); }
-  notify(record.id);
-  return record;
-}
-
-/**
- * Compare-and-swap inside ONE IndexedDB readwrite transaction.
- * update may rename a copy or replace its entire snapshot in future editor engines.
- */
-export async function saveCopyRevision(
-  id: string, expectedRevision: number, changes: { label?: string; snapshot?: LegacySnapshot }
-): Promise<CopyRecord> {
-  if (changes.label !== undefined && (!changes.label.trim() || changes.label.length > 250)) throw new Error('Nome inválido.');
-  if (changes.snapshot && (!validDoc(changes.snapshot.doc) || !Array.isArray(changes.snapshot.images))) throw new Error('Dados inválidos.');
-  const db = await openCopies();
-  let conflict = false;
-  let missing = false;
-  let updated: CopyRecord | undefined;
-  try {
-    const tx = db.transaction('copies', 'readwrite');
-    const done = committed(tx);
-    const read = tx.objectStore('copies').get(id) as IDBRequest<CopyRecord | undefined>;
-    read.onsuccess = () => {
-      const current = read.result;
-      if (!current) { missing = true; tx.abort(); return; }
-      if (current.revision !== expectedRevision) { conflict = true; tx.abort(); return; }
-      updated = {
-        ...current, label: changes.label?.trim() ?? current.label,
-        snapshot: changes.snapshot ?? current.snapshot,
-        revision: current.revision + 1, updatedAt: Date.now()
-      };
-      tx.objectStore('copies').put(updated);
-    };
-    try { await done; }
-    catch (err) {
-      if (conflict) throw new RevisionConflict();
-      if (missing) throw new MissingCopy();
-      throw err;
-    }
-  } finally { db.close(); }
-  if (!updated) throw new Error('Gravação não confirmada.');
-  notify(id);
-  return updated;
-}
-
 /**
  * Explicit alternative during a conflict: create a separately identified copy.
  * Never overwrites the conflicting revision. UI must request this action explicitly.
