@@ -40,7 +40,7 @@ for (const vp of viewports) {
     test('navegação correta para o tamanho da tela', async ({ page }) => {
       await page.goto('/launcher/');
       const bottom = page.getByRole('navigation', { name: 'Navegação móvel' });
-      const side = page.getByRole('complementary', { name: 'Navegação principal' });
+      const side = page.getByRole('navigation', { name: 'Navegação principal' });
       if (vp.width < 600) { await expect(bottom).toBeVisible(); await expect(side).toBeHidden(); }
       else { await expect(side).toBeVisible(); await expect(bottom).toBeHidden(); }
     });

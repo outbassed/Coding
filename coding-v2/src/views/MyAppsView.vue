@@ -11,7 +11,8 @@ const apps = useAppsStore();
 
 <template>
   <PageHeader eyebrow="Sua área" title="Meus apps" lead="Desativar remove só o atalho aqui no Launcher. Seus documentos nunca são apagados." />
-  <section aria-label="Aplicativos ativados">
+  <section aria-labelledby="ativados">
+    <h2 id="ativados" class="sr-only">Aplicativos ativados</h2>
     <AppGrid v-if="apps.activeTools.length">
       <AppCard v-for="tool in apps.activeTools" :key="tool.id" :tool="tool" :enabled="true" />
     </AppGrid>

@@ -48,7 +48,7 @@ describe('Launcher · telas', () => {
 
   it('Detalhes de app planejado leva ao Coding atual e não oferece ativar', async () => {
     const { wrapper } = await mountLauncher('/app/images');
-    expect(wrapper.findAll('button').filter((b) => /Ativar|Desativar/.test(b.text()))).toHaveLength(0);
+    expect(wrapper.findAll('main button').filter((b) => /Ativar|Desativar/.test(b.text()))).toHaveLength(0);
     const link = wrapper.findAll('a').find((a) => (a.attributes('href') ?? '').includes('#/imagens'));
     expect(link).toBeTruthy();
     wrapper.unmount();

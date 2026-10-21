@@ -35,7 +35,8 @@ const visible = computed(() => {
       <button v-for="item in filters" :key="item.id" type="button" class="f" :aria-pressed="filter === item.id" @click="filter = item.id">{{ item.label }}</button>
     </div>
   </PageHeader>
-  <section aria-label="Resultados">
+  <section aria-labelledby="resultados">
+    <h2 id="resultados" class="sr-only">Resultados</h2>
     <AppGrid v-if="visible.length">
       <AppCard v-for="tool in visible" :key="tool.id" :tool="tool" :enabled="apps.isEnabled(tool.id)" />
     </AppGrid>
