@@ -4,6 +4,8 @@ on:
     branches: [coding-v2]
   pull_request:
     paths: ['coding-v2/**', '.github/workflows/coding-v2-ci.yml']
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,10 +19,16 @@ jobs:
           node-version: '22'
       # Fase de transição: o package-lock.json ainda não existe, então instalamos e o exportamos.
       - run: npm install --no-audit --no-fund
-      - uses: actions/upload-artifact@v4
-        with:
-          name: package-lock
-          path: coding-v2/package-lock.json
+      - name: Registrar package-lock.json na branch (uma única vez)
+        if: github.event_name == 'push'
+        run: |
+          if [ -z "$(git ls-files package-lock.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            git commit -m "chore(coding-v2): adicionar package-lock.json gerado pelo CI"
+            git push origin HEAD:coding-v2
+          fi
       - run: npm run test:structure
       - run: npm run typecheck
       - run: npm run test:unit
