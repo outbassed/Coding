@@ -5,10 +5,10 @@ import { computed } from 'vue';
  * Estados planejados de salvamento. Nesta prévia só 'preview' é usado:
  * nenhum documento é gravado, então "Salvo" nunca pode aparecer.
  */
-export type SaveState = 'preview' | 'saving' | 'saved' | 'pending' | 'error' | 'unavailable';
+export type SaveState = 'idle' | 'preview' | 'saving' | 'saved' | 'pending' | 'error' | 'unavailable';
 const props = defineProps<{ state: SaveState }>();
 const labels: Record<SaveState, string> = {
-  preview: 'Prévia · nada é salvo', saving: 'Salvando…', saved: 'Salvo neste aparelho', pending: 'Alterações pendentes',
+  idle: 'Nenhuma gravação em andamento', preview: 'Prévia · nada é salvo', saving: 'Salvando…', saved: 'Salvo neste aparelho', pending: 'Alterações pendentes',
   error: 'Erro ao salvar', unavailable: 'Armazenamento indisponível'
 };
 const label = computed(() => labels[props.state]);

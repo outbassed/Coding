@@ -20,7 +20,7 @@ const notice = ref('');
 const copiesChanged = ref(false);
 const editId = ref<string | null>(null);
 const editLabel = ref('');
-const saveState = ref<SaveState>('preview');
+const saveState = ref<SaveState>('idle');
 const importInput = ref<HTMLInputElement | null>(null);
 let stopWatching: (() => void) | undefined;
 
@@ -35,7 +35,7 @@ onMounted(() => {
 onUnmounted(() => stopWatching?.());
 
 async function scan(): Promise<void> {
-  scanning.value = true; error.value = ''; notice.value = '';
+  scanning.value = true; error.value = ''; notice.value = ''; saveState.value = 'idle';
   try {
     const result = await inspectLegacy();
     found.value = result.snapshots;
@@ -45,7 +45,7 @@ async function scan(): Promise<void> {
   finally { scanning.value = false; }
 }
 async function exportListed(): Promise<void> {
-  busy.value = true; error.value = '';
+  busy.value = true; error.value = ''; saveState.value = 'idle';
   try {
     const text = await encodeBackup(toRaw(found.value).map((item) => toRaw(item)));
     await decodeBackupEntries(text); // verify integrity before asking browser to download
@@ -79,7 +79,7 @@ function beginEdit(doc: CopyRecord): void {
   editId.value = doc.id; editLabel.value = doc.label; error.value = ''; notice.value = '';
   saveState.value = 'pending';
 }
-function cancelEdit(): void { editId.value = null; saveState.value = 'preview'; }
+function cancelEdit(): void { editId.value = null; saveState.value = 'idle'; }
 async function saveName(doc: CopyRecord): Promise<void> {
   busy.value = true; saveState.value = 'saving'; error.value = '';
   try {
