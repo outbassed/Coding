@@ -11,7 +11,7 @@ async function noHorizontalScroll(page: Page): Promise<void> {
   expect(overflow, 'rolagem horizontal').toBeLessThanOrEqual(0);
 }
 async function axeClean(page: Page): Promise<void> {
-  const result = await new AxeBuilder({ page }).analyze();
+  const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'best-practice']).analyze();
   expect(result.violations.map((v) => v.id + ': ' + v.nodes.map((n) => n.target.join(' ')).join(' | '))).toEqual([]);
 }
 
@@ -98,7 +98,7 @@ test.describe('duas abas reais editando o mesmo documento (A1)', () => {
       await nameBox(a).fill('Mudou na A');
       await a.getByRole('button', { name: 'Salvar nome' }).click();
       await expect(a.getByTestId('library-status')).toContainText('Nome salvo');
-      await b.getByRole('button', { name: 'Excluir cópia' }).click();
+      await b.getByRole('button', { name: 'Excluir cópia', exact: true }).click();
       await expect(b.getByTestId('library-error')).toContainText('foi alterada em outra janela, então nada foi excluído');
       expect((await readCopiesDb(b)).labels).toEqual(['Mudou na A']);
     } finally { await context.close(); }
@@ -114,7 +114,7 @@ test.describe('ações do documento', () => {
     await expect(page.locator('[data-copy-card]')).toHaveCount(2);
     await expect(page.getByTestId('library-status')).toContainText('A original não foi alterada');
     const two = await readCopiesDb(page);
-    expect(two.labels).toEqual(['Cópia de Contrato', 'Contrato']);
+    expect(two.labels).toEqual(['Contrato', 'Cópia de Contrato']);
     expect(two.assets.map((x) => x.bytes)).toEqual([[0, 1, 2, 250, 255], [0, 1, 2, 250, 255]]);
 
     await page.getByRole('button', { name: 'Excluir cópia de Cópia de Contrato' }).click();

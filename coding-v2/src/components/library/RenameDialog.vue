@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick, watch } from 'vue';
 import ModalDialog from './ModalDialog.vue';
 import { formatDate } from '../../library/model';
 
@@ -20,6 +20,12 @@ const emit = defineEmits<{
   save: []; cancel: []; refresh: []; saveAsNew: [];
 }>();
 const label = computed(() => (props.mode === 'edit' ? 'Renomear cópia' : props.mode === 'conflict' ? 'Conflito de nome entre janelas' : 'Cópia não encontrada'));
+// Ao passar de "editar" para "conflito"/"ausente" o botão focado some; o foco vai para o título da nova situação.
+watch(() => props.mode, async (mode) => {
+  if (mode === 'edit') return;
+  await nextTick();
+  document.querySelector<HTMLElement>('dialog[open] [data-conflict-heading]')?.focus();
+});
 const focusTarget = computed(() => (props.mode === 'edit' ? '[data-autofocus]' : '[data-conflict-heading]'));
 </script>
 

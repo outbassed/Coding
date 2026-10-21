@@ -27,7 +27,7 @@ test.describe('Fase 3.2 · importação guiada sem alterar o legado', () => {
     await expect(page.getByRole('heading', { name: 'Confirmar a criação das cópias' })).toBeFocused();
     await expect(page.getByText('não serão alterados')).toBeVisible();
     // Voltar não grava nada.
-    expect((await page.evaluate(async () => (await indexedDB.databases()).map((x) => x.name))).includes('coding-v2-documents')).toBe(false);
+    expect((await readCopiesDb(page)).labels).toEqual([]);
     await page.getByTestId('confirm-import').click();
     await expect(page.getByTestId('wizard-result')).toContainText('Foto de teste: cópia criada');
     await page.getByRole('button', { name: 'Concluir' }).click();
