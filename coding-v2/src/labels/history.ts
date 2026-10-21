@@ -10,7 +10,8 @@ export class History {
   private future: LabelsState[] = [];
   private lastKey = '';
   private lastAt = 0;
-  constructor(private present: LabelsState, private readonly limit = 100, private readonly windowMs = 900) {}
+  private present: LabelsState;
+  constructor(initial: LabelsState, private readonly limit = 100, private readonly windowMs = 900) { this.present = cloneState(initial); }
 
   get canUndo(): boolean { return this.past.length > 0; }
   get canRedo(): boolean { return this.future.length > 0; }

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { History } from './history';
 import { defaults, type LabelsState } from './model';
 
-const withName = (name: string): LabelsState => ({ ...defaults(), name });
+const fixed = defaults();
+const withName = (name: string): LabelsState => ({ ...JSON.parse(JSON.stringify(fixed)) as LabelsState, name });
 
 describe('desfazer/refazer', () => {
   it('desfaz e refaz passo a passo', () => {

@@ -72,7 +72,8 @@ describe('editor de Etiquetas: estado e salvamento', () => {
   it('edição durante a gravação não é dada como salva', async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => { release = r; });
-    const { api, calls } = fakeApi({ save: async (b, s) => { await gate; return record(b.id, b.revision + 1, s); } });
+    let saves = 0;
+    const { api } = fakeApi({ save: async (b, s) => { saves += 1; await gate; return record(b.id, b.revision + 1, s); } });
     const { editor, wrapper } = setup(api);
     await editor.load('c1');
     editor.setField('name', 'Um');
@@ -80,8 +81,9 @@ describe('editor de Etiquetas: estado e salvamento', () => {
     expect(editor.saveState.value).toBe('saving');
     editor.setField('name', 'Dois');
     release(); await vi.advanceTimersByTimeAsync(5);
-    expect(calls.save).toBeGreaterThanOrEqual(1);
+    expect(saves).toBeGreaterThanOrEqual(1);
     await vi.advanceTimersByTimeAsync(200);
+    expect(saves).toBe(2);
     expect(editor.saveState.value).toBe('saved');
     wrapper.unmount();
   });
