@@ -1,0 +1,10 @@
+import { existsSync, readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const expected = ['index.html','launcher/index.html','apps/etiquetas/index.html','apps/texto/index.html','src/main-launcher.ts','src/main-editor.ts','src/shared/catalog.ts'];
+for (const path of expected) assert.ok(existsSync(path), 'Falta entrada: '+path);
+const c = readFileSync('src/shared/catalog.ts','utf8');
+for (const id of ["labels","texts","calc","images","pdf","codes","sheet-labels","draw","split"]) assert.ok(c.includes("id: '"+id+"'"), 'Ferramenta ausente: '+id);
+assert.equal((c.match(/initiallyActive: true/g) ?? []).length,2,'Somente Etiquetas e Texto devem iniciar ativos.');
+const config=readFileSync('vite.config.ts','utf8');
+for (const name of ['launcher/index.html','apps/etiquetas/index.html','apps/texto/index.html']) assert.ok(config.includes(name));
+console.log('Estrutura Coding 2.0 verificada: nove apps catalogados e três entradas próprias.');

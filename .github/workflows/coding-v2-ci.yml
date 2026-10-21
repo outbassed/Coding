@@ -1,0 +1,23 @@
+name: Coding 2.0 foundation
+on:
+  push:
+    branches: [coding-v2]
+  pull_request:
+    paths: ['coding-v2/**', '.github/workflows/coding-v2-ci.yml']
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: coding-v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: coding-v2/package-lock.json
+      - run: npm install --no-audit --no-fund
+      - run: npm run test:structure
+      - run: npm run typecheck
+      - run: npm run build

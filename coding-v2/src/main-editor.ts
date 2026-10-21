@@ -1,0 +1,10 @@
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
+import EditorApp from './EditorApp.vue';
+import type { ToolId } from './shared/catalog';
+import './styles.css';
+const root = document.getElementById('app');
+if (!root) throw new Error('Área de montagem não encontrada');
+const appId = document.body.dataset.app as ToolId;
+if (appId !== 'labels' && appId !== 'texts') throw new Error('Ferramenta beta desconhecida');
+createApp(EditorApp, { appId }).use(createPinia()).mount(root);
