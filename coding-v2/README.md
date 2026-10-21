@@ -2,16 +2,21 @@
 
 Esta pasta contém uma **nova base isolada**, em Vue 3 + TypeScript + Vite multipágina + Pinia + Tailwind CSS 4. **A aplicação legada na raiz do repositório está preservada.**
 
+> Fase 2 (interface): veja [FASE2-INTERFACE.md](./FASE2-INTERFACE.md).
+
 ## Rodar localmente
 
 Pré-requisito: Node.js 20.19+ ou 22.12+ e acesso ao npm.
 
 ```bash
 cd coding-v2
-npm install
+npm ci
 npm run test:structure
 npm run typecheck
+npm run test:unit
 npm run build
+npx playwright install chromium   # uma vez
+npm run test:e2e
 npm run dev
 ```
 
@@ -24,16 +29,15 @@ O Vite usa múltiplos arquivos HTML. A pasta `dist` só será produzida depois d
 
 ## O que já funciona nesta etapa
 
-- Catálogo dos nove aplicativos com ícones SVG coloridos e identificadores estáveis.
-- Somente Etiquetas e Texto ativados por padrão.
-- Ativar/desativar atalhos das duas entradas beta e persistir essa preferência em `coding-v2-apps`, sem tocar no banco antigo.
-- Buscar apps, trocar telas, alternar temas e abrir páginas individuais.
-- UI adaptada a telas pequenas e desktop.
-- Teste estrutural usando apenas Node.js.
+- Design system (tokens Tailwind 4, três temas, cores das nove ferramentas, ícones SVG) e componentes Vue reutilizáveis.
+- Launcher com rotas internas, catálogo, Detalhes do aplicativo, Meus apps, Documentos e Ajustes.
+- Ativar/desativar atalhos (com confirmação ao desativar), preferência em `coding-v2-apps`, sem tocar no banco antigo.
+- Prévias de Etiquetas e Texto (faixa de comandos, gavetas, folha A4), sempre marcadas como prévia.
+- Testes estruturais, de unidade, de interface em 8 larguras e de acessibilidade (axe).
 
 ## O que NÃO está implementado
 
-- Editores completos, importação, exportação e gravação de documentos **não foram portados**. As folhas dos apps são apenas exemplos visuais.
+- Editores completos, importação, exportação e gravação de documentos **não foram portados**. As folhas dos apps são apenas exemplos visuais e todos os comandos ficam desativados.
 - **Nenhuma PWA está instalável nesta etapa:** não há manifests nem service worker nesta base. Isso é intencional até validar multi-PWA, escopos e armazenamento nos navegadores.
 - Não foi implementado download seletivo de módulos nem status real de offline.
 - Não há integração nem migração com o IndexedDB antigo `coding-db`.
