@@ -50,10 +50,12 @@ test.describe('Fase 3 · ponte sem alterar legado', () => {
     const buffers: Buffer[] = [];
     for await (const chunk of stream) buffers.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     const text = Buffer.concat(buffers).toString('utf8');
-    const archive = JSON.parse(text) as { schema: string; entries: Array<{ images: Array<{ blob: { base64: string } }> }> };
+    const archive = JSON.parse(text) as { schema: string; version: number; entries: unknown[] };
     expect(archive.schema).toBe('coding-v2-safe-backup');
+    expect(archive.version).toBe(2);
     expect(archive.entries).toHaveLength(2);
-    expect(archive.entries.some((x) => x.images.some((image) => image.blob?.base64 === btoa('PIXELS')))).toBe(true);
+    expect(JSON.stringify(archive)).toContain(btoa('PIXELS'));
+    expect(JSON.stringify(archive)).toContain('sha256');
 
     await page.getByRole('button', { name: 'Criar cópia de Foto de teste' }).click();
     await expect(page.getByTestId('v2-copies').locator('article')).toHaveCount(1);
