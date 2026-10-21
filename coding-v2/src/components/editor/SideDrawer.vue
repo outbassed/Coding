@@ -5,10 +5,10 @@ const emit = defineEmits<{ close: [] }>();
 </script>
 
 <template>
-  <aside class="drawer" :aria-label="title" data-testid="side-drawer" @keydown.esc="emit('close')">
+  <section class="drawer" :aria-label="title" data-testid="side-drawer" @keydown.esc="emit('close')">
     <header><h2>{{ title }}</h2><button type="button" class="ib" aria-label="Fechar painel" @click="emit('close')"><NavIcon name="close" /></button></header>
     <div class="content"><slot /></div>
-  </aside>
+  </section>
 </template>
 
 <style scoped>

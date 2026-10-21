@@ -49,18 +49,19 @@ function focusSheet(): void { document.querySelector<HTMLElement>('[data-testid=
     <a class="skip-link" href="#folha" @click.prevent="focusSheet">Pular para a folha</a>
     <EditorTopBar :tool="tool" />
     <CommandRibbon v-if="roomy" v-model="tabId" :tabs="tabs" :panel-open="panelOpen" :show-panel-toggle="true" @toggle-panel="togglePanel" />
-    <p class="banner" role="note"><strong class="app-text">Prévia ilustrativa.</strong> Nada aqui edita nem salva documentos; o motor real ainda não foi integrado.</p>
-
-    <div class="main" id="folha">
-      <div class="stage">
-        <SheetCanvas :zoom="zoom" :label="'Folha A4 de exemplo de ' + tool.name">
-          <LabelsSheet v-if="appId === 'labels'" />
-          <TextSheet v-else />
-        </SheetCanvas>
-        <div v-if="!roomy" class="float"><ZoomControl v-model="zoom" /></div>
+    <main class="main" id="folha">
+      <div class="col">
+        <p class="banner" role="note"><strong class="app-text">Prévia ilustrativa.</strong> Nada aqui edita nem salva documentos; o motor real ainda não foi integrado.</p>
+        <div class="stage">
+          <SheetCanvas :zoom="zoom" :label="'Folha A4 de exemplo de ' + tool.name">
+            <LabelsSheet v-if="appId === 'labels'" />
+            <TextSheet v-else />
+          </SheetCanvas>
+          <div v-if="!roomy" class="float"><ZoomControl v-model="zoom" /></div>
+        </div>
       </div>
       <SideDrawer v-if="showSide && current" :title="'Propriedades · ' + current.label" @close="panelOpen = false"><TabInfo :tab="current" /></SideDrawer>
-    </div>
+    </main>
 
     <BottomSheet v-if="showSheet && current" v-model:snap="snap" :title="sheetTitle" :style="{ '--chrome': roomy ? '260px' : '190px' }" @close="roomy ? (panelOpen = false) : (sheetOpen = false)"><TabInfo :tab="current" /></BottomSheet>
     <ToolStrip v-if="!roomy" :tabs="tabs" :active="sheetOpen ? tabId : null" @select="pickFromStrip" />
@@ -77,6 +78,7 @@ function focusSheet(): void { document.querySelector<HTMLElement>('[data-testid=
 .ed { height: 100dvh; display: flex; flex-direction: column; background: var(--bg); }
 .banner { margin: 0; padding: 8px max(16px, var(--sa-r)) 8px max(16px, var(--sa-l)); font-size: 13px; color: var(--muted); background: var(--panel); border-bottom: 1px solid var(--border); }
 .main { flex: 1; min-height: 0; display: flex; }
+.col { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .stage { flex: 1; min-width: 0; min-height: 220px; display: flex; position: relative; }
 .float { position: absolute; right: 12px; bottom: 12px; }
 .foot { display: flex; align-items: center; gap: 16px; justify-content: space-between; padding: 6px max(16px, var(--sa-r)) calc(6px + var(--sa-b)) max(16px, var(--sa-l)); background: var(--surface); border-top: 1px solid var(--border); font-size: 13px; color: var(--muted); }
