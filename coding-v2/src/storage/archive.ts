@@ -293,7 +293,9 @@ export async function importBackupToCopies(text: string): Promise<number> {
       snapshot: { ...snapshot, source: 'backup' }
     };
   });
-  return importCopiesAtomic(copies);
+  // A signed v2 archive may contain two deliberate forks from the same source.
+  // Their distinct copy IDs must both restore; re-importing an existing ID still fails.
+  return importCopiesAtomic(copies, entries.every((entry) => entry.kind === 'copy'));
 }
 export function downloadBackup(text: string, filename: string): void {
   limited(text);
