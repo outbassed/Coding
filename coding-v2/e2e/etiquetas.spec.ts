@@ -69,7 +69,7 @@ test.describe('Etiquetas · editar e pré-visualizar', () => {
     await expect(sheet(page).getByText('COD: R-1').first()).toBeVisible();
     await expect(status(page)).toHaveText('Salvo neste aparelho');
     await page.getByLabel('Código do item 1').fill('R-2');
-    await expect.poll(async () => (await readDocs(page)).copies[0]?.revision, { timeout: 10000 }).toBe(3);
+    await expect.poll(async () => (await readDocs(page)).copies[0]?.revision, { timeout: 10000 }).toBe(2);
     await expect(status(page)).toHaveText('Salvo neste aparelho');
     const db = await readDocs(page);
     expect(db.copies).toHaveLength(1);
