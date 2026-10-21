@@ -33,8 +33,8 @@ test.describe('Etiquetas · editar e pré-visualizar', () => {
   test('abre com o modelo inicial editável, sem gravar nada até haver alteração', async ({ page }) => {
     await page.goto(EDITOR);
     await expect(page.getByRole('heading', { level: 1, name: 'Etiquetas' })).toBeVisible();
-    await expect(sheet(page).getByText('COD: 123')).toBeVisible();
-    await expect(sheet(page).getByText('Sua descrição aqui')).toBeVisible();
+    await expect(sheet(page).getByText('COD: 123').first()).toBeVisible();
+    await expect(sheet(page).getByText('Sua descrição aqui').first()).toBeVisible();
     await expect(status(page)).toHaveText('Novo · ainda não salvo');
     await expect(page.getByTestId('summary')).toContainText('3 etiquetas · 1 item');
     await page.waitForTimeout(1600);
@@ -46,8 +46,8 @@ test.describe('Etiquetas · editar e pré-visualizar', () => {
     await page.goto(EDITOR);
     await page.getByLabel('Código do item 1').fill('ABC-9');
     await page.getByLabel('Descrição do item 1').fill('Parafuso sextavado');
-    await expect(sheet(page).getByText('COD: ABC-9')).toBeVisible();
-    await expect(sheet(page).getByText('Parafuso sextavado')).toBeVisible();
+    await expect(sheet(page).getByText('COD: ABC-9').first()).toBeVisible();
+    await expect(sheet(page).getByText('Parafuso sextavado').first()).toBeVisible();
     await expect(status(page)).toHaveText('Alterações pendentes');
     await expect(status(page)).toHaveText('Salvo neste aparelho', { timeout: 8000 });
     await expect(page).toHaveURL(/\?doc=/);
@@ -66,7 +66,7 @@ test.describe('Etiquetas · editar e pré-visualizar', () => {
     await expect(status(page)).toHaveText('Salvo neste aparelho', { timeout: 8000 });
     await page.reload();
     await expect(page.getByLabel('Código do item 1')).toHaveValue('R-1');
-    await expect(sheet(page).getByText('COD: R-1')).toBeVisible();
+    await expect(sheet(page).getByText('COD: R-1').first()).toBeVisible();
     await expect(status(page)).toHaveText('Salvo neste aparelho');
     await page.getByLabel('Código do item 1').fill('R-2');
     await expect(status(page)).toHaveText('Salvo neste aparelho', { timeout: 8000 });
@@ -132,16 +132,16 @@ test.describe('Etiquetas · editar e pré-visualizar', () => {
     await page.goto(EDITOR);
     await expect(page.getByTestId('undo')).toBeDisabled();
     await page.getByLabel('Código do item 1').fill('X1');
-    await expect(sheet(page).getByText('COD: X1')).toBeVisible();
+    await expect(sheet(page).getByText('COD: X1').first()).toBeVisible();
     await page.getByTestId('undo').click();
-    await expect(sheet(page).getByText('COD: 123')).toBeVisible();
+    await expect(sheet(page).getByText('COD: 123').first()).toBeVisible();
     await expect(status(page)).toHaveText('Novo · ainda não salvo');
     await page.getByTestId('redo').click();
-    await expect(sheet(page).getByText('COD: X1')).toBeVisible();
+    await expect(sheet(page).getByText('COD: X1').first()).toBeVisible();
     await page.keyboard.press('Control+z');
-    await expect(sheet(page).getByText('COD: 123')).toBeVisible();
+    await expect(sheet(page).getByText('COD: 123').first()).toBeVisible();
     await page.keyboard.press('Control+Shift+z');
-    await expect(sheet(page).getByText('COD: X1')).toBeVisible();
+    await expect(sheet(page).getByText('COD: X1').first()).toBeVisible();
   });
 });
 
@@ -295,7 +295,7 @@ test.describe('Etiquetas · celular', () => {
     expect(canvas!.height).toBeGreaterThanOrEqual(219);
     await noHorizontalScroll(page);
     await page.getByLabel('Código do item 1').fill('CEL-1');
-    await expect(sheet(page).getByText('COD: CEL-1')).toBeVisible();
+    await expect(sheet(page).getByText('COD: CEL-1').first()).toBeVisible();
     await page.getByTestId('tool-strip').getByRole('button', { name: 'Página' }).click();
     await page.getByRole('button', { name: '3 colunas' }).click();
     await expect(sheet(page).locator('.row').first().locator('.entry')).toHaveCount(3);

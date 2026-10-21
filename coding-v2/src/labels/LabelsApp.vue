@@ -94,7 +94,7 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
     <a class="skip-link" href="#folha" @click.prevent="focusCanvas">Pular para a folha</a>
     <header class="bar">
       <a class="back" :href="LAUNCHER_PATH + '#/documentos'" aria-label="Voltar à biblioteca"><NavIcon name="back" /><span class="t">Biblioteca</span></a>
-      <AppIcon id="labels" size="sm" />
+      <AppIcon id="labels" size="sm" class="appicon" />
       <div class="titles">
         <h1 class="name">Etiquetas</h1>
         <span class="doc" data-testid="doc-title">{{ title }}</span>
@@ -168,7 +168,8 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
 .ib:disabled { opacity: .35; }
 .load { flex: 1; align-self: flex-start; }
 .problem, .conflict { margin: 0; padding: 10px max(16px, var(--sa-r)) 10px max(16px, var(--sa-l)); border-bottom: 1px solid var(--danger); background: var(--panel); color: var(--danger); font-weight: 600; }
-.problem a { color: var(--accent); }
+.problem a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.bar .status { min-width: 0; }
 .conflict h2 { font-size: 16px; margin: 0 0 4px; }
 .conflict p { margin: 0 0 8px; }
 .cf-actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -181,5 +182,6 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
 .stage { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; position: relative; }
 .summary { margin: 0; padding: 6px max(16px, var(--sa-r)) 6px max(16px, var(--sa-l)); font-size: 12.5px; color: var(--muted); background: var(--surface); border-top: 1px solid var(--border); }
 .warn { margin: 0; padding: 8px max(16px, var(--sa-r)) 8px max(16px, var(--sa-l)); font-size: 13px; background: var(--panel); color: var(--warn); font-weight: 600; border-top: 1px solid var(--border); }
+@media (max-width: 420px) { .bar .appicon { display: none; } .bar .status { white-space: normal; text-align: center; max-width: 104px; font-size: 11px; line-height: 1.2; } }
 @media (max-width: 599px) { .t { display: none; } .doc { display: none; } .bar { gap: 6px; } }
 </style>
