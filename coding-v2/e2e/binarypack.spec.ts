@@ -4,7 +4,9 @@ test('Fase 4: navegador gera pacote binário, verifica hash e preserva origem v2
   test.setTimeout(100_000);
   await page.goto('/launcher/#/documentos');
   const result = await page.evaluate(async () => {
+    // @ts-expect-error Vite resolves /src paths in the browser; TS checks this file outside Vite.
     const { createCopy, getCopy } = await import('/src/storage/documents.ts');
+    // @ts-expect-error Vite resolves /src paths in the browser; TS checks this file outside Vite.
     const { encodeSafeBackup, decodeBinaryPackage } = await import('/src/storage/archive-pack.ts');
     const total = 4 * 1024 * 1024 + 17;
     const chunks: Uint8Array[] = [];
@@ -13,7 +15,7 @@ test('Fase 4: navegador gera pacote binário, verifica hash e preserva origem v2
       crypto.getRandomValues(bytes);
       chunks.push(bytes);
     }
-    const original = new Blob(chunks, { type: 'image/png' });
+    const original = new Blob(chunks.map((part) => part.buffer.slice(part.byteOffset, part.byteOffset + part.byteLength) as ArrayBuffer), { type: 'image/png' });
     const sha256 = async (blob: Blob) => {
       const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
       return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
