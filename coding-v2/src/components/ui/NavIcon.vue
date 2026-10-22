@@ -3,7 +3,7 @@ import { computed } from 'vue';
 export type NavIconName = 'home' | 'apps' | 'catalog' | 'docs' | 'settings' | 'search' | 'back' | 'external' | 'check' | 'info' | 'close' | 'minus' | 'plus' | 'panel' | 'chevron-up' | 'chevron-down' | 'copy';
 const props = defineProps<{ name: NavIconName }>();
 /** Logos oficiais das cinco seções: casinha e chave inglesa clássicas + três logos novos no mesmo estilo. */
-export const navLogos = {
+const navLogos = {
   home: '/legacy-icons/home.svg',
   apps: '/legacy-icons/my-apps.svg',
   catalog: '/legacy-icons/catalog.svg',
