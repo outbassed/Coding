@@ -190,6 +190,7 @@ test.describe('Texto avançado · computador', () => {
     expect(Math.round(paper.width)).toBe(794);
     expect(paper.height).toBeGreaterThanOrEqual(1122);
     await page.emulateMedia({ colorScheme: 'dark' });
+    await page.waitForTimeout(500); // deixa as transições de cor terminarem antes de medir contraste
     await axeClean(page);
   });
 
@@ -235,18 +236,20 @@ test.describe('Texto avançado · celular', () => {
       });
 
       test('formatar pelo toque não perde a seleção e todos os controles funcionam', async ({ page }) => {
+        page.setDefaultTimeout(6000);
         await page.goto(EDITOR);
         await typeAndSelect(page, 'um dois tres', 'dois');
         const bar = page.getByTestId('text-toolbar');
-        await bar.getByRole('button', { name: 'Negrito' }).tap();
-        expect(await page.evaluate(() => getSelection()!.toString())).toBe('dois');
-        await bar.getByTestId('text-size').selectOption('28');
-        await bar.getByTestId('text-font').selectOption('Verdana');
-        await bar.getByTestId('text-color').fill('#007700');
-        await bar.getByRole('button', { name: 'Centralizar' }).tap();
-        await bar.getByTestId('text-undo').scrollIntoViewIfNeeded();
-        await bar.getByTestId('text-undo').tap();
-        await bar.getByTestId('text-redo').tap();
+        await test.step('negrito', async () => {
+          await bar.getByRole('button', { name: 'Negrito' }).tap();
+          expect(await page.evaluate(() => getSelection()!.toString())).toBe('dois');
+        });
+        await test.step('tamanho', () => bar.getByTestId('text-size').selectOption('28'));
+        await test.step('fonte', () => bar.getByTestId('text-font').selectOption('Verdana'));
+        await test.step('cor', () => bar.getByTestId('text-color').fill('#007700'));
+        await test.step('centralizar', () => bar.getByRole('button', { name: 'Centralizar' }).tap());
+        await test.step('desfazer', () => bar.getByTestId('text-undo').tap());
+        await test.step('refazer', () => bar.getByTestId('text-redo').tap());
         const css = await editor(page).locator('span', { hasText: 'dois' }).last().evaluate((el) => ({ s: getComputedStyle(el).fontSize, c: getComputedStyle(el).color, f: getComputedStyle(el).fontFamily }));
         expect(css.s).toBe('28px');
         expect(css.c).toBe('rgb(0, 119, 0)');
@@ -290,6 +293,7 @@ test.describe('Texto avançado · celular', () => {
       await page.goto(EDITOR);
       await axeClean(page);
       await page.emulateMedia({ colorScheme: 'dark' });
+      await page.waitForTimeout(500);
       await axeClean(page);
     });
   });
