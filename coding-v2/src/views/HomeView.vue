@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { RouterLink } from 'vue-router';
-import { tools, isPreviewTool, getTool, availabilityOf, availabilityLabel } from '../shared/catalog';
-import { LEGACY_URL } from '../shared/links';
+import { tools, getTool, availabilityOf, availabilityLabel } from '../shared/catalog';
 import { useAppsStore } from '../stores/apps';
 import PageHeader from '../components/ui/PageHeader.vue';
 import AppGrid from '../components/ui/AppGrid.vue';
@@ -13,7 +12,6 @@ import EmptyState from '../components/ui/EmptyState.vue';
 import RecentDocs from '../components/ui/RecentDocs.vue';
 
 const apps = useAppsStore();
-const upcoming = tools.filter((tool) => !isPreviewTool(tool));
 const featured = getTool('labels');
 const textTool = getTool('texts');
 const textOn = computed(() => apps.isEnabled(textTool.id));
@@ -26,20 +24,14 @@ const counts = computed(() => ({
 </script>
 
 <template>
-  <PageHeader eyebrow="Coding Launcher 2.0 · Prévia" title="Seu espaço de criação." lead="Uma central com todas as ferramentas, cada uma no seu cantinho. Aqui você escolhe quais ficam à mão.">
-    <p class="notice">
-      <strong>Versão experimental.</strong> Os editores de Etiquetas e Texto já funcionam aqui, e seus documentos ficam salvos
-      separadamente neste navegador. As ferramentas que ainda não foram migradas continuam no
-      <a :href="LEGACY_URL">Coding atual</a>. Nada é transferido automaticamente entre os dois sites.
-    </p>
-  </PageHeader>
+  <PageHeader eyebrow="Coding 2.0 · Prévia" title="Seu espaço de criação." lead="Seus aplicativos em um só lugar." />
 
   <section class="hero" aria-labelledby="destaque" :style="{ '--app': featured.color }" data-testid="featured">
     <AppIcon :id="featured.id" size="xl" />
     <div class="hero-txt">
       <p class="tag">{{ availabilityLabel[availabilityOf(featured)] }} · já disponível</p>
       <h2 id="destaque">{{ featured.name }}</h2>
-      <p class="muted">{{ featured.description }}. Escreva códigos e descrições, veja a folha A4 enquanto edita, imprima ou baixe o PDF. Tudo fica salvo neste aparelho.</p>
+      <p class="muted">Crie, organize e imprima etiquetas A4.</p>
       <div class="hero-actions">
         <a v-if="featuredOn && featured.path" :href="featured.path" class="btn btn-app" aria-label="Abrir o editor de Etiquetas">Abrir Etiquetas</a>
         <ActivateButton v-else :tool="featured" :enabled="featuredOn" />
@@ -62,7 +54,7 @@ const counts = computed(() => ({
     <AppIcon id="texts" size="lg" />
     <div>
       <h2 id="textos">Escreva e formate no Texto</h2>
-      <p class="muted">Crie documentos A4, insira imagens e exporte. Suas alterações ficam na biblioteca do Coding 2.0.</p>
+      <p class="muted">Documentos A4 com formatação e salvamento automático.</p>
     </div>
     <a v-if="textOn && textTool.path" class="btn btn-primary" :href="textTool.path">Abrir Texto</a>
     <ActivateButton v-else :tool="textTool" :enabled="textOn" />
@@ -73,25 +65,14 @@ const counts = computed(() => ({
   <section class="store" aria-labelledby="loja">
     <div>
       <h2 id="loja">Explorar o catálogo</h2>
-      <p class="muted">São {{ tools.length }} ferramentas: {{ counts.functional }} com editor funcional, {{ counts.preview }} com prévia visual e {{ counts.planned }} ainda só no Coding atual.</p>
+      <p class="muted">{{ counts.functional }} editores disponíveis · {{ counts.planned }} em breve.</p>
     </div>
     <RouterLink :to="{ name: 'catalog' }" class="btn btn-primary">Abrir catálogo</RouterLink>
   </section>
 
-  <section aria-labelledby="breve">
-    <div class="head"><h2 id="breve">Em breve na versão 2.0</h2><RouterLink :to="{ name: 'catalog' }" class="more">Ver catálogo</RouterLink></div>
-    <ul class="soon">
-      <li v-for="tool in upcoming" :key="tool.id">
-        <RouterLink :to="{ name: 'app', params: { id: tool.id } }" class="chip"><AppIcon :id="tool.id" size="md" /><span class="ct"><strong>{{ tool.name }}</strong><small class="muted">{{ tool.description }}</small></span></RouterLink>
-      </li>
-    </ul>
-  </section>
 </template>
 
 <style scoped>
-.notice { margin: 0; padding: 14px 16px; border: 1px solid var(--border); border-left: 4px solid var(--accent); background: var(--surface); border-radius: 12px; color: var(--muted); max-width: 70ch; }
-.notice strong { color: var(--text); }
-.notice a { color: var(--accent); font-weight: 700; }
 section { margin-top: 36px; }
 .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 h2 { font-size: 20px; margin: 0; }

@@ -428,16 +428,16 @@ const toolName = (id: ToolId): string => getTool(id).name;
 
   <section aria-labelledby="backup-heading" class="block">
     <h2 id="backup-heading" class="h2s">Backups</h2>
-    <p class="muted">Backup completo da biblioteca, incluindo imagens e dados dos documentos.</p>
+    <p class="muted small">Exportar ou restaurar todos os documentos.</p>
     <div class="row">
       <button type="button" class="btn" :disabled="busy || !copies.length" @click="exportAll()">Exportar backup das cópias</button>
       <button type="button" class="btn" :disabled="busy || !copies.length" data-testid="export-codingpack" @click="exportAll('binary')">Baixar .codingpack</button>
       <button type="button" class="btn" :disabled="busy" @click="importInput?.click()">Importar backup do Coding 2.0</button>
       <input ref="importInput" type="file" accept=".json,.codingpack,application/json,application/octet-stream" class="visually-hidden" aria-label="Escolher backup JSON ou CODINGPACK do Coding 2.0" @change="importFile" />
     </div>
-    <p class="muted small">Backups JSON têm limites de 32 MB por imagem e 64 MB por arquivo. O formato .codingpack armazena imagens em binário com verificação SHA-256 e pode ser maior, sujeito ao espaço e à memória do aparelho. A restauração é atômica e verifica conflitos de cópia.</p>
+    <details class="backup-help"><summary>Sobre os formatos e a segurança dos backups</summary><p class="muted small">JSON: até 64 MB por arquivo. O .codingpack suporta imagens binárias verificadas por SHA-256. Importações não substituem documentos existentes e dependem do espaço disponível no navegador.</p></details>
     <StoragePanel :refresh-key="storageKey" @announce="say" />
-    <p class="muted small">Nada aqui altera os arquivos do Coding 1.0. Ferramentas ainda não migradas continuam no <a :href="LEGACY_URL">Coding atual</a>.</p>
+    <details class="backup-help"><summary>Compatibilidade com o Coding antigo</summary><p class="muted small">O Coding 1.0 não é alterado. Ferramentas não migradas continuam no <a :href="LEGACY_URL">Coding atual</a>.</p></details>
   </section>
 
   <ModalDialog :open="detailOpen && !wide && !!selected" :label="selected ? 'Detalhes de ' + selected.label : 'Detalhes'" variant="sheet" :fallback-focus="cardFallback" backdrop-close @close="closeDetail">
@@ -463,6 +463,9 @@ const toolName = (id: ToolId): string => getTool(id).name;
 </template>
 
 <style scoped>
+.backup-help { margin-top:8px; }
+.backup-help summary { min-height:44px; display:flex; align-items:center; font-weight:700; cursor:pointer; }
+
 .app-tabs { display:flex; align-items:center; gap:8px; overflow-x:auto; padding:3px 0 14px; margin:0 0 12px; scrollbar-width:thin; }
 .app-tabs button { display:flex; align-items:center; gap:7px; white-space:nowrap; flex:none; min-height:44px; padding:6px 11px; border-radius:12px; border:1px solid var(--border); background:var(--surface); font-weight:700; }
 .app-tabs button[aria-pressed="true"] { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 12%,var(--surface)); }
