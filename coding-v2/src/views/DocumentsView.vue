@@ -251,7 +251,7 @@ async function exportOne(): Promise<void> {
     const full = await getCopy(copy.id);
     if (!full) throw new MissingCopy();
     const result = await checkedExport([toRaw(full)], 'auto');
-    const safe = copy.label.replace(/[^\\p{L}\\p{N}]+/gu, '-').replace(/^-|-$/g, '').slice(0, 40) || 'copia';
+    const safe = copy.label.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '').slice(0, 40) || 'copia';
     downloadFile(result.blob, 'coding-v2-' + safe + '-' + new Date().toISOString().slice(0, 10) + result.extension);
     say('Backup de “' + copy.label + '” (' + result.extension + ') verificado. Confirme que o arquivo foi salvo no aparelho.');
   } catch (err) { fail('Não foi possível exportar. ' + friendlyError(err)); }
@@ -331,7 +331,7 @@ async function importFile(event: Event): Promise<void> {
   busy.value = true; saveState.value = 'saving'; error.value = '';
   try {
     const isPackage = file.name.toLowerCase().endsWith('.codingpack')
-      || (await file.slice(0, 14).text()) === 'CODING-PACK-1\\n';
+      || (await file.slice(0, 14).text()) === 'CODING-PACK-1\n';
     if (!isPackage && file.size > 64 * 1024 * 1024) throw new Error('Backup JSON acima do limite de 64 MB. Use .codingpack.');
     markOwn();
     const count = isPackage ? await importBinaryPackage(file) : await importBackupToCopies(await file.text());
