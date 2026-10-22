@@ -31,7 +31,8 @@ const docId = new URLSearchParams(location.search).get('doc');
 
 function message(text: string): void { note.value = text; }
 function dirty(): boolean {
-  return JSON.stringify(state.value) !== committed;
+  try { return JSON.stringify(normalizedTextState(state.value)) !== committed; }
+  catch { return true; } // Invalid or oversized input remains pending until corrected.
 }
 function checkChange(): void {
   if (status.value === 'conflict') return;
@@ -244,12 +245,12 @@ onBeforeUnmount(() => {
       {{ loadError }} <a :href="LAUNCHER_PATH + '#/documentos'">Voltar à biblioteca</a>
     </p>
     <template v-else>
-      <div class="document-meta">
+      <section class="document-meta" aria-label="Detalhes do documento">
         <label for="text-title">Nome do documento</label>
         <input id="text-title" v-model="state.name" type="text" maxlength="250" placeholder="Documento sem título" @input="onNameChange" />
         <button type="button" class="btn btn-ghost" @click="newDocument">Novo</button>
         <button type="button" class="btn" :disabled="loading" data-testid="text-save" @click="saveNow">Salvar agora</button>
-      </div>
+      </section>
       <div class="editing">
         <section class="toolbar" aria-label="Ferramentas de texto">
           <div class="toolbar-row">
@@ -274,7 +275,7 @@ onBeforeUnmount(() => {
             <button type="button" class="tool strong" @click="printDocument">Imprimir / PDF</button>
           </div>
         </section>
-        <main class="stage">
+        <main class="stage" tabindex="0" aria-label="Área de edição">
           <p v-if="loading" class="muted" role="status">Abrindo documento…</p>
           <section v-show="!loading" class="paper" aria-label="Página do documento">
             <div id="text-body" ref="editor" class="body" contenteditable="true" role="textbox"
