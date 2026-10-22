@@ -129,7 +129,7 @@ test.describe('Etiquetas · imprimir', () => {
     const info = await page.evaluate(() => {
       const els = Array.from(document.querySelectorAll<HTMLElement>('[data-testid="print-sheet"]'));
       const rects = els.map((e) => e.getBoundingClientRect());
-      const ed = document.querySelector<HTMLElement>('.ed');
+      const ed = document.getElementById('app');
       return {
         count: els.length,
         widthMm: rects[0]!.width * 25.4 / 96, heightMm: rects[0]!.height * 25.4 / 96,
