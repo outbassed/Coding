@@ -10,7 +10,7 @@ describe('Launcher · telas', () => {
     const { wrapper } = await mountLauncher('/');
     expect(wrapper.findAll('h1')).toHaveLength(1);
     expect(wrapper.findAll('article.card')).toHaveLength(2);
-    expect(wrapper.text()).toContain('Em breve na versão 2.0');
+    expect(wrapper.text()).toContain('Explorar o catálogo');
     wrapper.unmount();
   });
 
@@ -62,13 +62,71 @@ describe('Launcher · telas', () => {
 
   it('Documentos não finge ler o banco antigo', async () => {
     const { wrapper } = await mountLauncher('/documentos');
-    expect(wrapper.text()).toContain('continuam protegidos');
+    expect(wrapper.text()).toContain('O Coding 1.0 não é alterado');
     wrapper.unmount();
   });
 
   it('rota desconhecida cai na página de não encontrado', async () => {
     const { wrapper } = await mountLauncher('/qualquer/coisa');
     expect(wrapper.text()).toContain('Página não encontrada');
+    wrapper.unmount();
+  });
+});
+
+describe('Launcher · aparência de loja', () => {
+  it('Início destaca o app funcional com ação real e não inventa documentos recentes', async () => {
+    const { wrapper } = await mountLauncher('/');
+    const hero = wrapper.find('[data-testid="featured"]');
+    expect(hero.text()).toContain('Etiquetas');
+    expect(hero.text()).toContain('Editor funcional');
+    expect(hero.find('a[href="/apps/etiquetas/"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="recent-docs"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain('2 editores disponíveis');
+    wrapper.unmount();
+  });
+
+  it('Catálogo filtra por categoria e mostra o destaque só sem filtros', async () => {
+    const { wrapper } = await mountLauncher('/catalogo');
+    expect(wrapper.find('[data-testid="spotlight"]').exists()).toBe(true);
+    await wrapper.findAll('button.cat').find((b) => b.text() === 'Etiquetas e códigos')?.trigger('click');
+    expect(wrapper.findAll('article.card h3').map((h) => h.text()).sort()).toEqual(['Etiquetas', 'Planilha → Etiquetas', 'QR / Barras']);
+    expect(wrapper.find('[data-testid="spotlight"]').exists()).toBe(false);
+    await wrapper.find('[data-testid="clear-filters"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.findAll('article.card')).toHaveLength(9);
+    wrapper.unmount();
+  });
+
+  it('cada card diz o que de fato existe: funcional, prévia ou em breve', async () => {
+    const { wrapper } = await mountLauncher('/catalogo');
+    const meta = Object.fromEntries(wrapper.findAll('article.card').map((c) => [c.find('h3').text(), c.find('[data-testid="card-meta"]').text()]));
+    expect(meta['Etiquetas']).toContain('Editor funcional');
+    expect(meta['Texto']).toContain('Editor funcional');
+    expect(meta['Planilhas']).toContain('Em breve');
+    wrapper.unmount();
+  });
+
+  it('Detalhes de Etiquetas e Texto mostram os recursos entregues', async () => {
+    const a = await mountLauncher('/app/labels');
+    expect(a.wrapper.find('[data-testid="ready-list"]').text()).toContain('Imprimir e baixar PDF');
+    a.wrapper.unmount();
+    const b = await mountLauncher('/app/texts');
+    expect(b.wrapper.find('[data-testid="ready-list"]').text()).toContain('Salvamento automático');
+    b.wrapper.unmount();
+  });
+
+  it('Meus apps oferece ativar o que está desativado, sem instalar nada', async () => {
+    const { wrapper } = await mountLauncher('/meus-apps');
+    expect(wrapper.find('[data-testid="available-to-activate"]').exists()).toBe(false);
+    await wrapper.find('button[aria-label="Desativar Texto no Launcher"]').trigger('click');
+    await flushPromises();
+    await wrapper.findAll('dialog button').find((b) => b.text() === 'Desativar atalho')?.trigger('click');
+    await flushPromises();
+    const box = wrapper.find('[data-testid="available-to-activate"]');
+    expect(box.text()).toContain('Texto');
+    expect(box.text()).toContain('não instala nada');
+    await box.find('button[aria-label="Ativar Texto no Launcher"]').trigger('click');
+    expect(wrapper.find('[data-testid="available-to-activate"]').exists()).toBe(false);
     wrapper.unmount();
   });
 });

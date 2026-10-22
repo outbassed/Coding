@@ -135,7 +135,7 @@ test.describe('ações do documento', () => {
   });
 });
 
-test.describe('busca, filtros, ordem e lista progressiva', () => {
+test.describe('busca, filtros, ordem e paginação', () => {
   test.beforeEach(async ({ page }) => {
     const docs = Array.from({ length: 59 }, (_, i) => backupDoc('n' + i, 'Doc ' + String(i + 1).padStart(2, '0'), { type: i % 3 === 0 ? 'labels' : i % 3 === 1 ? 'texts' : 'images' }));
     docs.push(backupDoc('acao', 'Ação especial', { type: 'codes' }));
@@ -144,14 +144,23 @@ test.describe('busca, filtros, ordem e lista progressiva', () => {
     await expect(page.getByTestId('copy-count')).toHaveText('60 cópias');
   });
 
-  test('carrega 24 por vez e move o foco para o primeiro item novo', async ({ page }) => {
+  test('mostra 24 por página, salta 1 ou 5 e vai à página digitada', async ({ page }) => {
     await expect(page.locator('[data-copy-card]')).toHaveCount(24);
-    await page.getByTestId('show-more').click();
-    await expect(page.locator('[data-copy-card]')).toHaveCount(48);
-    await expect(page.locator('[data-copy-card]').nth(24)).toBeFocused();
-    await page.getByTestId('show-more').click();
-    await expect(page.locator('[data-copy-card]')).toHaveCount(60);
-    await expect(page.getByTestId('show-more')).toHaveCount(0);
+    const nav = page.getByTestId('document-pagination');
+    await expect(nav).toBeVisible();
+    await expect(nav.getByRole('button', { name: 'Ir para a página 1' })).toBeVisible();
+    await nav.getByRole('button', { name: 'Próxima página' }).click();
+    await expect(page.getByText('Página 2 de 3')).toBeVisible();
+    await expect(page.locator('[data-copy-card]')).toHaveCount(24);
+    await nav.getByRole('button', { name: 'Avançar cinco páginas' }).click();
+    await expect(page.getByText('Página 3 de 3')).toBeVisible();
+    await expect(page.locator('[data-copy-card]')).toHaveCount(12);
+    await nav.getByRole('button', { name: 'Voltar cinco páginas' }).click();
+    await expect(page.getByText('Página 1 de 3')).toBeVisible();
+    await nav.getByRole('spinbutton', { name: 'Ir para a página' }).fill('3');
+    await nav.getByRole('spinbutton', { name: 'Ir para a página' }).press('Enter');
+    await expect(page.getByText('Página 3 de 3')).toBeVisible();
+    await expect(page.getByTestId('copy-count')).toHaveText('60 cópias');
   });
 
   test('busca ignora acentos e caixa; filtros e ordem ficam na URL', async ({ page }) => {
@@ -159,7 +168,8 @@ test.describe('busca, filtros, ordem e lista progressiva', () => {
     await expect(page.locator('[data-copy-card]')).toHaveCount(1);
     await expect(page.getByTestId('library-status')).toContainText('1 cópia encontrada');
     await page.getByRole('searchbox', { name: 'Buscar por nome' }).fill('');
-    await page.getByLabel('Ferramenta').selectOption('labels');
+    await page.getByRole('navigation', { name: 'Documentos por aplicativo' }).getByRole('button', { name: /Etiquetas/ }).click();
+    await expect(page.getByLabel('Ferramenta')).toHaveValue('labels');
     await expect(page.getByTestId('copy-count')).toHaveText('20 cópias encontradas de 60');
     await expect(page).toHaveURL(/ferramenta=labels/);
     await page.getByLabel('Ordenar por').selectOption('name-desc');

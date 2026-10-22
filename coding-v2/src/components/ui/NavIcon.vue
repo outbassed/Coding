@@ -1,11 +1,24 @@
 <script setup lang="ts">
-export type NavIconName = 'home' | 'apps' | 'catalog' | 'docs' | 'settings' | 'search' | 'back' | 'external' | 'check' | 'info' | 'close' | 'minus' | 'plus' | 'panel' | 'chevron-up' | 'chevron-down';
-defineProps<{ name: NavIconName }>();
+import { computed } from 'vue';
+export type NavIconName = 'home' | 'apps' | 'catalog' | 'docs' | 'settings' | 'search' | 'back' | 'external' | 'check' | 'info' | 'close' | 'minus' | 'plus' | 'panel' | 'chevron-up' | 'chevron-down' | 'copy';
+const props = defineProps<{ name: NavIconName }>();
+/** Logos oficiais das cinco seções: casinha e chave inglesa clássicas + três logos novos no mesmo estilo. */
+const navLogos = {
+  home: '/legacy-icons/home.svg',
+  apps: '/legacy-icons/my-apps.svg',
+  catalog: '/legacy-icons/catalog.svg',
+  docs: '/legacy-icons/documents.svg',
+  settings: '/legacy-icons/tools.svg'
+} as const;
+const restored: Partial<Record<NavIconName, string>> = navLogos;
+const original = computed(() => restored[props.name]);
 </script>
 
 <template>
-  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-    <template v-if="name === 'home'"><path d="M4 11 12 4l8 7M6 9.5V20h12V9.5M10 20v-5h4v5"/></template>
+  <img v-if="original" :src="original" alt="" width="28" height="28" class="legacy-nav-icon" aria-hidden="true" draggable="false" />
+  <svg v-else viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+    <template v-if="name === 'copy'"><path d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM14 3v5h5M8.5 13h7M8.5 17h5"/></template>
+    <template v-else-if="name === 'home'"><path d="M4 11 12 4l8 7M6 9.5V20h12V9.5M10 20v-5h4v5"/></template>
     <template v-else-if="name === 'apps'"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></template>
     <template v-else-if="name === 'catalog'"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><path d="M16.75 13.5v7M13.25 17h7"/></template>
     <template v-else-if="name === 'docs'"><path d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM14 3v5h5M8.5 13h7M8.5 17h5"/></template>
@@ -23,3 +36,7 @@ defineProps<{ name: NavIconName }>();
     <template v-else><path d="m6 9 6 6 6-6"/></template>
   </svg>
 </template>
+
+<style scoped>
+.legacy-nav-icon { display: inline-block; width: 28px; height: 28px; flex: 0 0 auto; object-fit: contain; border-radius: 7px; }
+</style>

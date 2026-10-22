@@ -29,11 +29,16 @@ for (const vp of viewports) {
     for (const route of editors) {
       test('Editor ' + route + ' sem rolagem horizontal e com folha A4', async ({ page }) => {
         await page.goto(route);
-        await expect(page.getByTestId('sheet')).toBeVisible();
+        if (route === '/apps/texto/') {
+          await expect(page.getByTestId('text-editor')).toBeVisible();
+          await expect(page.locator('.paper')).toBeVisible();
+        } else {
+          await expect(page.getByTestId('sheet')).toBeVisible();
+          const box = await page.getByTestId('sheet').boundingBox();
+          expect(box).not.toBeNull();
+          expect(Math.abs((box!.width / box!.height) - 210 / 297)).toBeLessThan(0.01);
+        }
         await noHorizontalScroll(page);
-        const box = await page.getByTestId('sheet').boundingBox();
-        expect(box).not.toBeNull();
-        expect(Math.abs((box!.width / box!.height) - 210 / 297)).toBeLessThan(0.01);
       });
     }
 
@@ -104,14 +109,20 @@ test.describe('comportamento', () => {
     expect(bg).toBe('rgb(15, 19, 25)');
   });
 
-  test('editor: prévia identificada, comandos inativos, Voltar leva ao Launcher', async ({ page }) => {
+  test('editor de Texto: conteúdo editável, ferramentas reais e retorno à biblioteca', async ({ page }) => {
+    await page.goto('/apps/texto/');
+    await expect(page.getByText('Prévia ilustrativa')).toHaveCount(0);
+    await expect(page.getByTestId('text-editor')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Negrito' })).toBeEnabled();
+    await page.getByRole('link', { name: 'Voltar à biblioteca' }).click();
+    await expect(page).toHaveURL(/\/launcher\/#\/documentos$/);
+  });
+
+  test('editor de Etiquetas é funcional (sem aviso de prévia) e Voltar leva à biblioteca', async ({ page }) => {
     await page.goto('/apps/etiquetas/');
-    await expect(page.getByText('Prévia ilustrativa')).toBeVisible();
-    const enabled = await page.locator('.cmd:not([disabled])').count();
-    expect(enabled).toBe(0);
-    await page.getByRole('link', { name: 'Voltar ao Launcher' }).click();
-    await expect(page).toHaveURL(/\/launcher\/#\/app\/labels$/);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Etiquetas');
+    await expect(page.getByText('Prévia ilustrativa')).toHaveCount(0);
+    await page.getByRole('link', { name: 'Voltar à biblioteca' }).click();
+    await expect(page).toHaveURL(/\/launcher\/#\/documentos$/);
   });
 
   test('não declara PWA instalável', async ({ page }) => {
@@ -124,15 +135,13 @@ test.describe('comportamento', () => {
 test.describe('celular · editor', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test('a prévia mantém ao menos 220px com a gaveta grande aberta', async ({ page }) => {
+  test('no Texto, folha fica acima da barra de formatação no celular', async ({ page }) => {
     await page.goto('/apps/texto/');
-    await page.getByTestId('tool-strip').getByRole('button').first().click();
-    const sheet = page.getByTestId('bottom-sheet');
-    await expect(sheet).toBeVisible();
-    await sheet.getByRole('button', { name: /Alterar altura/ }).click();
-    await expect(sheet).toHaveClass(/snap-full/);
-    const canvas = await page.getByTestId('canvas').boundingBox();
-    expect(canvas!.height).toBeGreaterThanOrEqual(219);
+    const stage = await page.locator('.stage').boundingBox();
+    const toolbar = await page.locator('.toolbar').boundingBox();
+    expect(stage).not.toBeNull();
+    expect(toolbar).not.toBeNull();
+    expect(stage!.y + stage!.height).toBeLessThanOrEqual(toolbar!.y + 2);
     await noHorizontalScroll(page);
   });
 });

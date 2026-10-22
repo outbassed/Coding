@@ -10,7 +10,8 @@ export const COPIES_DB_NAME = 'coding-v2-documents';
 const COPIES_VERSION = 2;
 const LEGACY_LIBRARY_KEY = 'coding-library-v1';
 
-export type Source = 'indexeddb' | 'localStorage' | 'backup';
+/** v2 is the native origin; historical v2-labels-* records used backup and remain supported. */
+export type Source = 'indexeddb' | 'localStorage' | 'backup' | 'v2';
 export interface LegacyDoc {
   id: string;
   type?: string;
@@ -233,7 +234,7 @@ const hydrate = (record: CopyRecord, assets: AssetRecord[]): CopyRecord => ({
 export function validateSnapshot(value: unknown): asserts value is LegacySnapshot {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Documento incompleto.');
   const entry = value as LegacySnapshot;
-  if (!['indexeddb', 'localStorage', 'backup'].includes(entry.source) || !validDoc(entry.doc) || !Array.isArray(entry.images)) throw new Error('Estrutura de documento inválida.');
+  if (!['indexeddb', 'localStorage', 'backup', 'v2'].includes(entry.source) || !validDoc(entry.doc) || !Array.isArray(entry.images)) throw new Error('Estrutura de documento inválida.');
   const seen = new Set<string>();
   for (const image of entry.images) {
     if (!image || typeof image !== 'object' || typeof image.id !== 'string' || !image.id || image.docId !== entry.doc.id || !(image.blob instanceof Blob)) throw new Error('Imagem inválida ou vinculada a outro documento.');

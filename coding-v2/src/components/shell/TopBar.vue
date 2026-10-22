@@ -19,7 +19,7 @@ function search(): void {
 <template>
   <header class="top">
     <RouterLink :to="{ name: 'home' }" class="brand" aria-label="Coding Launcher 2.0, ir para o início">
-      <span class="mark" aria-hidden="true">C</span>
+      <img class="mark" src="/legacy-icons/coding.svg" alt="" width="34" height="34" aria-hidden="true" draggable="false" />
       <span class="name"><strong>Coding</strong> Launcher <sup>2.0</sup></span>
     </RouterLink>
     <form class="search" role="search" @submit.prevent="search">
@@ -33,9 +33,9 @@ function search(): void {
 <style scoped>
 .top { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 16px; min-height: calc(64px + var(--sa-t)); padding: var(--sa-t) max(24px, var(--sa-r)) 0 max(24px, var(--sa-l)); background: var(--surface); border-bottom: 1px solid var(--border); }
 .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; white-space: nowrap; font-size: 17px; letter-spacing: -.02em; min-height: 44px; }
-.mark { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: linear-gradient(135deg, #3566cf, #172b59); color: #fff; font-weight: 800; font-size: 18px; }
+.mark { display: block; width: 34px; height: 34px; flex: 0 0 34px; border-radius: 8px; object-fit: cover; }
 .name sup { color: var(--muted); font-size: 11px; }
-.search { display: flex; align-items: center; gap: 8px; flex: 0 1 420px; margin-inline: auto; height: 44px; padding: 0 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); color: var(--muted); }
+.search { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 420px; margin-inline: auto; height: 44px; padding: 0 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); color: var(--muted); }
 .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .search input { flex: 1; min-width: 0; height: 100%; background: transparent; border: 0; outline: none; color: var(--text); font-size: 15px; }
 .beta { border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; }

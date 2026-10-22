@@ -244,7 +244,7 @@ function validateCopy(copy: CopyRecord): void {
     || typeof copy.label !== 'string' || !copy.label.trim() || copy.label.length > 250
     || !Number.isSafeInteger(copy.revision) || copy.revision < 1
     || !Number.isFinite(copy.createdAt) || !Number.isFinite(copy.updatedAt)
-    || !['indexeddb', 'localStorage', 'backup'].includes(copy.source)) throw new Error('Metadados de cópia inválidos.');
+    || !['indexeddb', 'localStorage', 'backup', 'v2'].includes(copy.source)) throw new Error('Metadados de cópia inválidos.');
   validateSnapshot(copy.snapshot);
 }
 async function encodeEntries(entries: BackupEntry[]): Promise<string> {
