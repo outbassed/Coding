@@ -27,7 +27,8 @@ async function refresh(): Promise<void> {
   } catch { if (alive) recent.value = []; }
 }
 const href = (copy: CopySummary): string | null => {
-  const path = copy.type === 'labels' ? '/apps/etiquetas/' : copy.type === 'texts' ? '/apps/texto/' : null;
+  const path = copy.type === 'labels' ? '/apps/etiquetas/'
+    : copy.type === 'texts' && copy.legacyId.startsWith('v2-texts-') ? '/apps/texto/' : null;
   return path ? path + '?doc=' + encodeURIComponent(copy.id) : null;
 };
 const toolOf = (copy: CopySummary) => { const id = toolIdForType(copy.type); return id ? findTool(id) ?? null : null; };
