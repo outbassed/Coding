@@ -32,7 +32,7 @@ function settle(item: LabelItem, event: Event): void { (event.target as HTMLInpu
           <span class="num">Item {{ index + 1 }}</span>
           <button type="button" class="ib" :aria-label="'Subir item ' + (index + 1)" :disabled="index === 0" @click="emit('move', item.id, -1)"><NavIcon name="chevron-up" /></button>
           <button type="button" class="ib" :aria-label="'Descer item ' + (index + 1)" :disabled="index === items.length - 1" @click="emit('move', item.id, 1)"><NavIcon name="chevron-down" /></button>
-          <button type="button" class="ib" :aria-label="'Duplicar item ' + (index + 1)" :disabled="items.length >= MAX_ITEMS" @click="emit('duplicate', item.id)"><NavIcon name="docs" /></button>
+          <button type="button" class="ib" :aria-label="'Duplicar item ' + (index + 1)" :disabled="items.length >= MAX_ITEMS" @click="emit('duplicate', item.id)"><NavIcon name="copy" /></button>
           <button type="button" class="ib danger" :aria-label="'Excluir item ' + (index + 1)" @click="emit('remove', item.id)"><NavIcon name="close" /></button>
         </div>
         <div class="fields">
