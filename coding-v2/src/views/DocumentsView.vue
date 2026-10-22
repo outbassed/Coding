@@ -18,7 +18,8 @@ import {
   listCopySummaries, getCopy, saveCopyRevision, forkCopy, deleteCopy, watchCopies, RevisionConflict, MissingCopy,
   type CopySummary, type CopyRecord
 } from '../storage/documents';
-import { encodeCopyBackup, decodeBackupEntries, downloadBackup, importBackupToCopies } from '../storage/archive';
+import { importBackupToCopies, decodeBackupEntries } from '../storage/archive';
+import { encodeSafeBackup, encodeBinaryPackage, decodeBinaryPackage, importBinaryPackage } from '../storage/archive-pack';
 import { friendlyError } from '../library/errors';
 import {
   activeFilterCount, applyFilters, defaultFilters, filtersFromQuery, filtersToQuery, originLabels, sortLabels,
@@ -218,35 +219,58 @@ async function conflictSaveAsNew(): Promise<void> {
 }
 
 // --- exportar / duplicar / excluir ---
+type BackupChoice = 'auto' | 'binary';
+/** A download request does not prove the user saved the file on their device. */
+function downloadFile(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+async function checkedExport(records: readonly CopyRecord[], format: BackupChoice) {
+  const result = format === 'binary'
+    ? { blob: await encodeBinaryPackage(records), extension: '.codingpack' as const, kind: 'binary' as const }
+    : await encodeSafeBackup(records);
+  // Verify the exact bytes handed to the browser, not just the source records.
+  if (result.kind === 'binary') {
+    if ((await decodeBinaryPackage(result.blob)).length !== records.length) throw new Error('Falha na verificação do pacote.');
+  } else {
+    const entries = await decodeBackupEntries(await result.blob.text());
+    if (entries.length !== records.length) throw new Error('Falha na verificação do backup JSON.');
+  }
+  return result;
+}
 async function exportOne(): Promise<void> {
   const copy = selected.value; if (!copy || busy.value) return;
   busy.value = true; error.value = '';
   try {
-    // Os bytes das imagens só são lidos agora, quando realmente precisam ser exportados.
     const full = await getCopy(copy.id);
     if (!full) throw new MissingCopy();
-    const text = await encodeCopyBackup([toRaw(full)]);
-    await decodeBackupEntries(text);
+    const result = await checkedExport([toRaw(full)], 'auto');
     const safe = copy.label.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '').slice(0, 40) || 'copia';
-    downloadBackup(text, 'coding-v2-' + safe + '-' + new Date().toISOString().slice(0, 10) + '.json');
-    say('Backup de “' + copy.label + '” verificado. Confirme que o arquivo foi salvo no aparelho.');
+    downloadFile(result.blob, 'coding-v2-' + safe + '-' + new Date().toISOString().slice(0, 10) + result.extension);
+    say('Backup de “' + copy.label + '” (' + result.extension + ') verificado. Confirme que o arquivo foi salvo no aparelho.');
   } catch (err) { fail('Não foi possível exportar. ' + friendlyError(err)); }
   finally { busy.value = false; }
 }
-async function exportAll(): Promise<void> {
+async function exportAll(format: BackupChoice = 'auto'): Promise<void> {
   if (busy.value || !copies.value.length) return;
   busy.value = true; error.value = '';
   try {
     const full: CopyRecord[] = [];
-    for (const summary of copies.value) { // uma cópia por vez, para não carregar todos os blobs de uma só vez
+    for (const summary of copies.value) {
+      // Read payloads only for the export, not while rendering the library.
       const record = await getCopy(summary.id);
-      if (record) full.push(toRaw(record));
+      if (!record) throw new MissingCopy(); // Never silently omit an unsaved document.
+      full.push(toRaw(record));
     }
-    if (!full.length) throw new MissingCopy();
-    const text = await encodeCopyBackup(full);
-    await decodeBackupEntries(text);
-    downloadBackup(text, 'coding-v2-copias-' + new Date().toISOString().slice(0, 10) + '.json');
-    say('Backup de todas as cópias verificado. Confirme que o arquivo foi salvo no aparelho.');
+    const result = await checkedExport(full, format);
+    downloadFile(result.blob, 'coding-v2-copias-' + new Date().toISOString().slice(0, 10) + result.extension);
+    say('Backup de ' + full.length + ' cópia(s) (' + result.extension + ') verificado. Confirme que o arquivo foi salvo no aparelho.');
   } catch (err) { fail('Não foi possível exportar. ' + friendlyError(err)); }
   finally { busy.value = false; }
 }
@@ -306,9 +330,11 @@ async function importFile(event: Event): Promise<void> {
   const file = input.files?.[0]; if (!file) return;
   busy.value = true; saveState.value = 'saving'; error.value = '';
   try {
-    if (file.size > 64 * 1024 * 1024) throw new Error('Arquivo acima do limite de 64 MB.');
+    const isPackage = file.name.toLowerCase().endsWith('.codingpack')
+      || (await file.slice(0, 14).text()) === 'CODING-PACK-1\n';
+    if (!isPackage && file.size > 64 * 1024 * 1024) throw new Error('Backup JSON acima do limite de 64 MB. Use .codingpack.');
     markOwn();
-    const count = await importBackupToCopies(await file.text());
+    const count = isPackage ? await importBinaryPackage(file) : await importBackupToCopies(await file.text());
     markOwn();
     await refresh();
     saveState.value = 'saved';
@@ -399,13 +425,14 @@ const toolName = (id: ToolId): string => getTool(id).name;
 
   <section aria-labelledby="backup-heading" class="block">
     <h2 id="backup-heading" class="h2s">Backups</h2>
-    <p class="muted">O backup inclui conteúdo, imagens, nome, revisão e origem, e é verificado antes de o download ser pedido. Restaurar nunca substitui uma cópia existente em silêncio.</p>
+    <p class="muted">Os backups incluem conteúdo, imagens, nome, revisão e origem. O formato é escolhido automaticamente: JSON para arquivos pequenos e .codingpack para arquivos grandes. Você também pode baixar .codingpack diretamente. A integridade é verificada antes do download; restaurar nunca substitui uma cópia existente em silêncio.</p>
     <div class="row">
-      <button type="button" class="btn" :disabled="busy || !copies.length" @click="exportAll">Exportar backup das cópias</button>
+      <button type="button" class="btn" :disabled="busy || !copies.length" @click="exportAll()">Exportar backup das cópias</button>
+      <button type="button" class="btn" :disabled="busy || !copies.length" data-testid="export-codingpack" @click="exportAll('binary')">Baixar .codingpack</button>
       <button type="button" class="btn" :disabled="busy" @click="importInput?.click()">Importar backup do Coding 2.0</button>
-      <input ref="importInput" type="file" accept=".json,application/json" class="visually-hidden" aria-label="Escolher backup JSON do Coding 2.0" @change="importFile" />
+      <input ref="importInput" type="file" accept=".json,.codingpack,application/json,application/octet-stream" class="visually-hidden" aria-label="Escolher backup JSON ou CODINGPACK do Coding 2.0" @change="importFile" />
     </div>
-    <p class="muted small">Limites de cada arquivo de backup: 32 MB por imagem e 64 MB no total. Se o backup de todas as cópias não couber, exporte cópia por cópia.</p>
+    <p class="muted small">Backups JSON têm limites de 32 MB por imagem e 64 MB por arquivo. O formato .codingpack armazena imagens em binário com verificação SHA-256 e pode ser maior, sujeito ao espaço e à memória do aparelho. A restauração é atômica e verifica conflitos de cópia.</p>
     <StoragePanel :refresh-key="storageKey" @announce="say" />
     <p class="muted small">Nada nesta página abre, altera ou exclui documentos do <code>coding-db</code>. Os editores completos continuam na <a :href="LEGACY_URL">versão atual do Coding</a>.</p>
   </section>
