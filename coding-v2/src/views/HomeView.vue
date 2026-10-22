@@ -15,6 +15,8 @@ import RecentDocs from '../components/ui/RecentDocs.vue';
 const apps = useAppsStore();
 const upcoming = tools.filter((tool) => !isPreviewTool(tool));
 const featured = getTool('labels');
+const textTool = getTool('texts');
+const textOn = computed(() => apps.isEnabled(textTool.id));
 const featuredOn = computed(() => apps.isEnabled(featured.id));
 const counts = computed(() => ({
   functional: tools.filter((t) => availabilityOf(t) === 'functional').length,
@@ -26,7 +28,7 @@ const counts = computed(() => ({
 <template>
   <PageHeader eyebrow="Coding Launcher 2.0 · Prévia" title="Seu espaço de criação." lead="Uma central com todas as ferramentas, cada uma no seu cantinho. Aqui você escolhe quais ficam à mão.">
     <p class="notice">
-      <strong>Versão experimental.</strong> O editor de Etiquetas já funciona aqui, e seus documentos ficam salvos
+      <strong>Versão experimental.</strong> Os editores de Etiquetas e Texto já funcionam aqui, e seus documentos ficam salvos
       separadamente neste navegador. As ferramentas que ainda não foram migradas continuam no
       <a :href="LEGACY_URL">Coding atual</a>. Nada é transferido automaticamente entre os dois sites.
     </p>
@@ -54,6 +56,16 @@ const counts = computed(() => ({
     <EmptyState v-else title="Nenhum app ativado ainda." text="Escolha uma ferramenta no catálogo para ela aparecer aqui.">
       <RouterLink :to="{ name: 'catalog' }" class="btn btn-primary">Abrir catálogo</RouterLink>
     </EmptyState>
+  </section>
+
+  <section class="store" aria-labelledby="textos">
+    <AppIcon id="texts" size="lg" />
+    <div>
+      <h2 id="textos">Escreva e formate no Texto</h2>
+      <p class="muted">Crie documentos A4, insira imagens e exporte. Suas alterações ficam na biblioteca do Coding 2.0.</p>
+    </div>
+    <a v-if="textOn && textTool.path" class="btn btn-primary" :href="textTool.path">Abrir Texto</a>
+    <ActivateButton v-else :tool="textTool" :enabled="textOn" />
   </section>
 
   <RecentDocs />
