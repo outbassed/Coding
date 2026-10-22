@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import type { CopySummary } from '../../storage/documents';
 import { toolIdForType } from '../../library/model';
 import { cachedPreview, loadPreview } from '../../previews/loader';
@@ -46,16 +46,30 @@ const blocks = computed(() => {
 let observer: IntersectionObserver | undefined;
 let resizer: ResizeObserver | undefined;
 let alive = true;
+let visible = false;
+let requestVersion = 0;
+
+// Os cartões continuam montados enquanto a biblioteca recebe atualizações de outra aba.
+// Trocar ID/revisão precisa invalidar a miniatura, mesmo com o mesmo componente Vue.
+watch(() => [props.copy.id, props.copy.revision, props.copy.type] as const, () => {
+  requestVersion++;
+  const cached = cachedPreview(props.copy);
+  preview.value = cached ?? null;
+  state.value = cached ? 'ready' : previewable(props.copy.type) ? 'idle' : 'fallback';
+  if (visible && state.value === 'idle') void start();
+});
+
 async function start(): Promise<void> {
   if (state.value !== 'idle') return;
   state.value = 'loading';
+  const expected = requestVersion;
   try {
-    const result = await loadPreview(props.copy);
-    if (!alive) return;
+    const result = await loadPreview({ ...props.copy });
+    if (!alive || expected !== requestVersion) return;
     preview.value = result;
     state.value = 'ready';
   } catch {
-    if (alive) state.value = 'fallback';
+    if (alive && expected === requestVersion) state.value = 'fallback';
   }
 }
 onMounted(() => {
@@ -67,13 +81,13 @@ onMounted(() => {
     resizer.observe(el);
   }
   if (state.value !== 'idle') return;
-  if (typeof IntersectionObserver === 'undefined') { void start(); return; }
+  if (typeof IntersectionObserver === 'undefined') { visible = true; void start(); return; }
   observer = new IntersectionObserver((entries) => {
-    if (entries.some((e) => e.isIntersecting)) { observer?.disconnect(); observer = undefined; void start(); }
+    if (entries.some((e) => e.isIntersecting)) { visible = true; observer?.disconnect(); observer = undefined; void start(); }
   }, { rootMargin: '240px' });
   observer.observe(el);
 });
-onBeforeUnmount(() => { alive = false; observer?.disconnect(); resizer?.disconnect(); });
+onBeforeUnmount(() => { alive = false; requestVersion++; observer?.disconnect(); resizer?.disconnect(); });
 </script>
 
 <template>
