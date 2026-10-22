@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, useId } from 'vue';
 const props = withDefaults(defineProps<{ page: number; totalPages: number }>(), { page: 1, totalPages: 1 });
 const emit = defineEmits<{ change: [page: number] }>();
-export const pageBound = (value: number, max: number): number => Math.max(1, Math.min(Math.max(1, max), Math.floor(Number.isFinite(value) ? value : 1)));
+const pageBound = (value: number, max: number): number => Math.max(1, Math.min(Math.max(1, max), Math.floor(Number.isFinite(value) ? value : 1)));
 const last = computed(() => Math.max(1, props.totalPages));
 const middle = computed(() => Math.ceil(last.value / 2));
 const quick = computed(() => [...new Set([1, middle.value, last.value])]);
 const typed = ref(String(props.page));
+const inputId = useId();
 watch(() => props.page, value => { typed.value = String(value); });
 watch(last, value => { if (props.page > value) emit('change', value); });
 const move = (value: number): void => { const n = pageBound(value, last.value); typed.value = String(n); if (n !== props.page) emit('change', n); };
@@ -19,8 +20,8 @@ function jump(): void {
   <nav v-if="totalPages > 1" class="pager" aria-label="Paginação dos documentos" data-testid="document-pagination">
     <button type="button" class="nav" aria-label="Página anterior" title="Voltar 1" :disabled="page <= 1" @click="move(page-1)">‹</button>
     <button type="button" class="nav" aria-label="Voltar cinco páginas" title="Voltar 5" :disabled="page <= 1" @click="move(page-5)">«</button>
-    <label class="sr-only" for="page-number">Ir para a página</label>
-    <input id="page-number" v-model="typed" class="number" type="number" min="1" :max="last" inputmode="numeric" aria-label="Ir para a página" @keydown.enter="jump" @blur="jump" />
+    <label class="sr-only"  :for="inputId">Ir para a página</label>
+    <input  :id="inputId" v-model="typed" class="number" type="number" min="1" :max="last" inputmode="numeric" aria-label="Ir para a página" @keydown.enter="jump" @blur="jump" />
     <button v-for="n in quick" :key="n" type="button" class="shortcut" :class="{ current: n === page }" :aria-label="'Ir para a página ' + n" :aria-current="n === page ? 'page' : undefined" @click="move(n)">{{ n }}</button>
     <button type="button" class="nav" aria-label="Avançar cinco páginas" title="Avançar 5" :disabled="page >= last" @click="move(page+5)">»</button>
     <button type="button" class="nav" aria-label="Próxima página" title="Avançar 1" :disabled="page >= last" @click="move(page+1)">›</button>

@@ -355,7 +355,7 @@ const toolName = (id: ToolId): string => getTool(id).name;
   <section aria-labelledby="copies-heading" class="block">
     <div class="head">
       <div>
-        <h2 id="copies-heading" ref="listHeading" tabindex="-1">Meus documentos</h2>
+        <h2 id="copies-heading" ref="listHeading" tabindex="-1">Minhas cópias</h2>
         <p class="muted count" data-testid="copy-count">{{ loaded ? countText : 'Carregando…' }}</p>
       </div>
       <div class="head-actions">
