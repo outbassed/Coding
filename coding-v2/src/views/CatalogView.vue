@@ -44,7 +44,7 @@ const visible = computed(() => {
 </script>
 
 <template>
-  <PageHeader eyebrow="Explorar" title="Catálogo" logo="/legacy-icons/catalog.svg" lead="Etiquetas já tem editor funcional e Texto tem prévia visual. As outras sete continuam no Coding atual até serem migradas.">
+  <PageHeader eyebrow="Explorar" title="Catálogo" logo="/legacy-icons/catalog.svg" lead="Etiquetas e Texto já possuem editores funcionais. As outras sete ferramentas continuam no Coding atual até serem migradas.">
     <div class="filters" role="group" aria-label="Filtrar aplicativos">
       <button v-for="item in filters" :key="item.id" type="button" class="f" :aria-pressed="filter === item.id" @click="filter = item.id">{{ item.label }}</button>
     </div>
