@@ -29,7 +29,7 @@ describe('Texto: HTML confiável e modelo inicial', () => {
   it('guarda fonte, tamanho, cores e largura de imagem, só dentro da lista segura', () => {
     const html = sanitizeTextHtml('<p style="font-size:99px;color:red;font-family:evil">a</p><p><span style="font-family: &quot;Times New Roman&quot;, serif; font-size: 18px; color: rgb(192, 57, 43); background-color: rgb(255, 224, 102)">b</span></p><img src="data:image/png;base64,AAEC" style="width: 40%; position:fixed">');
     expect(html).not.toMatch(/evil|99px|position|red/);
-    expect(html).toMatch(/font-family: "Times New Roman"/);
+    expect(html).toContain('font-family: &quot;Times New Roman&quot;');
     expect(html).toContain('font-size: 18px');
     expect(html).toContain('color: rgb(192, 57, 43)');
     expect(html).toContain('background-color: rgb(255, 224, 102)');
