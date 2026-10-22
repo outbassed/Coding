@@ -81,7 +81,7 @@ describe('Launcher · aparência de loja', () => {
     expect(hero.text()).toContain('Editor funcional');
     expect(hero.find('a[href="/apps/etiquetas/"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="recent-docs"]').exists()).toBe(false);
-    expect(wrapper.text()).toContain('1 com editor funcional');
+    expect(wrapper.text()).toContain('2 com editor funcional');
     wrapper.unmount();
   });
 
@@ -101,18 +101,17 @@ describe('Launcher · aparência de loja', () => {
     const { wrapper } = await mountLauncher('/catalogo');
     const meta = Object.fromEntries(wrapper.findAll('article.card').map((c) => [c.find('h3').text(), c.find('[data-testid="card-meta"]').text()]));
     expect(meta['Etiquetas']).toContain('Editor funcional');
-    expect(meta['Texto']).toContain('Prévia visual');
+    expect(meta['Texto']).toContain('Editor funcional');
     expect(meta['Planilhas']).toContain('Em breve');
     wrapper.unmount();
   });
 
-  it('Detalhes de Etiquetas lista o que funciona; Texto não finge nada', async () => {
+  it('Detalhes de Etiquetas e Texto mostram os recursos entregues', async () => {
     const a = await mountLauncher('/app/labels');
     expect(a.wrapper.find('[data-testid="ready-list"]').text()).toContain('Imprimir e baixar PDF');
     a.wrapper.unmount();
     const b = await mountLauncher('/app/texts');
-    expect(b.wrapper.find('[data-testid="ready-list"]').exists()).toBe(false);
-    expect(b.wrapper.text()).toContain('Nenhuma edição é salva');
+    expect(b.wrapper.find('[data-testid="ready-list"]').text()).toContain('Salvamento automático');
     b.wrapper.unmount();
   });
 

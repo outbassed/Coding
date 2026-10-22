@@ -26,7 +26,10 @@ async function refresh(): Promise<void> {
     if (alive) recent.value = [...all].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, LIMIT);
   } catch { if (alive) recent.value = []; }
 }
-const href = (copy: CopySummary): string | null => (copy.type === 'labels' ? '/apps/etiquetas/?doc=' + encodeURIComponent(copy.id) : null);
+const href = (copy: CopySummary): string | null => {
+  const path = copy.type === 'labels' ? '/apps/etiquetas/' : copy.type === 'texts' ? '/apps/texto/' : null;
+  return path ? path + '?doc=' + encodeURIComponent(copy.id) : null;
+};
 const toolOf = (copy: CopySummary) => { const id = toolIdForType(copy.type); return id ? findTool(id) ?? null : null; };
 
 onMounted(() => { void refresh(); try { stop = watchCopies(() => { void refresh(); }); } catch { /* sem aviso entre abas */ } });

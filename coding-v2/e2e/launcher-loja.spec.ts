@@ -21,7 +21,7 @@ test.describe('Launcher · loja no computador', () => {
     await expect(hero.getByRole('link', { name: 'Abrir o editor de Etiquetas' })).toHaveAttribute('href', '/apps/etiquetas/');
     await expect(page.getByRole('heading', { level: 2, name: 'Meus aplicativos' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Explorar o catálogo' })).toBeVisible();
-    await expect(page.getByText('1 com editor funcional, 1 com prévia visual e 7 ainda só no Coding atual')).toBeVisible();
+    await expect(page.getByText('2 com editor funcional, 0 com prévia visual e 7 ainda só no Coding atual')).toBeVisible();
     await expect(page.getByTestId('recent-docs')).toHaveCount(0);
     expect(await hasDb(page)).toBe(false); // olhar o Início não cria banco algum
     await page.getByRole('link', { name: 'Abrir catálogo' }).click();
