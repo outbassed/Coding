@@ -27,6 +27,7 @@ import {
 import type { Source } from '../storage/documents';
 
 const PAGE_SIZE = 24;
+const newLabelsHref = getTool('labels').path ?? '/apps/etiquetas/';
 const route = useRoute();
 const router = useRouter();
 const wide = useMediaQuery('(min-width: 900px)', true);
@@ -335,6 +336,7 @@ const toolName = (id: ToolId): string => getTool(id).name;
       </div>
       <div class="head-actions">
         <SaveStatus :state="saveState" />
+        <a class="btn" data-testid="new-labels" :href="newLabelsHref">Nova etiqueta</a>
         <button type="button" class="btn btn-primary" data-testid="open-import" :disabled="busy" @click="importOpen = true">Importar do Coding antigo</button>
         <button type="button" class="btn" :disabled="busy" @click="manualRefresh">Atualizar biblioteca</button>
       </div>
