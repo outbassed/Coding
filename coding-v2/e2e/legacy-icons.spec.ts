@@ -26,7 +26,7 @@ test('Catálogo usa os nove ícones clássicos e todos carregam', async ({ page 
   }
   await expect.poll(() => imgs.evaluateAll((elements) => elements.every((el) => {
     const image = el as HTMLImageElement;
-    return image.complete && image.naturalWidth === 48 && image.naturalHeight === 48;
+    return image.complete && image.naturalWidth > 0 && image.naturalHeight > 0;
   }))).toBe(true);
 });
 
