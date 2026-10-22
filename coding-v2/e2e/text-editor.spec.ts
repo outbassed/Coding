@@ -58,12 +58,12 @@ test('Texto exporta HTML e TXT de dados reais e permite imagens',async({page})=>
   await page.reload();
   await expect(page.getByTestId('text-editor').locator('img')).toHaveCount(1);
 });
-test('Texto evita sobrescrever revisão feita por outra aba',async({page,browser})=>{
+test('Texto evita sobrescrever revisão feita por outra aba',async({page})=>{
   await page.goto(EDITOR);
   await page.getByRole('textbox',{name:'Conteúdo do documento'}).fill('Estado inicial');
   await expect(page.getByTestId('save-status')).toHaveText('Salvo neste aparelho',{timeout:10000});
   const url=page.url();
-  const other=await browser.newPage();
+  const other=await page.context().newPage();
   try {
     await other.goto(url);
     await expect(other.getByTestId('text-editor')).toContainText('Estado inicial');
