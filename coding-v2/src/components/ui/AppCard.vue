@@ -59,5 +59,9 @@ h3 { font-size:15px; line-height:1.25; margin:0; max-width:100%; font-weight:760
   h3 { font-size:12px; font-weight:690; min-height:29px; max-width:100%; }
   .meta,.desc,.actions { display:none; }
 }
-@media(min-width:600px) and (max-width:899px) { .card { padding:14px 8px; } .top :deep(.app-icon) { width:68px;height:68px; } }
+@media(min-width:600px) and (max-width:899px) {
+  .card { padding:14px 6px; } .top { max-width:100%; min-width:0; } .top :deep(.app-icon) { width:68px;height:68px; }
+  /* colunas estreitas (4 por linha ao lado da barra lateral): a etiqueta de estado quebra em vez de vazar */
+  .top :deep([data-testid="status-pill"]) { white-space:normal; text-align:center; justify-content:center; max-width:100%; padding:3px 6px; font-size:11px; }
+}
 </style>

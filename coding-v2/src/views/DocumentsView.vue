@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, toRaw, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, toRaw, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import PageHeader from '../components/ui/PageHeader.vue';
 import EmptyState from '../components/ui/EmptyState.vue';
@@ -8,6 +8,7 @@ import SaveStatus, { type SaveState } from '../components/editor/SaveStatus.vue'
 import CopyCard from '../components/library/CopyCard.vue';
 import PageNavigator from '../components/library/PageNavigator.vue';
 import { PAGE_SIZE, pageCount, boundedPage } from '../library/pagination';
+import { positionFor, readMemory, readView, withPosition, writeMemory, writeView, type LibraryMemory, type ViewMode } from '../library/view';
 import CopyDetails from '../components/library/CopyDetails.vue';
 import ModalDialog from '../components/library/ModalDialog.vue';
 import RenameDialog, { type RenameMode } from '../components/library/RenameDialog.vue';
@@ -34,7 +35,7 @@ const route = useRoute();
 const router = useRouter();
 const wide = useMediaQuery('(min-width: 900px)', true);
 
-const copies = ref<CopySummary[]>([]);
+const copies = shallowRef<CopySummary[]>([]);
 const storageKey = ref(0);
 const loaded = ref(false);
 const loadError = ref('');
@@ -44,7 +45,20 @@ const status = ref('');
 const error = ref('');
 const filters = ref<LibraryFilters>(filtersFromQuery(route.query as Record<string, unknown>));
 const filtersOpen = ref(false);
-const page = ref(1);
+// Cada aplicativo (aba) lembra a própria página; sobrevive à ida e volta a um editor (sessionStorage da aba).
+const memory = ref<LibraryMemory>(readMemory());
+let restoredTool = false;
+if (!Object.hasOwn(route.query, 'ferramenta') && memory.value.tool !== 'all') {
+  const saved = filtersFromQuery({ ferramenta: memory.value.tool });
+  if (saved.tool !== 'all') { filters.value = { ...filters.value, tool: saved.tool }; restoredTool = true; }
+}
+const viewMode = ref<ViewMode>(readView());
+function setView(mode: ViewMode): void { viewMode.value = mode; writeView(mode); say(mode === 'grid' ? 'Exibindo em grade.' : 'Exibindo em lista.'); }
+const toolCounts = computed(() => {
+  const counts = new Map<string, number>();
+  for (const copy of copies.value) counts.set(String(copy.type), (counts.get(String(copy.type)) ?? 0) + 1);
+  return counts;
+});
 const selectedId = ref<string | null>(null);
 const detailOpen = ref(false);
 const importOpen = ref(false);
@@ -73,6 +87,13 @@ let deleteOrigin: HTMLElement | null = null;
 const selected = computed(() => copies.value.find((c) => c.id === selectedId.value) ?? null);
 const filtered = computed(() => applyFilters(copies.value, filters.value));
 const totalPages = computed(() => pageCount(filtered.value.length));
+const page = computed({
+  get: () => (loaded.value ? positionFor(memory.value, filters.value.tool, totalPages.value) : (memory.value.positions[filters.value.tool] ?? 1)),
+  set: (value: number) => {
+    memory.value = { ...withPosition(memory.value, filters.value.tool, value), tool: filters.value.tool };
+    writeMemory(memory.value);
+  }
+});
 const shown = computed(() => filtered.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE));
 function goPage(value: number): void {
   page.value = boundedPage(value, totalPages.value);
@@ -106,6 +127,10 @@ async function refresh(): Promise<void> {
     storageKey.value += 1;
     loadError.value = '';
     if (selectedId.value && !copies.value.some((c) => c.id === selectedId.value)) { selectedId.value = null; detailOpen.value = false; }
+    if (restoredTool) {
+      restoredTool = false;
+      if (!toolsPresent(copies.value).includes(filters.value.tool as ToolId)) filters.value = { ...filters.value, tool: 'all' };
+    }
   } catch (err) { loadError.value = 'Não foi possível abrir o armazenamento das cópias. ' + friendlyError(err); }
   finally { loaded.value = true; }
 }
@@ -114,6 +139,7 @@ async function manualRefresh(): Promise<void> {
   if (!loadError.value) say('Biblioteca atualizada. ' + countText.value + '.');
 }
 onMounted(() => {
+  if (restoredTool) void router.replace({ query: filtersToQuery(filters.value) });
   void refresh();
   stopWatching = watchCopies(() => {
     // Atualiza a lista em segundo plano; o que o usuário está editando não é tocado.
@@ -127,10 +153,16 @@ onMounted(() => {
 onUnmounted(() => { stopWatching?.(); clearTimeout(refreshTimer); });
 
 // --- filtros na URL ---
-watch(filters, (value) => {
-  page.value = 1;
-  void router.replace({ query: filtersToQuery(value) });
-}, { deep: true });
+// Mudar busca, origem ou ordem muda o conjunto de resultados: todas as posições voltam à primeira página.
+// Trocar de aplicativo (aba) não mexe nas posições: cada um mantém a sua.
+const searchSignature = computed(() => JSON.stringify([filters.value.q, filters.value.origin, filters.value.sort]));
+watch(searchSignature, () => {
+  const kept = Object.fromEntries(Object.entries(memory.value.positions).filter(([key]) => key.startsWith('history:')));
+  memory.value = { ...memory.value, positions: kept };
+  writeMemory(memory.value);
+});
+watch(() => filters.value.tool, (tool) => { memory.value = { ...memory.value, tool }; writeMemory(memory.value); });
+watch(filters, (value) => { void router.replace({ query: filtersToQuery(value) }); }, { deep: true });
 watch(() => route.query, (query) => {
   const next = filtersFromQuery(query as Record<string, unknown>);
   if (JSON.stringify(next) !== JSON.stringify(filters.value)) filters.value = next;
@@ -139,7 +171,7 @@ function clearFilters(): void { filters.value = defaultFilters(); say('Filtros r
 const setTool = (event: Event): void => { filters.value = { ...filters.value, tool: (event.target as HTMLSelectElement).value as ToolId | 'all' }; };
 const setOrigin = (event: Event): void => { filters.value = { ...filters.value, origin: (event.target as HTMLSelectElement).value as Source | 'all' }; };
 const setSort = (event: Event): void => { filters.value = { ...filters.value, sort: (event.target as HTMLSelectElement).value as SortKey }; };
-watch(filtered, (list) => { page.value = boundedPage(page.value, pageCount(list.length)); if (loaded.value && filtering.value) say(list.length === 1 ? '1 cópia encontrada.' : list.length + ' cópias encontradas.'); });
+watch(filtered, (list) => { if (loaded.value && filtering.value) say(list.length === 1 ? '1 cópia encontrada.' : list.length + ' cópias encontradas.'); });
 
 function select(id: string): void {
   selectedId.value = id;
@@ -371,7 +403,7 @@ const toolName = (id: ToolId): string => getTool(id).name;
       <button type="button" :aria-pressed="filters.tool === 'all'" @click="filters.tool = 'all'">Todos ({{ copies.length }})</button>
       <button v-for="t in toolOptions" :key="t.id" type="button" :aria-pressed="filters.tool === t.id" @click="filters.tool = t.id">
         <img :src="'/legacy-icons/' + (t.id === 'sheet-labels' ? 'sheet' : t.id) + '.svg'" alt="" width="22" height="22" />
-        {{ t.name }} ({{ copies.filter(c => c.type === (t.id === 'sheet-labels' ? 'sheet' : t.id)).length }})
+        {{ t.name }} ({{ toolCounts.get(t.id === 'sheet-labels' ? 'sheet' : t.id) ?? 0 }})
       </button>
     </nav>
 
@@ -383,6 +415,10 @@ const toolName = (id: ToolId): string => getTool(id).name;
       <button v-if="!wide" type="button" class="btn" :aria-expanded="filtersOpen" aria-controls="lib-filters" @click="filtersOpen = !filtersOpen">
         Filtros<template v-if="activeFilterCount(filters)"> ({{ activeFilterCount(filters) }})</template>
       </button>
+      <div class="view-toggle" role="group" aria-label="Modo de exibição" data-testid="view-toggle">
+        <button type="button" :aria-pressed="viewMode === 'grid'" data-view-mode="grid" @click="setView('grid')">Grade</button>
+        <button type="button" :aria-pressed="viewMode === 'list'" data-view-mode="list" @click="setView('list')">Lista</button>
+      </div>
       <div v-show="showFilterPanel" id="lib-filters" class="filters">
         <div><label for="lib-tool" class="lbl">Ferramenta</label>
           <select id="lib-tool" class="field" :value="filters.tool" @change="setTool"><option value="all">Todas as ferramentas</option><option v-for="t in toolOptions" :key="t.id" :value="t.id">{{ toolName(t.id) }}</option></select></div>
@@ -405,8 +441,8 @@ const toolName = (id: ToolId): string => getTool(id).name;
           <button type="button" class="btn btn-primary" @click="clearFilters">Limpar busca e filtros</button>
         </EmptyState>
         <template v-else-if="!loadError">
-          <ul class="cards" data-testid="v2-copies" aria-labelledby="copies-heading">
-            <CopyCard v-for="copy in shown" :key="copy.id" :copy="copy" :selected="copy.id === selectedId" @select="select" />
+          <ul class="cards" :class="viewMode" :data-view="viewMode" data-testid="v2-copies" aria-labelledby="copies-heading">
+            <CopyCard v-for="copy in shown" :key="copy.id" :copy="copy" :selected="copy.id === selectedId" :view="viewMode" @select="select" />
           </ul>
           <PageNavigator :page="page" :total-pages="totalPages" @change="goPage" />
           <p v-if="totalPages > 1" class="page-summary muted">Página {{ page }} de {{ totalPages }} · {{ filtered.length }} documentos</p>
@@ -492,8 +528,14 @@ h2:focus { outline: none; }
 @media (min-width: 900px) { .filters { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; } .toolbar { grid-template-columns: minmax(0, 1fr); } }
 .layout { display: block; }
 .layout.split { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
-.cards { padding: 0; margin: 0; display: grid; gap: 8px; }
-@media (min-width: 600px) and (max-width: 899px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.cards { padding: 0; margin: 0; display: grid; gap: 10px; }
+.cards.grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 600px) { .cards.grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
+@media (min-width: 600px) and (max-width: 899px) { .cards.list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.view-toggle { display: inline-flex; width: fit-content; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.view-toggle button { min-height: 44px; padding: 0 16px; background: var(--surface); font-weight: 700; border: 0; }
+.view-toggle button + button { border-left: 1px solid var(--border); }
+.view-toggle button[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent); }
 @media (min-width: 1280px) { .layout.split { grid-template-columns: minmax(0, 1fr) 380px; } }
 .panel { position: sticky; top: 16px; padding: 18px; border: 1px solid var(--border); border-radius: 16px; background: var(--panel); }
 .panel h2 { font-size: 18px; overflow-wrap: anywhere; }

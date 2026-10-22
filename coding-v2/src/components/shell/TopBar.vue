@@ -35,7 +35,7 @@ function search(): void {
 .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; white-space: nowrap; font-size: 17px; letter-spacing: -.02em; min-height: 44px; }
 .mark { display: block; width: 34px; height: 34px; flex: 0 0 34px; border-radius: 8px; object-fit: cover; }
 .name sup { color: var(--muted); font-size: 11px; }
-.search { display: flex; align-items: center; gap: 8px; flex: 0 1 420px; margin-inline: auto; height: 44px; padding: 0 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); color: var(--muted); }
+.search { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 420px; margin-inline: auto; height: 44px; padding: 0 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); color: var(--muted); }
 .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .search input { flex: 1; min-width: 0; height: 100%; background: transparent; border: 0; outline: none; color: var(--text); font-size: 15px; }
 .beta { border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; }
