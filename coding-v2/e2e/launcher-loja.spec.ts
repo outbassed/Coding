@@ -21,7 +21,7 @@ test.describe('Launcher · loja no computador', () => {
     await expect(hero.getByRole('link', { name: 'Abrir o editor de Etiquetas' })).toHaveAttribute('href', '/apps/etiquetas/');
     await expect(page.getByRole('heading', { level: 2, name: 'Meus aplicativos' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Explorar o catálogo' })).toBeVisible();
-    await expect(page.getByText('2 com editor funcional, 0 com prévia visual e 7 ainda só no Coding atual')).toBeVisible();
+    await expect(page.getByText('2 editores disponíveis · 7 em breve')).toBeVisible();
     await expect(page.getByTestId('recent-docs')).toHaveCount(0);
     expect(await hasDb(page)).toBe(false); // olhar o Início não cria banco algum
     await page.getByRole('link', { name: 'Abrir catálogo' }).click();
@@ -117,14 +117,19 @@ test.describe('Launcher · loja no celular', () => {
         }
       });
 
-      test('cards se reorganizam em coluna única e mantêm estado e ação visíveis', async ({ page }) => {
+      test('grade 3 por linha abre detalhes do app, sem cards gigantes', async ({ page }) => {
         await page.goto('/launcher/#/catalogo');
         const cards = page.locator('article.card');
-        const boxes = await cards.evaluateAll((els) => els.slice(0, 3).map((el) => { const r = el.getBoundingClientRect(); return { x: Math.round(r.x), w: Math.round(r.width) }; }));
-        expect(new Set(boxes.map((b) => b.x)).size).toBe(1);
+        const boxes = await cards.evaluateAll((els) => els.slice(0, 4).map((el) => {
+          const r = el.getBoundingClientRect(); return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width) };
+        }));
+        expect(new Set(boxes.slice(0,3).map(b => b.y)).size).toBe(1);
+        expect(new Set(boxes.slice(0,3).map(b => b.x)).size).toBe(3);
+        expect(boxes[3]?.y).toBeGreaterThan(boxes[0]!.y);
         const labels = page.locator('article.card[data-tool="labels"]');
-        await expect(labels.getByTestId('status-pill')).toBeVisible();
-        await expect(labels.getByRole('link', { name: 'Abrir o editor de Etiquetas' })).toBeVisible();
+        await labels.getByRole('link', { name: 'Etiquetas' }).click();
+        await expect(page.getByTestId('detail-meta')).toContainText('Editor funcional');
+        await expect(page.getByRole('link', { name: 'Abrir editor' })).toBeVisible();
         await expect(page.getByRole('searchbox', { name: 'Buscar aplicativos' })).toBeVisible();
         await axeClean(page);
       });

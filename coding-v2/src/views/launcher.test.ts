@@ -10,7 +10,7 @@ describe('Launcher · telas', () => {
     const { wrapper } = await mountLauncher('/');
     expect(wrapper.findAll('h1')).toHaveLength(1);
     expect(wrapper.findAll('article.card')).toHaveLength(2);
-    expect(wrapper.text()).toContain('Em breve na versão 2.0');
+    expect(wrapper.text()).toContain('Explorar o catálogo');
     wrapper.unmount();
   });
 
@@ -81,7 +81,7 @@ describe('Launcher · aparência de loja', () => {
     expect(hero.text()).toContain('Editor funcional');
     expect(hero.find('a[href="/apps/etiquetas/"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="recent-docs"]').exists()).toBe(false);
-    expect(wrapper.text()).toContain('2 com editor funcional');
+    expect(wrapper.text()).toContain('2 editores disponíveis');
     wrapper.unmount();
   });
 
