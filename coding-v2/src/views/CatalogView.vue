@@ -44,7 +44,7 @@ const visible = computed(() => {
 </script>
 
 <template>
-  <PageHeader eyebrow="Explorar" title="Catálogo" logo="/legacy-icons/catalog.svg" lead="Etiquetas e Texto já possuem editores funcionais. As outras sete ferramentas continuam no Coding atual até serem migradas.">
+  <PageHeader eyebrow="Explorar" title="Catálogo" logo="/legacy-icons/catalog.svg" lead="Explore as ferramentas.">
     <div class="filters" role="group" aria-label="Filtrar aplicativos">
       <button v-for="item in filters" :key="item.id" type="button" class="f" :aria-pressed="filter === item.id" @click="filter = item.id">{{ item.label }}</button>
     </div>
@@ -59,7 +59,7 @@ const visible = computed(() => {
     <div class="spot-txt">
       <p class="tag">Destaque · editor funcional</p>
       <h2 id="spot-h">{{ featured.name }}</h2>
-      <ul class="ready"><li v-for="r in featured.ready" :key="r">{{ r }}</li></ul>
+      <p class="muted">Crie suas etiquetas A4 e imprima em PDF.</p>
       <div class="spot-actions">
         <RouterLink :to="{ name: 'app', params: { id: featured.id } }" class="btn btn-primary">Ver detalhes</RouterLink>
         <ActivateButton :tool="featured" :enabled="apps.isEnabled(featured.id)" />
@@ -67,7 +67,7 @@ const visible = computed(() => {
     </div>
   </section>
 
-  <p class="summary muted" data-testid="catalog-summary">{{ counts.functional }} com editor funcional · {{ counts.preview }} com prévia visual · {{ counts.planned }} em breve, ainda só no Coding atual.</p>
+  <p class="summary muted" data-testid="catalog-summary">{{ counts.functional }} editores disponíveis · {{ counts.planned }} em breve</p>
   <p v-if="query || filter !== 'all' || category !== 'all'" class="active-filters">
     <span v-if="query">Busca: <strong>“{{ query }}”</strong></span>
     <button type="button" class="clear" data-testid="clear-filters" @click="clearAll">Limpar busca e filtros</button>
