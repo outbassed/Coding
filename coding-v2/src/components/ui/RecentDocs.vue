@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router';
 import { listCopySummaries, watchCopies, type CopySummary } from '../../storage/documents';
 import { normalize, toolIdForType, typeLabel, formatDate } from '../../library/model';
 import { findTool, type ToolId } from '../../shared/catalog';
-import AppIcon from './AppIcon.vue';
+import DocThumb from './DocThumb.vue';
 import ModalDialog from '../library/ModalDialog.vue';
 import PageNavigator from '../library/PageNavigator.vue';
 import { PAGE_SIZE, boundedPage, pageCount } from '../../library/pagination';
@@ -62,11 +62,11 @@ onBeforeUnmount(() => { alive = false; stop?.(); });
     <div v-if="recent.length" class="scroller" role="list" aria-label="Últimos oito arquivos editados">
       <div v-for="copy in recent" :key="copy.id" class="tile" role="listitem" data-testid="history-tile">
         <a v-if="href(copy)" class="tile-link" :href="href(copy)!" :aria-label="'Abrir ' + (copy.label || 'documento sem título') + ' no editor'">
-          <span class="paper" aria-hidden="true"><AppIcon v-if="toolOf(copy)" :id="toolOf(copy)!.id" size="md" /><img v-else src="/legacy-icons/documents.svg" alt="" width="44" height="44" /></span>
+          <span class="paper"><DocThumb :copy="copy" /></span>
           <strong class="name">{{ copy.label || 'Sem título' }}</strong><small class="muted">{{ typeLabel(copy.type) }}</small>
         </a>
         <RouterLink v-else :to="{ name: 'docs', query: { ferramenta: toolIdForType(copy.type) ?? undefined } }" class="tile-link" :aria-label="'Ver ' + (copy.label || 'documento sem título') + ' na biblioteca'">
-          <span class="paper" aria-hidden="true"><AppIcon v-if="toolOf(copy)" :id="toolOf(copy)!.id" size="md" /><img v-else src="/legacy-icons/documents.svg" alt="" width="44" height="44" /></span>
+          <span class="paper"><DocThumb :copy="copy" /></span>
           <strong class="name">{{ copy.label || 'Sem título' }}</strong><small class="muted">{{ typeLabel(copy.type) }}</small>
         </RouterLink>
       </div>
@@ -79,7 +79,7 @@ onBeforeUnmount(() => { alive = false; stop?.(); });
       <p class="muted total">{{ searched.length }} {{ searched.length === 1 ? 'arquivo' : 'arquivos' }}</p>
       <ul v-if="pageItems.length" class="full-list" data-testid="history-list">
         <li v-for="copy in pageItems" :key="copy.id">
-          <AppIcon v-if="toolOf(copy)" :id="toolOf(copy)!.id" size="sm" />
+          <span class="row-thumb"><DocThumb :copy="copy" /></span>
           <a v-if="href(copy)" :href="href(copy)!">{{ copy.label || 'Documento sem título' }}</a>
           <RouterLink v-else :to="{ name: 'docs', query: { ferramenta: toolIdForType(copy.type) ?? undefined } }" @click="expanded = false">{{ copy.label || 'Documento sem título' }}</RouterLink>
           <small class="muted">{{ formatDate(copy.updatedAt) }}</small>
@@ -101,8 +101,8 @@ onBeforeUnmount(() => { alive = false; stop?.(); });
 .scroller { display:flex; gap:13px; overflow-x:auto; overflow-y:hidden; padding:3px 1px 14px; scrollbar-width:thin; scroll-snap-type:x mandatory; }
 .tile { flex:0 0 clamp(112px,19vw,152px); min-width:0; scroll-snap-align:start; }
 .tile-link { display:grid; gap:4px; text-decoration:none; min-width:0; color:var(--text); }
-.paper { aspect-ratio:3/4; background:var(--surface); display:grid; place-items:center; border-radius:14px; border:1px solid var(--border); box-shadow:var(--shadow); }
-.tile-link:hover .paper { border-color:var(--accent); background:var(--panel); }
+.paper { display:block; border-radius:10px; box-shadow:var(--shadow); }
+.tile-link:hover .paper { outline:2px solid var(--accent); outline-offset:1px; }
 .name { font-size:12px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .tile small { font-size:11px; }
 .empty { margin:6px 0 14px; }
@@ -116,5 +116,6 @@ onBeforeUnmount(() => { alive = false; stop?.(); });
 .full-list li { display:flex; flex-wrap:wrap; align-items:center; gap:8px; border-bottom:1px solid var(--border); padding:8px 0; }
 .full-list a { flex:1; min-width:110px; overflow-wrap:anywhere; color:var(--accent); font-weight:700; }
 .full-list small { font-size:11px; }
+.row-thumb { flex:0 0 38px; width:38px; }
 @media(max-width:599px) { .scroller { margin-right:-12px; } .tile { flex-basis:118px; } .head { gap:8px; } .count { display:none; } }
 </style>
