@@ -13,7 +13,7 @@ async function overflow(page: Page): Promise<number> {
       .slice(0, 5).map((el) => el.tagName + '.' + String(el.className).slice(0, 40) + ' ' + Math.round(el.getBoundingClientRect().right));
     return { over: document.documentElement.scrollWidth - limit, culprits };
   });
-  if (result.over > 0) console.log('OVERFLOW', result.culprits.join(' | '));
+  if (result.over > 0) throw new Error('OVERFLOW ' + result.over + ': ' + result.culprits.join(' | '));
   return result.over;
 }
 /** Quantas colunas a maior grade de aplicativos da tela realmente desenha. */
