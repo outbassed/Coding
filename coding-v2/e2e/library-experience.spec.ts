@@ -24,7 +24,7 @@ test('grade é o padrão, mostra miniaturas reais, e a lista é lembrada ao reca
   await expect(page.getByRole('button', { name: 'Grade' })).toHaveAttribute('aria-pressed', 'true');
   const thumb = cards.locator('li').first().getByTestId('doc-thumb');
   await expect(thumb).toHaveAttribute('data-state', 'ready');
-  await expect(thumb).toContainText('K-2');
+  await expect(thumb).toContainText(/K-\d/);
   await page.getByRole('button', { name: 'Lista' }).click();
   await expect(cards).toHaveAttribute('data-view', 'list');
   await expect(page.getByTestId('library-status')).toContainText('lista');

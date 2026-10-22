@@ -6,7 +6,15 @@ async function axeClean(page: Page, label: string): Promise<void> {
   expect(result.violations.map((v) => v.id + ': ' + v.nodes.map((n) => n.target.join(' ')).join(' | ')), label).toEqual([]);
 }
 async function overflow(page: Page): Promise<number> {
-  return page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  const result = await page.evaluate(() => {
+    const limit = document.documentElement.clientWidth;
+    const culprits = Array.from(document.querySelectorAll('body *'))
+      .filter((el) => el.getBoundingClientRect().right > limit + 0.5 && el.getBoundingClientRect().width > 0)
+      .slice(0, 5).map((el) => el.tagName + '.' + String(el.className).slice(0, 40) + ' ' + Math.round(el.getBoundingClientRect().right));
+    return { over: document.documentElement.scrollWidth - limit, culprits };
+  });
+  if (result.over > 0) console.log('OVERFLOW', result.culprits.join(' | '));
+  return result.over;
 }
 /** Quantas colunas a maior grade de aplicativos da tela realmente desenha. */
 async function columns(page: Page): Promise<{ cols: number; cards: number; maxRight: number }> {
