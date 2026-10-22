@@ -6,6 +6,8 @@ import EmptyState from '../components/ui/EmptyState.vue';
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue';
 import SaveStatus, { type SaveState } from '../components/editor/SaveStatus.vue';
 import CopyCard from '../components/library/CopyCard.vue';
+import PageNavigator from '../components/library/PageNavigator.vue';
+import { PAGE_SIZE, pageCount, boundedPage } from '../library/pagination';
 import CopyDetails from '../components/library/CopyDetails.vue';
 import ModalDialog from '../components/library/ModalDialog.vue';
 import RenameDialog, { type RenameMode } from '../components/library/RenameDialog.vue';
@@ -27,7 +29,6 @@ import {
 } from '../library/model';
 import type { Source } from '../storage/documents';
 
-const PAGE_SIZE = 24;
 const newLabelsHref = getTool('labels').path ?? '/apps/etiquetas/';
 const route = useRoute();
 const router = useRouter();
@@ -43,7 +44,7 @@ const status = ref('');
 const error = ref('');
 const filters = ref<LibraryFilters>(filtersFromQuery(route.query as Record<string, unknown>));
 const filtersOpen = ref(false);
-const visible = ref(PAGE_SIZE);
+const page = ref(1);
 const selectedId = ref<string | null>(null);
 const detailOpen = ref(false);
 const importOpen = ref(false);
@@ -71,8 +72,12 @@ let deleteOrigin: HTMLElement | null = null;
 
 const selected = computed(() => copies.value.find((c) => c.id === selectedId.value) ?? null);
 const filtered = computed(() => applyFilters(copies.value, filters.value));
-const shown = computed(() => filtered.value.slice(0, visible.value));
-const remaining = computed(() => Math.max(0, filtered.value.length - shown.value.length));
+const totalPages = computed(() => pageCount(filtered.value.length));
+const shown = computed(() => filtered.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE));
+function goPage(value: number): void {
+  page.value = boundedPage(value, totalPages.value);
+  if (selectedId.value && !shown.value.some(c => c.id === selectedId.value)) selectedId.value = null;
+}
 const toolOptions = computed(() => {
   const ids = new Set<ToolId>(toolsPresent(copies.value));
   if (filters.value.tool !== 'all') ids.add(filters.value.tool);
@@ -123,7 +128,7 @@ onUnmounted(() => { stopWatching?.(); clearTimeout(refreshTimer); });
 
 // --- filtros na URL ---
 watch(filters, (value) => {
-  visible.value = PAGE_SIZE;
+  page.value = 1;
   void router.replace({ query: filtersToQuery(value) });
 }, { deep: true });
 watch(() => route.query, (query) => {
@@ -134,16 +139,7 @@ function clearFilters(): void { filters.value = defaultFilters(); say('Filtros r
 const setTool = (event: Event): void => { filters.value = { ...filters.value, tool: (event.target as HTMLSelectElement).value as ToolId | 'all' }; };
 const setOrigin = (event: Event): void => { filters.value = { ...filters.value, origin: (event.target as HTMLSelectElement).value as Source | 'all' }; };
 const setSort = (event: Event): void => { filters.value = { ...filters.value, sort: (event.target as HTMLSelectElement).value as SortKey }; };
-watch(filtered, (list) => { if (loaded.value && filtering.value) say(list.length === 1 ? '1 cópia encontrada.' : list.length + ' cópias encontradas.'); });
-
-async function showMore(): Promise<void> {
-  const firstNew = shown.value.length;
-  visible.value += PAGE_SIZE;
-  await nextTick();
-  const nextCard = filtered.value[firstNew];
-  if (nextCard) document.querySelector<HTMLElement>('[data-copy-card="' + nextCard.id + '"]')?.focus();
-  say(shown.value.length + ' de ' + filtered.value.length + ' cópias à mostra.');
-}
+watch(filtered, (list) => { page.value = boundedPage(page.value, pageCount(list.length)); if (loaded.value && filtering.value) say(list.length === 1 ? '1 cópia encontrada.' : list.length + ' cópias encontradas.'); });
 
 function select(id: string): void {
   selectedId.value = id;
@@ -283,6 +279,8 @@ async function duplicate(): Promise<void> {
     markOwn();
     await refresh();
     selectedId.value = created.id; saveState.value = 'saved';
+    const position = filtered.value.findIndex(c => c.id === created.id);
+    if (position >= 0) page.value = Math.floor(position / PAGE_SIZE) + 1;
     say('Nova cópia criada: “' + created.label + '”. A original não foi alterada.');
     await focusCard(created.id);
   } catch (err) { saveState.value = 'error'; fail('Não foi possível criar a cópia. ' + friendlyError(err)); }
@@ -349,7 +347,7 @@ const toolName = (id: ToolId): string => getTool(id).name;
 </script>
 
 <template>
-  <PageHeader eyebrow="Biblioteca" title="Documentos" logo="/legacy-icons/documents.svg" lead="Suas cópias de trabalho da versão 2.0. Os documentos do Coding antigo continuam protegidos: só são lidos quando você pede." />
+  <PageHeader title="Documentos" logo="/legacy-icons/documents.svg" lead="Seus arquivos e backups." />
 
   <div class="live" role="status" aria-live="polite" data-testid="library-status">{{ status }}</div>
   <p class="live-error" role="alert" data-testid="library-error">{{ error }}</p>
@@ -369,6 +367,13 @@ const toolName = (id: ToolId): string => getTool(id).name;
     </div>
 
     <p v-if="loadError" class="problem" data-testid="load-error">{{ loadError }}</p>
+    <nav v-if="copies.length && toolOptions.length" class="app-tabs" aria-label="Documentos por aplicativo" data-testid="document-app-tabs">
+      <button type="button" :aria-pressed="filters.tool === 'all'" @click="filters.tool = 'all'">Todos ({{ copies.length }})</button>
+      <button v-for="t in toolOptions" :key="t.id" type="button" :aria-pressed="filters.tool === t.id" @click="filters.tool = t.id">
+        <img :src="'/legacy-icons/' + (t.id === 'sheet-labels' ? 'sheet' : t.id) + '.svg'" alt="" width="22" height="22" />
+        {{ t.name }} ({{ copies.filter(c => c.type === (t.id === 'sheet-labels' ? 'sheet' : t.id)).length }})
+      </button>
+    </nav>
 
     <div v-if="loaded && !loadError && copies.length" class="toolbar" role="search" aria-label="Buscar nas cópias">
       <div class="search">
@@ -403,10 +408,8 @@ const toolName = (id: ToolId): string => getTool(id).name;
           <ul class="cards" data-testid="v2-copies" aria-labelledby="copies-heading">
             <CopyCard v-for="copy in shown" :key="copy.id" :copy="copy" :selected="copy.id === selectedId" @select="select" />
           </ul>
-          <div v-if="remaining" class="more">
-            <p class="muted">Mostrando {{ shown.length }} de {{ filtered.length }}.</p>
-            <button type="button" class="btn" data-testid="show-more" @click="showMore">Mostrar mais {{ Math.min(PAGE_SIZE, remaining) }}</button>
-          </div>
+          <PageNavigator :page="page" :total-pages="totalPages" @change="goPage" />
+          <p v-if="totalPages > 1" class="page-summary muted">Página {{ page }} de {{ totalPages }} · {{ filtered.length }} documentos</p>
         </template>
       </div>
 
@@ -425,16 +428,16 @@ const toolName = (id: ToolId): string => getTool(id).name;
 
   <section aria-labelledby="backup-heading" class="block">
     <h2 id="backup-heading" class="h2s">Backups</h2>
-    <p class="muted">Os backups incluem conteúdo, imagens, nome, revisão e origem. O formato é escolhido automaticamente: JSON para arquivos pequenos e .codingpack para arquivos grandes. Você também pode baixar .codingpack diretamente. A integridade é verificada antes do download; restaurar nunca substitui uma cópia existente em silêncio.</p>
+    <p class="muted small">Exportar ou restaurar todos os documentos.</p>
     <div class="row">
       <button type="button" class="btn" :disabled="busy || !copies.length" @click="exportAll()">Exportar backup das cópias</button>
       <button type="button" class="btn" :disabled="busy || !copies.length" data-testid="export-codingpack" @click="exportAll('binary')">Baixar .codingpack</button>
       <button type="button" class="btn" :disabled="busy" @click="importInput?.click()">Importar backup do Coding 2.0</button>
       <input ref="importInput" type="file" accept=".json,.codingpack,application/json,application/octet-stream" class="visually-hidden" aria-label="Escolher backup JSON ou CODINGPACK do Coding 2.0" @change="importFile" />
     </div>
-    <p class="muted small">Backups JSON têm limites de 32 MB por imagem e 64 MB por arquivo. O formato .codingpack armazena imagens em binário com verificação SHA-256 e pode ser maior, sujeito ao espaço e à memória do aparelho. A restauração é atômica e verifica conflitos de cópia.</p>
+    <details class="backup-help"><summary>Sobre os formatos e a segurança dos backups</summary><p class="muted small">JSON: até 64 MB por arquivo. O .codingpack suporta imagens binárias verificadas por SHA-256. Importações não substituem documentos existentes e dependem do espaço disponível no navegador.</p></details>
     <StoragePanel :refresh-key="storageKey" @announce="say" />
-    <p class="muted small">Nada nesta página abre, altera ou exclui documentos do <code>coding-db</code>. Os editores completos continuam na <a :href="LEGACY_URL">versão atual do Coding</a>.</p>
+    <details class="backup-help"><summary>Compatibilidade com o Coding antigo</summary><p class="muted small">O Coding 1.0 não é alterado. Ferramentas não migradas continuam no <a :href="LEGACY_URL">Coding atual</a>.</p></details>
   </section>
 
   <ModalDialog :open="detailOpen && !wide && !!selected" :label="selected ? 'Detalhes de ' + selected.label : 'Detalhes'" variant="sheet" :fallback-focus="cardFallback" backdrop-close @close="closeDetail">
@@ -460,6 +463,15 @@ const toolName = (id: ToolId): string => getTool(id).name;
 </template>
 
 <style scoped>
+.backup-help { margin-top:8px; }
+.backup-help summary { min-height:44px; display:flex; align-items:center; font-weight:700; cursor:pointer; }
+
+.app-tabs { display:flex; align-items:center; gap:8px; overflow-x:auto; padding:3px 0 14px; margin:0 0 12px; scrollbar-width:thin; }
+.app-tabs button { display:flex; align-items:center; gap:7px; white-space:nowrap; flex:none; min-height:44px; padding:6px 11px; border-radius:12px; border:1px solid var(--border); background:var(--surface); font-weight:700; }
+.app-tabs button[aria-pressed="true"] { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 12%,var(--surface)); }
+.app-tabs img { border-radius:6px; }
+.page-summary { text-align:center; font-size:12px; margin:0; }
+
 .live:empty { display: none; }
 .live { padding: 10px 14px; margin: 0 0 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--ok); font-size: 14px; }
 .live-error { margin: 0 0 12px; font-weight: 600; color: var(--danger); }

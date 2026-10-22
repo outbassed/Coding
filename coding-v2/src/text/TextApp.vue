@@ -270,9 +270,9 @@ onBeforeUnmount(() => {
             <input ref="pictureInput" type="file" class="sr-only" accept="image/png,image/jpeg,image/webp" aria-label="Selecionar imagem para o texto" @change="addPicture" />
           </div>
           <div class="toolbar-row output">
-            <button type="button" class="tool" @click="exportHtml">Exportar HTML</button>
-            <button type="button" class="tool" @click="exportTxt">Exportar TXT</button>
-            <button type="button" class="tool strong" @click="printDocument">Imprimir / PDF</button>
+            <button type="button" class="tool" aria-label="Exportar HTML" @click="exportHtml"><span class="wide-label">Exportar </span>HTML</button>
+            <button type="button" class="tool" aria-label="Exportar TXT" @click="exportTxt"><span class="wide-label">Exportar </span>TXT</button>
+            <button type="button" class="tool strong" aria-label="Imprimir / PDF" @click="printDocument"><span class="wide-label">Imprimir / </span>PDF</button>
           </div>
         </section>
         <main class="stage" tabindex="0" aria-label="Área de edição">
@@ -317,8 +317,10 @@ onBeforeUnmount(() => {
 .alert { margin: 0; padding: 12px 16px; background: var(--panel); border-bottom: 2px solid var(--danger); color: var(--text); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .hint { margin: 0; padding: 6px 18px; background: var(--surface); font-size: 12px; border-top: 1px solid var(--border); }
 @media (max-width: 899px) {
-  .toolbar { flex-direction: column; align-items: stretch; order: 2; padding: 4px 8px calc(4px + var(--sa-b)); border-bottom: 0; border-top: 1px solid var(--border); }
-  .toolbar-row { overflow-x: auto; overscroll-behavior-x: contain; padding: 3px 0; }
+  .toolbar { flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: flex-start; order: 2; min-height: 52px; padding: 4px 8px calc(4px + var(--sa-b)); border-bottom: 0; border-top: 1px solid var(--border); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; overscroll-behavior-x: contain; }
+  .toolbar-row { flex: none; overflow: visible; padding: 3px 0; }
+  .toolbar .tool { min-height: 44px; }
+  .wide-label { display: none; }
   .output { justify-content: flex-start; }
   .stage { order: 1; padding: 14px 8px; }
   .paper, .body { min-height: 660px; }

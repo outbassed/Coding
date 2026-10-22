@@ -15,7 +15,7 @@ const available = computed(() => tools.filter((t) => isPreviewTool(t) && !apps.i
 </script>
 
 <template>
-  <PageHeader eyebrow="Sua área" title="Meus apps" logo="/legacy-icons/my-apps.svg" lead="Desativar remove só o atalho aqui no Launcher. Seus documentos nunca são apagados." />
+  <PageHeader eyebrow="Sua área" title="Meus apps" logo="/legacy-icons/my-apps.svg" lead="Seus aplicativos favoritos." />
   <section aria-labelledby="ativados">
     <h2 id="ativados" class="sr-only">Aplicativos ativados</h2>
     <AppGrid v-if="apps.activeTools.length">
@@ -27,7 +27,7 @@ const available = computed(() => tools.filter((t) => isPreviewTool(t) && !apps.i
   </section>
   <section v-if="available.length" aria-labelledby="disp" class="avail" data-testid="available-to-activate">
     <h2 id="disp">Disponíveis para ativar</h2>
-    <p class="muted">Ativar só põe o atalho aqui no Launcher; não instala nada no aparelho.</p>
+    <p class="muted">Ativar não instala nada no aparelho.</p>
     <ul class="alist">
       <li v-for="tool in available" :key="tool.id" class="arow">
         <AppIcon :id="tool.id" size="md" />

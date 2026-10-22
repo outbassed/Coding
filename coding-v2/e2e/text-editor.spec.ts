@@ -88,3 +88,16 @@ test('Texto mobile mantém a página acima da barra de ferramentas',async({page}
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+test('Texto usa barra horizontal única no celular, inclusive exportação',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.goto(EDITOR);
+  const bar = page.locator('.toolbar');
+  const before = await bar.evaluate(el => ({ rows: getComputedStyle(el).flexDirection, height: el.getBoundingClientRect().height, scroll: el.scrollWidth > el.clientWidth }));
+  expect(before.rows).toBe('row');
+  expect(before.height).toBeLessThan(85);
+  expect(before.scroll).toBe(true);
+  await bar.evaluate(el => { el.scrollLeft = el.scrollWidth; });
+  await expect(page.getByRole('button',{name:'Exportar HTML'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Imprimir / PDF'})).toBeVisible();
+});
