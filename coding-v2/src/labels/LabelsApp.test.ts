@@ -34,7 +34,7 @@ describe('Etiquetas · editor real', () => {
   it('seções do painel trocam por clique e por setas', async () => {
     const w = await open();
     const tabs = w.findAll('[role="tab"]');
-    expect(tabs.map((t) => t.text())).toEqual(['Itens', 'Formato', 'Página']);
+    expect(tabs.map((t) => t.text())).toEqual(['Itens', 'Formato', 'Página', 'Exportar']);
     await tabs[1]!.trigger('click');
     expect(w.find('[data-testid="format-panel"]').exists()).toBe(true);
     await w.get('[role="tablist"]').trigger('keydown', { key: 'ArrowRight' });

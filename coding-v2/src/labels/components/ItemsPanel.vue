@@ -6,7 +6,7 @@ import { MAX_COPIES, MAX_ITEMS, toInt, type LabelItem } from '../model';
 const props = defineProps<{ items: readonly LabelItem[] }>();
 const emit = defineEmits<{
   code: [id: string, value: string]; description: [id: string, value: string]; copies: [id: string, value: number];
-  step: [id: string, delta: number]; add: []; duplicate: [id: string]; move: [id: string, delta: -1 | 1]; remove: [id: string];
+  step: [id: string, delta: number]; add: []; bulk: []; duplicate: [id: string]; move: [id: string, delta: -1 | 1]; remove: [id: string];
 }>();
 
 async function focusCode(id: string | null): Promise<void> {
@@ -55,7 +55,10 @@ function settle(item: LabelItem, event: Event): void { (event.target as HTMLInpu
         </div>
       </li>
     </ul>
-    <button type="button" class="btn add" data-testid="add-item" :disabled="items.length >= MAX_ITEMS" @click="emit('add')">Adicionar item</button>
+    <div class="adds">
+      <button type="button" class="btn add" data-testid="add-item" :disabled="items.length >= MAX_ITEMS" @click="emit('add')">Adicionar item</button>
+      <button type="button" class="btn add" data-testid="open-bulk" @click="emit('bulk')">Colar lista</button>
+    </div>
     <p v-if="items.length >= MAX_ITEMS" class="muted lim">Limite de {{ MAX_ITEMS }} itens por documento.</p>
   </div>
 </template>
@@ -80,7 +83,9 @@ input:focus, textarea:focus { border-color: var(--accent); outline: 3px solid va
 .stepper input { width: 70px; text-align: center; padding: 8px 4px; }
 .st { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
 .st:disabled { opacity: .4; }
+.adds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .add { width: 100%; }
+@media (max-width: 380px) { .adds { grid-template-columns: minmax(0, 1fr); } }
 .lim { font-size: 12.5px; margin: 8px 0 0; }
 @media (max-width: 380px) { .fields { grid-template-columns: minmax(0, 1fr); } .stepper input { flex: 1; } }
 </style>

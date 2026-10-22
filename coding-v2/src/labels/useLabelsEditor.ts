@@ -1,3 +1,4 @@
+import { mergeBulk, type BulkRow } from './bulk';
 import { computed, onBeforeUnmount, ref, shallowRef } from 'vue';
 import type { CopyRecord } from '../storage/documents';
 import { RevisionConflict, watchCopies } from '../storage/documents';
@@ -116,6 +117,18 @@ export function useLabelsEditor(options: EditorOptions = {}) {
     const item = normalizeItem({ id: uid() });
     change((d) => { d.items.push(item); });
     return item.id;
+  }
+  /** Acrescenta (ou substitui) itens de uma lista colada numa única alteração, para desfazer de uma vez. */
+  function addMany(rows: readonly BulkRow[], replace: boolean): number {
+    if (!rows.length) return 0;
+    let added = 0;
+    let trimmed = false;
+    change((d) => {
+      const merged = mergeBulk(d.items, rows, replace);
+      d.items = merged.items; added = merged.added; trimmed = merged.trimmed;
+    });
+    say(added + (added === 1 ? ' item adicionado.' : ' itens adicionados.') + (trimmed ? ' Lista limitada a ' + MAX_ITEMS + ' itens.' : ''));
+    return added;
   }
   function duplicateItem(id: string): string | null {
     if (state.value.items.length >= MAX_ITEMS) { say('Limite de ' + MAX_ITEMS + ' itens por documento.'); return null; }
@@ -239,7 +252,7 @@ export function useLabelsEditor(options: EditorOptions = {}) {
 
   return {
     state, copyId, saveState, saveError, dirty, loading, loadError, lastSavedAt, canUndo, canRedo,
-    load, startNew, setField, setItem, addItem, duplicateItem, moveItem, removeItem, stepCopies,
+    load, startNew, setField, setItem, addItem, addMany, duplicateItem, moveItem, removeItem, stepCopies,
     undo, redo, saveNow, reloadSaved, saveCopyOfConflict
   };
 }

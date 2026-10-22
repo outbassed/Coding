@@ -180,4 +180,19 @@ describe('editor de Etiquetas: estado e salvamento', () => {
     expect(editor.state.value.items[0]!.copies).toBe(500);
     wrapper.unmount();
   });
+
+  it('colar lista entra como uma única alteração e desfaz de uma vez', async () => {
+    const { api } = fakeApi();
+    const { editor } = setup(api);
+    editor.startNew();
+    const rows = [{ line: 1, code: 'A', description: 'x', copies: 2, notes: [] }, { line: 2, code: 'B', description: '', copies: 1, notes: [] }];
+    expect(editor.addMany(rows, false)).toBe(2);
+    expect(editor.state.value.items.map((i) => i.code)).toEqual(['123', 'A', 'B']);
+    editor.undo();
+    expect(editor.state.value.items.map((i) => i.code)).toEqual(['123']);
+    editor.redo();
+    editor.addMany(rows, true);
+    expect(editor.state.value.items.map((i) => i.code)).toEqual(['A', 'B']);
+    expect(editor.addMany([], false)).toBe(0);
+  });
 });

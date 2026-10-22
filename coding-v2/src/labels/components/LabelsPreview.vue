@@ -7,7 +7,7 @@ import { MARGIN_X_MM, MARGIN_Y_MM, MAX_BLOCKS, PAPER, activeItems, type LabelsSt
 import { paginate, type Pagination } from '../paginate';
 
 const props = defineProps<{ state: LabelsState; roomy: boolean }>();
-const emit = defineEmits<{ layout: [info: LayoutInfo] }>();
+const emit = defineEmits<{ layout: [info: LayoutInfo]; pages: [pages: number[][][]] }>();
 export interface LayoutInfo { pageCount: number; labelCount: number; itemCount: number; rowsOnFirstPage: number; warning: string }
 
 const FALLBACK_PX_PER_MM = 96 / 25.4;
@@ -40,6 +40,7 @@ function recompute(): void {
   });
   currentPage.value = Math.min(currentPage.value, pagination.value.pages.length - 1);
   updateScale();
+  emit('pages', pagination.value.pages);
   emitLayout();
 }
 function warningText(): string {
@@ -111,7 +112,7 @@ defineExpose({ go });
           <div class="paper" :style="paperStyle">
             <div class="body" :style="{ gap: state.gap + 'mm' }">
               <div v-for="(row, r) in page.rows" :key="r" class="row" :style="{ gridTemplateColumns: 'repeat(' + state.cols + ', minmax(0, 1fr))', columnGap: state.gap + 'mm' }">
-                <LabelEntry v-for="(idx, c) in row" :key="c" :item="active[idx]!" :state="state" />
+                <template v-for="(idx, c) in row" :key="c"><LabelEntry v-if="active[idx]" :item="active[idx]!" :state="state" /></template>
               </div>
             </div>
           </div>

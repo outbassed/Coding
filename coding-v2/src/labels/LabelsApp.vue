@@ -14,8 +14,13 @@ import LabelsPreview, { type LayoutInfo } from './components/LabelsPreview.vue';
 import ItemsPanel from './components/ItemsPanel.vue';
 import FormatPanel from './components/FormatPanel.vue';
 import PagePanel from './components/PagePanel.vue';
+import ExportPanel from './components/ExportPanel.vue';
+import BulkDialog from './components/BulkDialog.vue';
+import PrintSheets from './components/PrintSheets.vue';
+import { downloadBytes, exportSheetsToPdf, pdfFileName } from './raster';
+import type { BulkRow } from './bulk';
 import { useLabelsEditor } from './useLabelsEditor';
-import { MAX_COPIES, toInt, type LabelsState } from './model';
+import { MAX_COPIES, PAPER, toInt, type LabelsState } from './model';
 
 useSettingsStore();
 const tool = getTool('labels');
@@ -34,12 +39,20 @@ const { state } = editor;
 const tabs: EditorTab[] = [
   { id: 'itens', label: 'Itens', blurb: '', groups: [] },
   { id: 'formato', label: 'Formato', blurb: '', groups: [] },
-  { id: 'pagina', label: 'Página', blurb: '', groups: [] }
+  { id: 'pagina', label: 'Página', blurb: '', groups: [] },
+  { id: 'exportar', label: 'Exportar', blurb: '', groups: [] }
 ];
 const tab = ref('itens');
 const sheetOpen = ref(true);
 const snap = ref<SheetSnap>('half');
 const layout = ref<LayoutInfo>({ pageCount: 1, labelCount: 0, itemCount: 0, rowsOnFirstPage: 0, warning: '' });
+const pages = ref<number[][][]>([[]]);
+const bulkOpen = ref(false);
+const busy = ref(false);
+const progress = ref('');
+const exportMessage = ref('');
+const exportError = ref('');
+const blocked = computed(() => Boolean(layout.value.warning) || layout.value.labelCount === 0);
 const itemsRef = ref<InstanceType<typeof ItemsPanel>[] | InstanceType<typeof ItemsPanel> | null>(null);
 const showSide = computed(() => roomy.value && wide.value);
 const showSheet = computed(() => !showSide.value && sheetOpen.value);
@@ -73,6 +86,41 @@ function onTabKey(event: KeyboardEvent): void {
   tab.value = next.id;
   requestAnimationFrame(() => document.getElementById('tab-' + next.id)?.focus());
 }
+function applyBulk(rows: BulkRow[], replace: boolean): void {
+  editor.addMany(rows, replace);
+  bulkOpen.value = false;
+  tab.value = 'itens';
+}
+/** Espera a prévia terminar de medir e de desenhar as folhas antes de imprimir ou exportar. */
+async function settled(): Promise<void> {
+  await nextTick();
+  await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  await nextTick();
+}
+async function printSheets(): Promise<void> {
+  exportError.value = ''; exportMessage.value = '';
+  if (blocked.value) { announce(layout.value.warning || 'Preencha ao menos um item para imprimir.'); return; }
+  await settled();
+  window.print();
+}
+async function downloadPdf(): Promise<void> {
+  exportError.value = ''; exportMessage.value = '';
+  if (blocked.value) { announce(layout.value.warning || 'Preencha ao menos um item para exportar.'); return; }
+  busy.value = true;
+  try {
+    await settled();
+    const sheets = Array.from(document.querySelectorAll<HTMLElement>('[data-testid="print-sheet"]'));
+    const paper = PAPER[state.value.orientation];
+    const result = await exportSheetsToPdf(sheets, paper.w, paper.h, state.value.name.trim() || 'Etiquetas', (done, total) => { progress.value = done < total ? 'Gerando folha ' + (done + 1) + ' de ' + total + '…' : ''; });
+    downloadBytes(result.bytes, pdfFileName(state.value.name));
+    exportMessage.value = 'PDF gerado com ' + result.pages + (result.pages === 1 ? ' folha.' : ' folhas.');
+    announce(exportMessage.value);
+  } catch (error) {
+    exportError.value = (error instanceof Error && error.message ? error.message : 'Não foi possível gerar o PDF.') + ' Use “Imprimir folhas” e escolha “Salvar como PDF”.';
+  } finally {
+    busy.value = false; progress.value = '';
+  }
+}
 function focusCanvas(): void { document.querySelector<HTMLElement>('[data-testid="canvas"]')?.focus(); }
 function onKey(event: KeyboardEvent): void {
   const mod = event.ctrlKey || event.metaKey;
@@ -81,6 +129,7 @@ function onKey(event: KeyboardEvent): void {
   if (key === 'z' && !event.shiftKey) { event.preventDefault(); editor.undo(); }
   else if ((key === 'z' && event.shiftKey) || key === 'y') { event.preventDefault(); editor.redo(); }
   else if (key === 's') { event.preventDefault(); void editor.saveNow(); }
+  else if (key === 'p' && !event.shiftKey && !event.altKey) { event.preventDefault(); void printSheets(); }
 }
 onMounted(() => document.addEventListener('keydown', onKey));
 onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
@@ -130,24 +179,29 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
           <button v-for="t in tabs" :id="'tab-' + t.id" :key="t.id" type="button" role="tab" class="tabbtn" :aria-selected="tab === t.id" :aria-controls="'tabpanel'" :tabindex="tab === t.id ? 0 : -1" @click="tab = t.id">{{ t.label }}</button>
         </div>
         <div id="tabpanel" class="panel" role="tabpanel" :aria-labelledby="'tab-' + tab">
-          <ItemsPanel v-if="tab === 'itens'" ref="itemsRef" :items="state.items" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
+          <ItemsPanel v-if="tab === 'itens'" ref="itemsRef" :items="state.items" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @bulk="bulkOpen = true" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
           <FormatPanel v-else-if="tab === 'formato'" :state="state" @field="field" />
-          <PagePanel v-else :state="state" :layout="layout" @field="field" />
+          <PagePanel v-else-if="tab === 'pagina'" :state="state" :layout="layout" @field="field" />
+          <ExportPanel v-else :state="state" :layout="layout" :busy="busy" :progress="progress" :message="exportMessage" :error="exportError" @print="printSheets" @pdf="downloadPdf" />
         </div>
       </section>
 
       <div v-if="!editor.loadError.value" class="stage">
-        <LabelsPreview :state="state" :roomy="roomy" @layout="layout = $event" />
+        <LabelsPreview :state="state" :roomy="roomy" @layout="layout = $event" @pages="pages = $event" />
         <p v-if="roomy" class="summary" data-testid="summary">{{ layout.labelCount }} {{ layout.labelCount === 1 ? 'etiqueta' : 'etiquetas' }} · {{ layout.itemCount }} {{ layout.itemCount === 1 ? 'item' : 'itens' }}<template v-if="statusDetail"> · {{ statusDetail }}</template></p>
         <p v-if="layout.warning" class="warn" role="status" data-testid="layout-warning">{{ layout.warning }}</p>
       </div>
     </main>
 
+    <BulkDialog :open="bulkOpen" :current-items="state.items.filter((i) => i.code.trim() || i.description.trim()).length" @close="bulkOpen = false" @apply="applyBulk" />
+    <PrintSheets v-if="!editor.loadError.value" :state="state" :pages="pages" />
+
     <template v-if="!showSide && !editor.loadError.value">
       <BottomSheet v-if="showSheet" v-model:snap="snap" :title="tabs.find((t) => t.id === tab)?.label ?? 'Editor'" :style="{ '--chrome': '180px', ...(snap === 'full' ? { maxHeight: '85dvh' } : {}) }" @close="sheetOpen = false">
-        <ItemsPanel v-if="tab === 'itens'" ref="itemsRef" :items="state.items" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
+        <ItemsPanel v-if="tab === 'itens'" ref="itemsRef" :items="state.items" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @bulk="bulkOpen = true" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
         <FormatPanel v-else-if="tab === 'formato'" :state="state" @field="field" />
-        <PagePanel v-else :state="state" :layout="layout" @field="field" />
+        <PagePanel v-else-if="tab === 'pagina'" :state="state" :layout="layout" @field="field" />
+          <ExportPanel v-else :state="state" :layout="layout" :busy="busy" :progress="progress" :message="exportMessage" :error="exportError" @print="printSheets" @pdf="downloadPdf" />
       </BottomSheet>
       <ToolStrip :tabs="tabs" :active="sheetOpen ? tab : null" @select="pickTab" />
     </template>
