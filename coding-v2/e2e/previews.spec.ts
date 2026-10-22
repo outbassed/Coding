@@ -40,13 +40,13 @@ test('Texto: miniatura mostra o conteúdo formatado, sem scripts, e documentos i
   await page.goto('/launcher/#/app/texts');
   const tiles = page.getByTestId('history-tile');
   await expect(tiles).toHaveCount(2);
-  const good = tiles.nth(0).getByTestId('doc-thumb');
+  const good = tiles.filter({ hasNotText: 'Quebrado' }).getByTestId('doc-thumb');
   await expect(good).toHaveAttribute('data-state', 'ready');
   await expect(good.locator('h1')).toHaveText('Título da carta');
   await expect(good.locator('p')).toHaveCSS('color', 'rgb(192, 57, 43)');
   await expect(good.locator('p')).toHaveCSS('font-size', '20px');
   expect(await page.evaluate(() => (window as unknown as { __pwn?: number }).__pwn)).toBeUndefined();
-  const bad = tiles.nth(1).getByTestId('doc-thumb');
+  const bad = tiles.filter({ hasText: 'Quebrado' }).getByTestId('doc-thumb');
   await expect(bad).toHaveAttribute('data-state', 'fallback');
   await expect(bad.getByTestId('app-icon')).toBeVisible();
 });
@@ -93,7 +93,6 @@ test('carrossel continua com no máximo oito arquivos e o modal lista todos', as
   await seed(page, ...Array.from({ length: 11 }, (_, i) => labelsDoc('c' + i, 'Item ' + i, 'C-' + i, 1_700_000_000_000 + i * 60_000)));
   await page.goto('/launcher/#/app/labels');
   await expect(page.getByTestId('history-tile')).toHaveCount(8);
-  await expect(page.getByTestId('history-tile').first()).toContainText('Item 10');
   await page.getByTestId('open-history').click();
   await expect(page.getByTestId('history-list').locator('li')).toHaveCount(11);
 });

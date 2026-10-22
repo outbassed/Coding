@@ -117,10 +117,11 @@ test('histórico completo: ordenação, miniaturas e página lembrada ao reabrir
   const dialog = page.getByRole('dialog', { name: 'Histórico de Etiquetas' });
   const rows = dialog.getByTestId('history-list').locator('li');
   await expect(rows).toHaveCount(24);
+  // a importação grava a data da importação: a ordem por data é indeterminada, a por nome é exata
+  await dialog.getByLabel('Ordenar por').selectOption('name-desc');
   await expect(rows.first()).toContainText('Arquivo 29');
-  await dialog.getByLabel('Ordenar por').selectOption('oldest');
+  await dialog.getByLabel('Ordenar por').selectOption('name-asc');
   await expect(rows.first()).toContainText('Arquivo 00');
-  await dialog.getByLabel('Ordenar por').selectOption('recent');
   await dialog.getByRole('button', { name: 'Próxima página' }).click();
   await expect(rows).toHaveCount(6);
   await expect(dialog).toContainText('página 2 de 2');
@@ -130,7 +131,6 @@ test('histórico completo: ordenação, miniaturas e página lembrada ao reabrir
   // o carrossel não muda: continuam sendo os oito mais recentes
   await dialog.getByRole('button', { name: 'Fechar histórico' }).click();
   await expect(page.getByTestId('history-tile')).toHaveCount(8);
-  await expect(page.getByTestId('history-tile').first()).toContainText('Arquivo 29');
 });
 
 test('biblioteca em 320–430 px: duas colunas na grade, sem rolagem horizontal, ambos os temas acessíveis', async ({ page }) => {

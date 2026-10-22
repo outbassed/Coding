@@ -31,9 +31,13 @@ const tone = (state: LevelState): PillTone => state === 'on' ? 'on' : state === 
       <div class="hero-details">
         <PageHeader :title="tool.name" :lead="tool.description" />
         <p class="developer">Coding</p>
-        <div class="chips" data-testid="detail-meta"><span class="chip">{{ availabilityLabel[avail] }}</span><span class="chip">{{ categoryName }}</span></div>
       </div>
     </header>
+    <dl class="stats" data-testid="detail-meta">
+      <div><dt>Disponibilidade</dt><dd>{{ availabilityLabel[avail] }}</dd></div>
+      <div><dt>Categoria</dt><dd>{{ categoryName }}</dd></div>
+      <div v-if="tool.ready.length"><dt>Recursos prontos</dt><dd>{{ tool.ready.length }}</dd></div>
+    </dl>
     <div class="cta" :style="{ '--app': tool.color }">
       <a v-if="tool.status === 'preview' && enabled && tool.path" :href="tool.path" class="btn btn-primary">Abrir editor</a>
       <ActivateButton v-else-if="tool.status === 'preview'" :tool="tool" :enabled="enabled" />
@@ -44,7 +48,6 @@ const tone = (state: LevelState): PillTone => state === 'on' ? 'on' : state === 
 
     <section class="features" :style="{ '--app': tool.color, '--app-cx-l': tool.textLight, '--app-cx-d': tool.textDark }" aria-labelledby="features-h">
       <h2 id="features-h">Sobre este aplicativo</h2>
-      <p class="muted">{{ tool.description }}.</p>
       <template v-if="tool.ready.length">
         <h3 class="app-text">O que já funciona</h3>
         <ul class="plan" data-testid="ready-list"><li v-for="item in tool.ready" :key="item">{{ item }}</li></ul>
@@ -87,8 +90,11 @@ const tone = (state: LevelState): PillTone => state === 'on' ? 'on' : state === 
 .hero :deep(.ph h1) { margin:0 0 3px; }
 .hero :deep(.lead) { font-size:14px; line-height:1.35; }
 .developer { color:var(--accent); font-size:14px; font-weight:700; margin:3px 0 8px; }
-.chips { display:flex; flex-wrap:wrap; gap:7px; }
-.chip { border:1px solid var(--border); background:var(--panel); border-radius:999px; padding:4px 10px; font-size:12px; font-weight:700; }
+.stats { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); margin:14px 0 4px; padding:10px 0; border-block:1px solid var(--border); }
+.stats > div { padding:0 10px; text-align:center; min-width:0; }
+.stats > div + div { border-inline-start:1px solid var(--border); }
+.stats dt { font-size:11px; color:var(--muted); font-weight:650; margin-bottom:3px; }
+.stats dd { margin:0; font-size:13.5px; font-weight:780; overflow-wrap:anywhere; }
 .cta { margin:15px 0 18px; display:flex; gap:8px; }
 .cta .btn { min-width:min(240px,100%); }
 .features { margin-top:30px; }
@@ -106,5 +112,5 @@ summary { cursor:pointer; min-height:44px; display:flex; align-items:center; fon
 .level h3 { margin:0; font-size:14px; }
 .level p { margin:0; font-size:12px; }
 .la { margin-top:10px; }
-@media(max-width:599px) { .hero { gap:14px; align-items:flex-start; padding-top:6px; } .hero :deep(.app-icon) { width:85px; height:85px; } .hero :deep(.ph h1) { font-size:26px; } .hero :deep(.lead) { font-size:12px; } .cta .btn { flex:1; } }
+@media(max-width:599px) { .stats dd { font-size:12.5px; } .stats > div { padding:0 6px; } .hero { gap:14px; align-items:flex-start; padding-top:6px; } .hero :deep(.app-icon) { width:85px; height:85px; } .hero :deep(.ph h1) { font-size:26px; } .hero :deep(.lead) { font-size:12px; } .cta .btn { flex:1; } }
 </style>

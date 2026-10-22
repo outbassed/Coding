@@ -75,7 +75,7 @@ onBeforeUnmount(() => { alive = false; stop?.(); });
       </div>
     </div>
     <p v-else class="muted empty">Nenhum arquivo salvo ainda.</p>
-    <ModalDialog :open="expanded" :label="'Histórico de ' + toolName" variant="center" backdrop-close @close="expanded = false">
+    <ModalDialog :open="expanded" :label="'Histórico de ' + toolName" variant="center" wide backdrop-close @close="expanded = false">
       <div class="modal-head"><h2 tabindex="-1" data-autofocus>Histórico completo · {{ toolName }}</h2><button type="button" class="close" aria-label="Fechar histórico" @click="expanded = false">✕</button></div>
       <div class="controls">
         <div class="grow"><label class="search-label" for="history-search">Buscar arquivos</label>

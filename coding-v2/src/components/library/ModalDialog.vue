@@ -5,12 +5,14 @@ const props = withDefaults(defineProps<{
   open: boolean;
   label: string;
   variant?: 'center' | 'sheet';
+  /** Janela mais larga para listas com miniaturas. */
+  wide?: boolean;
   backdropClose?: boolean;
   /** Seletor do elemento que recebe o foco ao abrir. */
   initialFocus?: string;
   /** Para onde devolver o foco ao fechar, quando o elemento original já não existir. */
   fallbackFocus?: () => HTMLElement | null;
-}>(), { variant: 'center', backdropClose: false, initialFocus: '[data-autofocus]', fallbackFocus: undefined });
+}>(), { variant: 'center', wide: false, backdropClose: false, initialFocus: '[data-autofocus]', fallbackFocus: undefined });
 const emit = defineEmits<{ close: [] }>();
 const dialog = ref<HTMLDialogElement | null>(null);
 let origin: HTMLElement | null = null;
@@ -36,7 +38,7 @@ watch(() => props.open, async (isOpen) => {
 </script>
 
 <template>
-  <dialog ref="dialog" class="modal" :class="'v-' + variant" :aria-label="label" @cancel.prevent="emit('close')" @click.self="backdropClose && emit('close')">
+  <dialog ref="dialog" class="modal" :class="['v-' + variant, { wide }]" :aria-label="label" @cancel.prevent="emit('close')" @click.self="backdropClose && emit('close')">
     <div v-if="open" class="inner"><slot /></div>
   </dialog>
 </template>
@@ -55,6 +57,7 @@ watch(() => props.open, async (isOpen) => {
   .v-sheet { margin: auto auto 0; width: min(640px, 100vw); border-radius: 20px 20px 0 0; border-bottom: 0; max-height: 85dvh; }
 }
 @media (min-width: 900px) { .v-sheet { width: min(520px, calc(100vw - 24px)); } }
+@media (min-width: 600px) { .modal.wide { width: min(720px, calc(100vw - 48px)); } }
 @media (prefers-reduced-motion: no-preference) {
   .v-sheet[open] { animation: rise .18s ease-out; }
   /* Só transform: animar a opacidade deixaria o contraste do texto abaixo do mínimo durante a entrada. */
