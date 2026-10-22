@@ -51,6 +51,8 @@ describe('modelos de prévia', () => {
   it('texto puro e parágrafo gigante também produzem miniatura útil e limitada', () => {
     const plain = textPreview({ name: 'T', html: 'Documento de texto simples' });
     if (plain.kind === 'text') expect(plain.html).toContain('Documento de texto simples');
+    const imageOnly = textPreview({ name: 'T', html: '<img src="data:image/png;base64,AAAA">' });
+    if (imageOnly.kind === 'text') expect(imageOnly.html).toContain('<img');
     const giant = textPreview({ name: 'T', html: '<p>' + 'x'.repeat(100_000) + '</p>' });
     if (giant.kind === 'text') {
       expect(giant.html).toContain('x'.repeat(200));

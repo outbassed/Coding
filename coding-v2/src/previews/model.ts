@@ -60,7 +60,7 @@ export function textPreview(raw: unknown): Preview {
       else left -= node.data.length;
     }
     const length = MAX_TEXT_CHARS - chars - left;
-    if (copy.textContent?.trim() || (copy instanceof Element && copy.querySelector('img'))) {
+    if (copy.textContent?.trim() || (copy instanceof Element && (copy.tagName === 'IMG' || copy.querySelector('img')))) {
       out.body.appendChild(copy);
       chars += length;
       count++;
