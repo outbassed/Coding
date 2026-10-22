@@ -244,14 +244,14 @@ test.describe('Texto avançado · celular', () => {
           await bar.getByRole('button', { name: 'Negrito' }).tap();
           expect(await page.evaluate(() => getSelection()!.toString())).toBe('dois');
         });
-        await test.step('tamanho', () => bar.getByTestId('text-size').selectOption('28'));
+        await test.step('tamanho', () => bar.getByTestId('text-size').selectOption('36'));
         await test.step('fonte', () => bar.getByTestId('text-font').selectOption('Verdana'));
         await test.step('cor', () => bar.getByTestId('text-color').fill('#007700'));
         await test.step('centralizar', () => bar.getByRole('button', { name: 'Centralizar' }).tap());
         await test.step('desfazer', () => bar.getByTestId('text-undo').tap());
         await test.step('refazer', () => bar.getByTestId('text-redo').tap());
         const css = await editor(page).locator('span', { hasText: 'dois' }).last().evaluate((el) => ({ s: getComputedStyle(el).fontSize, c: getComputedStyle(el).color, f: getComputedStyle(el).fontFamily }));
-        expect(css.s).toBe('28px');
+        expect(css.s).toBe('36px');
         expect(css.c).toBe('rgb(0, 119, 0)');
         expect(css.f).toContain('Verdana');
         await bar.getByRole('button', { name: 'Exportar HTML' }).scrollIntoViewIfNeeded();
