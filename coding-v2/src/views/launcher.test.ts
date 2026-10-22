@@ -62,7 +62,7 @@ describe('Launcher · telas', () => {
 
   it('Documentos não finge ler o banco antigo', async () => {
     const { wrapper } = await mountLauncher('/documentos');
-    expect(wrapper.text()).toContain('continuam protegidos');
+    expect(wrapper.text()).toContain('O Coding 1.0 não é alterado');
     wrapper.unmount();
   });
 
