@@ -136,7 +136,8 @@ function redo(): void {
   const snap = editHistory.redo();
   if (snap) { applySnapshot(snap); message('Refeito.'); }
 }
-function onBeforeInput(event: InputEvent): void {
+function onBeforeInput(raw: Event): void {
+  const event = raw as InputEvent;
   if (event.inputType === 'historyUndo') { event.preventDefault(); undo(); }
   else if (event.inputType === 'historyRedo') { event.preventDefault(); redo(); }
 }
