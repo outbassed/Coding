@@ -24,12 +24,14 @@ export const originLabels: Record<Source, string> = {
 /** Histórico: documentos da v2 anteriores ao contrato de origem usavam 'backup' com prefixo 'v2-labels-'. */
 export const originText = (copy: { source: Source; legacyId: string }): string =>
   copy.legacyId.startsWith('v2-labels-') ? 'Criado na v2' : originLabels[copy.source];
-export type SortKey = 'recent' | 'oldest' | 'name-asc' | 'name-desc';
+export type SortKey = 'recent' | 'oldest' | 'name-asc' | 'name-desc' | 'type' | 'images';
 export const sortLabels: Record<SortKey, string> = {
   recent: 'Atualização mais recente',
   oldest: 'Atualização mais antiga',
   'name-asc': 'Nome (A a Z)',
-  'name-desc': 'Nome (Z a A)'
+  'name-desc': 'Nome (Z a A)',
+  type: 'Tipo de documento',
+  images: 'Mais imagens'
 };
 export interface LibraryFilters {
   q: string;
@@ -47,9 +49,12 @@ export function copyTool(copy: Pick<CopySummary, 'type'>): ToolId | null {
 }
 
 export function applyFilters(copies: readonly CopySummary[], filters: LibraryFilters): CopySummary[] {
-  const q = normalize(filters.q.trim());
+  const terms = normalize(filters.q.trim()).split(/\s+/).filter(Boolean);
   const list = copies.filter((copy) => {
-    if (q && !normalize(copy.label).includes(q)) return false;
+    if (terms.length) {
+      const haystack = normalize(copy.label + ' ' + typeLabel(copy.type));
+      if (!terms.every((term) => haystack.includes(term))) return false;
+    }
     if (filters.tool !== 'all' && copyTool(copy) !== filters.tool) return false;
     if (filters.origin !== 'all' && copy.source !== filters.origin) return false;
     return true;
@@ -59,9 +64,19 @@ export function applyFilters(copies: readonly CopySummary[], filters: LibraryFil
     case 'oldest': return list.sort((a, b) => a.updatedAt - b.updatedAt);
     case 'name-asc': return list.sort(byName);
     case 'name-desc': return list.sort((a, b) => byName(b, a));
+    case 'type': return list.sort((a, b) => typeLabel(a.type).localeCompare(typeLabel(b.type), 'pt-BR') || byName(a, b));
+    case 'images': return list.sort((a, b) => b.imageCount - a.imageCount || b.updatedAt - a.updatedAt);
     default: return list.sort((a, b) => b.updatedAt - a.updatedAt);
   }
 }
+
+/** Endereço do editor quando a cópia pode ser aberta nele; nulo para tipos que ainda não têm editor na v2. */
+export function openHref(copy: Pick<CopySummary, 'id' | 'type' | 'legacyId'>): string | null {
+  if (copy.type === 'labels') return '/apps/etiquetas/?doc=' + encodeURIComponent(copy.id);
+  if (copy.type === 'texts' && copy.legacyId.startsWith('v2-texts-')) return '/apps/texto/?doc=' + encodeURIComponent(copy.id);
+  return null;
+}
+export const openEditorName = (type: unknown): string => (type === 'texts' ? 'Texto' : 'Etiquetas');
 
 export function toolsPresent(copies: readonly Pick<CopySummary, 'type'>[]): ToolId[] {
   const found = new Set<ToolId>();

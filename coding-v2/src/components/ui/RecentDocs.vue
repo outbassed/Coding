@@ -2,7 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import { listCopySummaries, watchCopies, type CopySummary } from '../../storage/documents';
-import { normalize, toolIdForType, typeLabel, formatDate } from '../../library/model';
+import { applyFilters, defaultFilters, imagesText, openHref, toolIdForType, typeLabel, formatDate, sortLabels, type SortKey } from '../../library/model';
+import { positionFor, readMemory, withPosition, writeMemory } from '../../library/view';
 import { findTool, type ToolId } from '../../shared/catalog';
 import DocThumb from './DocThumb.vue';
 import ModalDialog from '../library/ModalDialog.vue';
@@ -14,19 +15,25 @@ const props = defineProps<{ toolId?: ToolId }>();
 const all = ref<CopySummary[]>([]);
 const expanded = ref(false);
 const query = ref('');
-const page = ref(1);
+const memoryKey = 'history:' + (props.toolId ?? 'all');
+const page = ref(positionFor(readMemory(), memoryKey, Number.MAX_SAFE_INTEGER));
+const sort = ref<SortKey>('recent');
+const sortKeys: SortKey[] = ['recent', 'oldest', 'name-asc', 'name-desc', 'images'];
 let stop: (() => void) | undefined;
 let alive = true;
 const matching = computed(() => all.value
   .filter(copy => !props.toolId || toolIdForType(copy.type) === props.toolId)
   .sort((a,b) => b.updatedAt - a.updatedAt || a.id.localeCompare(b.id)));
 const recent = computed(() => matching.value.slice(0, 8));
-const searched = computed(() => matching.value.filter(copy => normalize(copy.label).includes(normalize(query.value.trim()))));
+const searched = computed(() => applyFilters(matching.value, { ...defaultFilters(), q: query.value, sort: sort.value }));
 const totalPages = computed(() => pageCount(searched.value.length));
 const pageItems = computed(() => searched.value.slice((page.value-1)*PAGE_SIZE, page.value*PAGE_SIZE));
 const toolName = computed(() => props.toolId ? findTool(props.toolId)?.name ?? 'Aplicativo' : 'Documentos');
-watch(query, () => { page.value = 1; });
-watch(totalPages, max => { page.value = boundedPage(page.value, max); });
+// A posição do histórico é lembrada por aplicativo, na aba atual, e só vale enquanto há páginas suficientes.
+function remember(value: number): void { const memory = readMemory(); writeMemory(withPosition(memory, memoryKey, value)); }
+function goTo(value: number): void { page.value = boundedPage(value, totalPages.value); remember(page.value); }
+watch([query, sort], () => { page.value = 1; remember(1); });
+watch(totalPages, max => { if (all.value.length) page.value = boundedPage(page.value, max); });
 
 async function dbExists(): Promise<boolean> {
   try {
@@ -42,11 +49,7 @@ async function refresh(): Promise<void> {
     if (alive) all.value = next;
   } catch { if (alive) all.value = []; }
 }
-function href(copy: CopySummary): string | null {
-  if (copy.type === 'labels') return '/apps/etiquetas/?doc=' + encodeURIComponent(copy.id);
-  if (copy.type === 'texts' && copy.legacyId.startsWith('v2-texts-')) return '/apps/texto/?doc=' + encodeURIComponent(copy.id);
-  return null;
-}
+const href = openHref;
 const toolOf = (copy: CopySummary) => { const id = toolIdForType(copy.type); return id ? findTool(id) ?? null : null; };
 onMounted(() => { alive = true; void refresh(); try { stop = watchCopies(() => { void refresh(); }); } catch { /* no cross-tab channel */ } });
 onBeforeUnmount(() => { alive = false; stop?.(); });
@@ -74,19 +77,25 @@ onBeforeUnmount(() => { alive = false; stop?.(); });
     <p v-else class="muted empty">Nenhum arquivo salvo ainda.</p>
     <ModalDialog :open="expanded" :label="'Histórico de ' + toolName" variant="center" backdrop-close @close="expanded = false">
       <div class="modal-head"><h2 tabindex="-1" data-autofocus>Histórico completo · {{ toolName }}</h2><button type="button" class="close" aria-label="Fechar histórico" @click="expanded = false">✕</button></div>
-      <label class="search-label" for="history-search">Buscar arquivos</label>
-      <input id="history-search" v-model="query" class="search" type="search" placeholder="Nome do documento" />
-      <p class="muted total">{{ searched.length }} {{ searched.length === 1 ? 'arquivo' : 'arquivos' }}</p>
+      <div class="controls">
+        <div class="grow"><label class="search-label" for="history-search">Buscar arquivos</label>
+          <input id="history-search" v-model="query" class="search" type="search" placeholder="Nome do documento" autocomplete="off" /></div>
+        <div><label class="search-label" for="history-sort">Ordenar por</label>
+          <select id="history-sort" v-model="sort" class="search"><option v-for="key in sortKeys" :key="key" :value="key">{{ sortLabels[key] }}</option></select></div>
+      </div>
+      <p class="muted total" aria-live="polite">{{ searched.length }} {{ searched.length === 1 ? 'arquivo' : 'arquivos' }}<template v-if="totalPages > 1"> · página {{ page }} de {{ totalPages }}</template></p>
       <ul v-if="pageItems.length" class="full-list" data-testid="history-list">
         <li v-for="copy in pageItems" :key="copy.id">
           <span class="row-thumb"><DocThumb :copy="copy" /></span>
-          <a v-if="href(copy)" :href="href(copy)!">{{ copy.label || 'Documento sem título' }}</a>
-          <RouterLink v-else :to="{ name: 'docs', query: { ferramenta: toolIdForType(copy.type) ?? undefined } }" @click="expanded = false">{{ copy.label || 'Documento sem título' }}</RouterLink>
-          <small class="muted">{{ formatDate(copy.updatedAt) }}</small>
+          <span class="row-text">
+            <a v-if="href(copy)" :href="href(copy)!">{{ copy.label || 'Documento sem título' }}</a>
+            <RouterLink v-else :to="{ name: 'docs', query: { ferramenta: toolIdForType(copy.type) ?? undefined } }" @click="expanded = false">{{ copy.label || 'Documento sem título' }}</RouterLink>
+            <small class="muted">{{ typeLabel(copy.type) }} · {{ formatDate(copy.updatedAt) }}<template v-if="copy.imageCount"> · {{ imagesText(copy.imageCount) }}</template></small>
+          </span>
         </li>
       </ul>
       <p v-else class="muted empty">Nenhum arquivo encontrado.</p>
-      <PageNavigator :page="page" :total-pages="totalPages" @change="n => page = n" />
+      <PageNavigator :page="page" :total-pages="totalPages" @change="goTo" />
       <RouterLink :to="{ name: 'docs', query: toolId ? { ferramenta: toolId } : {} }" class="btn btn-ghost" @click="expanded = false">Biblioteca de documentos</RouterLink>
     </ModalDialog>
   </section>
@@ -113,9 +122,12 @@ onBeforeUnmount(() => { alive = false; stop?.(); });
 .search { box-sizing:border-box; width:100%; min-height:44px; border:1px solid var(--border); border-radius:10px; padding:8px 12px; background:var(--panel); color:var(--text); }
 .total { font-size:12px; margin:10px 0; }
 .full-list { padding:0; margin:0; list-style:none; max-height:46dvh; overflow:auto; }
-.full-list li { display:flex; flex-wrap:wrap; align-items:center; gap:8px; border-bottom:1px solid var(--border); padding:8px 0; }
-.full-list a { flex:1; min-width:110px; overflow-wrap:anywhere; color:var(--accent); font-weight:700; }
-.full-list small { font-size:11px; }
-.row-thumb { flex:0 0 38px; width:38px; }
+.full-list li { display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--border); padding:8px 0; content-visibility:auto; contain-intrinsic-size:auto 66px; }
+.full-list a { overflow-wrap:anywhere; color:var(--accent); font-weight:700; min-height:24px; }
+.full-list small { font-size:11.5px; }
+.row-text { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
+.row-thumb { flex:0 0 40px; width:40px; }
+.controls { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,190px); gap:10px; }
+@media(max-width:480px) { .controls { grid-template-columns:minmax(0,1fr); } }
 @media(max-width:599px) { .scroller { margin-right:-12px; } .tile { flex-basis:118px; } .head { gap:8px; } .count { display:none; } }
 </style>

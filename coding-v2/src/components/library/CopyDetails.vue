@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import type { CopySummary } from '../../storage/documents';
-import { formatDate, imagesSizeText, imagesText, originText, typeLabel } from '../../library/model';
+import { formatDate, imagesSizeText, imagesText, openEditorName, openHref as editorHref, originText, typeLabel } from '../../library/model';
 
 import { computed } from 'vue';
-import { getTool } from '../../shared/catalog';
 
 const props = defineProps<{ copy: CopySummary; busy: boolean }>();
-const openHref = computed(() => (getTool('labels').path ?? '/apps/etiquetas/') + '?doc=' + encodeURIComponent(props.copy.id));
+const openHref = computed(() => editorHref(props.copy));
 defineEmits<{ rename: []; export: []; duplicate: []; remove: [] }>();
 </script>
 
@@ -21,7 +20,7 @@ defineEmits<{ rename: []; export: []; duplicate: []; remove: [] }>();
       <div><dt>Revisão</dt><dd>{{ copy.revision }}</dd></div>
     </dl>
     <div class="actions">
-      <a v-if="copy.type === 'labels'" class="btn btn-primary wide" data-copy-action="open" :href="openHref" :aria-label="'Abrir cópia de ' + copy.label + ' no editor de Etiquetas'">Abrir no editor</a>
+      <a v-if="openHref" class="btn btn-primary wide" data-copy-action="open" :href="openHref" :aria-label="'Abrir cópia de ' + copy.label + ' no editor de ' + openEditorName(copy.type)">Abrir no editor</a>
       <button type="button" class="btn" data-copy-action="rename" :aria-label="'Renomear cópia de ' + copy.label" :aria-busy="busy" @click="$emit('rename')">Renomear</button>
       <button type="button" class="btn" data-copy-action="export" :aria-label="'Exportar cópia de ' + copy.label" :aria-busy="busy" @click="$emit('export')">Exportar</button>
       <button type="button" class="btn" data-copy-action="duplicate" :aria-label="'Criar nova cópia de ' + copy.label" :aria-busy="busy" @click="$emit('duplicate')">Criar cópia</button>

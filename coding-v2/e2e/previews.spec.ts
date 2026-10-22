@@ -19,7 +19,7 @@ async function seed(page: Page, ...entries: Entry[]): Promise<void> {
 }
 
 test('Etiquetas: miniatura A4 desenha as etiquetas reais salvas', async ({ page }) => {
-  await seed(page, labelsDoc('l1', 'Estoque A', 'PAR-123', 100));
+  await seed(page, labelsDoc('l1', 'Estoque A', 'PAR-123', 1_700_000_100_000));
   await page.goto('/launcher/#/app/labels');
   const thumb = page.getByTestId('history-tile').first().getByTestId('doc-thumb');
   await expect(thumb).toHaveAttribute('data-state', 'ready');
@@ -35,8 +35,8 @@ test('Etiquetas: miniatura A4 desenha as etiquetas reais salvas', async ({ page 
 
 test('Texto: miniatura mostra o conteúdo formatado, sem scripts, e documentos inválidos usam o ícone', async ({ page }) => {
   await seed(page,
-    textDoc('t1', 'Carta', '<h1>Título da carta</h1><p style="color: #c0392b; font-size: 20px">Olá mundo</p><script>window.__pwn=1</script>', 100),
-    { ...backupDoc('t2', 'Quebrado', { type: 'texts', updatedAt: 50 }) });
+    textDoc('t1', 'Carta', '<h1>Título da carta</h1><p style="color: #c0392b; font-size: 20px">Olá mundo</p><script>window.__pwn=1</script>', 1_700_000_100_000),
+    { ...backupDoc('t2', 'Quebrado', { type: 'texts', updatedAt: 1_700_000_050_000 }) });
   await page.goto('/launcher/#/app/texts');
   const tiles = page.getByTestId('history-tile');
   await expect(tiles).toHaveCount(2);
@@ -52,7 +52,7 @@ test('Texto: miniatura mostra o conteúdo formatado, sem scripts, e documentos i
 });
 
 test('miniaturas são lidas sob demanda, não criam nem alteram dados', async ({ page }) => {
-  const docs = Array.from({ length: 30 }, (_, i) => labelsDoc('m' + i, 'Lote ' + String(i).padStart(2, '0'), 'COD-' + i, 1000 + i));
+  const docs = Array.from({ length: 30 }, (_, i) => labelsDoc('m' + i, 'Lote ' + String(i).padStart(2, '0'), 'COD-' + i, 1_700_000_000_000 + i * 60_000));
   await seed(page, ...docs);
   const before = await readCopiesDb(page);
   await page.setViewportSize({ width: 390, height: 640 });
@@ -72,7 +72,7 @@ test('miniaturas são lidas sob demanda, não criam nem alteram dados', async ({
 });
 
 test('miniaturas: responsivas em 320–430 px, sem rolagem horizontal e acessíveis nos dois temas', async ({ page }) => {
-  await seed(page, labelsDoc('l1', 'Estoque A', 'PAR-123', 100), labelsDoc('l2', 'Estoque B', 'PAR-456', 90));
+  await seed(page, labelsDoc('l1', 'Estoque A', 'PAR-123', 1_700_000_100_000), labelsDoc('l2', 'Estoque B', 'PAR-456', 1_700_000_090_000));
   for (const width of [320, 360, 390, 430]) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto('/launcher/#/app/labels');
@@ -90,7 +90,7 @@ test('miniaturas: responsivas em 320–430 px, sem rolagem horizontal e acessív
 });
 
 test('carrossel continua com no máximo oito arquivos e o modal lista todos', async ({ page }) => {
-  await seed(page, ...Array.from({ length: 11 }, (_, i) => labelsDoc('c' + i, 'Item ' + i, 'C-' + i, 10 + i)));
+  await seed(page, ...Array.from({ length: 11 }, (_, i) => labelsDoc('c' + i, 'Item ' + i, 'C-' + i, 1_700_000_000_000 + i * 60_000)));
   await page.goto('/launcher/#/app/labels');
   await expect(page.getByTestId('history-tile')).toHaveCount(8);
   await expect(page.getByTestId('history-tile').first()).toContainText('Item 10');

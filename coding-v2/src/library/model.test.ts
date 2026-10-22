@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CopySummary } from '../storage/documents';
-import { applyFilters, defaultFilters, filtersFromQuery, filtersToQuery, imagesSizeText, normalize, toolIdForType, toolsPresent } from './model';
+import { applyFilters, defaultFilters, filtersFromQuery, filtersToQuery, imagesSizeText, normalize, openHref, toolIdForType, toolsPresent } from './model';
 
 function copy(id: string, label: string, type: string, updatedAt: number, source: CopySummary['source'] = 'backup'): CopySummary {
   return { id, legacyId: id, source, label, revision: 1, createdAt: 1, updatedAt, type, imageCount: 0, imageBytes: null };
@@ -51,5 +51,27 @@ describe('modelo da biblioteca', () => {
     expect(imagesSizeText(0, null)).toBe('sem imagens');
     expect(imagesSizeText(2, null)).toBe('tamanho não registrado');
     expect(imagesSizeText(1, 3 * 1024 * 1024)).toBe('3,0 MB');
+  });
+  it('busca com vários termos exige todos, em qualquer ordem, e considera o tipo', () => {
+    const l = [copy('1', 'Caixa do estoque', 'labels', 1), copy('2', 'Estoque geral', 'texts', 2), copy('3', 'Caixa', 'texts', 3)];
+    expect(applyFilters(l, { ...defaultFilters(), q: 'estoque caixa' }).map((c) => c.id)).toEqual(['1']);
+    expect(applyFilters(l, { ...defaultFilters(), q: '  CAIXA   texto ' }).map((c) => c.id)).toEqual(['3']);
+    expect(applyFilters(l, { ...defaultFilters(), q: 'etiquetas' }).map((c) => c.id)).toEqual(['1']);
+  });
+  it('ordena por tipo e por quantidade de imagens sem alterar a lista original', () => {
+    const l = [
+      { ...copy('1', 'B', 'texts', 1), imageCount: 0 }, { ...copy('2', 'A', 'labels', 2), imageCount: 3 },
+      { ...copy('3', 'C', 'labels', 3), imageCount: 3 }, { ...copy('4', 'D', 'texts', 4), imageCount: 1 }
+    ];
+    expect(applyFilters(l, { ...defaultFilters(), sort: 'type' }).map((c) => c.id)).toEqual(['2', '3', '1', '4']);
+    expect(applyFilters(l, { ...defaultFilters(), sort: 'images' }).map((c) => c.id)).toEqual(['3', '2', '4', '1']);
+    expect(l.map((c) => c.id)).toEqual(['1', '2', '3', '4']);
+    expect(filtersFromQuery({ ordem: 'images' }).sort).toBe('images');
+  });
+  it('só oferece editor para cópias que a v2 realmente sabe abrir', () => {
+    expect(openHref({ id: 'a b', type: 'labels', legacyId: 'x' })).toBe('/apps/etiquetas/?doc=a%20b');
+    expect(openHref({ id: 'a', type: 'texts', legacyId: 'v2-texts-1' })).toBe('/apps/texto/?doc=a');
+    expect(openHref({ id: 'a', type: 'texts', legacyId: 'txt-1' })).toBeNull();
+    expect(openHref({ id: 'a', type: 'images', legacyId: 'i' })).toBeNull();
   });
 });
