@@ -14,7 +14,7 @@ const tool = computed(() => copyTool(props.copy));
   <li class="item">
     <button type="button" class="card" :data-copy-card="copy.id" :aria-current="selected ? 'true' : undefined" @click="$emit('select', copy.id)">
       <AppIcon v-if="tool" :id="tool" size="lg" />
-      <span v-else class="generic" aria-hidden="true"><NavIcon name="docs" /></span>
+      <span v-else class="generic" aria-hidden="true"><NavIcon name="copy" /></span>
       <span class="txt">
         <strong class="name"><span class="sr-only">Detalhes de </span>{{ copy.label }}</strong>
         <span class="meta">{{ typeLabel(copy.type) }} · {{ originText(copy) }}</span>

@@ -73,6 +73,65 @@ describe('Launcher · telas', () => {
   });
 });
 
+describe('Launcher · aparência de loja', () => {
+  it('Início destaca o app funcional com ação real e não inventa documentos recentes', async () => {
+    const { wrapper } = await mountLauncher('/');
+    const hero = wrapper.find('[data-testid="featured"]');
+    expect(hero.text()).toContain('Etiquetas');
+    expect(hero.text()).toContain('Editor funcional');
+    expect(hero.find('a[href="/apps/etiquetas/"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="recent-docs"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain('1 com editor funcional');
+    wrapper.unmount();
+  });
+
+  it('Catálogo filtra por categoria e mostra o destaque só sem filtros', async () => {
+    const { wrapper } = await mountLauncher('/catalogo');
+    expect(wrapper.find('[data-testid="spotlight"]').exists()).toBe(true);
+    await wrapper.findAll('button.cat').find((b) => b.text() === 'Etiquetas e códigos')?.trigger('click');
+    expect(wrapper.findAll('article.card h3').map((h) => h.text()).sort()).toEqual(['Etiquetas', 'Planilha → Etiquetas', 'QR / Barras']);
+    expect(wrapper.find('[data-testid="spotlight"]').exists()).toBe(false);
+    await wrapper.find('[data-testid="clear-filters"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.findAll('article.card')).toHaveLength(9);
+    wrapper.unmount();
+  });
+
+  it('cada card diz o que de fato existe: funcional, prévia ou em breve', async () => {
+    const { wrapper } = await mountLauncher('/catalogo');
+    const meta = Object.fromEntries(wrapper.findAll('article.card').map((c) => [c.find('h3').text(), c.find('[data-testid="card-meta"]').text()]));
+    expect(meta['Etiquetas']).toContain('Editor funcional');
+    expect(meta['Texto']).toContain('Prévia visual');
+    expect(meta['Planilhas']).toContain('Em breve');
+    wrapper.unmount();
+  });
+
+  it('Detalhes de Etiquetas lista o que funciona; Texto não finge nada', async () => {
+    const a = await mountLauncher('/app/labels');
+    expect(a.wrapper.find('[data-testid="ready-list"]').text()).toContain('Imprimir e baixar PDF');
+    a.wrapper.unmount();
+    const b = await mountLauncher('/app/texts');
+    expect(b.wrapper.find('[data-testid="ready-list"]').exists()).toBe(false);
+    expect(b.wrapper.text()).toContain('Nenhuma edição é salva');
+    b.wrapper.unmount();
+  });
+
+  it('Meus apps oferece ativar o que está desativado, sem instalar nada', async () => {
+    const { wrapper } = await mountLauncher('/meus-apps');
+    expect(wrapper.find('[data-testid="available-to-activate"]').exists()).toBe(false);
+    await wrapper.find('button[aria-label="Desativar Texto no Launcher"]').trigger('click');
+    await flushPromises();
+    await wrapper.findAll('dialog button').find((b) => b.text() === 'Desativar atalho')?.trigger('click');
+    await flushPromises();
+    const box = wrapper.find('[data-testid="available-to-activate"]');
+    expect(box.text()).toContain('Texto');
+    expect(box.text()).toContain('não instala nada');
+    await box.find('button[aria-label="Ativar Texto no Launcher"]').trigger('click');
+    expect(wrapper.find('[data-testid="available-to-activate"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+});
+
 describe('Launcher · ativação', () => {
   it('desativar pede confirmação, mantém documentos e avisa leitores de tela', async () => {
     const { wrapper } = await mountLauncher('/meus-apps');

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { RouterLink } from 'vue-router';
-import { findTool } from '../shared/catalog';
+import { availabilityLabel, availabilityOf, categories, findTool } from '../shared/catalog';
 import { levelsFor, type LevelState } from '../shared/levels';
 import { legacyLink } from '../shared/links';
 import { useAppsStore } from '../stores/apps';
@@ -17,6 +17,8 @@ const apps = useAppsStore();
 const tool = computed(() => findTool(props.id));
 const enabled = computed(() => (tool.value ? apps.isEnabled(tool.value.id) : false));
 const levels = computed(() => (tool.value ? levelsFor(tool.value, enabled.value) : []));
+const avail = computed(() => (tool.value ? availabilityOf(tool.value) : 'planned'));
+const categoryName = computed(() => categories.find((c) => c.id === tool.value?.category)?.label ?? '');
 const tone = (state: LevelState): PillTone => (state === 'on' ? 'on' : state === 'unverified' || state === 'unproven' ? 'warn' : state === 'unavailable' ? 'soon' : 'off');
 </script>
 
@@ -25,7 +27,9 @@ const tone = (state: LevelState): PillTone => (state === 'on' ? 'on' : state ===
     <p class="crumb"><RouterLink :to="{ name: 'catalog' }" class="back"><NavIcon name="back" />Catálogo</RouterLink></p>
     <div class="hero" :style="{ '--app': tool.color, '--app-cx-l': tool.textLight, '--app-cx-d': tool.textDark }">
       <AppIcon :id="tool.id" size="xl" />
-      <PageHeader :title="tool.name" :lead="tool.description" />
+      <PageHeader :title="tool.name" :lead="tool.description">
+        <p class="chips" data-testid="detail-meta"><span class="chip2">{{ availabilityLabel[avail] }}</span><span class="chip2">{{ categoryName }}</span></p>
+      </PageHeader>
     </div>
 
     <section aria-labelledby="niveis">
@@ -43,12 +47,16 @@ const tone = (state: LevelState): PillTone => (state === 'on' ? 'on' : state ===
     </section>
 
     <section aria-labelledby="previsto" :style="{ '--app': tool.color, '--app-cx-l': tool.textLight, '--app-cx-d': tool.textDark }">
-      <h2 id="previsto" class="app-text">O que está previsto</h2>
+      <template v-if="tool.ready.length">
+        <h2 id="pronto" class="app-text">O que já funciona</h2>
+        <ul class="plan" data-testid="ready-list"><li v-for="item in tool.ready" :key="item">{{ item }}</li></ul>
+      </template>
+      <h2 id="previsto" class="app-text">{{ tool.ready.length ? 'O que ainda falta' : 'O que está previsto' }}</h2>
       <ul class="plan"><li v-for="item in tool.planned" :key="item">{{ item }}</li></ul>
-      <p v-if="tool.status === 'preview'" class="muted">A prévia mostra só a estrutura visual. Nenhuma edição é salva.</p>
+      <p v-if="tool.status === 'preview' && !tool.ready.length" class="muted">A prévia mostra só a estrutura visual. Nenhuma edição é salva.</p>
       <div class="cta">
-        <a v-if="tool.status === 'preview' && enabled && tool.path" :href="tool.path" class="btn btn-app">Abrir prévia</a>
-        <p v-else-if="tool.status === 'preview'" class="muted hint">Ative o app para abrir a prévia.</p>
+        <a v-if="tool.status === 'preview' && enabled && tool.path" :href="tool.path" class="btn btn-app">{{ tool.ready.length ? 'Abrir editor' : 'Abrir prévia' }}</a>
+        <p v-else-if="tool.status === 'preview'" class="muted hint">Ative o app para abrir {{ tool.ready.length ? 'o editor' : 'a prévia' }}.</p>
         <a class="btn btn-ghost" :href="legacyLink(tool.legacyHash)">Usar no Coding atual <NavIcon name="external" /></a>
       </div>
     </section>
@@ -64,6 +72,8 @@ const tone = (state: LevelState): PillTone => (state === 'on' ? 'on' : state ===
 .back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--accent); font-weight: 700; text-decoration: none; }
 .hero { display: flex; align-items: center; gap: 20px; margin-bottom: 8px; }
 .hero :deep(.ph) { margin-bottom: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.chip2 { padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel); font-size: 12.5px; font-weight: 700; }
 section { margin-top: 32px; }
 h2 { font-size: 20px; margin-bottom: 4px; }
 .intro { margin-bottom: 16px; }
