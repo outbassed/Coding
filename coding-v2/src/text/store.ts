@@ -6,7 +6,7 @@ export class NotTextDocument extends Error {
 }
 const snapshot = (state: TextState): LegacySnapshot => ({
   source: 'v2',
-  doc: { id: 'v2-texts-' + crypto.randomUUID(), type: 'texts', updatedAt: Date.now(), state },
+  doc: { id: 'v2-texts-' + crypto.randomUUID(), type: 'texts', updatedAt: Date.now(), state: { ...state } },
   images: []
 });
 export async function createTextDocument(state: TextState): Promise<CopyRecord> {
