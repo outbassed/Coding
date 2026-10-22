@@ -26,6 +26,7 @@ import { LEGACY_URL } from '../../shared/links';
 .item { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 48px; padding: 0 12px; border-radius: 12px; color: var(--muted); text-decoration: none; font-weight: 650; }
 .item:hover { color: var(--text); background: var(--panel); }
 .item.router-link-exact-active { color: var(--text); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); box-shadow: inset 3px 0 var(--accent); }
+.item.router-link-exact-active :deep(.legacy-nav-icon) { box-shadow: 0 0 0 2px var(--accent); }
 .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (min-width: 600px) { .side { display: flex; width: 76px; } }
 @media (min-width: 900px) {
