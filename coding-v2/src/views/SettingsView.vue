@@ -7,7 +7,7 @@ const themes: { id: Theme; label: string }[] = [{ id: 'auto', label: 'Automátic
 </script>
 
 <template>
-  <PageHeader eyebrow="Preferências" title="Ajustes" />
+  <PageHeader eyebrow="Preferências" title="Ajustes" logo="/legacy-icons/tools.svg" />
   <section class="card" aria-labelledby="tema">
     <h2 id="tema">Aparência</h2>
     <p class="muted">Automático segue o tema do seu aparelho.</p>

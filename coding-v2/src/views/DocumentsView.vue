@@ -349,7 +349,7 @@ const toolName = (id: ToolId): string => getTool(id).name;
 </script>
 
 <template>
-  <PageHeader eyebrow="Biblioteca" title="Documentos" lead="Suas cópias de trabalho da versão 2.0. Os documentos do Coding antigo continuam protegidos: só são lidos quando você pede." />
+  <PageHeader eyebrow="Biblioteca" title="Documentos" logo="/legacy-icons/documents.svg" lead="Suas cópias de trabalho da versão 2.0. Os documentos do Coding antigo continuam protegidos: só são lidos quando você pede." />
 
   <div class="live" role="status" aria-live="polite" data-testid="library-status">{{ status }}</div>
   <p class="live-error" role="alert" data-testid="library-error">{{ error }}</p>
