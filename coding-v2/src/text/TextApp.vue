@@ -76,7 +76,10 @@ function checkChange(): void {
 function normalizeFonts(): void {
   const host = editor.value;
   if (!host) return;
-  host.querySelectorAll('font').forEach((font) => {
+  const fonts = host.querySelectorAll('font');
+  if (!fonts.length) return;
+  const at = readOffsets(host); // trocar os nós faria a seleção colapsar; restauramos em seguida
+  fonts.forEach((font) => {
     const span = document.createElement('span');
     const size = font.getAttribute('size');
     if (size === '7') span.style.fontSize = pendingSizePx + 'px';
@@ -85,6 +88,7 @@ function normalizeFonts(): void {
     while (font.firstChild) span.appendChild(font.firstChild);
     font.replaceWith(span);
   });
+  if (at) { try { writeOffsets(host, at.start, at.end); } catch { /* sem seleção */ } }
 }
 function ensureCaretVisible(): void {
   const stage = stageEl.value, selection = window.getSelection();
@@ -463,7 +467,7 @@ onBeforeUnmount(() => {
         <button type="button" class="btn" :disabled="loading" data-testid="text-save" @click="saveNow">Salvar agora</button>
       </section>
       <div class="editing">
-        <div class="toolbar" role="toolbar" aria-label="Ferramentas de texto" data-testid="text-toolbar">
+        <section class="toolbar" aria-label="Ferramentas de texto" data-testid="text-toolbar">
           <div class="grp" role="group" aria-label="Histórico">
             <button type="button" class="tool" aria-label="Desfazer" title="Desfazer (Ctrl+Z)" data-testid="text-undo" :disabled="!canUndo" @mousedown.prevent @click="undo">↶</button>
             <button type="button" class="tool" aria-label="Refazer" title="Refazer (Ctrl+Shift+Z)" data-testid="text-redo" :disabled="!canRedo" @mousedown.prevent @click="redo">↷</button>
@@ -515,7 +519,7 @@ onBeforeUnmount(() => {
             <button type="button" class="tool" aria-label="Exportar TXT" @click="exportTxt"><span class="wide-label">Exportar </span>TXT</button>
             <button type="button" class="tool strong" aria-label="Imprimir / PDF" @click="printDocument"><span class="wide-label">Imprimir / </span>PDF</button>
           </div>
-        </div>
+        </section>
         <main ref="stageEl" class="stage" tabindex="0" aria-label="Área de edição" @scroll.passive="updateFrame">
           <p v-if="loading" class="muted" role="status">Abrindo documento…</p>
           <section v-show="!loading" ref="paperEl" class="paper" aria-label="Página do documento">

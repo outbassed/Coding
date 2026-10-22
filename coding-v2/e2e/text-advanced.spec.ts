@@ -2,7 +2,15 @@ import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 const EDITOR = '/apps/texto/';
-const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
+/** PNG de verdade (320×160) para poder clicar e arrastar a imagem. */
+async function makePng(page: Page): Promise<Buffer> {
+  const b64 = await page.evaluate(() => {
+    const c = document.createElement('canvas'); c.width = 320; c.height = 160;
+    const g = c.getContext('2d')!; g.fillStyle = '#2a7de1'; g.fillRect(0, 0, 320, 160); g.fillStyle = '#fff'; g.fillRect(20, 20, 120, 60);
+    return c.toDataURL('image/png').split(',')[1]!;
+  });
+  return Buffer.from(b64, 'base64');
+}
 const editor = (page: Page) => page.getByTestId('text-editor');
 const saved = (page: Page) => expect(page.getByTestId('save-status')).toHaveText('Salvo neste aparelho', { timeout: 10000 });
 
@@ -128,7 +136,7 @@ test.describe('Texto avançado · computador', () => {
 
   test('imagem: selecionar, redimensionar por botões e por arraste, remover', async ({ page }) => {
     await page.goto(EDITOR);
-    await page.getByLabel('Selecionar imagem para o texto').setInputFiles({ name: 'p.png', mimeType: 'image/png', buffer: PNG });
+    await page.getByLabel('Selecionar imagem para o texto').setInputFiles({ name: 'p.png', mimeType: 'image/png', buffer: await makePng(page) });
     const img = editor(page).locator('img');
     await expect(img).toHaveCount(1);
     await expect(page.getByTestId('img-percent')).toHaveCount(0);
