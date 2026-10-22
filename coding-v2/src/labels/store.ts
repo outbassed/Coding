@@ -4,15 +4,8 @@ import {
 } from '../storage/documents';
 import { normalize, uid, type LabelsState } from './model';
 
-/**
- * Adaptador entre Etiquetas e o armazenamento v2 existente (cópias isoladas).
- * Nunca toca no banco legado e não altera src/storage.
- *
- * CONTRATO PENDENTE com o GPT-6: `Source` só aceita 'indexeddb' | 'localStorage' | 'backup'.
- * Documentos NOVOS criados na v2 usam 'backup' + legacyId com este prefixo, que a interface
- * reconhece como "criado na v2". Ideal: um quarto valor `'v2'` em `Source`.
- */
-export const NEW_DOC_SOURCE = 'backup' as const;
+/** Adaptador de Etiquetas para cópias v2. Preserva a leitura de documentos antigos com source='backup'. */
+export const NEW_DOC_SOURCE = 'v2' as const;
 export const NEW_DOC_PREFIX = 'v2-labels-';
 export const isCreatedInV2 = (copy: { legacyId: string }): boolean => copy.legacyId.startsWith(NEW_DOC_PREFIX);
 
