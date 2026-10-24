@@ -11,6 +11,8 @@ import { MAX_IMAGE_BYTES, MIN_IMAGE_PERCENT, TEXT_FONTS, TEXT_SIZES, cleanFont, 
 import { TextHistory } from './history';
 import { readOffsets, writeOffsets } from './selection';
 import { useVisualViewport } from '../composables/useVisualViewport';
+import { useMediaQuery } from '../composables/useMediaQuery';
+import NavIcon from '../components/ui/NavIcon.vue';
 import { createTextDocument, openTextDocument, saveTextDocument } from './store';
 import { TEXT_TEMPLATES, textTemplate } from './templates';
 import { htmlToBlocks } from './blocks';
@@ -22,6 +24,64 @@ useSettingsStore();
 const root = ref<HTMLElement | null>(null);
 useVisualViewport(() => root.value);
 const tool = getTool('texts');
+const wideText = useMediaQuery('(min-width: 900px)', true);
+const mobileToolTabs = [
+  { id: 'formato', label: 'Formato', group: 'Fonte e estilo' },
+  { id: 'paragrafo', label: 'Parágrafo', group: 'Parágrafo' },
+  { id: 'inserir', label: 'Inserir', group: 'Inserir' },
+  { id: 'imagem', label: 'Imagem', group: 'Imagem' },
+  { id: 'arquivo', label: 'Arquivo', group: 'Exportar' }
+];
+const activeMobileTool = ref('formato');
+const mobilePanelOpen = ref(true);
+const mobileSnap = ref<'compact' | 'half' | 'full'>('half');
+const controlsEl = ref<HTMLElement | null>(null);
+const mobilePanelTitle = computed(() => mobileToolTabs.find((x) => x.id === activeMobileTool.value)?.label || 'Ferramentas');
+function chooseMobileTool(id: string): void {
+  if (activeMobileTool.value === id && mobilePanelOpen.value) { mobilePanelOpen.value = false; return; }
+  activeMobileTool.value = id;
+  mobilePanelOpen.value = true;
+  requestAnimationFrame(() => {
+    const el = controlsEl.value?.querySelector<HTMLElement>(id === 'arquivo' ? '.output' : '[data-tool-group="' + id + '"]');
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+  });
+}
+function toolKeys(event: KeyboardEvent): void {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+  event.preventDefault();
+  const n = mobileToolTabs.findIndex((x) => x.id === activeMobileTool.value);
+  const next = mobileToolTabs[(n + (event.key === 'ArrowRight' ? 1 : -1) + mobileToolTabs.length) % mobileToolTabs.length];
+  if (!next) return;
+  activeMobileTool.value = next.id;
+  mobilePanelOpen.value = true;
+  requestAnimationFrame(() => document.getElementById('text-tab-' + next.id)?.focus());
+}
+function cycleMobileSnap(): void {
+  mobileSnap.value = mobileSnap.value === 'compact' ? 'half' : mobileSnap.value === 'half' ? 'full' : 'compact';
+}
+let mobilePointerY: number | null = null;
+function snapStart(e: PointerEvent): void {
+  if (e.button !== 0) return;
+  mobilePointerY = e.clientY;
+  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  e.preventDefault();
+}
+function snapEnd(e: PointerEvent): void {
+  if (mobilePointerY === null) return;
+  const delta = mobilePointerY - e.clientY;
+  mobilePointerY = null;
+  const target = e.currentTarget as HTMLElement;
+  if (target.hasPointerCapture(e.pointerId)) target.releasePointerCapture(e.pointerId);
+  if (Math.abs(delta) < 38) return;
+  if (delta > 0) mobileSnap.value = mobileSnap.value === 'compact' ? 'half' : 'full';
+  else mobileSnap.value = mobileSnap.value === 'full' ? 'half' : 'compact';
+}
+function snapKeys(e: KeyboardEvent): void {
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  e.preventDefault();
+  if (e.key === 'ArrowUp') mobileSnap.value = mobileSnap.value === 'compact' ? 'half' : 'full';
+  else mobileSnap.value = mobileSnap.value === 'full' ? 'half' : 'compact';
+}
 const editor = ref<HTMLElement | null>(null);
 const stageEl = ref<HTMLElement | null>(null);
 const paperEl = ref<HTMLElement | null>(null);
@@ -575,6 +635,14 @@ onBeforeUnmount(() => {
       {{ loadError }} <a :href="LAUNCHER_PATH + '#/documentos'">Voltar à biblioteca</a>
     </p>
     <template v-else>
+      <div class="editing">
+        <aside v-show="wideText || mobilePanelOpen" ref="controlsEl" class="text-controls" :class="'snap-' + mobileSnap" aria-label="Ferramentas de texto" data-testid="text-controls">
+          <header v-if="!wideText" class="text-sheet-head">
+            <span class="text-sheet-grip" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Arrastar para mudar a altura das ferramentas" :aria-valuemin="0" :aria-valuemax="2" :aria-valuenow="mobileSnap === 'compact' ? 0 : mobileSnap === 'half' ? 1 : 2" @pointerdown="snapStart" @pointerup="snapEnd" @pointercancel="snapEnd" @keydown="snapKeys"></span>
+            <h2>{{ mobilePanelTitle }}</h2>
+            <button type="button" class="text-panel-action" aria-label="Alterar altura do painel" @click="cycleMobileSnap"><NavIcon :name="mobileSnap === 'full' ? 'chevron-down' : 'chevron-up'" /></button>
+            <button type="button" class="text-panel-action" aria-label="Recolher ferramentas" @click="mobilePanelOpen = false"><NavIcon name="close" /></button>
+          </header>
       <section class="document-meta" aria-label="Detalhes do documento">
         <label for="text-title">Nome do documento</label>
         <input id="text-title" v-model="state.name" type="text" maxlength="250" placeholder="Documento sem título" @input="onNameChange" />
@@ -584,13 +652,12 @@ onBeforeUnmount(() => {
         </details>
         <button type="button" class="btn" :disabled="loading" data-testid="text-save" @click="saveNow">Salvar agora</button>
       </section>
-      <div class="editing">
         <section class="toolbar" aria-label="Ferramentas de texto" data-testid="text-toolbar">
-          <div class="grp" role="group" aria-label="Histórico">
+          <div class="grp" role="group" aria-label="Histórico" data-tool-group="formato">
             <button type="button" class="tool" aria-label="Desfazer" title="Desfazer (Ctrl+Z)" data-testid="text-undo" :disabled="!canUndo" @mousedown.prevent @click="undo">↶</button>
             <button type="button" class="tool" aria-label="Refazer" title="Refazer (Ctrl+Shift+Z)" data-testid="text-redo" :disabled="!canRedo" @mousedown.prevent @click="redo">↷</button>
           </div>
-          <div class="grp" role="group" aria-label="Fonte e estilo">
+          <div class="grp" role="group" aria-label="Fonte e estilo" data-tool-group="formato">
             <select class="tool sel" aria-label="Estilo do parágrafo" data-testid="text-block" :value="format.block" @change="setBlock">
               <option v-for="b in blockOptions" :key="b.value" :value="b.value">{{ b.label }}</option>
             </select>
@@ -602,7 +669,7 @@ onBeforeUnmount(() => {
               <option v-for="n in TEXT_SIZES" :key="n" :value="String(n)">{{ n }}</option>
             </select>
           </div>
-          <div class="grp" role="group" aria-label="Caracteres">
+          <div class="grp" role="group" aria-label="Caracteres" data-tool-group="formato">
             <button type="button" class="tool" :aria-pressed="format.bold" title="Negrito (Ctrl+B)" aria-label="Negrito" @mousedown.prevent @click="command('bold')"><strong>N</strong></button>
             <button type="button" class="tool" :aria-pressed="format.italic" title="Itálico (Ctrl+I)" aria-label="Itálico" @mousedown.prevent @click="command('italic')"><em>I</em></button>
             <button type="button" class="tool" :aria-pressed="format.underline" title="Sublinhado (Ctrl+U)" aria-label="Sublinhado" @mousedown.prevent @click="command('underline')"><u>S</u></button>
@@ -611,7 +678,7 @@ onBeforeUnmount(() => {
             <button type="button" class="tool" aria-label="Remover destaque" title="Remover destaque" data-testid="text-clear-highlight" @mousedown.prevent @click="clearHighlight">A̸</button>
             <button type="button" class="tool" aria-label="Limpar formatação" title="Limpar formatação" @mousedown.prevent @click="command('removeFormat')">Tx</button>
           </div>
-          <div class="grp" role="group" aria-label="Parágrafo">
+          <div class="grp" role="group" aria-label="Parágrafo" data-tool-group="paragrafo">
             <button type="button" class="tool" :aria-pressed="format.align === 'left'" aria-label="Alinhar à esquerda" @mousedown.prevent @click="command('justifyLeft')">⇤</button>
             <button type="button" class="tool" :aria-pressed="format.align === 'center'" aria-label="Centralizar" @mousedown.prevent @click="command('justifyCenter')">≡</button>
             <button type="button" class="tool" :aria-pressed="format.align === 'right'" aria-label="Alinhar à direita" @mousedown.prevent @click="command('justifyRight')">⇥</button>
@@ -619,7 +686,7 @@ onBeforeUnmount(() => {
             <button type="button" class="tool" :aria-pressed="format.list === 'ul'" aria-label="Lista com marcadores" @mousedown.prevent @click="command('insertUnorderedList')">• Lista</button>
             <button type="button" class="tool" :aria-pressed="format.list === 'ol'" aria-label="Lista numerada" @mousedown.prevent @click="command('insertOrderedList')">1. Lista</button>
           </div>
-          <div class="grp" role="group" aria-label="Inserir">
+          <div class="grp" role="group" aria-label="Inserir" data-tool-group="inserir">
             <button type="button" class="tool" data-testid="text-table" @mousedown.prevent @click="insertTable">Tabela</button>
             <button type="button" class="tool" aria-label="Quebra de página" title="Quebra de página" data-testid="text-page-break" @mousedown.prevent @click="insertPageBreak">⤓<span class="wide-label"> Quebra</span></button>
             <template v-if="inTable">
@@ -632,7 +699,7 @@ onBeforeUnmount(() => {
               <button type="button" class="tool danger" aria-label="Excluir tabela" @mousedown.prevent @click="tableOp('del-table')">✕ Tabela</button>
             </template>
           </div>
-          <div class="grp" role="group" aria-label="Imagem">
+          <div class="grp" role="group" aria-label="Imagem" data-tool-group="imagem">
             <button type="button" class="tool" data-testid="text-image-button" @click="pictureInput?.click()">Imagem</button>
             <input ref="pictureInput" type="file" class="sr-only" accept="image/png,image/jpeg,image/webp" aria-label="Selecionar imagem para o texto" @change="addPicture" />
             <template v-if="selectedImg">
@@ -648,7 +715,7 @@ onBeforeUnmount(() => {
               <button type="button" class="tool danger" aria-label="Remover imagem" data-testid="img-remove" @mousedown.prevent @click="removeImage">Remover</button>
             </template>
           </div>
-          <div class="grp output" role="group" aria-label="Exportar">
+          <div class="grp output" role="group" aria-label="Exportar" data-tool-group="arquivo">
             <button type="button" class="tool" aria-label="Exportar HTML" @click="exportHtml"><span class="wide-label">Exportar </span>HTML</button>
             <button type="button" class="tool" aria-label="Exportar TXT" @click="exportTxt"><span class="wide-label">Exportar </span>TXT</button>
             <button type="button" class="tool" aria-label="Exportar DOCX" data-testid="export-docx" :disabled="exporting" @click="exportDocx"><span class="wide-label">Exportar </span>DOCX</button>
@@ -656,6 +723,7 @@ onBeforeUnmount(() => {
             <button type="button" class="tool strong" aria-label="Imprimir / PDF" @click="printDocument"><span class="wide-label">Imprimir / </span>PDF</button>
           </div>
         </section>
+        </aside>
         <main ref="stageEl" class="stage" tabindex="0" aria-label="Área de edição" @scroll.passive="updateFrame">
           <p v-if="loading" class="muted" role="status">Abrindo documento…</p>
           <section v-show="!loading" ref="paperEl" class="paper" aria-label="Página do documento">
@@ -668,6 +736,13 @@ onBeforeUnmount(() => {
             </div>
           </section>
         </main>
+        <nav v-if="!wideText" class="text-bottom-nav" aria-label="Ferramentas do editor">
+          <div class="text-bottom-tabs" role="tablist" aria-label="Categorias de texto" @keydown="toolKeys">
+            <button v-for="t in mobileToolTabs" :id="'text-tab-' + t.id" :key="t.id" type="button" role="tab" class="text-bottom-tab"
+              :aria-selected="activeMobileTool === t.id" :aria-expanded="activeMobileTool === t.id && mobilePanelOpen"
+              :tabindex="activeMobileTool === t.id ? 0 : -1" @click="chooseMobileTool(t.id)">{{ t.label }}</button>
+          </div>
+        </nav>
       </div>
       <p class="hint muted" role="status" data-testid="text-announcement">{{ note || 'Edite a folha. O documento é salvo após as alterações.' }} <span class="pages" data-testid="page-count">· {{ pageCount }} {{ pageCount === 1 ? 'página' : 'páginas' }} A4</span></p>
     </template>
@@ -682,12 +757,14 @@ onBeforeUnmount(() => {
 .title { flex: 1; min-width: 0; }
 .title h1 { margin: 0; font-size: 18px; }
 .tiny { font-size: 12px; }
-.document-meta { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.document-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .document-meta label { font-weight: 700; font-size: 13px; white-space: nowrap; }
 .document-meta input { flex: 1; min-width: 0; padding: 9px 12px; min-height: 44px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
-.editing { display: flex; flex: 1; flex-direction: column; min-height: 0; }
-.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
-.grp { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.editing { display: grid; grid-template-columns: minmax(300px, 356px) minmax(0, 1fr); grid-template-rows: minmax(0,1fr); flex: 1; min-height: 0; min-width: 0; }
+.text-controls { min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); scrollbar-width: thin; }
+.text-sheet-head, .text-bottom-nav { display: none; }
+.toolbar { display: flex; flex: 1; flex-direction: column; align-items: stretch; gap: 12px; padding: 14px; background: var(--surface); min-width: 0; }
+.grp { display: flex; flex-wrap: wrap; align-content: flex-start; align-items: center; gap: 6px; min-width: 0; padding: 8px 0 12px; border-bottom: 1px solid var(--border); scroll-margin-top: 14px; }
 .tool { border: 1px solid transparent; background: var(--panel); color: var(--text); border-radius: 9px; min-width: 44px; min-height: 44px; padding: 7px 10px; font-size: 14px; font-weight: 700; white-space: nowrap; }
 .tool:hover:not(:disabled) { border-color: var(--accent); }
 .tool:disabled { opacity: .4; }
@@ -704,7 +781,7 @@ onBeforeUnmount(() => {
 .swatch b { font-size: 16px; }
 .swatch .bar { display: block; width: 20px; height: 4px; border-radius: 2px; margin-top: 2px; }
 .swatch .hl { background: #ffe066; color: #171c25; padding: 0 5px; border-radius: 3px; }
-.stage { flex: 1; min-height: 0; overflow: auto; padding: 28px 20px 56px; background: var(--bg); scroll-padding-block: 40px; }
+.stage { min-width: 0; min-height: 0; overflow: auto; padding: 28px 20px 56px; background: var(--bg); scroll-padding-block: 40px; }
 .paper { position: relative; background: #fff; color: #171c25; width: min(100%, 210mm); margin-inline: auto; min-height: 297mm; box-shadow: 0 12px 35px #0002; border: 1px solid #d7dce5; }
 .body { min-height: 297mm; padding: 20mm; outline-offset: -4px; overflow-wrap: anywhere; font: 16px/1.6 Georgia,serif; }
 .body :deep(h1) { font-size: 28px; line-height: 1.2; margin: 0 0 .5em; }
@@ -736,14 +813,28 @@ onBeforeUnmount(() => {
 .alert { margin: 0; padding: 12px 16px; background: var(--panel); border-bottom: 2px solid var(--danger); color: var(--text); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .hint { margin: 0; padding: 6px 18px; background: var(--surface); font-size: 12px; border-top: 1px solid var(--border); }
 @media (max-width: 899px) {
-  /* Celular: a página ocupa a parte de cima; UMA barra horizontal rolável fica embaixo, acima do teclado. */
   .text-app { position: fixed; left: 0; right: 0; top: var(--vv-top, 0px); height: var(--vv-h, 100dvh); }
-  .toolbar { flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: flex-start; gap: 4px 12px; order: 2; min-height: 52px; padding: 4px 8px calc(4px + var(--sa-b)); border-bottom: 0; border-top: 1px solid var(--border); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
-  .grp { flex: none; padding: 3px 0; }
-  .wide-label { display: none; }
-  .stage { order: 1; padding: 14px 8px; }
+  .editing { display: flex; flex-direction: column; }
+  .stage { order: 0; flex: 1; padding: 14px 8px; }
   .paper, .body { min-height: 560px; }
   .body { padding: 22px 18px; }
+  .text-controls { order: 1; flex: none; height: 40dvh; max-height: calc(var(--vv-h, 100dvh) - 155px - 180px); min-height: 0; border-right: 0; border-top: 1px solid var(--border); border-radius: 16px 16px 0 0; box-shadow: 0 -8px 24px rgb(0 0 0 / 10%); overflow-y: auto; }
+  .text-controls.snap-compact { height: 27dvh; }
+  .text-controls.snap-full { height: 70dvh; max-height: calc(var(--vv-h, 100dvh) - 150px); }
+  .text-sheet-head { flex: none; position: sticky; top: 0; z-index: 2; background: var(--surface); display: flex; align-items: center; gap: 4px; padding: 14px 8px 4px 16px; border-bottom: 1px solid var(--border); min-height: 58px; }
+  .text-sheet-head h2 { flex: 1; margin: 0; font-size: 16px; }
+  .text-sheet-grip { position: absolute; top: 0; left: 50%; width: 56px; height: 18px; transform: translateX(-50%); cursor: ns-resize; touch-action: none; border-radius: 10px; }
+  .text-sheet-grip::after { content: ""; position: absolute; top: 6px; left: 10px; width: 36px; height: 4px; background: var(--border); border-radius: 3px; }
+  .text-sheet-grip:focus-visible { outline: 3px solid var(--accent); }
+  .text-panel-action { display: grid; place-items: center; width: 44px; height: 44px; background: transparent; color: var(--text); border: 0; border-radius: 10px; }
+  .text-panel-action:hover { background: var(--panel); }
+  .text-bottom-nav { order: 2; flex: none; display: block; background: var(--surface); border-top: 1px solid var(--border); }
+  .text-bottom-tabs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: thin; padding: 8px max(12px, var(--sa-r)) calc(8px + var(--sa-b)) max(12px, var(--sa-l)); }
+  .text-bottom-tab { min-height: 44px; flex: none; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); padding: 0 16px; color: var(--text); font-weight: 700; font-size: 12px; }
+  .text-bottom-tab[aria-selected="true"][aria-expanded="true"] { border-color: var(--app); background: var(--app); color: var(--ink); }
+  .toolbar { padding: 8px 14px 18px; gap: 8px; flex: none; overflow: visible; }
+  .grp { padding: 8px 0 12px; flex: none; }
+  .wide-label { display: none; }
 }
 @media (max-width: 599px) {
   .top { gap: 6px; }
@@ -758,7 +849,7 @@ onBeforeUnmount(() => {
 @media print {
   :global(html), :global(body), :global(#app) { height: auto !important; background: white !important; }
   .text-app, .editing, .stage { display: block !important; position: static !important; height: auto !important; overflow: visible !important; background: white !important; }
-  .top, .document-meta, .toolbar, .hint, .alert, .img-frame { display: none !important; }
+  .top, .document-meta, .toolbar, .text-controls, .text-bottom-nav, .hint, .alert, .img-frame { display: none !important; }
   .stage { padding: 0 !important; }
   .paper { width: auto; min-height: 0; border: 0; box-shadow: none; margin: 0; }
   .paper::before { display: none; }
