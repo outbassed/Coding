@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { convertCalc, convertCodes, convertDraw, convertSheet, convertSplit, converterFor } from './convert';
+import { convertCalc, convertCodes, convertDraw, convertImages, convertPdf, convertSheet, convertSplit, converterFor } from './convert';
+import { normalizePdf } from '../apps/pdf/model';
+import { normalizeImages } from '../apps/images/model';
 import { normalizeCalc, Evaluator, display } from '../apps/calc/model';
 import { normalizeSplit, summarize } from '../apps/split/model';
 import { normalizeDraw } from '../apps/draw/model';
@@ -36,6 +38,17 @@ describe('conversão de documentos do Coding 1.0', () => {
   it('só documentos do 1.0 precisam de conversão', () => {
     expect(converterFor({ type: 'calc', legacyId: 'antigo-1' })).not.toBeNull();
     expect(converterFor({ type: 'calc', legacyId: 'v2-calc-1' })).toBeNull();
-    expect(converterFor({ type: 'images', legacyId: 'x' })).toBeNull();
+    expect(converterFor({ type: 'images', legacyId: 'x' })).not.toBeNull();
+    expect(converterFor({ type: 'images', legacyId: 'v2-images-1' })).toBeNull();
+  });
+  it('PDF e Imagens do 1.0 mantêm arquivos, páginas, giros e textos', () => {
+    const pdf = normalizePdf(convertPdf({ files: [{ id: 'abcd1234', name: 'a.pdf' }], pages: [{ src: 0, idx: 2, extra: 90, ann: [{ type: 'text', u: 0.1, v: 0.2, text: 'Oi', size: 0.03 }] }, { src: 5, idx: 0 }] }));
+    expect(pdf.pages).toEqual([{ id: 'p1', src: 'abcd1234', index: 2, rotate: 90 }]);
+    expect(pdf.sources[0]).toEqual({ id: 'abcd1234', name: 'a.pdf', pages: 3 });
+    expect(pdf.annotations[0]).toMatchObject({ kind: 'text', text: 'Oi', size: 18 });
+    const img = normalizeImages(convertImages({ w: 800, h: 600, curId: 'foto1234', filter: { id: 'bw' }, objects: [{ t: 'text', text: 'Olá', x: 400, y: 300, size: 50 }] }));
+    expect(img.layers.map((l) => l.kind)).toEqual(['image', 'text']);
+    expect(img.layers[0]!.filters.grayscale).toBe(100);
+    expect(img.layers[1]!.text).toBe('Olá');
   });
 });

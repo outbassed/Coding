@@ -7,6 +7,10 @@ import { sheetLabelsKind } from '../apps/sheet-labels/model';
 import { sid } from '../apps/split/model';
 import { parseMoney } from '../apps/split/money';
 import { cid, defaultStyle } from '../apps/codes/model';
+import { imagesKind } from '../apps/images/kind';
+import { pdfKind } from '../apps/pdf/kind';
+import { lid, noFilters } from '../apps/images/model';
+import type { LegacyImage } from '../storage/documents';
 
 /**
  * Conversores dos formatos do Coding 1.0 para os apps 2.0.
@@ -85,13 +89,59 @@ export function convertSplit(raw: unknown): unknown {
   return { name: str(s.name, 'Racha-conta'), people, expenses, currency: 'BRL' };
 }
 
-export interface Converter { kind: DocKind<unknown>; path: string; convert(raw: unknown): unknown }
+/** Editor PDF do 1.0: arquivos (Blobs com o mesmo id) + páginas com giro e anotações relativas à página. */
+export function convertPdf(raw: unknown): unknown {
+  const s = o(raw);
+  const files = (Array.isArray(s.files) ? s.files : []).map((f) => ({ id: str(o(f).id), name: str(o(f).name, 'arquivo.pdf') })).filter((f) => f.id);
+  const pageCount = new Map<string, number>();
+  const pages: unknown[] = [], annotations: unknown[] = [];
+  let n = 0;
+  for (const p of Array.isArray(s.pages) ? s.pages : []) {
+    const pg = o(p);
+    const file = files[int(pg.src, -1)];
+    if (!file) continue;
+    const id = 'p' + (++n);
+    const index = int(pg.idx, 0);
+    pageCount.set(file.id, Math.max(pageCount.get(file.id) ?? 1, index + 1));
+    pages.push({ id, src: file.id, index, rotate: int(pg.extra, 0) });
+    for (const a of Array.isArray(pg.ann) ? pg.ann : []) {
+      const an = o(a);
+      if (an.type === 'text') annotations.push({ id: 'a' + (++n), page: id, kind: 'text', x: Number(an.u) || 0, y: Number(an.v) || 0, w: 0.5, h: 0.05, text: str(an.text), size: Math.round((Number(an.size) || 0.026) * 595), color: str(an.color, '#111111') });
+      else if (an.type === 'rect') annotations.push({ id: 'a' + (++n), page: id, kind: an.kind === 'cover' ? 'rect' : 'highlight', x: Number(an.u) || 0, y: Number(an.v) || 0, w: Number(an.w) || 0.1, h: Number(an.h) || 0.05, text: '', size: 14, color: an.kind === 'cover' ? '#141922' : '#ffe066' });
+    }
+  }
+  return { name: str(s.name, 'Documento PDF'), sources: files.map((f) => ({ ...f, pages: pageCount.get(f.id) ?? 1 })), pages, annotations };
+}
+const FILTERS: Record<string, Record<string, number>> = { bw: { grayscale: 100 }, sepia: { sepia: 80 }, vintage: { sepia: 40, contrast: 90 }, vivid: { saturation: 150, contrast: 115 }, cool: { hue: -15 }, fade: { contrast: 80, brightness: 110 }, sunset: { hue: 15, saturation: 120 } };
+/** Imagens do 1.0: a foto atual vira a camada de fundo; textos e emojis viram camadas de texto. */
+export function convertImages(raw: unknown): unknown {
+  const s = o(raw);
+  const w = Math.max(16, int(s.w, 1080)), h = Math.max(16, int(s.h, 1080));
+  const photo = str(s.curId) || str(s.origId);
+  const filter = FILTERS[str(o(s.filter).id)] ?? {};
+  const layers: unknown[] = [];
+  if (photo) layers.push({ id: lid(), name: 'Foto', kind: 'image', imageId: photo, crop: { x: 0, y: 0, w: 1, h: 1 }, x: 0, y: 0, w, h, rotation: 0, flipX: false, flipY: false, opacity: 1, visible: true, filters: { ...noFilters(), ...filter } });
+  for (const obj of Array.isArray(s.objects) ? s.objects : []) {
+    const ob = o(obj);
+    if (ob.t !== 'text' && ob.t !== 'balloon' && ob.t !== 'emoji') continue;
+    const size = Math.max(6, Number(ob.size) || 60);
+    const text = ob.t === 'emoji' ? str(ob.ch, '😀') : str(ob.text);
+    const lines = Math.max(1, text.split('\n').length);
+    const lw = Math.round(w * 0.9), lh = Math.round(size * 1.25 * lines);
+    layers.push({ id: lid(), name: ob.t === 'emoji' ? 'Emoji' : 'Texto', kind: 'text', text, size, font: 'Arial', bold: ob.bold === true, color: str(ob.color, '#ffffff'), align: ob.align === 'l' ? 'left' : ob.align === 'r' ? 'right' : 'center', x: Math.round((Number(ob.x) || w / 2) - lw / 2), y: Math.round((Number(ob.y) || h / 2) - lh / 2), w: lw, h: lh, rotation: Math.round(((Number(ob.rot) || 0) * 180) / Math.PI), flipX: false, flipY: false, opacity: Number(ob.alpha) || 1, visible: true, filters: noFilters() });
+  }
+  return { name: str(s.name, 'Imagem'), width: w, height: h, background: str(s.bg, '#ffffff'), layers };
+}
+
+export interface Converter { kind: DocKind<unknown>; path: string; convert(raw: unknown): unknown; /** Arquivos binários que acompanham o documento convertido. */ files?(state: unknown, images: LegacyImage[]): LegacyImage[] }
 export const CONVERTERS: Record<string, Converter> = {
   calc: { kind: calcKind as DocKind<unknown>, path: '/apps/planilhas/', convert: convertCalc },
   codes: { kind: codesKind as DocKind<unknown>, path: '/apps/qr/', convert: convertCodes },
   sheet: { kind: sheetLabelsKind as DocKind<unknown>, path: '/apps/planilha-etiquetas/', convert: convertSheet },
   draw: { kind: drawKind as DocKind<unknown>, path: '/apps/sorteio/', convert: convertDraw },
-  split: { kind: splitKind as DocKind<unknown>, path: '/apps/racha-conta/', convert: convertSplit }
+  split: { kind: splitKind as DocKind<unknown>, path: '/apps/racha-conta/', convert: convertSplit },
+  pdf: { kind: pdfKind as DocKind<unknown>, path: '/apps/pdf/', convert: convertPdf, files: (state, images) => { const ids = new Set(((state as { sources?: { id: string }[] }).sources ?? []).map((x) => x.id)); return images.filter((i) => ids.has(i.id)).map((i) => ({ ...i, mime: 'application/pdf' })); } },
+  images: { kind: imagesKind as DocKind<unknown>, path: '/apps/imagens/', convert: convertImages, files: (state, images) => { const ids = new Set(((state as { layers?: { imageId?: string }[] }).layers ?? []).map((l) => l.imageId).filter(Boolean)); return images.filter((i) => ids.has(i.id)); } }
 };
 /** Só documentos do 1.0 (não criados na v2) precisam de conversão. */
 export function converterFor(copy: { type?: string; legacyId: string }): Converter | null {

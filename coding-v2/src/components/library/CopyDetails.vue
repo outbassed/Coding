@@ -21,7 +21,8 @@ async function convert(): Promise<void> {
     const record = await getCopy(props.copy.id);
     if (!record) throw new Error('Esta cópia não existe mais.');
     const state = c.kind.normalize(c.convert(record.snapshot.doc.state));
-    const created = await createDoc(c.kind, state);
+    const files = c.files ? c.files(state, record.snapshot.images ?? []) : [];
+    const created = await createDoc(c.kind, state, files.map((f) => ({ ...f })));
     location.assign(c.path + '?doc=' + encodeURIComponent(created.id));
   } catch (err) { convertError.value = 'Não foi possível converter: ' + friendlyError(err); converting.value = false; }
 }

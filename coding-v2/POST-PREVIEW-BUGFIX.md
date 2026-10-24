@@ -4,7 +4,7 @@ Lista honesta do que ficou de fora ou precisa de revisão depois da Prévia comp
 
 ## Recursos ainda não implementados
 - **Offline / PWA**: sem service worker nem manifesto. Os apps precisam de internet para abrir (Ajustes informa isso).
-- **Documentos antigos do Coding 1.0**: Planilhas, QR/Barras, Planilha→Etiquetas, Sorteio e Racha-conta já têm “Converter e abrir” (cria documento novo; o original não muda). Faltam conversores para **Imagens** e **Editor PDF** do 1.0 (dependem dos arquivos binários do formato antigo).
+- **Documentos antigos do Coding 1.0**: os sete apps novos têm “Converter e abrir” (cria documento novo; o original não muda). Conversões aproximadas: em Imagens do 1.0, molduras, balões, adesivos de imagem e alguns filtros não são convertidos; no Editor PDF do 1.0, anotações de imagem (assinaturas) não são convertidas e “cobrir” vira retângulo.
 - Texto: cabeçalho/rodapé, comentários, células mescladas, numeração de páginas no PDF.
 - Planilhas: gráficos, filtros por coluna, mesclar células, séries automáticas (1, 2, 3…), colar fórmulas ajustando referências, ler formatos/estilos do XLSX importado, `.xls` antigo.
 - Imagens: pincel/borracha, remover fundo, recorte arrastando na tela, edição de texto direto na tela, zoom por pinça.
