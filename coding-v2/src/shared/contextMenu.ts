@@ -18,8 +18,8 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
     { label: 'Exportar DOCX', selector: '[data-testid="export-docx"]', tab: 'Arquivo' }
   ],
   calc: [
-    { label: 'Nova aba', selector: '[data-testid="add-sheet"]', tab: 'Abas', shortcut: 'Alt+Shift+N' },
-    { label: 'Preencher para baixo', selector: '[data-testid="fill-down"]', tab: 'Editar' },
+    { label: 'Nova aba', selector: '[data-testid="add-sheet"]', tab: 'Linhas e abas', shortcut: 'Alt+Shift+N' },
+    { label: 'Preencher para baixo', selector: '[data-testid="fill-down"]', tab: 'Início' },
     { label: 'Exportar XLSX', selector: '[data-testid="export-xlsx"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' }
   ],
   images: [
@@ -33,13 +33,13 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
     { label: 'Duplicar página', selector: '[data-testid="duplicate-page"]', tab: 'Páginas' }
   ],
   codes: [
-    { label: 'Novo código', selector: '[data-testid="add-code"]', tab: 'Códigos', shortcut: 'Alt+Shift+N' },
+    { label: 'Novo código', selector: '[data-testid="add-code"]', tab: 'Código', shortcut: 'Alt+Shift+N' },
     { label: 'Baixar PNG', selector: '[data-testid="export-png"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
     { label: 'Baixar SVG', selector: '[data-testid="export-svg"]', tab: 'Arquivo' }
   ],
   'sheet-labels': [
-    { label: 'Adicionar linha', selector: '[data-testid="add-row"]', tab: 'Planilha', shortcut: 'Alt+Shift+N' },
-    { label: 'Importar CSV ou XLSX', selector: '[data-testid="import-table"]', tab: 'Planilha' },
+    { label: 'Adicionar linha', selector: '[data-testid="add-row"]', tab: 'Dados', shortcut: 'Alt+Shift+N' },
+    { label: 'Importar CSV ou XLSX', selector: '[data-testid="import-table"]', tab: 'Dados' },
     { label: 'Criar documento de Etiquetas', selector: '[data-testid="create-labels"]', tab: 'Gerar', shortcut: 'Alt+Shift+E' }
   ],
   draw: [
@@ -263,7 +263,7 @@ export function installContextMenu(app: AppId): void {
       open(rect.left + 12, rect.bottom + 4);
       return;
     }
-    if (e.key === '?' && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); help(); return; }
+    if (e.key === '?' && !e.ctrlKey && !e.altKey && !e.metaKey && !active.closest('[data-testid="grid"]')) { e.preventDefault(); help(); return; }
     if (e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey && app !== 'launcher') {
       const code = e.code;
       if (code !== 'KeyN' && code !== 'KeyE') return;
