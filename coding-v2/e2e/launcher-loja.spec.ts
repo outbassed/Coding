@@ -21,7 +21,7 @@ test.describe('Launcher · loja no computador', () => {
     await expect(hero.getByRole('link', { name: 'Abrir o editor de Etiquetas' })).toHaveAttribute('href', '/apps/etiquetas/');
     await expect(page.getByRole('heading', { level: 2, name: 'Meus aplicativos' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Explorar o catálogo' })).toBeVisible();
-    await expect(page.getByText('2 editores disponíveis · 7 em breve')).toBeVisible();
+    await expect(page.getByText('9 editores disponíveis', { exact: false }).first()).toBeVisible();
     await expect(page.getByTestId('recent-docs')).toHaveCount(0);
     expect(await hasDb(page)).toBe(false); // olhar o Início não cria banco algum
     await page.getByRole('link', { name: 'Abrir catálogo' }).click();
@@ -50,8 +50,9 @@ test.describe('Launcher · loja no computador', () => {
     await page.getByRole('button', { name: 'Etiquetas e códigos' }).click();
     await expect(page.locator('article.card')).toHaveCount(3);
     await expect(page.getByTestId('spotlight')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Em breve', exact: true }).click();
-    await expect(page.locator('article.card')).toHaveCount(2);
+    await expect(page.getByRole('button', { name: 'Em breve', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Não ativados', exact: true }).click();
+    await expect(page.locator('article.card')).toHaveCount(0);
     await page.getByTestId('clear-filters').click();
     await expect(page.locator('article.card')).toHaveCount(9);
     await page.getByRole('searchbox', { name: 'Buscar aplicativos' }).fill('zzzz');
@@ -63,8 +64,9 @@ test.describe('Launcher · loja no computador', () => {
     await expect(page.getByTestId('ready-list')).toContainText('Colar lista de itens');
     await expect(page.getByTestId('detail-meta')).toContainText('Editor funcional');
     await page.goto('/launcher/#/app/calc');
-    await expect(page.getByTestId('ready-list')).toHaveCount(0);
-    await expect(page.getByTestId('detail-meta')).toContainText('Em breve');
+    await expect(page.getByTestId('ready-list')).toContainText('Fórmulas');
+    await expect(page.getByTestId('detail-meta')).toContainText('Editor funcional');
+    await expect(page.getByRole('link', { name: 'Abrir editor' })).toHaveAttribute('href', '/apps/planilhas/');
   });
 
   test('Meus apps: biblioteca com Abrir, desativar e reativar sem apagar nada', async ({ page }) => {

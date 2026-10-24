@@ -6,7 +6,7 @@ export const initialTextState = (): TextState => ({
   name: 'Carta de apresentação',
   html: '<h1>Carta de apresentação</h1><p>Olá!</p><p>Este é seu primeiro documento no <strong>Coding Texto</strong>. Selecione uma palavra para formatar, escreva aqui e acompanhe o salvamento automático.</p><p>Atenciosamente,<br>Seu nome</p>'
 });
-const safeTags = new Set(['P', 'BR', 'H1', 'H2', 'H3', 'B', 'STRONG', 'I', 'EM', 'U', 'S', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'SPAN']);
+const safeTags = new Set(['P', 'BR', 'H1', 'H2', 'H3', 'B', 'STRONG', 'I', 'EM', 'U', 'S', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'SPAN', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD']);
 const skipTags = new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','SVG','MATH','FORM','INPUT','BUTTON','META','LINK','BASE','TEMPLATE']);
 /** Fontes oferecidas no editor; só estas são aceitas no HTML guardado. */
 export const TEXT_FONTS = ['Georgia', 'Arial', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Times New Roman', 'Courier New', 'Arial Black', 'Impact'] as const;
@@ -48,7 +48,8 @@ export function cleanPercent(value: string): number | null {
   const n = Math.round(Number(m[1]));
   return n >= MIN_IMAGE_PERCENT && n <= 100 ? n : null;
 }
-const styleTags = new Set(['P', 'H1', 'H2', 'H3', 'SPAN', 'LI', 'BLOCKQUOTE']);
+const styleTags = new Set(['P', 'H1', 'H2', 'H3', 'SPAN', 'LI', 'BLOCKQUOTE', 'TD', 'TH']);
+const IMAGE_ALIGNS = new Set(['left', 'center', 'right']);
 
 const safeImage = /^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/]+=*$/i;
 
@@ -69,7 +70,14 @@ export function sanitizeTextHtml(source: string): string {
       image.setAttribute('alt', (el.getAttribute('alt') ?? 'Imagem').slice(0, 160));
       const width = cleanPercent((el as HTMLElement).style?.width ?? '');
       if (width) image.style.width = width + '%';
+      const align = el.getAttribute('data-align') ?? '';
+      if (IMAGE_ALIGNS.has(align)) image.setAttribute('data-align', align);
       parent.appendChild(image);
+      return;
+    }
+    if (tag === 'HR') {
+      // única linha horizontal aceita: a quebra de página
+      if (el.getAttribute('data-break') === 'page') { const hr = out.createElement('hr'); hr.setAttribute('data-break', 'page'); parent.appendChild(hr); }
       return;
     }
     const target = safeTags.has(tag) ? out.createElement(tag.toLowerCase()) : out.createDocumentFragment();

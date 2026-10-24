@@ -65,7 +65,7 @@ const counts = computed(() => ({
   <section class="store" aria-labelledby="loja">
     <div>
       <h2 id="loja">Explorar o catálogo</h2>
-      <p class="muted">{{ counts.functional }} editores disponíveis · {{ counts.planned }} em breve.</p>
+      <p class="muted">{{ counts.functional }} editores disponíveis<template v-if="counts.planned"> · {{ counts.planned }} em breve</template>.</p>
     </div>
     <RouterLink :to="{ name: 'catalog' }" class="btn btn-primary">Abrir catálogo</RouterLink>
   </section>

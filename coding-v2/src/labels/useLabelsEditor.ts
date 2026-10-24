@@ -77,7 +77,7 @@ export function useLabelsEditor(options: EditorOptions = {}) {
     } catch (err) { loadError.value = friendlyError(err); }
     finally { loading.value = false; }
   }
-  function startNew(): void { adopt(null, defaults(), false); lastSavedAt.value = null; }
+  function startNew(initial?: LabelsState): void { adopt(null, initial ?? defaults(), false); lastSavedAt.value = null; }
 
   function markChanged(): void {
     if (copyId.value ? json(state.value) === savedJson : !history.canUndo) {
@@ -129,6 +129,11 @@ export function useLabelsEditor(options: EditorOptions = {}) {
     });
     say(added + (added === 1 ? ' item adicionado.' : ' itens adicionados.') + (trimmed ? ' Lista limitada a ' + MAX_ITEMS + ' itens.' : ''));
     return added;
+  }
+  /** Aplica uma predefinição de layout (folha, colunas, tipografia) num único passo de desfazer; os itens ficam. */
+  function applyLayout(layout: Partial<LabelsState>): void {
+    change((d) => { for (const [k, v] of Object.entries(layout)) if (k !== 'name' && k !== 'items') (d as unknown as Record<string, unknown>)[k] = v; });
+    say('Layout aplicado. Os itens não mudaram.');
   }
   function duplicateItem(id: string): string | null {
     if (state.value.items.length >= MAX_ITEMS) { say('Limite de ' + MAX_ITEMS + ' itens por documento.'); return null; }
@@ -252,7 +257,7 @@ export function useLabelsEditor(options: EditorOptions = {}) {
 
   return {
     state, copyId, saveState, saveError, dirty, loading, loadError, lastSavedAt, canUndo, canRedo,
-    load, startNew, setField, setItem, addItem, addMany, duplicateItem, moveItem, removeItem, stepCopies,
+    load, startNew, setField, setItem, addItem, addMany, applyLayout, duplicateItem, moveItem, removeItem, stepCopies,
     undo, redo, saveNow, reloadSaved, saveCopyOfConflict
   };
 }
