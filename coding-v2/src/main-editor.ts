@@ -1,3 +1,4 @@
+import { exposePreviewManifest } from './pwa';
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import EditorApp from './EditorApp.vue';
@@ -13,3 +14,6 @@ if (root) {
   else if (isEditorToolId(appId)) createApp(EditorApp, { appId }).use(createPinia()).mount(root);
   else root.textContent = 'Este editor não existe. Volte ao Launcher em /launcher/.';
 }
+
+// O manifesto só é publicado em builds opt-in de Preview isolado.
+exposePreviewManifest();
