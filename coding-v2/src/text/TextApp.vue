@@ -463,6 +463,14 @@ function countPages(): void {
     if (child.tagName === 'HR') { if (onPage) { pages++; used = 0; onPage = 0; } continue; }
     const cs = getComputedStyle(child);
     const h = child.getBoundingClientRect().height + parseFloat(cs.marginTop || '0') + parseFloat(cs.marginBottom || '0');
+    if (h > limit) {
+      // Mesmo critério de textToPdf: fatiar um bloco longo entre páginas.
+      if (onPage) { pages++; used = 0; onPage = 0; }
+      pages += Math.ceil(h / limit) - 1;
+      used = h % limit || limit;
+      onPage = 1;
+      continue;
+    }
     if (used + h > limit && onPage) { pages++; used = 0; onPage = 0; }
     used += h; onPage++;
   }
