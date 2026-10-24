@@ -13,7 +13,7 @@ Lista honesta do que ficou de fora ou precisa de revisão depois da Prévia comp
 - Sorteio: pesos; exportar resultado como imagem. Racha-conta: várias moedas e compartilhamento por link.
 
 ## Limitações conhecidas
-- PDF do Texto é gerado como imagem das folhas (texto não selecionável); um único bloco maior que uma folha é cortado. “Imprimir → Salvar como PDF” mantém texto selecionável.
+- PDF do Texto é gerado como imagem das folhas (texto não selecionável); blocos maiores que uma folha são divididos em fatias visuais, podendo interromper uma linha entre páginas. “Imprimir → Salvar como PDF” mantém texto selecionável.
 - DOCX do Texto: imagens sempre na linha (sem texto ao lado), listas aninhadas viram uma lista simples.
 - Etiquetas (e Planilha→Etiquetas): limites do motor atual — 200 itens, 500 cópias por item, 2.000 etiquetas por documento.
 - Planilhas: até 1.000 linhas × 52 colunas × 20 abas por documento; em fórmulas com “;” a vírgula é decimal, sem “;” a vírgula separa argumentos.
