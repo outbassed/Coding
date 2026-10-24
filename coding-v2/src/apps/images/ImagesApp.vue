@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import EditorShell from '../../editors/EditorShell.vue';
+import NavIcon from '../../components/ui/NavIcon.vue';
 import FileTab from '../../editors/FileTab.vue';
 import { useDocument } from '../../editors/useDocument';
 import { downloadBlob, safeFileName } from '../../shared/files/download';
@@ -258,11 +259,11 @@ void nextTick;
         <ol class="layers" data-testid="layers" aria-label="Camadas, de cima para baixo">
           <li v-for="l in topFirst" :key="l.id" :class="{ on: l.id === selectedId }">
             <button type="button" class="pick" :aria-pressed="l.id === selectedId" @click="selectedId = l.id">{{ l.name || 'Camada' }} <small class="muted">· {{ { image: 'imagem', text: 'texto', rect: 'retângulo', ellipse: 'elipse' }[l.kind] }}</small></button>
-            <button type="button" class="ib" :aria-label="(l.visible ? 'Ocultar ' : 'Mostrar ') + l.name" :aria-pressed="!l.visible" @click="l.visible = !l.visible">{{ l.visible ? '👁' : '—' }}</button>
-            <button type="button" class="ib" :aria-label="'Subir ' + l.name" @click="moveLayer(l.id, 1)">↑</button>
-            <button type="button" class="ib" :aria-label="'Descer ' + l.name" @click="moveLayer(l.id, -1)">↓</button>
-            <button type="button" class="ib" :aria-label="'Duplicar ' + l.name" @click="duplicateLayer(l.id)">⧉</button>
-            <button type="button" class="ib" :aria-label="'Excluir ' + l.name" @click="removeLayer(l.id)">✕</button>
+            <button type="button" class="ib" :aria-label="(l.visible ? 'Ocultar ' : 'Mostrar ') + l.name" :aria-pressed="!l.visible" @click="l.visible = !l.visible"><NavIcon :name="l.visible ? 'eye' : 'eye-off'" /></button>
+            <button type="button" class="ib" :aria-label="'Subir ' + l.name" @click="moveLayer(l.id, 1)"><NavIcon name="arrow-up" /></button>
+            <button type="button" class="ib" :aria-label="'Descer ' + l.name" @click="moveLayer(l.id, -1)"><NavIcon name="arrow-down" /></button>
+            <button type="button" class="ib" :aria-label="'Duplicar ' + l.name" @click="duplicateLayer(l.id)"><NavIcon name="duplicate" /></button>
+            <button type="button" class="ib" :aria-label="'Excluir ' + l.name" @click="removeLayer(l.id)"><NavIcon name="trash" /></button>
           </li>
         </ol>
         <p v-if="!state.layers.length" class="ed-hint">Sem camadas: adicione uma imagem, um texto ou uma forma.</p>
