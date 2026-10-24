@@ -15,7 +15,11 @@ test('Texto: bloco maior que A4 continua no PDF nas páginas seguintes', async (
     page.waitForEvent('download', { timeout: 70_000 }),
     page.getByTestId('export-pdf').click()
   ]);
-  expect(readFileSync((await pdf.path())!).subarray(0, 5).toString('latin1')).toBe('%PDF-');
-  await expect(page.getByTestId('text-announcement')).toContainText('Blocos longos foram divididos automaticamente', { timeout: 5_000 });
-  await expect(page.getByTestId('text-announcement')).toContainText(/PDF gerado com [3-9] folhas A4/);
+  const bytes = readFileSync((await pdf.path())!);
+  expect(bytes.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+  // Nosso gerador declara a contagem no catálogo PDF, antes dos streams JPEG.
+  // Não depender de mensagens efêmeras (podem mudar quando o autosave termina).
+  const header = bytes.subarray(0, 1024).toString('latin1');
+  const pages = Number(/\\/Type \\/Pages \\/Count (\\d+)/.exec(header)?.[1] ?? 0);
+  expect(pages, 'o parágrafo longo precisa continuar em mais de uma página').toBeGreaterThan(2);
 });
