@@ -36,7 +36,9 @@ self.addEventListener('install', (event) => {
     const cache = await caches.open(CACHE);
     // addAll falha a instalação se QUALQUER recurso não estiver disponível.
     // O SW anterior continua ativo; não declaramos offline com cache parcial.
-    await cache.addAll(PRECACHE);
+    for (let i = 0; i < PRECACHE.length; i += 12) {
+      await cache.addAll(PRECACHE.slice(i, i + 12));
+    }
     await self.skipWaiting();
   })());
 });
