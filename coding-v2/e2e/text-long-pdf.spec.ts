@@ -11,6 +11,8 @@ test('Texto: bloco maior que A4 continua no PDF nas páginas seguintes', async (
       'Linha ' + (i + 1) + ': conteúdo extenso com acentos: ação, café e informação.').join('<br>') + '</p>';
     host.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
   });
+  // O contador visível usa a mesma regra de páginas do exportador.
+  await expect.poll(async () => Number((await page.getByTestId('page-count').textContent())?.match(new RegExp('[0-9]+'))?.[0] ?? 0)).toBeGreaterThan(2);
   const [pdf] = await Promise.all([
     page.waitForEvent('download', { timeout: 70_000 }),
     page.getByTestId('export-pdf').click()
