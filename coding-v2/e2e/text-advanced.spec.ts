@@ -218,21 +218,22 @@ test.describe('Texto avançado · celular', () => {
     test.describe(width + ' px', () => {
       test.use({ viewport: { width, height: 800 }, hasTouch: true });
 
-      test('página em cima, UMA barra horizontal embaixo com todos os controles', async ({ page }) => {
+      test('página acima da gaveta de ferramentas com categorias fixas', async ({ page }) => {
         await page.goto(EDITOR);
         await noHorizontalScroll(page);
         const stage = (await page.locator('.stage').boundingBox())!;
-        const bar = (await page.getByTestId('text-toolbar').boundingBox())!;
-        expect(stage.y + stage.height).toBeLessThanOrEqual(bar.y + 2);
-        expect(bar.y + bar.height).toBeLessThanOrEqual(800 + 1);
-        expect(bar.height).toBeLessThan(90);
-        const layout = await page.getByTestId('text-toolbar').evaluate((el) => ({ dir: getComputedStyle(el).flexDirection, wrap: getComputedStyle(el).flexWrap, scrolls: el.scrollWidth > el.clientWidth }));
-        expect(layout).toEqual({ dir: 'row', wrap: 'nowrap', scrolls: true });
-        // todos os controles na MESMA linha
-        const tops = await page.getByTestId('text-toolbar').locator('button, select, label.color').evaluateAll((els) => els.filter((e) => (e as HTMLElement).offsetParent !== null).map((e) => Math.round(e.getBoundingClientRect().top / 4)));
-        expect(new Set(tops).size).toBe(1);
-        const heights = await page.getByTestId('text-toolbar').locator('button, select, label.color').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
-        for (const h of heights) expect(h).toBeGreaterThanOrEqual(43);
+        const panel = (await page.getByTestId('text-controls').boundingBox())!;
+        const bottom = (await page.getByRole('tablist', {name:'Categorias de texto'}).boundingBox())!;
+        expect(stage.y + stage.height).toBeLessThanOrEqual(panel.y + 2);
+        expect(panel.y + panel.height).toBeLessThanOrEqual(bottom.y + 2);
+        expect(bottom.y + bottom.height).toBeLessThanOrEqual(801);
+        expect(await page.getByTestId('text-toolbar').evaluate(el => getComputedStyle(el).flexDirection)).toBe('column');
+        await page.getByRole('tab',{name:'Imagem'}).click();
+        await expect(page.getByTestId('text-controls')).toBeVisible();
+        await page.getByRole('tab',{name:'Imagem'}).click();
+        await expect(page.getByTestId('text-controls')).toBeHidden();
+        await page.getByRole('tab',{name:'Formato'}).click();
+        await expect(page.getByTestId('text-controls')).toBeVisible();
       });
 
       test('formatar pelo toque não perde a seleção e todos os controles funcionam', async ({ page }) => {
@@ -273,8 +274,8 @@ test.describe('Texto avançado · celular', () => {
       // simula o teclado: a janela visível encolhe e a barra continua visível, acima dela
       await page.setViewportSize({ width: 390, height: 500 });
       await expect.poll(async () => Math.round((await page.locator('.text-app').boundingBox())!.height)).toBe(500);
-      const bar = (await page.getByTestId('text-toolbar').boundingBox())!;
-      expect(bar.y + bar.height).toBeLessThanOrEqual(501);
+      const panel = (await page.getByTestId('text-controls').boundingBox())!;
+      expect(panel.y + panel.height).toBeLessThanOrEqual(501);
       // digitar no fim de um texto longo mantém o cursor visível
       await editor(page).click();
       await page.keyboard.press('Control+a');
