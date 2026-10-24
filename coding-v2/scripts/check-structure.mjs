@@ -23,15 +23,15 @@ for (const page of ['launcher/index.html', ...APP_PAGES]) {
   assert.ok(html.includes('viewport-fit=cover'), 'viewport-fit=cover ausente em ' + page);
 }
 
-// Nenhuma PWA nesta etapa: nada de manifest nem service worker.
-for (const page of ['launcher/index.html', ...APP_PAGES]) {
-  const html = readFileSync(page, 'utf8');
-  assert.ok(!html.includes('rel="manifest"') && !html.includes('serviceWorker'), 'PWA não comprovada não pode ser declarada em ' + page);
+// Offline é opt-in e depende de um build isolado; nunca se registra automaticamente.
+for (const file of ['public/manifest.webmanifest', 'src/pwa.ts', 'scripts/generate-sw.mjs']) {
+  assert.ok(existsSync(file), 'Falta infraestrutura opcional de PWA: ' + file);
 }
-assert.ok(!existsSync('src/sw.ts') && !existsSync('public/sw.js'), 'Service worker não deve existir nesta etapa.');
+const pwa = readFileSync('src/pwa.ts', 'utf8');
+assert.ok(pwa.includes('VITE_CODING_PREVIEW_PWA') && pwa.includes('codingtxt.vercel.app'), 'A PWA deve exigir opt-in e proteger produção.');
 
 // O banco legado nunca é aberto por esta base.
 const sources = ['src/stores/apps.ts', 'src/stores/settings.ts', 'src/EditorApp.vue', 'src/main-editor.ts', 'src/main-launcher.ts', 'src/main-apps.ts', 'src/editors/docs.ts', 'src/editors/useDocument.ts'];
 for (const file of sources) assert.ok(!/indexedDB\.open|coding-db/.test(readFileSync(file, 'utf8')), 'Acesso ao coding-db proibido em ' + file);
 
-console.log('Estrutura Coding 2.0 verificada: nove apps com página própria, tema sem piscada, sem PWA, sem acesso ao coding-db.');
+console.log('Estrutura Coding 2.0 verificada: nove apps com página própria, tema sem piscada, PWA opcional e protegida, sem acesso ao coding-db.');
