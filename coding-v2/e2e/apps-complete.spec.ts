@@ -222,6 +222,17 @@ test.describe('Etiquetas · novidades', () => {
     await page.getByTestId('ti-append').click();
     await expect(page.getByTestId('sheet')).toContainText('Z2');
   });
+  test('QR e código de barras dentro das etiquetas, também no PDF', async ({ page }) => {
+    await page.goto('/apps/etiquetas/?modelo=produtos');
+    await page.getByRole('tab', { name: 'Formato' }).click();
+    await page.getByTestId('label-barcode').selectOption('qr');
+    await expect(page.getByTestId('sheet').locator('.graphic svg').first()).toBeVisible();
+    await page.getByTestId('label-barcode').selectOption('code128');
+    await expect(page.getByTestId('sheet').locator('.graphic.code128 svg')).toHaveCount(4);
+    await page.getByRole('tab', { name: 'Exportar' }).click();
+    const [pdf] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.getByTestId('pdf').click()]);
+    expect((await bytesOf(pdf)).subarray(0, 5).toString('latin1')).toBe('%PDF-');
+  });
 });
 
 test.describe('Texto · novidades', () => {
@@ -261,6 +272,20 @@ test.describe('Biblioteca com os novos apps', () => {
     await card.getByRole('link', { name: /^Abrir .* no editor$/ }).click();
     await expect(page).toHaveURL(/\/apps\/racha-conta\/\?doc=/);
     await expect(page.getByTestId('split-total')).toBeVisible();
+  });
+});
+
+test.describe('Documentos do Coding 1.0', () => {
+  test('planilha antiga vira documento novo do 2.0 sem mudar a original', async ({ page }) => {
+    await page.goto('/launcher/#/documentos');
+    const backup = { schema: 'coding-v2-safe-backup', version: 1, entries: [{ source: 'backup', images: [], doc: { id: 'calc-antiga', type: 'calc', state: { name: 'Contas antigas', rows: 10, cols: 4, cells: { '0,0': { v: '7' }, '1,0': { v: '5' }, '2,0': { v: '=SOMA(A1:A2)', n: 'brl' } } } } }] };
+    await page.locator('input[type="file"][accept*=".json"]').setInputFiles({ name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) });
+    await page.locator('[data-copy-card]', { hasText: 'Contas antigas' }).click();
+    await page.getByRole('button', { name: /^Converter Contas antigas/ }).click();
+    await expect(page).toHaveURL(/\/apps\/planilhas\/\?doc=/);
+    await expect(page.locator('[data-cell="A3"]')).toHaveText(/R\$\s12,00/);
+    await page.goto('/launcher/#/documentos');
+    await expect(page.getByTestId('copy-count')).toContainText('2 cópias');
   });
 });
 

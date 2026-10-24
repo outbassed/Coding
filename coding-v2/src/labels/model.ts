@@ -6,6 +6,9 @@
 export const FONTS = ['Arial', 'Arial Black', 'Impact', 'Verdana', 'Georgia', 'Times New Roman', 'Courier New', 'Trebuchet MS', 'Tahoma'] as const;
 export type Align = 'left' | 'center' | 'right';
 export type Orientation = 'portrait' | 'landscape';
+/** Código gráfico opcional gerado a partir do código de cada etiqueta. */
+export type LabelBarcode = 'none' | 'qr' | 'code128' | 'ean13';
+export const BARCODES: LabelBarcode[] = ['none', 'qr', 'code128', 'ean13'];
 
 export const MAX_ITEMS = 200;
 export const MAX_COPIES = 500;
@@ -28,6 +31,7 @@ export interface LabelsState {
   cols: number;
   gap: number;
   border: boolean;
+  barcode: LabelBarcode;
   codeFont: string; codeSize: number; codeBold: boolean; codeItalic: boolean; codeAlign: Align;
   descFont: string; descSize: number; descBold: boolean; descItalic: boolean; descAlign: Align;
 }
@@ -52,6 +56,7 @@ export function defaults(): LabelsState {
     cols: 1,
     gap: 1,
     border: true,
+    barcode: 'none',
     codeFont: 'Arial', codeSize: 40, codeBold: true, codeItalic: false, codeAlign: 'center',
     descFont: 'Arial', descSize: 34, descBold: false, descItalic: false, descAlign: 'center'
   };
@@ -85,6 +90,7 @@ export function normalize(source: unknown): LabelsState {
     cols: toInt(o.cols, base.cols, MIN_COLS, MAX_COLS),
     gap: toInt(o.gap, base.gap, 0, MAX_GAP_MM),
     border: toBool(o.border, legacy ? false : base.border),
+    barcode: BARCODES.includes(o.barcode as LabelBarcode) ? (o.barcode as LabelBarcode) : 'none',
     codeFont: toFont(o.codeFont, base.codeFont),
     codeSize: toInt(o.codeSize, base.codeSize, MIN_SIZE_PT, MAX_SIZE_PT),
     codeBold: toBool(o.codeBold, base.codeBold),

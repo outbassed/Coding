@@ -39,7 +39,7 @@ export interface CodingTool {
 
 export const INK = '#141922';
 
-const READY_labels = ['Editor de código e descrição por item', 'Folha A4 ao vivo, retrato ou paisagem', 'Colunas, espaçamento e formato do texto', 'Salva neste aparelho e reabre depois', 'Imprimir e baixar PDF', 'Colar lista de itens com pré-visualização'] as const;
+const READY_labels = ['Editor de código e descrição por item', 'QR ou código de barras dentro das etiquetas', 'Modelos e importação de CSV/XLSX com escolha de colunas', 'Folha A4 ao vivo, retrato ou paisagem', 'Colunas, espaçamento e formato do texto', 'Salva neste aparelho e reabre depois', 'Imprimir e baixar PDF', 'Colar lista de itens com pré-visualização'] as const;
 const READY_texts = ['Editor de texto com formatação, títulos e listas', 'Folha A4 editável e modelo inicial', 'Inserir imagens PNG, JPG ou WebP', 'Salvamento automático na biblioteca do Coding 2.0', 'Exportar HTML e TXT; imprimir ou salvar PDF pelo navegador'] as const;
 const READY_calc = ['Grade editável com várias abas', 'Fórmulas com referências (SOMA, MÉDIA, MÍNIMO, MÁXIMO, SE e mais)', 'Formatos de número, moeda e porcentagem', 'Importar e exportar CSV e XLSX', 'Modelos de orçamento e tabela de produtos'] as const;
 const READY_images = ['Camadas de imagem, texto e formas', 'Recortar, redimensionar, girar e espelhar', 'Brilho, contraste, saturação e filtros prontos', 'Desfazer, refazer e zoom', 'Exportar PNG, JPG e WebP'] as const;
@@ -50,7 +50,7 @@ const READY_draw = ['Roleta animada (respeita “reduzir movimento”)', 'Númer
 const READY_split = ['Pessoas e despesas', 'Divisão igual, por porcentagem ou por valores', 'Saldos e acertos sugeridos', 'Cálculos em centavos inteiros', 'Exportar CSV e TXT; imprimir'] as const;
 
 export const tools: readonly CodingTool[] = [
-  { id: 'labels', category: 'labels', ready: READY_labels, name: 'Etiquetas', description: 'Folhas A4, códigos e descrições', color: '#F28B30', textLight: '#A05C20', textDark: '#F28B30', path: '/apps/etiquetas/', legacyHash: '#/etiquetas', status: 'preview', initiallyActive: true, planned: ['QR e códigos de barras dentro das etiquetas'] },
+  { id: 'labels', category: 'labels', ready: READY_labels, name: 'Etiquetas', description: 'Folhas A4, códigos e descrições', color: '#F28B30', textLight: '#A05C20', textDark: '#F28B30', path: '/apps/etiquetas/', legacyHash: '#/etiquetas', status: 'preview', initiallyActive: true, planned: ['Etiquetas com tamanhos de papel adesivo prontos (Pimaco)'] },
   { id: 'texts', category: 'writing', ready: READY_texts, name: 'Texto', description: 'Documentos, formatação e imagens', color: '#4C8DF6', textLight: '#3B6EC0', textDark: '#4C8DF6', path: '/apps/texto/', legacyHash: '#/texto', status: 'preview', initiallyActive: true, planned: ['Cabeçalhos e rodapés', 'Comentários e revisão'] },
   { id: 'calc', category: 'data', ready: READY_calc, name: 'Planilhas', description: 'Tabelas, cálculos e fórmulas', color: '#34A853', textLight: '#267C3D', textDark: '#34A853', path: '/apps/planilhas/', legacyHash: '#/planilhas', status: 'preview', initiallyActive: true, planned: ['Gráficos', 'Classificar e filtrar', 'Mesclar células'] },
   { id: 'images', category: 'media', ready: READY_images, name: 'Imagens', description: 'Edição, molduras, filtros e camadas', color: '#E8538F', textLight: '#BA4272', textDark: '#E8538F', path: '/apps/imagens/', legacyHash: '#/imagens', status: 'preview', initiallyActive: true, planned: ['Pincel e borracha', 'Remover fundo automaticamente'] },
