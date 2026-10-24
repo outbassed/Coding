@@ -4,6 +4,7 @@ import { getTool, type ToolId } from '../shared/catalog';
 import { LAUNCHER_PATH } from '../shared/links';
 import { useSettingsStore } from '../stores/settings';
 import { useMediaQuery } from '../composables/useMediaQuery';
+import { useResizableSidebar } from '../composables/useResizableSidebar';
 import { useVisualViewport } from '../composables/useVisualViewport';
 import AppIcon from '../components/ui/AppIcon.vue';
 import NavIcon from '../components/ui/NavIcon.vue';
@@ -64,32 +65,8 @@ const name = computed({
   set: (value: string) => { props.doc.state.value.name = value.slice(0, 250); }
 });
 
-const sideWidth = ref(356);
-const draggingSide = ref(false);
-let dragX = 0, dragStart = 356;
-function resizeStart(event: PointerEvent): void {
-  if (event.button !== 0 || !wide.value) return;
-  draggingSide.value = true;
-  dragX = event.clientX;
-  dragStart = sideWidth.value;
-  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-  event.preventDefault();
-}
-function resizeMove(event: PointerEvent): void {
-  if (!draggingSide.value) return;
-  sideWidth.value = Math.max(296, Math.min(460, dragStart + event.clientX - dragX));
-}
-function resizeEnd(event: PointerEvent): void {
-  if (!draggingSide.value) return;
-  draggingSide.value = false;
-  const el = event.currentTarget as HTMLElement;
-  if (el.hasPointerCapture(event.pointerId)) el.releasePointerCapture(event.pointerId);
-}
-function resizeKey(event: KeyboardEvent): void {
-  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-  event.preventDefault();
-  sideWidth.value = Math.max(296, Math.min(460, sideWidth.value + (event.key === 'ArrowRight' ? 16 : -16)));
-}
+const { width: sideWidth, dragging: draggingSide, start: resizeStart, move: resizeMove, end: resizeEnd, keys: resizeKey, reset: resizeReset } = useResizableSidebar(props.app, 356);
+
 </script>
 
 <template>
@@ -145,7 +122,7 @@ function resizeKey(event: KeyboardEvent): void {
         <button type="button" class="es-collapse" aria-label="Recolher ferramentas" title="Recolher painel de ferramentas" @click="desktopToolsOpen = false"><NavIcon name="panel" /> Recolher painel</button>
         <div class="es-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Ajustar largura do painel de ferramentas"
           :aria-valuenow="sideWidth" aria-valuemin="296" aria-valuemax="460" :class="{ active: draggingSide }"
-          @pointerdown="resizeStart" @pointermove="resizeMove" @pointerup="resizeEnd" @pointercancel="resizeEnd" @keydown="resizeKey" />
+          @pointerdown="resizeStart" @pointermove="resizeMove" @pointerup="resizeEnd" @pointercancel="resizeEnd" @dblclick="resizeReset" @keydown="resizeKey" title="Arraste para ajustar; dois cliques para restaurar" />
       </aside>
       <div class="es-canvas">
         <button v-if="wide && !desktopToolsOpen" class="es-reopen btn" type="button" data-testid="reopen-tools" @click="desktopToolsOpen = true">

@@ -12,6 +12,7 @@ import { TextHistory } from './history';
 import { readOffsets, writeOffsets } from './selection';
 import { useVisualViewport } from '../composables/useVisualViewport';
 import { useMediaQuery } from '../composables/useMediaQuery';
+import { useResizableSidebar } from '../composables/useResizableSidebar';
 import NavIcon from '../components/ui/NavIcon.vue';
 import { createTextDocument, openTextDocument, saveTextDocument } from './store';
 import { TEXT_TEMPLATES, textTemplate } from './templates';
@@ -25,6 +26,7 @@ const root = ref<HTMLElement | null>(null);
 useVisualViewport(() => root.value);
 const tool = getTool('texts');
 const wideText = useMediaQuery('(min-width: 900px)', true);
+const desktopSide = useResizableSidebar('texts', 356);
 const mobileToolTabs = [
   { id: 'formato', label: 'Formato', group: 'Fonte e estilo' },
   { id: 'paragrafo', label: 'Parágrafo', group: 'Parágrafo' },
@@ -635,7 +637,7 @@ onBeforeUnmount(() => {
       {{ loadError }} <a :href="LAUNCHER_PATH + '#/documentos'">Voltar à biblioteca</a>
     </p>
     <template v-else>
-      <div class="editing">
+      <div class="editing" :style="wideText ? { '--text-side-width': desktopSide.width.value + 'px' } : {}">
         <aside v-show="wideText || mobilePanelOpen" ref="controlsEl" class="text-controls" :class="'snap-' + mobileSnap" aria-label="Ferramentas de texto" data-testid="text-controls">
           <header v-if="!wideText" class="text-sheet-head">
             <span class="text-sheet-grip" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Arrastar para mudar a altura das ferramentas" :aria-valuemin="0" :aria-valuemax="2" :aria-valuenow="mobileSnap === 'compact' ? 0 : mobileSnap === 'half' ? 1 : 2" @pointerdown="snapStart" @pointerup="snapEnd" @pointercancel="snapEnd" @keydown="snapKeys"></span>
@@ -724,6 +726,7 @@ onBeforeUnmount(() => {
           </div>
         </section>
         </aside>
+        <div v-if="wideText" class="text-desktop-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Ajustar largura do painel de ferramentas" title="Arraste para ajustar; dois cliques para restaurar" :aria-valuenow="desktopSide.width.value" :aria-valuemin="desktopSide.min" :aria-valuemax="desktopSide.max" :class="{ active: desktopSide.dragging.value }" @pointerdown="desktopSide.start" @pointermove="desktopSide.move" @pointerup="desktopSide.end" @pointercancel="desktopSide.end" @dblclick="desktopSide.reset" @keydown="desktopSide.keys" />
         <main ref="stageEl" class="stage" tabindex="0" aria-label="Área de edição" @scroll.passive="updateFrame">
           <p v-if="loading" class="muted" role="status">Abrindo documento…</p>
           <section v-show="!loading" ref="paperEl" class="paper" aria-label="Página do documento">
@@ -760,8 +763,10 @@ onBeforeUnmount(() => {
 .document-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .document-meta label { font-weight: 700; font-size: 13px; white-space: nowrap; }
 .document-meta input { flex: 1; min-width: 0; padding: 9px 12px; min-height: 44px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
-.editing { display: grid; grid-template-columns: minmax(300px, 356px) minmax(0, 1fr); grid-template-rows: minmax(0,1fr); flex: 1; min-height: 0; min-width: 0; }
+.editing { display: grid; position: relative; grid-template-columns: var(--text-side-width,356px) minmax(0, 1fr); grid-template-rows: minmax(0,1fr); flex: 1; min-height: 0; min-width: 0; }
 .text-controls { min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); scrollbar-width: thin; }
+.text-desktop-resizer { position:absolute; z-index:5; left:calc(var(--text-side-width,356px) - 5px); top:0; bottom:0; width:10px; cursor:col-resize; touch-action:none; }
+.text-desktop-resizer:hover, .text-desktop-resizer.active, .text-desktop-resizer:focus-visible { background:color-mix(in srgb,var(--app) 45%,transparent); outline:none; }
 .text-sheet-head, .text-bottom-nav { display: none; }
 .toolbar { display: flex; flex: 1; flex-direction: column; align-items: stretch; gap: 12px; padding: 14px; background: var(--surface); min-width: 0; }
 .grp { display: flex; flex-wrap: wrap; align-content: flex-start; align-items: center; gap: 6px; min-width: 0; padding: 8px 0 12px; border-bottom: 1px solid var(--border); scroll-margin-top: 14px; }

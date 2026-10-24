@@ -1,6 +1,9 @@
 import { exposePreviewManifest } from './pwa';
 import { createApp, type Component } from 'vue';
 import { createPinia } from 'pinia';
+import { allowApp } from './shared/appAccess';
+import { isToolId } from './shared/catalog';
+import './shared/appAccess.css';
 import './styles/tokens.css';
 import './styles/base.css';
 
@@ -19,9 +22,12 @@ const id = document.body.dataset.app ?? '';
 const load = Object.hasOwn(loaders, id) ? loaders[id] : undefined;
 if (root) {
   if (!load) root.textContent = 'Este app não existe. Volte ao Launcher em /launcher/.';
-  else load().then((m) => createApp(m.default).use(createPinia()).mount(root)).catch(() => {
+  else if (isToolId(id)) {
+    const pinia = createPinia();
+    if (allowApp(root, id, pinia)) load().then((m) => createApp(m.default).use(pinia).mount(root)).catch(() => {
     root.innerHTML = '<p style="padding:24px;font:16px system-ui">Não foi possível carregar o app. Verifique a conexão e recarregue a página. <a href="/launcher/">Voltar ao Launcher</a></p>';
-  });
+    });
+  }
 }
 
 // O manifesto só é publicado em builds opt-in de Preview isolado.
