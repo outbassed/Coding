@@ -20,6 +20,6 @@ test('Texto: bloco maior que A4 continua no PDF nas páginas seguintes', async (
   // Nosso gerador declara a contagem no catálogo PDF, antes dos streams JPEG.
   // Não depender de mensagens efêmeras (podem mudar quando o autosave termina).
   const header = bytes.subarray(0, 1024).toString('latin1');
-  const pages = Number(/\\/Type \\/Pages \\/Count (\\d+)/.exec(header)?.[1] ?? 0);
+  const pages = Number(new RegExp('/Type /Pages /Count ([0-9]+)').exec(header)?.[1] ?? 0);
   expect(pages, 'o parágrafo longo precisa continuar em mais de uma página').toBeGreaterThan(2);
 });
