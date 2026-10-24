@@ -4,6 +4,7 @@ import EditorShell from '../../editors/EditorShell.vue';
 import FileTab from '../../editors/FileTab.vue';
 import { useDocument } from '../../editors/useDocument';
 import { useMediaQuery } from '../../composables/useMediaQuery';
+import { useSettingsStore } from '../../stores/settings';
 import { downloadText, safeFileName } from '../../shared/files/download';
 import { MAX_HISTORY, available, cleanNames, drawNumbers, makeTeams, pickName, rollDice, wheelAngle, type DrawMode } from './model';
 import { drawKind, drawTemplates } from './kind';
@@ -14,7 +15,9 @@ const tabs = [{ id: 'wheel', label: 'Roleta' }, { id: 'numbers', label: 'Número
 const tab = ref<string>(state.value.mode);
 watch(tab, (t) => { if (t !== 'arquivo' && t !== state.value.mode) state.value.mode = t as DrawMode; });
 watch(() => state.value.mode, (m) => { if (tab.value !== 'arquivo') tab.value = m; });
-const reduced = useMediaQuery('(prefers-reduced-motion: reduce)', false);
+const systemReduced = useMediaQuery('(prefers-reduced-motion: reduce)', false);
+const settings = useSettingsStore();
+const reduced = computed(() => systemReduced.value || settings.motion === 'reduce');
 
 const namesText = computed({
   get: () => state.value.participants.join('\n'),
