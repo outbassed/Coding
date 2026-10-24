@@ -78,3 +78,11 @@ No Launcher, vá a **Ajustes → Uso sem internet → Preparar acesso offline**.
 - Diretório raiz: `coding-v2`; build: `npm run build`; saída: `dist`.
 - Apenas commits da branch configurada geram deploys, sem previews de outras branches.
 - O projeto Vercel e o Coding 1.0 não são modificados.
+
+### Menu de contexto, atalhos e apps desativados
+
+- No PC, clique direito abre o menu do aplicativo atual. `Shift+clique direito` preserva o menu do navegador; `Shift+F10` ou a tecla Menu abrem o menu personalizado.
+- No celular, pressione uma região não editável por ~550 ms. Campos, seleção de texto, caixas de diálogo e controles interativos não têm o gesto interceptado.
+- O atalho `?`, fora de campos de edição, apresenta a lista **somente do aplicativo aberto**. `Alt+Shift+N` aciona a ação principal de cada aplicativo e `Alt+Shift+E` executa a exportação quando disponível. Controles desativados não são clicados.
+- Desativar no Launcher impede abrir diretamente a página do app no mesmo navegador; o próprio bloqueio oferece o botão **Ativar aplicativo**. Não há autenticação de servidor: é uma preferência local, não controle de autorização.
+- No PC, arraste a divisória do painel esquerdo ou ajuste-a com as setas quando focada; dê dois cliques para restaurar. A largura persiste separadamente por app. Nenhuma mudança na estrutura dos painéis mobile/tablet.

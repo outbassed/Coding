@@ -71,11 +71,11 @@ function getTab(name: string): HTMLElement | null {
 function findControl(action: Action): HTMLButtonElement | null {
   return action.selector ? document.querySelector<HTMLButtonElement>(action.selector) : null;
 }
-function available(action: Action): boolean {
+function available(action: Action, allowSwitchTab = false): boolean {
   if (!action.selector) return true;
   const button = findControl(action);
   if (button && !button.disabled && button.getClientRects().length > 0) return true;
-  return !!(action.tab && getTab(action.tab));
+  return !!(allowSwitchTab && action.tab && getTab(action.tab));
 }
 function runControl(action: Action): void {
   if (action.run) { action.run(); return; }
@@ -149,7 +149,7 @@ export function installContextMenu(app: AppId): void {
     menu.append(button);
   }
   function shortcuts(): HelpKey[] {
-    const keys: HelpKey[] = app === 'launcher' ? [['Abrir o menu', 'Shift+F10']] : [...(NATIVE_KEYS[app] ?? [])];
+    const keys: HelpKey[] = app === 'launcher' ? [['Abrir o menu', 'Shift+F10']] : [...(NATIVE_KEYS[app] ?? [['Salvar projeto', 'Ctrl+S'], ['Desfazer', 'Ctrl+Z'], ['Refazer', 'Ctrl+Shift+Z / Ctrl+Y']])];
     if (app !== 'launcher') {
       for (const action of APP_ACTIONS[app]) {
         if (action.shortcut && !keys.some((k) => k[1] === action.shortcut)) keys.push([action.label, action.shortcut]);
@@ -268,7 +268,7 @@ export function installContextMenu(app: AppId): void {
       const code = e.code;
       if (code !== 'KeyN' && code !== 'KeyE') return;
       const action = APP_ACTIONS[app].find(a => a.shortcut === (code === 'KeyN' ? 'Alt+Shift+N' : 'Alt+Shift+E'));
-      if (action && available(action)) { e.preventDefault(); runControl(action); }
+      if (action && available(action, true)) { e.preventDefault(); runControl(action); }
     }
   }, true);
   window.addEventListener('blur', () => { close(); cancelPress(); });
