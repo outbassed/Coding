@@ -3,7 +3,7 @@
 Lista honesta do que ficou de fora ou precisa de revisão depois da Prévia completa. Nada aqui envolve perda de dados conhecida.
 
 ## Recursos ainda não implementados
-- **Offline / PWA**: sem service worker nem manifesto. Os apps precisam de internet para abrir (Ajustes informa isso).
+- **Offline / PWA**: infraestrutura experimental de cache estático implementada e testada no CI Chromium, mas **desativada por padrão**; precisa de build opt-in (`VITE_CODING_PREVIEW_PWA=1`) e domínio exclusivo de Preview. Instalação real no celular, Safari/iOS e atualizações em produção ainda não verificadas.
 - **Documentos antigos do Coding 1.0**: os sete apps novos têm “Converter e abrir” (cria documento novo; o original não muda). Conversões aproximadas: em Imagens do 1.0, molduras, balões, adesivos de imagem e alguns filtros não são convertidos; no Editor PDF do 1.0, anotações de imagem (assinaturas) não são convertidas e “cobrir” vira retângulo.
 - Texto: cabeçalho/rodapé, comentários, células mescladas, numeração de páginas no PDF.
 - Planilhas: gráficos, filtros por coluna, mesclar células, séries automáticas (1, 2, 3…), colar fórmulas ajustando referências, ler formatos/estilos do XLSX importado, `.xls` antigo.
@@ -25,6 +25,6 @@ Lista honesta do que ficou de fora ou precisa de revisão depois da Prévia comp
 ## Polimento visual a revisar
 - Etiquetas e Texto mantêm a casca própria (mesmo princípio de topo/embaixo), não a `EditorShell` comum.
 - Barras de ferramentas longas no celular (Texto, Imagens) rolam bastante; agrupar melhor.
-- Ícones de texto simples (↑ ↓ ⧉ ✕ 👁) nas camadas de Imagens e ações de tabela; trocar por ícones SVG.
+- Ícones das camadas de Imagens já usam SVG; ainda há símbolos textuais nas ações de tabela do Texto, a substituir.
 - Roleta com muitos nomes (> 60) fica com rótulos pequenos.
 - Revisar espaçamentos dos painéis em 600–899 px.
