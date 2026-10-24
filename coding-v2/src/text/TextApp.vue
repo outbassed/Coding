@@ -486,7 +486,7 @@ async function exportPdf(): Promise<void> {
   try {
     const result = await textToPdf(sanitizeTextHtml(editor.value?.innerHTML ?? state.value.html), state.value.name, (d, t) => { message(d < t ? 'Gerando folha ' + (d + 1) + ' de ' + t + '…' : 'Finalizando PDF…'); });
     downloadBytes(result.bytes, filename() + '.pdf');
-    message('PDF gerado com ' + result.pages + (result.pages === 1 ? ' folha A4.' : ' folhas A4.') + (result.oversized ? ' Um bloco era maior que uma folha e foi cortado; divida-o ou use Imprimir.' : ''));
+    message('PDF gerado com ' + result.pages + (result.pages === 1 ? ' folha A4.' : ' folhas A4.') + (result.oversized ? ' Blocos longos foram divididos automaticamente entre folhas; confira as quebras ou use Imprimir para obter texto selecionável.' : ''));
   } catch (err) { error.value = 'Não foi possível gerar o PDF. ' + friendlyError(err) + ' Use “Imprimir” e escolha “Salvar como PDF”.'; }
   finally { exporting.value = false; }
 }
