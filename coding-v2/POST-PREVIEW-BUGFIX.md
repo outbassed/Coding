@@ -4,13 +4,12 @@ Lista honesta do que ficou de fora ou precisa de revisão depois da Prévia comp
 
 ## Recursos ainda não implementados
 - **Offline / PWA**: sem service worker nem manifesto. Os apps precisam de internet para abrir (Ajustes informa isso).
-- **Documentos antigos do Coding 1.0 nos apps novos**: cópias de Planilhas, Imagens, PDF, QR, Planilha→Etiquetas, Sorteio e Racha-conta vindas do 1.0 aparecem na Biblioteca e entram nos backups, mas não abrem nos editores novos (os formatos são diferentes; abrir poderia corrompê-los). Falta um conversor por app.
+- **Documentos antigos do Coding 1.0**: Planilhas, QR/Barras, Planilha→Etiquetas, Sorteio e Racha-conta já têm “Converter e abrir” (cria documento novo; o original não muda). Faltam conversores para **Imagens** e **Editor PDF** do 1.0 (dependem dos arquivos binários do formato antigo).
 - Texto: cabeçalho/rodapé, comentários, células mescladas, numeração de páginas no PDF.
-- Planilhas: gráficos, classificar/filtrar, mesclar células, preencher série/arrastar fórmula, colar fórmulas ajustando referências, ler formatos/estilos do XLSX importado, `.xls` antigo.
+- Planilhas: gráficos, filtros por coluna, mesclar células, séries automáticas (1, 2, 3…), colar fórmulas ajustando referências, ler formatos/estilos do XLSX importado, `.xls` antigo.
 - Imagens: pincel/borracha, remover fundo, recorte arrastando na tela, edição de texto direto na tela, zoom por pinça.
 - Editor PDF: assinatura, formulários, editar texto existente; anotações só com a fonte Helvetica (caracteres fora do Latin-1 viram “?”).
 - QR / Barras: Data Matrix, PDF417, geração em lote a partir de planilha, PDF direto (hoje via “Salvar como PDF” na impressão).
-- Etiquetas: código de barras/QR dentro das etiquetas.
 - Sorteio: pesos; exportar resultado como imagem. Racha-conta: várias moedas e compartilhamento por link.
 
 ## Limitações conhecidas

@@ -430,3 +430,24 @@ export function toExcelFormula(formula: string): string | null {
     return serialize(tokens, ',', '.', (name) => TO_EXCEL[name] ?? name);
   } catch { return null; }
 }
+
+/** Copia uma fórmula para outra célula: referências relativas andam junto (como arrastar no Excel); $ fixa. */
+export function offsetFormula(formula: string, dr: number, dc: number): string {
+  let tokens: Token[];
+  try { tokens = tokenize(formula); } catch { return formula; }
+  const semicolon = formula.includes(';');
+  for (const t of tokens) {
+    if (t.t !== 'ref') continue;
+    const move = (c: number, r: number, a: [boolean, boolean]): [number, number] => [a[0] ? c : c + dc, a[1] ? r : r + dr];
+    const [c1, r1] = move(t.c1, t.r1, t.a1);
+    if (c1 < 0 || r1 < 0) { t.raw = '#REF!'; continue; }
+    let raw = sheetPrefix(t.sheet) + ref1(c1, r1, t.a1);
+    if (t.c2 !== undefined && t.r2 !== undefined) {
+      const [c2, r2] = move(t.c2, t.r2, t.a2 ?? [false, false]);
+      if (c2 < 0 || r2 < 0) { t.raw = '#REF!'; continue; }
+      raw += ':' + ref1(c2, r2, t.a2 ?? [false, false]);
+    }
+    t.raw = raw;
+  }
+  return serialize(tokens, semicolon ? ';' : ',', semicolon ? ',' : '.');
+}

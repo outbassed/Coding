@@ -6,7 +6,7 @@ import { useDocument } from '../../editors/useDocument';
 import { downloadBlob, downloadText, safeFileName } from '../../shared/files/download';
 import { friendlyError } from '../../library/errors';
 import { FUNCTION_NAMES, cellName, indexToCol, isError } from './formula';
-import { deleteCols, deleteRows, display, Evaluator, insertCols, insertRows, key, MAX_SHEETS, rangeName, renameSheet, sheetId, type Align, type Cell, type CellFormat } from './model';
+import { deleteCols, deleteRows, display, Evaluator, fillRange, insertCols, insertRows, key, MAX_SHEETS, rangeName, renameSheet, sheetId, sortRows, type Align, type Cell, type CellFormat } from './model';
 import { exportCsv, exportXlsx, importFile } from './io';
 import { calcKind, calcTemplates } from './kind';
 
@@ -85,6 +85,7 @@ function onGridKey(event: KeyboardEvent): void {
     case 'End': event.preventDefault(); select(r, sheet.value.cols - 1, ext); return;
   }
   if (mod && event.key.toLowerCase() === 'b') { event.preventDefault(); toggleBold(); return; }
+  if (mod && event.key.toLowerCase() === 'd') { event.preventDefault(); fill('down'); return; }
   if (!mod && !event.altKey && event.key.length === 1) { event.preventDefault(); startEdit(event.key); }
 }
 function onEditorKey(event: KeyboardEvent): void {
@@ -154,6 +155,25 @@ function clearFormats(): void { eachInRange((r, c) => setCell(r, c, { f: undefin
 const formatNames: Record<CellFormat, string> = { general: 'Geral', number: 'Número (2 casas)', integer: 'Inteiro', currency: 'Moeda (R$)', percent: 'Porcentagem', text: 'Texto' };
 const currentFormat = computed<CellFormat>(() => activeCell.value?.f ?? 'general');
 const colWidth = computed({ get: () => width(focus.value.c), set: (w: number) => { if (Number.isFinite(w)) sheet.value.widths[String(focus.value.c)] = Math.min(600, Math.max(40, Math.round(w))); } });
+
+// ---- preencher e classificar ----
+function fill(dir: 'down' | 'right'): void {
+  const { r1, c1, r2, c2 } = range.value;
+  if ((dir === 'down' && r1 === r2) || (dir === 'right' && c1 === c2)) { doc.say('Selecione mais de uma ' + (dir === 'down' ? 'linha' : 'coluna') + ' para preencher.'); return; }
+  const n = fillRange(state.value, si.value, r1, c1, r2, c2, dir);
+  doc.say(n + ' célula(s) preenchida(s).');
+}
+function sort(desc: boolean): void {
+  let { r1, r2 } = range.value;
+  if (r1 === r2) {
+    // sem seleção de várias linhas: ordena tudo abaixo do cabeçalho até a última linha usada
+    let last = 0; for (const [k, cell] of Object.entries(sheet.value.cells)) if (cell.v) last = Math.max(last, Number(k.split(':')[0]));
+    r1 = 1; r2 = last;
+  }
+  if (r2 <= r1) { doc.say('Nada para classificar.'); return; }
+  sortRows(state.value, si.value, r1, r2, focus.value.c, desc);
+  doc.say('Linhas ' + (r1 + 1) + ' a ' + (r2 + 1) + ' classificadas pela coluna ' + indexToCol(focus.value.c) + (desc ? ' (Z→A).' : ' (A→Z).'));
+}
 
 // ---- linhas, colunas e abas ----
 function rowsOp(op: 'above' | 'below' | 'delete'): void {
@@ -275,6 +295,10 @@ const printRange = computed(() => {
             <button type="button" class="ib" :aria-pressed="activeCell?.a === 'right'" aria-label="Alinhar à direita" @click="setAlign('right')">⯈</button>
           </div></div>
         <label class="ed-field"><span class="ed-label">Largura da coluna {{ indexToCol(focus.c) }} (px)</span><input v-model.number="colWidth" class="inp inp-num" type="number" min="40" max="600" step="10" /></label>
+        <button type="button" class="btn" data-testid="fill-down" title="Ctrl+D" @click="fill('down')">Preencher para baixo</button>
+        <button type="button" class="btn" @click="fill('right')">Preencher à direita</button>
+        <button type="button" class="btn" data-testid="sort-asc" @click="sort(false)">Classificar A→Z</button>
+        <button type="button" class="btn" @click="sort(true)">Classificar Z→A</button>
         <button type="button" class="btn" @click="clearRange">Limpar conteúdo</button>
         <button type="button" class="btn" @click="clearFormats">Limpar formatação</button>
       </div>

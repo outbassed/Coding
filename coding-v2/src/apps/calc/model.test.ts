@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { budgetTemplate, deleteRows, display, Evaluator, insertCols, insertRows, normalizeCalc, renameSheet, type CalcState } from './model';
+import { budgetTemplate, deleteRows, display, Evaluator, fillRange, insertCols, insertRows, normalizeCalc, renameSheet, sortRows, type CalcState } from './model';
 
 describe('planilha', () => {
   it('modelo de orçamento calcula totais, % e textos', () => {
@@ -37,5 +37,18 @@ describe('planilha', () => {
     expect(s.sheets[0]!.name).toBe('a b');
     expect(Object.keys(s.sheets[0]!.cells)).toEqual(['1:1']);
     expect(normalizeCalc(null).sheets).toHaveLength(1);
+  });
+  it('preencher para baixo ajusta fórmulas relativas e mantém as absolutas', () => {
+    const s: CalcState = { name: 'x', active: 0, sheets: [{ id: 'a', name: 'P', rows: 10, cols: 5, widths: {}, cells: { '0:0': { v: '=B1*$C$1' } } }] };
+    fillRange(s, 0, 0, 0, 2, 0, 'down');
+    expect(s.sheets[0]!.cells['2:0']!.v).toBe('=B3*$C$1');
+  });
+  it('classificar ordena números e textos e deixa vazias no fim', () => {
+    const s: CalcState = { name: 'x', active: 0, sheets: [{ id: 'a', name: 'P', rows: 10, cols: 3, widths: {}, cells: { '0:0': { v: 'Nome' }, '1:0': { v: 'Caio' }, '1:1': { v: '3' }, '2:0': { v: 'ana' }, '2:1': { v: '1' }, '3:0': { v: 'Bia' }, '3:1': { v: '2' } } }] };
+    sortRows(s, 0, 1, 3, 0, false);
+    expect([1, 2, 3].map((r) => s.sheets[0]!.cells[r + ':0']!.v)).toEqual(['ana', 'Bia', 'Caio']);
+    expect(s.sheets[0]!.cells['1:1']!.v).toBe('1');
+    sortRows(s, 0, 1, 3, 1, true);
+    expect(s.sheets[0]!.cells['1:0']!.v).toBe('Caio');
   });
 });

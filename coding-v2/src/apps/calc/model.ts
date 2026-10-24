@@ -1,4 +1,4 @@
-import { cellName, evaluate, formatGeneral, isError, parse, parseNumber, shiftFormula, tokenize, type Node, type Value, type Shift } from './formula';
+import { cellName, evaluate, formatGeneral, isError, offsetFormula, parse, parseNumber, shiftFormula, tokenize, type Node, type Value, type Shift } from './formula';
 
 export type CellFormat = 'general' | 'number' | 'integer' | 'currency' | 'percent' | 'text';
 export type Align = 'left' | 'center' | 'right' | '';
@@ -242,3 +242,40 @@ export function productsTemplate(): CalcState {
   return { name: 'Tabela de produtos', active: 0, sheets: [{ id: sheetId(), name: 'Produtos', rows: 40, cols: 8, cells, widths: { '0': 110, '1': 230, '2': 110, '3': 130, '4': 120 } }] };
 }
 export function blankCalc(): CalcState { return { name: 'Planilha sem título', active: 0, sheets: [{ id: sheetId(), name: 'Planilha 1', rows: 50, cols: 12, cells: {}, widths: {} }] }; }
+
+/** Preenche o intervalo com a primeira linha (para baixo) ou a primeira coluna (para a direita), ajustando fórmulas. */
+export function fillRange(state: CalcState, si: number, r1: number, c1: number, r2: number, c2: number, dir: 'down' | 'right'): number {
+  const s = state.sheets[si]; if (!s) return 0;
+  let n = 0;
+  for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) {
+    const sr = dir === 'down' ? r1 : r, sc = dir === 'down' ? c : c1;
+    if (r === sr && c === sc) continue;
+    const src = s.cells[key(sr, sc)];
+    if (!src) { delete s.cells[key(r, c)]; continue; }
+    const v = src.v.startsWith('=') ? '=' + offsetFormula(src.v.slice(1), r - sr, c - sc) : src.v;
+    s.cells[key(r, c)] = { ...src, v };
+    n++;
+  }
+  return n;
+}
+/** Ordena as linhas r1..r2 pelo valor da coluna `col` (números antes de textos, vazias no fim). */
+export function sortRows(state: CalcState, si: number, r1: number, r2: number, col: number, desc: boolean): void {
+  const s = state.sheets[si]; if (!s || r2 <= r1) return;
+  const ev = new Evaluator(state);
+  const rows = [];
+  for (let r = r1; r <= r2; r++) {
+    const cells: Record<number, Cell> = {};
+    for (let c = 0; c < s.cols; c++) { const cell = s.cells[key(r, c)]; if (cell) cells[c] = cell; }
+    rows.push({ cells, v: ev.value(si, r, col) });
+  }
+  const rank = (v: Value | null) => (v === null || v === '' ? 2 : typeof v === 'number' ? 0 : 1);
+  rows.sort((a, b) => {
+    const ra = rank(a.v), rb = rank(b.v);
+    if (ra !== rb) return ra - rb;
+    if (ra === 2) return 0;
+    const cmp = typeof a.v === 'number' && typeof b.v === 'number' ? a.v - b.v : String(display(a.v, undefined)).localeCompare(String(display(b.v, undefined)), 'pt-BR', { numeric: true, sensitivity: 'base' });
+    return desc ? -cmp : cmp;
+  });
+  for (let r = r1; r <= r2; r++) for (let c = 0; c < s.cols; c++) delete s.cells[key(r, c)];
+  rows.forEach((row, i) => { for (const [c, cell] of Object.entries(row.cells)) s.cells[key(r1 + i, Number(c))] = cell; });
+}
