@@ -14,7 +14,14 @@ export default defineConfig({
         root: resolve(import.meta.dirname, 'index.html'),
         launcher: resolve(import.meta.dirname, 'launcher/index.html'),
         etiquetas: resolve(import.meta.dirname, 'apps/etiquetas/index.html'),
-        texto: resolve(import.meta.dirname, 'apps/texto/index.html')
+        texto: resolve(import.meta.dirname, 'apps/texto/index.html'),
+        'planilhas': resolve(import.meta.dirname, 'apps/planilhas/index.html'),
+        'imagens': resolve(import.meta.dirname, 'apps/imagens/index.html'),
+        'pdf': resolve(import.meta.dirname, 'apps/pdf/index.html'),
+        'qr': resolve(import.meta.dirname, 'apps/qr/index.html'),
+        'planilha-etiquetas': resolve(import.meta.dirname, 'apps/planilha-etiquetas/index.html'),
+        'sorteio': resolve(import.meta.dirname, 'apps/sorteio/index.html'),
+        'racha-conta': resolve(import.meta.dirname, 'apps/racha-conta/index.html')
       }
     }
   }

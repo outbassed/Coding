@@ -1,4 +1,4 @@
-import { getCopy } from '../storage/documents';
+import { getCopyState } from '../storage/documents';
 import { LruCache, TaskQueue } from './cache';
 import { buildPreview, previewable, type Preview } from './model';
 
@@ -19,9 +19,10 @@ export function loadPreview(c: PreviewKey): Promise<Preview> {
   const pending = inflight.get(key);
   if (pending) return pending;
   const job = queue.run(async () => {
-    const record = await getCopy(c.id);
+    // Só metadados e estado: nenhum Blob de imagem é lido para gerar a miniatura.
+    const record = await getCopyState(c.id);
     if (!record) throw new Error('Documento ausente');
-    const preview = buildPreview(record.snapshot.doc.type ?? c.type, record.snapshot.doc.state);
+    const preview = buildPreview(record.type ?? c.type, record.state);
     cache.set(key, preview);
     return preview;
   }).finally(() => { inflight.delete(key); });

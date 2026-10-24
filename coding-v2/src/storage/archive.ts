@@ -1,5 +1,5 @@
 import {
-  importCopiesAtomic, validateSnapshot,
+  importCopiesAtomic, importedTimes, validateSnapshot,
   type CopyRecord, type LegacyDoc, type LegacyImage, type LegacySnapshot
 } from './documents';
 
@@ -304,13 +304,12 @@ export async function importBackupToCopies(text: string): Promise<number> {
   const entries = await decodeBackupEntries(text);
   const copies: CopyRecord[] = entries.map((entry) => {
     if (entry.kind === 'copy') return entry.copy;
-    const date = Date.now();
     const snapshot = entry.snapshot;
     const label = (snapshot.doc.state && typeof snapshot.doc.state.name === 'string' && snapshot.doc.state.name.trim())
       || (typeof snapshot.doc.name === 'string' && snapshot.doc.name.trim()) || 'Documento sem nome';
     return {
       id: crypto.randomUUID(), legacyId: snapshot.doc.id, source: 'backup',
-      label: label.slice(0, 250), revision: 1, createdAt: date, updatedAt: date,
+      label: label.slice(0, 250), revision: 1, ...importedTimes(snapshot.doc),
       snapshot: { ...snapshot, source: 'backup' }
     };
   });
