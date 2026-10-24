@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { LruCache, TaskQueue } from './cache';
-import { labelsPreview, textPreview, previewable, MAX_PREVIEW_BLOCKS } from './model';
+import { buildPreview, labelsPreview, textPreview, previewable, MAX_PREVIEW_BLOCKS } from './model';
+import { budgetTemplate } from '../apps/calc/model';
+import { demoSplit } from '../apps/split/model';
+import { demoCodes } from '../apps/codes/model';
+import { demoDraw } from '../apps/draw/model';
+import { demoImages } from '../apps/images/model';
 import { defaults } from '../labels/model';
 
 describe('cache LRU', () => {
@@ -68,6 +73,18 @@ describe('modelos de prévia', () => {
     expect(() => textPreview(null)).toThrow();
     expect(previewable('labels')).toBe(true);
     expect(previewable('texts')).toBe(true);
-    expect(previewable('sheet')).toBe(false);
+    expect(previewable('sheet')).toBe(true);
+    expect(previewable('desconhecido')).toBe(false);
+  });
+  it('prévias dos apps novos usam os dados reais e recusam formatos antigos do 1.0', () => {
+    const calc = buildPreview('calc', budgetTemplate());
+    expect(calc.kind === 'table' && calc.rows.flat()).toContain('R$ 4.120,00');
+    expect(() => buildPreview('calc', { name: 'planilha antiga do Coding 1.0', data: [[1, 2]] })).toThrow();
+    const split = buildPreview('split', demoSplit());
+    expect(split.kind === 'summary' && split.lines[0]).toEqual(['Total', expect.stringContaining('2.006,40')]);
+    const codes = buildPreview('codes', demoCodes());
+    expect(codes.kind === 'codes' && codes.svgs.length).toBe(3);
+    expect(buildPreview('draw', demoDraw()).kind).toBe('summary');
+    expect(buildPreview('images', demoImages()).kind).toBe('summary');
   });
 });
