@@ -1,4 +1,5 @@
 import { type CodingTool, isPreviewTool } from './catalog';
+import { previewPwaEnabled } from '../pwa';
 
 /** Três conceitos distintos; nenhum deles implica o outro. */
 export type LevelKey = 'activation' | 'offline' | 'install';
@@ -32,7 +33,7 @@ export function levelsFor(tool: CodingTool, enabled: boolean): Level[] {
       state: preview ? 'unverified' : 'unavailable',
       label: preview ? 'Não verificado' : 'Em breve',
       text: preview
-        ? 'Esta prévia ainda não baixa arquivos para uso sem internet nem confere se estão completos. Só vamos dizer “disponível offline” depois de verificar de verdade.'
+        ? (previewPwaEnabled ? 'Em um Preview isolado, abra Ajustes e use Preparar offline. O estado desta instalação só pode ser confirmado no próprio aparelho.' : 'A preparação offline é experimental e precisa ser ativada no build de um Preview isolado.')
         : 'Disponível offline só será avaliado depois da migração do aplicativo.'
     },
     {
@@ -41,7 +42,7 @@ export function levelsFor(tool: CodingTool, enabled: boolean): Level[] {
       state: preview ? 'unproven' : 'unavailable',
       label: preview ? 'Não comprovado' : 'Em breve',
       text: preview
-        ? 'Instalar no dispositivo é outra coisa e depende do navegador. Esta prévia não tem manifesto nem service worker, e o comportamento ainda não foi testado em aparelhos reais.'
+        ? (previewPwaEnabled ? 'O Preview possui manifesto opcional. A instalação no sistema é decidida pelo navegador e não foi verificada em aparelhos reais.' : 'Instalar no dispositivo depende do navegador; o Preview não habilita PWA sem configuração explícita.')
         : 'A instalação no dispositivo será estudada depois da migração do aplicativo.'
     }
   ];
