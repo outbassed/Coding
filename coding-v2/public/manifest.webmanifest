@@ -1,0 +1,20 @@
+{
+  "id": "/launcher/",
+  "name": "Coding 2.0 Preview",
+  "short_name": "Coding 2.0",
+  "description": "Editores de documentos, etiquetas, planilhas, imagens e PDFs em um só lugar.",
+  "lang": "pt-BR",
+  "start_url": "/launcher/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#171c24",
+  "icons": [
+    {
+      "src": "/legacy-icons/coding.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
