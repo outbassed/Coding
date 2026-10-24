@@ -37,7 +37,7 @@ function cycle(): void {
 </script>
 
 <template>
-  <section class="sheet" :class="'snap-' + snap" role="region" :aria-label="title" data-testid="bottom-sheet" @keydown.esc="emit('close')">
+  <section class="sheet" :class="'snap-' + snap" role="region" :aria-label="'Painel de ferramentas: ' + title" data-testid="bottom-sheet" @keydown.esc="emit('close')">
     <header class="head">
       <span class="grip" role="separator" tabindex="0" aria-orientation="horizontal" aria-label="Arrastar para ajustar a altura da gaveta" :aria-valuenow="order.indexOf(snap)" aria-valuemin="0" aria-valuemax="2" :aria-valuetext="names[snap]" @pointerdown="dragStart" @pointerup="dragEnd" @pointercancel="dragEnd" @keydown="dragKey"></span>
       <h2>{{ title }}</h2>
