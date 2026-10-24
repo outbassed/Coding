@@ -303,13 +303,16 @@ test.describe('Casca dos editores · celular e acessibilidade', () => {
       await axeClean(page, url + ' celular');
     }
   });
-  test('computador: ferramentas no topo e sem violações nos dois temas', async ({ page }) => {
+  test('computador: ferramentas à esquerda, prévia à direita e sem violações nos dois temas', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     for (const url of apps) {
       await page.goto(url);
       const stage = (await page.getByTestId('editor-stage').boundingBox())!;
       const tabs = (await page.getByTestId('editor-tabs').boundingBox())!;
-      expect(tabs.y, url).toBeLessThan(stage.y);
+      const sidebar = (await page.getByTestId('editor-sidebar').boundingBox())!;
+      expect(sidebar.x + sidebar.width, url).toBeLessThanOrEqual(stage.x + 2);
+      expect(tabs.y, url).toBeGreaterThanOrEqual(sidebar.y);
+      expect(stage.width, url).toBeGreaterThan(sidebar.width);
       for (const scheme of ['light', 'dark'] as const) {
         await page.emulateMedia({ colorScheme: scheme });
         await page.waitForTimeout(300);
