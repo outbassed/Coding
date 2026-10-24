@@ -5,6 +5,7 @@ import { useSettingsStore, type Motion, type Theme } from '../stores/settings';
 import { useAppsStore } from '../stores/apps';
 import { tools } from '../shared/catalog';
 import { LEGACY_URL } from '../shared/links';
+import { previewPwaSupported, prepareOffline } from '../pwa';
 import { listCopySummaries, type CopySummary } from '../storage/documents';
 import { toolIdForType } from '../library/model';
 import { readView, writeView, type ViewMode } from '../library/view';
@@ -19,6 +20,28 @@ const motions: { id: Motion; label: string }[] = [{ id: 'system', label: 'Seguir
 const view = ref<ViewMode>(readView());
 function setView(mode: ViewMode): void { view.value = mode; writeView(mode); announce('Biblioteca abrirá em ' + (mode === 'grid' ? 'grade' : 'lista') + '.'); }
 const status = ref('');
+const canPrepareOffline = previewPwaSupported();
+const offlineState = ref<'idle' | 'working' | 'ready' | 'error'>('idle');
+const offlineError = ref('');
+onMounted(() => {
+  if (!canPrepareOffline) return;
+  void navigator.serviceWorker.getRegistration('/').then((registration) => {
+    if (registration?.active?.scriptURL.endsWith('/sw.js')) offlineState.value = 'ready';
+  }).catch(() => { /* Navegador sem permissão para consultar a instalação */ });
+});
+async function activateOffline(): Promise<void> {
+  offlineState.value = 'working';
+  offlineError.value = '';
+  try {
+    await prepareOffline();
+    offlineState.value = 'ready';
+    announce('Os arquivos da Prévia foram preparados para uso sem internet.');
+  } catch (error) {
+    offlineState.value = 'error';
+    offlineError.value = error instanceof Error ? error.message : 'Não foi possível preparar o acesso offline.';
+    announce(offlineError.value);
+  }
+}
 function announce(text: string): void { status.value = ''; requestAnimationFrame(() => { status.value = text; }); }
 
 /** Contagem por app sem criar o banco: só lê se ele já existir. */
@@ -69,7 +92,14 @@ const perApp = computed(() => tools.map((t) => ({ tool: t, count: (copies.value 
 
   <section class="card" aria-labelledby="off-h">
     <h2 id="off-h">Uso sem internet</h2>
-    <p class="muted" data-testid="offline-status">Nesta prévia os apps precisam de internet para abrir. Depois de abertos, editar e salvar funcionam no aparelho. O modo offline instalável ainda não foi liberado e por isso não é oferecido aqui.</p>
+    <p v-if="!canPrepareOffline" class="muted" data-testid="offline-status">A preparação offline é opcional e está desativada neste ambiente. Ela só pode ser usada em um build de Preview separado, para não interferir no Coding atual.</p>
+    <template v-else>
+      <p v-if="offlineState === 'ready'" class="muted" data-testid="offline-status">Arquivos do Coding 2.0 preparados neste navegador. Você pode abrir o Launcher e os nove aplicativos sem rede; documentos já salvos continuam no armazenamento local.</p>
+      <p v-else class="muted" data-testid="offline-status">{{ offlineState === 'working' ? 'Preparando os arquivos estáticos do Preview…' : 'É possível preparar os arquivos do Preview para abrir os aplicativos sem internet. Seus documentos não são enviados nem armazenados no cache.' }}</p>
+      <p v-if="offlineError" class="muted" role="alert">{{ offlineError }}</p>
+      <button type="button" class="btn btn-primary" data-testid="prepare-offline" :disabled="offlineState === 'working'" @click="activateOffline">{{ offlineState === 'working' ? 'Preparando…' : offlineState === 'ready' ? 'Preparar novamente' : 'Preparar acesso offline' }}</button>
+      <p class="muted small">O armazenamento offline é separado da instalação como aplicativo: o botão de instalar, quando disponível, pertence ao seu navegador. A preparação precisa de conexão inicial.</p>
+    </template>
   </section>
 
   <section class="card" aria-labelledby="sobre-h">
