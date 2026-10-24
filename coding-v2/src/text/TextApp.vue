@@ -61,7 +61,12 @@ const imagePercent = ref(100);
 
 const docId = new URLSearchParams(location.search).get('doc');
 
-function message(text: string): void { note.value = text; }
+let exportNoticeUntil = 0;
+function message(text: string): void {
+  note.value = text;
+  // Um autosave pendente não deve apagar imediatamente a confirmação do PDF/DOCX.
+  if (text.startsWith('PDF gerado') || text.startsWith('DOCX exportado')) exportNoticeUntil = Date.now() + 8000;
+}
 function dirty(): boolean {
   try { return JSON.stringify(normalizedTextState(state.value)) !== committed; }
   catch { return true; } // Invalid or oversized input remains pending until corrected.
@@ -173,7 +178,7 @@ async function saveNow(): Promise<void> {
         committed = value;
         if (first) history.replaceState(null, '', location.pathname + '?doc=' + encodeURIComponent(created.id));
         status.value = dirty() ? 'pending' : 'saved';
-        if (status.value === 'saved') message('Documento salvo neste aparelho.');
+        if (status.value === 'saved' && Date.now() > exportNoticeUntil) message('Documento salvo neste aparelho.');
       } catch (err) {
         status.value = err instanceof RevisionConflict ? 'conflict' : 'error';
         error.value = err instanceof RevisionConflict
