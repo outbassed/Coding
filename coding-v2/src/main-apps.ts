@@ -1,3 +1,4 @@
+import { exposePreviewManifest } from './pwa';
 import { createApp, type Component } from 'vue';
 import { createPinia } from 'pinia';
 import './styles/tokens.css';
@@ -22,3 +23,6 @@ if (root) {
     root.innerHTML = '<p style="padding:24px;font:16px system-ui">Não foi possível carregar o app. Verifique a conexão e recarregue a página. <a href="/launcher/">Voltar ao Launcher</a></p>';
   });
 }
+
+// O manifesto só é publicado em builds opt-in de Preview isolado.
+exposePreviewManifest();
