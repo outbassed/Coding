@@ -1,8 +1,8 @@
-# Coding Launcher 2.0 · Fundação experimental
+# Coding 2.0 · Prévia completa
 
-Esta pasta contém uma **nova base isolada**, em Vue 3 + TypeScript + Vite multipágina + Pinia + Tailwind CSS 4. **A aplicação legada na raiz do repositório está preservada.**
+Esta pasta contém o **Coding 2.0**, em Vue 3 + TypeScript + Vite multipágina + Pinia + Tailwind CSS 4. **A aplicação do Coding 1.0, na raiz do repositório, está preservada** e o banco `coding-db` do 1.0 nunca é alterado por esta base.
 
-> Fase 2 (interface): veja [FASE2-INTERFACE.md](./FASE2-INTERFACE.md).
+Lista de funcionalidades por app: [PREVIEW-COMPLETA.md](./PREVIEW-COMPLETA.md) · Pendências conhecidas: [POST-PREVIEW-BUGFIX.md](./POST-PREVIEW-BUGFIX.md)
 
 ## Rodar localmente
 
@@ -20,37 +20,38 @@ npm run test:e2e
 npm run dev
 ```
 
-Endereços locais:
-- `/launcher/`: central de aplicativos
-- `/apps/etiquetas/`: casca isolada de Etiquetas
-- `/apps/texto/`: casca isolada de Texto
+## Endereços
 
-O Vite usa múltiplos arquivos HTML. A pasta `dist` só será produzida depois de instalar dependências e compilar.
+| Endereço | O que é |
+| --- | --- |
+| `/launcher/` | Launcher: Início, Meus apps, Catálogo, Detalhes, Documentos (biblioteca e backups) e Ajustes |
+| `/apps/etiquetas/` | Etiquetas |
+| `/apps/texto/` | Texto |
+| `/apps/planilhas/` | Planilhas |
+| `/apps/imagens/` | Imagens |
+| `/apps/pdf/` | Editor PDF |
+| `/apps/qr/` | QR / Barras |
+| `/apps/planilha-etiquetas/` | Planilha → Etiquetas |
+| `/apps/sorteio/` | Sorteio |
+| `/apps/racha-conta/` | Racha-conta |
 
-## O que já funciona nesta etapa
+Todo app aceita `?doc=<id>` (abre um documento salvo) e `?modelo=<id>` (começa por um modelo editável). Sem parâmetro, abre o primeiro modelo: dá para experimentar sem enviar arquivo.
 
-- Design system (tokens Tailwind 4, três temas, cores das nove ferramentas, ícones SVG) e componentes Vue reutilizáveis.
-- Launcher com rotas internas, catálogo, Detalhes do aplicativo, Meus apps, Documentos e Ajustes.
-- Ativar/desativar atalhos (com confirmação ao desativar), preferência em `coding-v2-apps`, sem tocar no banco antigo.
-- Prévias de Etiquetas e Texto (faixa de comandos, gavetas, folha A4), sempre marcadas como prévia.
-- Testes estruturais, de unidade, de interface em 8 larguras e de acessibilidade (axe).
+## Arquitetura
 
-## O que NÃO está implementado
-
-- Editores completos, importação, exportação e gravação de documentos **não foram portados**. As folhas dos apps são apenas exemplos visuais e todos os comandos ficam desativados.
-- **Nenhuma PWA está instalável nesta etapa:** não há manifests nem service worker nesta base. Isso é intencional até validar multi-PWA, escopos e armazenamento nos navegadores.
-- Não foi implementado download seletivo de módulos nem status real de offline.
-- Não há integração nem migração com o IndexedDB antigo `coding-db`.
-- Não há redirecionamento para este projeto a partir da aplicação legada, e nenhum deploy foi realizado.
+- **Casca única dos editores** (`src/editors/EditorShell.vue`): no computador, abas de ferramentas no topo (como Word/Docs), documento no centro e painel lateral quando útil; no celular, prévia em cima e ferramentas embaixo (como CapCut), acompanhando o teclado virtual (`visualViewport`) e as áreas seguras. Etiquetas e Texto mantêm as interfaces próprias, já testadas, com o mesmo princípio.
+- **Documentos** (`src/editors/useDocument.ts` + `docs.ts`): abrir, criar a partir de modelo, salvar automaticamente só depois de uma alteração, desfazer/refazer, Ctrl+S, proteção contra conflito de revisão (nunca sobrescreve em silêncio) e “Salvo” só depois da transação do IndexedDB terminar. Arquivos binários (fotos, PDFs) ficam como Blobs no armazenamento de ativos do documento.
+- **Armazenamento**: banco próprio `coding-v2-documents`. Backups JSON e `.codingpack` preservados. A importação mantém as datas originais quando são plausíveis. Miniaturas da biblioteca leem só o estado do documento, sem ler Blobs (`getCopyState`).
+- **Arquivos sem dependências novas**: ZIP, CSV, XLSX e DOCX próprios (`src/shared/files/`, `src/text/docx.ts`); PDF com `pdf-lib` e `pdf.js` reaproveitados do Coding 1.0 (`public/vendor/`, carregados só no Editor PDF); QR com o gerador do Coding 1.0 (`src/vendor/qrcode-generator.js`).
+- **Ativação de apps**: preferência v2 (`coding-v2-apps`). Apps novos entram ativados; o que a pessoa desativou continua desativado. Ativar não instala nada nem promete uso offline.
 
 ## Proteção de dados
 
-Não criar um novo banco com o nome `coding-db` durante a fase de testes; primeiro escrever testes de importação/backup e de conflitos. O protótipo **nunca** apresenta um rótulo `Salvo` para dados que não gravou.
+- O banco `coding-db` do Coding 1.0 nunca é aberto para escrita. Migração entre domínios só por exportação/importação feitas pela pessoa.
+- Nada é apagado automaticamente; importações não substituem documentos existentes.
+- O HTML do Texto é sempre saneado (lista fechada de tags, estilos e imagens `data:`).
+- Documentos de formatos antigos do 1.0 com o mesmo tipo não são reinterpretados pelos apps novos (ficam na biblioteca, com backup, mas não abrem num editor que poderia corrompê-los).
 
-## Publicação futura
+## Offline / PWA
 
-O `index.html` da nova base faz redirecionamento interno para `/launcher/` **somente quando `coding-v2` for configurada como raiz do projeto Vercel**. Não aponte o projeto Vercel atual para esta pasta antes de concluir a migração.
-
-## Próximo passo sugerido
-
-Criar um pacote de testes de compatibilidade do IndexedDB antigo, um adaptador com salvamento transacional, e uma prova de conceito real de PWAs separados com dados compartilhados. Depois migrar os motores originais de Etiquetas e Texto sem regressões.
+Não há service worker nem manifesto nesta prévia (verificado por `npm run test:structure`). Os apps precisam de internet para abrir; depois de abertos, editar e salvar funcionam no aparelho.

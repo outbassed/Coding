@@ -14,10 +14,10 @@ describe('níveis de disponibilidade', () => {
       expect(install?.state).toBe('unproven');
     }
   });
-  it('apps planejados não aparecem como ativáveis', () => {
+  it('os apps novos do 2.0 também separam ativação de offline e instalação', () => {
     for (const id of ['calc', 'images', 'pdf', 'codes', 'sheet-labels', 'draw', 'split'] as const) {
       const states = levelsFor(getTool(id), false).map((level) => level.state);
-      expect(states).toEqual(['unavailable', 'unavailable', 'unavailable']);
+      expect(states).toEqual(['off', 'unverified', 'unproven']);
     }
   });
   it('reflete a ativação', () => {

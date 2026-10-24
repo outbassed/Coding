@@ -87,8 +87,8 @@ test.describe('Launcher · detalhes no estilo loja', () => {
     const lead = (await page.locator('.hero .lead').first().innerText()).trim();
     expect(await page.getByText(lead, { exact: false }).count()).toBe(1);
     await page.goto('/launcher/#/app/calc');
-    await expect(page.getByTestId('detail-meta')).toContainText('Em breve');
-    await expect(page.getByTestId('detail-meta')).not.toContainText('Recursos prontos');
+    await expect(page.getByTestId('detail-meta')).toContainText('Editor funcional');
+    await expect(page.getByTestId('detail-meta')).toContainText('Recursos prontos');
     for (const route of ['/app/labels', '/app/calc', '/catalogo', '/']) {
       await page.goto('/launcher/#' + route);
       for (const scheme of ['light', 'dark'] as const) {

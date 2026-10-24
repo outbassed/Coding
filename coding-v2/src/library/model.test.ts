@@ -73,5 +73,8 @@ describe('modelo da biblioteca', () => {
     expect(openHref({ id: 'a', type: 'texts', legacyId: 'v2-texts-1' })).toBe('/apps/texto/?doc=a');
     expect(openHref({ id: 'a', type: 'texts', legacyId: 'txt-1' })).toBeNull();
     expect(openHref({ id: 'a', type: 'images', legacyId: 'i' })).toBeNull();
+    expect(openHref({ id: 'a', type: 'images', legacyId: 'v2-images-1' })).toBe('/apps/imagens/?doc=a');
+    expect(openHref({ id: 'a', type: 'sheet', legacyId: 'v2-sheet-1' })).toBe('/apps/planilha-etiquetas/?doc=a');
+    expect(openHref({ id: 'a', type: 'calc', legacyId: 'legado-calc' })).toBeNull();
   });
 });

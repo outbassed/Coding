@@ -82,9 +82,10 @@ test.describe('comportamento', () => {
     await page.getByRole('button', { name: 'Desativar Texto no Launcher' }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.getByRole('button', { name: 'Desativar atalho' }).click();
-    await expect(page.locator('article.card')).toHaveCount(1);
+    await expect(page.locator('article.card')).toHaveCount(8);
     await page.reload();
-    await expect(page.locator('article.card')).toHaveCount(1);
+    await expect(page.locator('article.card')).toHaveCount(8);
+    await expect(page.locator('article.card[data-tool="texts"]')).toHaveCount(0);
   });
 
   test('busca no topo leva ao catálogo filtrado', async ({ page }) => {

@@ -1,5 +1,14 @@
 import { activeItems, normalize, type LabelsState } from '../labels/model';
 import { sanitizeTextHtml } from '../text/model';
+import { display, Evaluator, key, normalizeCalc } from '../apps/calc/model';
+import { normalizeCodes } from '../apps/codes/model';
+import { renderCode } from '../apps/codes/render';
+import { normalizeSplit, summarize, settle } from '../apps/split/model';
+import { formatMoney } from '../apps/split/money';
+import { cleanNames, normalizeDraw } from '../apps/draw/model';
+import { normalizeImages } from '../apps/images/model';
+import { normalizePdf } from '../apps/pdf/model';
+import { normalizeSheetLabels } from '../apps/sheet-labels/model';
 
 /** Limites do que entra no cache: só o que cabe na primeira folha/tela precisa ser guardado. */
 export const MAX_PREVIEW_BLOCKS = 60;
@@ -11,7 +20,10 @@ export const MAX_IMAGE_BUDGET = 320_000;
 
 export type Preview =
   | { kind: 'labels'; state: LabelsState; blocks: number }
-  | { kind: 'text'; html: string };
+  | { kind: 'text'; html: string }
+  | { kind: 'table'; rows: string[][]; bold: boolean[][] }
+  | { kind: 'codes'; svgs: string[] }
+  | { kind: 'summary'; title: string; lines: [string, string][] };
 
 /** Primeira folha das etiquetas: itens com conteúdo, cópias repetidas e limite para o cache. */
 export function labelsPreview(raw: unknown): Preview {
@@ -70,10 +82,89 @@ export function textPreview(raw: unknown): Preview {
   return { kind: 'text', html: sanitizeTextHtml(out.body.innerHTML) };
 }
 
-export function previewable(type: unknown): type is 'labels' | 'texts' { return type === 'labels' || type === 'texts'; }
+const PREVIEW_TYPES = ['labels', 'texts', 'calc', 'sheet', 'codes', 'split', 'draw', 'images', 'pdf'] as const;
+export type PreviewType = typeof PREVIEW_TYPES[number];
+export function previewable(type: unknown): type is PreviewType { return typeof type === 'string' && (PREVIEW_TYPES as readonly string[]).includes(type); }
+const obj = (raw: unknown): Record<string, unknown> => (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {});
+/** Formatos antigos do Coding 1.0 com o mesmo tipo não são reinterpretados: sem a estrutura da v2, fica o ícone. */
+function need(raw: unknown, field: string): void { if (!Array.isArray(obj(raw)[field])) throw new Error('Formato sem prévia'); }
+
+export function calcPreview(raw: unknown): Preview {
+  need(raw, 'sheets');
+  const state = normalizeCalc(raw);
+  const ev = new Evaluator(state);
+  const si = Math.min(state.active, state.sheets.length - 1);
+  const sheet = state.sheets[si]!;
+  const rows: string[][] = [], bold: boolean[][] = [];
+  for (let r = 0; r < Math.min(16, sheet.rows); r++) {
+    const row: string[] = [], b: boolean[] = [];
+    for (let c = 0; c < Math.min(6, sheet.cols); c++) { const cell = sheet.cells[key(r, c)]; row.push(display(ev.value(si, r, c), cell?.f).slice(0, 24)); b.push(!!cell?.b); }
+    rows.push(row); bold.push(b);
+  }
+  while (rows.length > 1 && rows[rows.length - 1]!.every((v) => !v)) { rows.pop(); bold.pop(); }
+  return { kind: 'table', rows, bold };
+}
+export function sheetPreview(raw: unknown): Preview {
+  need(raw, 'rows');
+  const s = normalizeSheetLabels(raw);
+  const rows = s.rows.slice(0, 16).map((r) => r.slice(0, 5).map((v) => v.slice(0, 24)));
+  return { kind: 'table', rows, bold: rows.map((r, i) => r.map(() => s.hasHeader && i === 0)) };
+}
+export function codesPreview(raw: unknown): Preview {
+  need(raw, 'items');
+  const s = normalizeCodes(raw);
+  const svgs: string[] = [];
+  for (const item of s.items) {
+    if (svgs.length >= 4) break;
+    try { svgs.push(renderCode(item.kind, item.value, { ...s.style, module: 2 }, item.caption).svg); } catch { /* código inválido não entra na miniatura */ }
+  }
+  if (!svgs.length) throw new Error('Sem código válido');
+  return { kind: 'codes', svgs };
+}
+export function splitPreview(raw: unknown): Preview {
+  need(raw, 'people');
+  const s = normalizeSplit(raw);
+  const sum = summarize(s);
+  const name = (id: string) => s.people.find((p) => p.id === id)?.name || 'Sem nome';
+  const lines: [string, string][] = [['Total', formatMoney(sum.total)], ['Pessoas', String(s.people.length)], ['Despesas', String(s.expenses.length)]];
+  for (const t of settle(sum.balance, s.people.map((p) => p.id)).slice(0, 5)) lines.push([name(t.from) + ' → ' + name(t.to), formatMoney(t.amount)]);
+  return { kind: 'summary', title: s.name || 'Racha-conta', lines };
+}
+export function drawPreview(raw: unknown): Preview {
+  need(raw, 'participants');
+  const s = normalizeDraw(raw);
+  const names = cleanNames(s.participants);
+  const lines: [string, string][] = names.slice(0, 10).map((n, i) => [String(i + 1), n]);
+  const last = s.history[s.history.length - 1];
+  if (last) lines.unshift(['Último resultado', last.text.slice(0, 40)]);
+  return { kind: 'summary', title: s.name || 'Sorteio', lines: lines.length ? lines : [['Participantes', '0']] };
+}
+export function imagesPreview(raw: unknown): Preview {
+  need(raw, 'layers');
+  const s = normalizeImages(raw);
+  const lines: [string, string][] = [['Tamanho', s.width + ' × ' + s.height + ' px'], ['Camadas', String(s.layers.length)]];
+  for (const l of [...s.layers].reverse().slice(0, 8)) lines.push([{ image: 'Imagem', text: 'Texto', rect: 'Retângulo', ellipse: 'Elipse' }[l.kind], (l.kind === 'text' ? (l.text ?? '').split('\n')[0] : l.name).slice(0, 30)]);
+  return { kind: 'summary', title: s.name || 'Imagem', lines };
+}
+export function pdfPreview(raw: unknown): Preview {
+  need(raw, 'pages');
+  const s = normalizePdf(raw);
+  const lines: [string, string][] = [['Páginas', String(s.pages.length)], ['Anotações', String(s.annotations.length)]];
+  for (const src of s.sources.slice(0, 6)) lines.push(['Arquivo', src.name.slice(0, 34)]);
+  return { kind: 'summary', title: s.name || 'Documento PDF', lines };
+}
 
 export function buildPreview(type: string | undefined, state: unknown): Preview {
-  if (type === 'labels') return labelsPreview(state);
-  if (type === 'texts') return textPreview(state);
-  throw new Error('Tipo sem prévia');
+  switch (type) {
+    case 'labels': return labelsPreview(state);
+    case 'texts': return textPreview(state);
+    case 'calc': return calcPreview(state);
+    case 'sheet': return sheetPreview(state);
+    case 'codes': return codesPreview(state);
+    case 'split': return splitPreview(state);
+    case 'draw': return drawPreview(state);
+    case 'images': return imagesPreview(state);
+    case 'pdf': return pdfPreview(state);
+    default: throw new Error('Tipo sem prévia');
+  }
 }

@@ -312,6 +312,22 @@ export async function getCopy(id: string): Promise<CopyRecord | undefined> {
   } finally { db.close(); }
 }
 
+/**
+ * Lê só os metadados e o estado do documento, sem tocar nos Blobs de imagens (store 'assets').
+ * Usado pelas miniaturas da biblioteca. Documentos antigos com imagens embutidas não têm as imagens devolvidas.
+ */
+export async function getCopyState(id: string): Promise<{ type?: string; revision: number; state: unknown; label: string } | undefined> {
+  const db = await openCopies();
+  try {
+    const tx = db.transaction(['copies'], 'readonly');
+    const done = committed(tx);
+    const record = requestResult(tx.objectStore('copies').get(id) as IDBRequest<CopyRecord | undefined>);
+    const [copy] = await Promise.all([record, done]);
+    if (!copy) return undefined;
+    return { type: copy.snapshot.doc.type, revision: copy.revision, state: copy.snapshot.doc.state, label: copy.label };
+  } finally { db.close(); }
+}
+
 /** Entire batch is a single readwrite transaction. No partial import on quota or validation failure. */
 export async function importCopiesAtomic(records: readonly CopyRecord[], allowDuplicates = false): Promise<number> {
   if (!records.length) return 0;
@@ -365,6 +381,19 @@ export async function createCopy(snapshot: LegacySnapshot, allowDuplicate = fals
  * Import selected legacy documents as one atomic, conflict-checked batch.
  * Use this for the Import Wizard once its UI supports all-or-nothing confirmation.
  */
+/**
+ * Datas de um documento importado: preserva as originais quando são plausíveis
+ * (depois de 2000 e no máximo 1 dia no futuro); caso contrário usa o momento da importação.
+ */
+export function importedTimes(doc: LegacyDoc, now = Date.now()): { createdAt: number; updatedAt: number } {
+  const plausible = (value: unknown): value is number =>
+    typeof value === 'number' && Number.isFinite(value) && value >= 946_684_800_000 && value <= now + 86_400_000;
+  const updatedAt = plausible(doc.updatedAt) ? doc.updatedAt : now;
+  const created = (doc as { createdAt?: unknown }).createdAt;
+  const createdAt = plausible(created) && created <= updatedAt ? created : updatedAt;
+  return { createdAt, updatedAt };
+}
+
 export async function importLegacySnapshotsAtomic(snapshots: readonly LegacySnapshot[]): Promise<number> {
   const now = Date.now();
   const entries: CopyRecord[] = snapshots.map((snapshot) => {
@@ -372,7 +401,7 @@ export async function importLegacySnapshotsAtomic(snapshots: readonly LegacySnap
     return {
       id: newId(), legacyId: snapshot.doc.id, source: snapshot.source,
       label: documentName(snapshot.doc), revision: 1,
-      createdAt: now, updatedAt: now, snapshot
+      ...importedTimes(snapshot.doc, now), snapshot
     };
   });
   return importCopiesAtomic(entries);

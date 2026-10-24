@@ -33,3 +33,30 @@ h1, h2, h3, h4, p { margin-top: 0; }
 @media (prefers-reduced-motion: no-preference) {
   .btn { transition: background-color .15s ease, filter .15s ease, border-color .15s ease; }
 }
+
+/* Controles compartilhados pelos editores 2.0 (mesma aparência em todos os apps). */
+.ed-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.ed-field { display: grid; gap: 4px; min-width: 0; }
+.ed-field > .ed-label, .ed-label { font-size: 12.5px; font-weight: 700; color: var(--muted); }
+.inp {
+  box-sizing: border-box; min-height: 44px; min-width: 0; padding: 6px 10px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--panel); color: var(--text); font: inherit; font-size: 16px;
+}
+.inp:focus { border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: 0; }
+.inp[aria-invalid="true"] { border-color: var(--danger); }
+select.inp { padding-right: 28px; }
+.inp-num { width: 7.5em; }
+.ib {
+  display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; padding: 0 8px; border: 1px solid transparent;
+  border-radius: 12px; background: transparent; color: inherit; font-weight: 700;
+}
+.ib:hover:not(:disabled) { background: var(--panel); border-color: var(--border); }
+.ib:disabled { opacity: .4; }
+.ib[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 16%, var(--surface)); border-color: var(--accent); }
+.ed-group { display: grid; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--border); min-width: 0; }
+.ed-group:last-child { border-bottom: 0; }
+.ed-group > h3 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.ed-hint { margin: 0; font-size: 12.5px; color: var(--muted); }
+.ed-error { margin: 0; font-size: 13px; color: var(--danger); font-weight: 600; }
+.ed-ok { margin: 0; font-size: 13px; color: var(--ok); font-weight: 600; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

@@ -25,7 +25,22 @@ export function applyTheme(choice: Theme): void {
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? SURFACE.dark : SURFACE.light);
 }
 
+export type Motion = 'system' | 'reduce';
+export const MOTION_KEY = 'coding-v2-motion';
+function readMotion(): Motion { try { return localStorage.getItem(MOTION_KEY) === 'reduce' ? 'reduce' : 'system'; } catch { return 'system'; } }
+/** Movimento reduzido: o do sistema ou o escolhido nos Ajustes (vale para animações como a roleta). */
+export function prefersReducedMotion(): boolean {
+  const forced = typeof document !== 'undefined' && document.documentElement.dataset.motion === 'reduce';
+  return forced || (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
 export const useSettingsStore = defineStore('settings', () => {
+  const motion = ref<Motion>(readMotion());
+  watch(motion, (m) => {
+    if (typeof document !== 'undefined') { if (m === 'reduce') document.documentElement.dataset.motion = 'reduce'; else delete document.documentElement.dataset.motion; }
+    try { localStorage.setItem(MOTION_KEY, m); } catch { /* sessão volátil */ }
+  }, { immediate: true });
+  function setMotion(m: Motion): void { motion.value = m; }
   const theme = ref<Theme>(readTheme());
   watch(theme, (choice) => {
     applyTheme(choice);
@@ -35,5 +50,5 @@ export const useSettingsStore = defineStore('settings', () => {
     matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => applyTheme(theme.value));
   }
   function setTheme(choice: Theme): void { theme.value = choice; }
-  return { theme, setTheme };
+  return { theme, setTheme, motion, setMotion };
 });

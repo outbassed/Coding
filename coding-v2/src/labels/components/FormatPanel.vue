@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import NavIcon from '../../components/ui/NavIcon.vue';
-import { FONTS, MAX_SIZE_PT, MIN_SIZE_PT, toInt, type Align, type LabelsState } from '../model';
+import { FONTS, MAX_SIZE_PT, MIN_SIZE_PT, toInt, type Align, type LabelBarcode, type LabelsState } from '../model';
 
 const props = defineProps<{ state: LabelsState }>();
 const emit = defineEmits<{ field: [name: keyof LabelsState, value: LabelsState[keyof LabelsState]] }>();
@@ -30,6 +30,16 @@ const settle = (part: Part, event: Event): void => { (event.target as HTMLInputE
         <label for="prefix">Prefixo (ex.: COD: )</label>
         <input id="prefix" type="text" :value="state.prefix" maxlength="30" autocomplete="off" spellcheck="false" @input="emit('field', 'prefix', ($event.target as HTMLInputElement).value)" />
       </div>
+    </section>
+    <section class="grp">
+      <h2>Código gráfico</h2>
+      <div class="f">
+        <label for="barcode">QR ou código de barras do código</label>
+        <select id="barcode" :value="state.barcode" data-testid="label-barcode" @change="emit('field', 'barcode', ($event.target as HTMLSelectElement).value as LabelBarcode)">
+          <option value="none">Nenhum</option><option value="qr">QR code</option><option value="code128">Code 128</option><option value="ean13">EAN-13 (12 ou 13 dígitos)</option>
+        </select>
+      </div>
+      <p class="hint">Gerado a partir do código de cada item. Códigos que não servem para o formato escolhido ficam sem gráfico.</p>
     </section>
     <section v-for="part in parts" :key="part.id" class="grp" :aria-labelledby="'fmt-' + part.id">
       <h2 :id="'fmt-' + part.id">{{ part.title }}</h2>
@@ -76,4 +86,5 @@ input:focus, select:focus { border-color: var(--accent); outline: 3px solid var(
 .tg[aria-pressed="true"] { background: var(--app); border-color: var(--app); color: var(--ink); }
 .bold { font-weight: 900; }
 .italic { font-style: italic; }
+.hint { margin: 0; font-size: 12.5px; color: var(--muted); }
 </style>

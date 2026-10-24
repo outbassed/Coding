@@ -12,6 +12,11 @@ import { TextHistory } from './history';
 import { readOffsets, writeOffsets } from './selection';
 import { useVisualViewport } from '../composables/useVisualViewport';
 import { createTextDocument, openTextDocument, saveTextDocument } from './store';
+import { TEXT_TEMPLATES, textTemplate } from './templates';
+import { htmlToBlocks } from './blocks';
+import { buildDocx } from './docx';
+import { textToPdf } from './pdfExport';
+import { downloadBytes } from '../labels/raster';
 
 useSettingsStore();
 const root = ref<HTMLElement | null>(null);
@@ -21,7 +26,7 @@ const editor = ref<HTMLElement | null>(null);
 const stageEl = ref<HTMLElement | null>(null);
 const paperEl = ref<HTMLElement | null>(null);
 const pictureInput = ref<HTMLInputElement | null>(null);
-const state = ref<TextState>(initialTextState());
+const state = ref<TextState>((new URLSearchParams(location.search).get('doc') ? null : textTemplate(new URLSearchParams(location.search).get('modelo'))) ?? initialTextState());
 const status = ref<SaveState>('new');
 const error = ref('');
 const loadError = ref('');
@@ -115,6 +120,7 @@ function capture(key = 'typing'): void {
   checkChange();
   ensureCaretVisible();
   updateFrame();
+  countPages();
 }
 function applySnapshot(snap: { html: string; start: number; end: number }): void {
   const host = editor.value;
@@ -208,6 +214,7 @@ function storeSelection(): void {
   if (!el || !selection?.rangeCount || !selection.anchorNode || !el.contains(selection.anchorNode)) return;
   savedRange = selection.getRangeAt(0).cloneRange();
   updateFormat();
+  refreshTableState();
 }
 function updateFormat(): void {
   const host = editor.value, selection = window.getSelection();
@@ -291,6 +298,7 @@ function onEditorClick(event: MouseEvent): void {
   const target = event.target;
   if (target instanceof HTMLImageElement && editor.value?.contains(target)) {
     selectedImg.value = target;
+    imageAlign.value = target.getAttribute('data-align') ?? 'inline';
     updateFrame();
     message('Imagem selecionada: use os botões de tamanho ou arraste o canto.');
   } else if (selectedImg.value) clearImage();
@@ -378,7 +386,7 @@ function exportHtml(): void {
     const html = sanitizeTextHtml(editor.value?.innerHTML ?? state.value.html);
     const title = escapeHtml(state.value.name);
     const page = '<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><title>' + title
-      + '</title><style>body{font:16px/1.55 Georgia,serif;max-width:170mm;margin:20mm auto;color:#18202d}img{max-width:100%;height:auto}@media print{@page{size:A4;margin:20mm}body{margin:0}}</style></head><body>'
+      + '</title><style>body{font:16px/1.55 Georgia,serif;max-width:170mm;margin:20mm auto;color:#18202d}img{max-width:100%;height:auto}img[data-align=center]{display:block;margin:0 auto}img[data-align=left]{float:left;margin:0 1em .5em 0}img[data-align=right]{float:right;margin:0 0 .5em 1em}table{border-collapse:collapse;width:100%}td,th{border:1px solid #9aa4b4;padding:4px 8px;vertical-align:top}th{background:#eef1f6}hr[data-break=page]{border:0;break-after:page}@media print{@page{size:A4;margin:20mm}body{margin:0}}</style></head><body>'
       + html + '</body></html>';
     download(filename() + '.html', new Blob([page], { type: 'text/html;charset=utf-8' }));
     message('HTML exportado. Confira o arquivo salvo pelo navegador.');
@@ -389,6 +397,99 @@ function exportTxt(): void {
   message('Texto exportado.');
 }
 function printDocument(): void { window.print(); }
+
+// --- tabelas, quebra de página e posição de imagem ---
+function currentCell(): HTMLTableCellElement | null {
+  const sel = window.getSelection();
+  const node = sel?.anchorNode ?? null;
+  const el = node instanceof Element ? node : node?.parentElement ?? null;
+  const cell = el?.closest('td,th') as HTMLTableCellElement | null;
+  return cell && editor.value?.contains(cell) ? cell : null;
+}
+const inTable = ref(false);
+function refreshTableState(): void { inTable.value = !!currentCell(); }
+function insertTable(): void {
+  const head = '<tr><th>Coluna 1</th><th>Coluna 2</th><th>Coluna 3</th></tr>';
+  const row = '<tr><td><br></td><td><br></td><td><br></td></tr>';
+  command('insertHTML', '<table><tbody>' + head + row + row + '</tbody></table><p><br></p>');
+  message('Tabela inserida. Use os botões de linha e coluna com o cursor dentro dela.');
+}
+function tableOp(op: 'row-above' | 'row-below' | 'col-left' | 'col-right' | 'del-row' | 'del-col' | 'del-table'): void {
+  restoreSelection();
+  const cell = currentCell();
+  if (!cell) { message('Coloque o cursor dentro de uma tabela.'); return; }
+  const row = cell.parentElement as HTMLTableRowElement;
+  const table = cell.closest('table') as HTMLTableElement;
+  const index = Array.from(row.children).indexOf(cell);
+  const rows = Array.from(table.querySelectorAll('tr'));
+  if (op === 'row-above' || op === 'row-below') {
+    const tr = document.createElement('tr');
+    for (let i = 0; i < row.children.length; i++) { const td = document.createElement('td'); td.innerHTML = '<br>'; tr.appendChild(td); }
+    row.parentElement!.insertBefore(tr, op === 'row-above' ? row : row.nextSibling);
+  } else if (op === 'col-left' || op === 'col-right') {
+    for (const tr of rows) {
+      const ref = tr.children[index] ?? null;
+      const header = tr.children[0]?.tagName === 'TH' && Array.from(tr.children).every((c) => c.tagName === 'TH');
+      const td = document.createElement(header ? 'th' : 'td'); td.innerHTML = header ? 'Coluna' : '<br>';
+      tr.insertBefore(td, op === 'col-left' ? ref : ref?.nextSibling ?? null);
+    }
+  } else if (op === 'del-row') {
+    if (rows.length <= 1) table.remove(); else row.remove();
+  } else if (op === 'del-col') {
+    if (row.children.length <= 1) table.remove(); else for (const tr of rows) tr.children[index]?.remove();
+  } else table.remove();
+  capture('');
+  refreshTableState();
+  message({ 'row-above': 'Linha inserida acima.', 'row-below': 'Linha inserida abaixo.', 'col-left': 'Coluna inserida à esquerda.', 'col-right': 'Coluna inserida à direita.', 'del-row': 'Linha excluída.', 'del-col': 'Coluna excluída.', 'del-table': 'Tabela excluída.' }[op]);
+}
+function insertPageBreak(): void { command('insertHTML', '<hr data-break="page"><p><br></p>'); message('Quebra de página inserida: o que vem depois começa em uma nova folha.'); }
+const imageAlign = ref('inline');
+function setImageAlign(value: 'inline' | 'left' | 'center' | 'right'): void {
+  const img = selectedImg.value; if (!img) return;
+  if (value === 'inline') img.removeAttribute('data-align'); else img.setAttribute('data-align', value);
+  imageAlign.value = value;
+  capture('');
+  updateFrame();
+}
+// --- páginas A4 na tela ---
+const pageCount = ref(1);
+/** Mesma regra da exportação em PDF: blocos inteiros por folha (257 mm úteis) e quebras de página forçadas. */
+function countPages(): void {
+  const host = editor.value; if (!host) return;
+  const pxPerMm = (paperEl.value?.getBoundingClientRect().width ?? 794) / 210 || 96 / 25.4;
+  const limit = (297 - 40) * pxPerMm;
+  let pages = 1, used = 0, onPage = 0;
+  for (const child of Array.from(host.children)) {
+    if (child.tagName === 'HR') { if (onPage) { pages++; used = 0; onPage = 0; } continue; }
+    const cs = getComputedStyle(child);
+    const h = child.getBoundingClientRect().height + parseFloat(cs.marginTop || '0') + parseFloat(cs.marginBottom || '0');
+    if (used + h > limit && onPage) { pages++; used = 0; onPage = 0; }
+    used += h; onPage++;
+  }
+  pageCount.value = pages;
+}
+// --- exportar DOCX e PDF ---
+const exporting = ref(false);
+async function exportDocx(): Promise<void> {
+  exporting.value = true;
+  try {
+    const host = document.createElement('div');
+    host.innerHTML = sanitizeTextHtml(editor.value?.innerHTML ?? state.value.html);
+    const bytes = await buildDocx(await htmlToBlocks(host), state.value.name);
+    downloadBytes(bytes, filename() + '.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    message('DOCX exportado (abre no Word, LibreOffice e Google Docs).');
+  } catch (err) { error.value = 'Não foi possível gerar o DOCX. ' + friendlyError(err); }
+  finally { exporting.value = false; }
+}
+async function exportPdf(): Promise<void> {
+  exporting.value = true;
+  try {
+    const result = await textToPdf(sanitizeTextHtml(editor.value?.innerHTML ?? state.value.html), state.value.name, (d, t) => { message(d < t ? 'Gerando folha ' + (d + 1) + ' de ' + t + '…' : 'Finalizando PDF…'); });
+    downloadBytes(result.bytes, filename() + '.pdf');
+    message('PDF gerado com ' + result.pages + (result.pages === 1 ? ' folha A4.' : ' folhas A4.') + (result.oversized ? ' Um bloco era maior que uma folha e foi cortado; divida-o ou use Imprimir.' : ''));
+  } catch (err) { error.value = 'Não foi possível gerar o PDF. ' + friendlyError(err) + ' Use “Imprimir” e escolha “Salvar como PDF”.'; }
+  finally { exporting.value = false; }
+}
 function newDocument(): void {
   if (dirty() || status.value === 'saving' || status.value === 'error' || status.value === 'conflict') {
     if (!confirm('Há alterações que podem não ter sido salvas. Criar outro documento mesmo assim?')) return;
@@ -422,6 +523,7 @@ onMounted(async () => {
     }
     if (editor.value) editor.value.innerHTML = state.value.html;
     editHistory.reset({ html: editor.value?.innerHTML ?? state.value.html, start: 0, end: 0 });
+    requestAnimationFrame(countPages);
   } catch (err) { loadError.value = friendlyError(err); status.value = 'unavailable'; }
   finally { loading.value = false; }
 });
@@ -463,7 +565,10 @@ onBeforeUnmount(() => {
       <section class="document-meta" aria-label="Detalhes do documento">
         <label for="text-title">Nome do documento</label>
         <input id="text-title" v-model="state.name" type="text" maxlength="250" placeholder="Documento sem título" @input="onNameChange" />
-        <button type="button" class="btn btn-ghost" @click="newDocument">Novo</button>
+        <details class="newmenu" data-testid="new-menu">
+          <summary class="btn btn-ghost">Novo</summary>
+          <ul class="newlist"><li v-for="t in TEXT_TEMPLATES" :key="t.id"><a :href="'/apps/texto/?modelo=' + t.id" :data-template="t.id">{{ t.name }}</a></li></ul>
+        </details>
         <button type="button" class="btn" :disabled="loading" data-testid="text-save" @click="saveNow">Salvar agora</button>
       </section>
       <div class="editing">
@@ -501,6 +606,19 @@ onBeforeUnmount(() => {
             <button type="button" class="tool" :aria-pressed="format.list === 'ul'" aria-label="Lista com marcadores" @mousedown.prevent @click="command('insertUnorderedList')">• Lista</button>
             <button type="button" class="tool" :aria-pressed="format.list === 'ol'" aria-label="Lista numerada" @mousedown.prevent @click="command('insertOrderedList')">1. Lista</button>
           </div>
+          <div class="grp" role="group" aria-label="Inserir">
+            <button type="button" class="tool" data-testid="text-table" @mousedown.prevent @click="insertTable">Tabela</button>
+            <button type="button" class="tool" aria-label="Quebra de página" title="Quebra de página" data-testid="text-page-break" @mousedown.prevent @click="insertPageBreak">⤓<span class="wide-label"> Quebra</span></button>
+            <template v-if="inTable">
+              <button type="button" class="tool" aria-label="Linha acima" data-testid="row-above" @mousedown.prevent @click="tableOp('row-above')">+ Linha ↑</button>
+              <button type="button" class="tool" aria-label="Linha abaixo" data-testid="row-below" @mousedown.prevent @click="tableOp('row-below')">+ Linha ↓</button>
+              <button type="button" class="tool" aria-label="Coluna à esquerda" @mousedown.prevent @click="tableOp('col-left')">+ Col ←</button>
+              <button type="button" class="tool" aria-label="Coluna à direita" data-testid="col-right" @mousedown.prevent @click="tableOp('col-right')">+ Col →</button>
+              <button type="button" class="tool" aria-label="Excluir linha" data-testid="del-row" @mousedown.prevent @click="tableOp('del-row')">− Linha</button>
+              <button type="button" class="tool" aria-label="Excluir coluna" @mousedown.prevent @click="tableOp('del-col')">− Col</button>
+              <button type="button" class="tool danger" aria-label="Excluir tabela" @mousedown.prevent @click="tableOp('del-table')">✕ Tabela</button>
+            </template>
+          </div>
           <div class="grp" role="group" aria-label="Imagem">
             <button type="button" class="tool" data-testid="text-image-button" @click="pictureInput?.click()">Imagem</button>
             <input ref="pictureInput" type="file" class="sr-only" accept="image/png,image/jpeg,image/webp" aria-label="Selecionar imagem para o texto" @change="addPicture" />
@@ -511,12 +629,17 @@ onBeforeUnmount(() => {
               <button type="button" class="tool" aria-label="Imagem com 25%" @mousedown.prevent @click="setImagePercent(25)">25%</button>
               <button type="button" class="tool" aria-label="Imagem com 50%" data-testid="img-50" @mousedown.prevent @click="setImagePercent(50)">50%</button>
               <button type="button" class="tool" aria-label="Imagem com 100%" @mousedown.prevent @click="setImagePercent(100)">100%</button>
+              <select class="tool sel" aria-label="Posição da imagem" data-testid="img-align" :value="imageAlign" @change="setImageAlign(($event.target as HTMLSelectElement).value as 'inline')">
+                <option value="inline">Na linha</option><option value="left">À esquerda (texto ao lado)</option><option value="center">Centralizada</option><option value="right">À direita (texto ao lado)</option>
+              </select>
               <button type="button" class="tool danger" aria-label="Remover imagem" data-testid="img-remove" @mousedown.prevent @click="removeImage">Remover</button>
             </template>
           </div>
           <div class="grp output" role="group" aria-label="Exportar">
             <button type="button" class="tool" aria-label="Exportar HTML" @click="exportHtml"><span class="wide-label">Exportar </span>HTML</button>
             <button type="button" class="tool" aria-label="Exportar TXT" @click="exportTxt"><span class="wide-label">Exportar </span>TXT</button>
+            <button type="button" class="tool" aria-label="Exportar DOCX" data-testid="export-docx" :disabled="exporting" @click="exportDocx"><span class="wide-label">Exportar </span>DOCX</button>
+            <button type="button" class="tool" aria-label="Baixar PDF" data-testid="export-pdf" :disabled="exporting" @click="exportPdf"><span class="wide-label">Baixar </span>PDF</button>
             <button type="button" class="tool strong" aria-label="Imprimir / PDF" @click="printDocument"><span class="wide-label">Imprimir / </span>PDF</button>
           </div>
         </section>
@@ -533,7 +656,7 @@ onBeforeUnmount(() => {
           </section>
         </main>
       </div>
-      <p class="hint muted" role="status" data-testid="text-announcement">{{ note || 'Edite a folha. O documento é salvo após as alterações.' }}</p>
+      <p class="hint muted" role="status" data-testid="text-announcement">{{ note || 'Edite a folha. O documento é salvo após as alterações.' }} <span class="pages" data-testid="page-count">· {{ pageCount }} {{ pageCount === 1 ? 'página' : 'páginas' }} A4</span></p>
     </template>
   </div>
 </template>
@@ -577,6 +700,23 @@ onBeforeUnmount(() => {
 .body :deep(p) { margin: 0 0 .8em; }
 .body :deep(img) { max-width: 100%; height: auto; display: block; cursor: pointer; }
 .body :deep(blockquote) { border-left: 3px solid #8da5d9; padding-left: 15px; margin: 0 0 .8em; color: #36475c; }
+.body :deep(table) { border-collapse: collapse; width: 100%; margin: 0 0 .8em; table-layout: fixed; }
+.body :deep(td), .body :deep(th) { border: 1px solid #9aa4b4; padding: 4px 8px; vertical-align: top; min-width: 2em; overflow-wrap: anywhere; }
+.body :deep(th) { background: #eef1f6; font-weight: 700; text-align: left; }
+.body :deep(img[data-align="center"]) { margin-left: auto; margin-right: auto; }
+.body :deep(img[data-align="left"]) { float: left; margin: 0 1em .5em 0; }
+.body :deep(img[data-align="right"]) { float: right; margin: 0 0 .5em 1em; }
+.body :deep(hr[data-break="page"]) { border: 0; border-top: 2px dashed #8da5d9; margin: 1.2em 0; position: relative; overflow: visible; height: 0; clear: both; }
+.body :deep(hr[data-break="page"])::after { content: "Quebra de página"; position: absolute; right: 0; top: -.75em; background: #fff; padding: 0 6px; font: 600 11px system-ui, sans-serif; color: #4a5a78; }
+/* limites das folhas A4: linha tracejada a cada 297 mm */
+.paper::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(to bottom, transparent 0, transparent calc(297mm - 2px), #b8c3d6 calc(297mm - 2px), #b8c3d6 297mm); }
+.newmenu { position: relative; }
+.newmenu summary { list-style: none; cursor: pointer; }
+.newmenu summary::-webkit-details-marker { display: none; }
+.newlist { position: absolute; z-index: 20; right: 0; top: calc(100% + 4px); list-style: none; margin: 0; padding: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); min-width: 200px; }
+.newlist a { display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: var(--text); text-decoration: none; font-weight: 600; }
+.newlist a:hover { background: var(--panel); }
+.pages { white-space: nowrap; }
 .img-frame { position: absolute; border: 2px solid var(--accent, #3b6ec0); border-radius: 2px; pointer-events: none; box-sizing: border-box; }
 .handle { position: absolute; right: -16px; bottom: -16px; width: 32px; height: 32px; pointer-events: auto; cursor: nwse-resize; touch-action: none; }
 .handle::after { content: ""; position: absolute; right: 9px; bottom: 9px; width: 14px; height: 14px; border-radius: 50%; background: var(--accent, #3b6ec0); border: 2px solid #fff; }
@@ -608,6 +748,9 @@ onBeforeUnmount(() => {
   .top, .document-meta, .toolbar, .hint, .alert, .img-frame { display: none !important; }
   .stage { padding: 0 !important; }
   .paper { width: auto; min-height: 0; border: 0; box-shadow: none; margin: 0; }
+  .paper::before { display: none; }
+  .body :deep(hr[data-break="page"]) { border: 0; margin: 0; break-after: page; page-break-after: always; }
+  .body :deep(hr[data-break="page"])::after { display: none; }
   .body { min-height: 0; padding: 0; }
   @page { size: A4; margin: 20mm; }
 }

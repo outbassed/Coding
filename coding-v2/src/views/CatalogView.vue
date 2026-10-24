@@ -46,7 +46,7 @@ const visible = computed(() => {
 <template>
   <PageHeader eyebrow="Explorar" title="Catálogo" logo="/legacy-icons/catalog.svg" lead="Explore as ferramentas.">
     <div class="filters" role="group" aria-label="Filtrar aplicativos">
-      <button v-for="item in filters" :key="item.id" type="button" class="f" :aria-pressed="filter === item.id" @click="filter = item.id">{{ item.label }}</button>
+      <button v-for="item in filters.filter((f) => f.id !== 'soon' || counts.planned > 0)" :key="item.id" type="button" class="f" :aria-pressed="filter === item.id" @click="filter = item.id">{{ item.label }}</button>
     </div>
     <div class="cats" role="group" aria-label="Categorias">
       <button type="button" class="cat" :aria-pressed="category === 'all'" @click="category = 'all'">Todas as categorias</button>
@@ -67,7 +67,7 @@ const visible = computed(() => {
     </div>
   </section>
 
-  <p class="summary muted" data-testid="catalog-summary">{{ counts.functional }} editores disponíveis · {{ counts.planned }} em breve</p>
+  <p class="summary muted" data-testid="catalog-summary">{{ counts.functional }} editores disponíveis<template v-if="counts.planned"> · {{ counts.planned }} em breve</template></p>
   <p v-if="query || filter !== 'all' || category !== 'all'" class="active-filters">
     <span v-if="query">Busca: <strong>“{{ query }}”</strong></span>
     <button type="button" class="clear" data-testid="clear-filters" @click="clearAll">Limpar busca e filtros</button>

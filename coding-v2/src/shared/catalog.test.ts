@@ -7,10 +7,12 @@ describe('catálogo', () => {
     expect(tools).toHaveLength(9);
     expect(new Set(tools.map((tool) => tool.id)).size).toBe(9);
   });
-  it('só Etiquetas e Texto iniciam ativos e têm casca', () => {
-    expect(tools.filter((tool) => tool.initiallyActive).map((tool) => tool.id)).toEqual(['labels', 'texts']);
-    expect(tools.filter((tool) => tool.status === 'preview').map((tool) => tool.id)).toEqual(['labels', 'texts']);
-    expect(tools.filter((tool) => tool.status === 'planned').every((tool) => tool.path === null)).toBe(true);
+  it('os nove apps existem no 2.0, abrem por endereço próprio e listam o que já funciona', () => {
+    expect(tools.every((tool) => tool.status === 'preview' && tool.initiallyActive)).toBe(true);
+    const paths = tools.map((tool) => tool.path);
+    expect(paths.every((path) => typeof path === 'string' && /^\/apps\/[a-z-]+\/$/.test(path))).toBe(true);
+    expect(new Set(paths).size).toBe(9);
+    expect(tools.every((tool) => tool.ready.length >= 3)).toBe(true);
   });
   it('rotas da versão estável são únicas', () => {
     expect(new Set(tools.map((tool) => tool.legacyHash)).size).toBe(9);

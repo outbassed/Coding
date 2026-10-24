@@ -6,10 +6,10 @@ beforeEach(() => { localStorage.clear(); });
 afterEach(() => { document.body.innerHTML = ''; });
 
 describe('Launcher · telas', () => {
-  it('Início mostra os dois apps ativados e um único h1', async () => {
+  it('Início mostra os nove apps ativados e um único h1', async () => {
     const { wrapper } = await mountLauncher('/');
     expect(wrapper.findAll('h1')).toHaveLength(1);
-    expect(wrapper.findAll('article.card')).toHaveLength(2);
+    expect(wrapper.findAll('article.card')).toHaveLength(9);
     expect(wrapper.text()).toContain('Explorar o catálogo');
     wrapper.unmount();
   });
@@ -17,11 +17,12 @@ describe('Launcher · telas', () => {
   it('Catálogo lista os nove e filtra', async () => {
     const { wrapper } = await mountLauncher('/catalogo');
     expect(wrapper.findAll('article.card')).toHaveLength(9);
-    const soon = wrapper.findAll('button.f').find((b) => b.text() === 'Em breve');
-    await soon?.trigger('click');
-    expect(wrapper.findAll('article.card')).toHaveLength(7);
+    // nenhum app é "em breve": o filtro não aparece
+    expect(wrapper.findAll('button.f').some((b) => b.text() === 'Em breve')).toBe(false);
     await wrapper.findAll('button.f').find((b) => b.text() === 'Ativados')?.trigger('click');
-    expect(wrapper.findAll('article.card')).toHaveLength(2);
+    expect(wrapper.findAll('article.card')).toHaveLength(9);
+    await wrapper.findAll('button.f').find((b) => b.text() === 'Não ativados')?.trigger('click');
+    expect(wrapper.findAll('article.card')).toHaveLength(0);
     wrapper.unmount();
   });
 
@@ -46,12 +47,14 @@ describe('Launcher · telas', () => {
     wrapper.unmount();
   });
 
-  it('Detalhes de app planejado leva ao Coding atual e não oferece ativar', async () => {
-    const { wrapper } = await mountLauncher('/app/images');
-    expect(wrapper.findAll('main button').filter((b) => /Ativar|Desativar/.test(b.text()))).toHaveLength(0);
-    const link = wrapper.findAll('a').find((a) => (a.attributes('href') ?? '').includes('#/imagens'));
-    expect(link).toBeTruthy();
-    wrapper.unmount();
+  it('Detalhes de cada app novo abrem o editor 2.0 e mantêm o link para o Coding atual', async () => {
+    for (const [id, path, hash] of [['images', '/apps/imagens/', '#/imagens'], ['calc', '/apps/planilhas/', '#/planilhas'], ['split', '/apps/racha-conta/', '#/racha']] as const) {
+      const { wrapper } = await mountLauncher('/app/' + id);
+      expect(wrapper.find('a[href="' + path + '"]').exists()).toBe(true);
+      expect(wrapper.findAll('a').some((a) => (a.attributes('href') ?? '').includes(hash))).toBe(true);
+      expect(wrapper.find('[data-testid="ready-list"]').exists()).toBe(true);
+      wrapper.unmount();
+    }
   });
 
   it('id inexistente mostra aviso, não quebra', async () => {
@@ -81,7 +84,7 @@ describe('Launcher · aparência de loja', () => {
     expect(hero.text()).toContain('Editor funcional');
     expect(hero.find('a[href="/apps/etiquetas/"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="recent-docs"]').exists()).toBe(false);
-    expect(wrapper.text()).toContain('2 editores disponíveis');
+    expect(wrapper.text()).toContain('9 editores disponíveis');
     wrapper.unmount();
   });
 
@@ -102,7 +105,8 @@ describe('Launcher · aparência de loja', () => {
     const meta = Object.fromEntries(wrapper.findAll('article.card').map((c) => [c.find('h3').text(), c.find('[data-testid="card-meta"]').text()]));
     expect(meta['Etiquetas']).toContain('Editor funcional');
     expect(meta['Texto']).toContain('Editor funcional');
-    expect(meta['Planilhas']).toContain('Em breve');
+    expect(meta['Planilhas']).toContain('Editor funcional');
+    expect(Object.values(meta).every((m) => m.includes('Editor funcional'))).toBe(true);
     wrapper.unmount();
   });
 
@@ -143,7 +147,7 @@ describe('Launcher · ativação', () => {
     const confirm = wrapper.findAll('dialog button').find((b) => b.text() === 'Desativar atalho');
     await confirm?.trigger('click');
     await flushPromises();
-    expect(wrapper.findAll('article.card')).toHaveLength(1);
+    expect(wrapper.findAll('article.card')).toHaveLength(8);
     expect(wrapper.find('[data-testid="announcer"]').text()).toContain('Seus documentos não foram removidos');
     wrapper.unmount();
   });
@@ -154,7 +158,7 @@ describe('Launcher · ativação', () => {
     await flushPromises();
     await wrapper.findAll('dialog button').find((b) => b.text() === 'Cancelar')?.trigger('click');
     await flushPromises();
-    expect(wrapper.findAll('article.card')).toHaveLength(2);
+    expect(wrapper.findAll('article.card')).toHaveLength(9);
     wrapper.unmount();
   });
 

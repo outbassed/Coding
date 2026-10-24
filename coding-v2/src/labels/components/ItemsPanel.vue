@@ -6,7 +6,7 @@ import { MAX_COPIES, MAX_ITEMS, toInt, type LabelItem } from '../model';
 const props = defineProps<{ items: readonly LabelItem[] }>();
 const emit = defineEmits<{
   code: [id: string, value: string]; description: [id: string, value: string]; copies: [id: string, value: number];
-  step: [id: string, delta: number]; add: []; bulk: []; duplicate: [id: string]; move: [id: string, delta: -1 | 1]; remove: [id: string];
+  step: [id: string, delta: number]; add: []; bulk: []; import: []; duplicate: [id: string]; move: [id: string, delta: -1 | 1]; remove: [id: string];
 }>();
 
 async function focusCode(id: string | null): Promise<void> {
@@ -58,6 +58,7 @@ function settle(item: LabelItem, event: Event): void { (event.target as HTMLInpu
     <div class="adds">
       <button type="button" class="btn add" data-testid="add-item" :disabled="items.length >= MAX_ITEMS" @click="emit('add')">Adicionar item</button>
       <button type="button" class="btn add" data-testid="open-bulk" @click="emit('bulk')">Colar lista</button>
+      <button type="button" class="btn add" data-testid="open-table-import" @click="emit('import')">Importar planilha</button>
     </div>
     <p v-if="items.length >= MAX_ITEMS" class="muted lim">Limite de {{ MAX_ITEMS }} itens por documento.</p>
   </div>

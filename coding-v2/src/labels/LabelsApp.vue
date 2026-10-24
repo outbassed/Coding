@@ -16,11 +16,13 @@ import FormatPanel from './components/FormatPanel.vue';
 import PagePanel from './components/PagePanel.vue';
 import ExportPanel from './components/ExportPanel.vue';
 import BulkDialog from './components/BulkDialog.vue';
+import TableImportDialog from './components/TableImportDialog.vue';
+import { LABEL_TEMPLATES, stateFromTemplate } from './templates';
 import PrintSheets from './components/PrintSheets.vue';
 import { downloadBytes, exportSheetsToPdf, pdfFileName } from './raster';
 import type { BulkRow } from './bulk';
 import { useLabelsEditor } from './useLabelsEditor';
-import { MAX_COPIES, PAPER, toInt, type LabelsState } from './model';
+import { MAX_COPIES, PAPER, toInt, type LabelItem, type LabelsState } from './model';
 
 useSettingsStore();
 const tool = getTool('labels');
@@ -40,6 +42,7 @@ const tabs: EditorTab[] = [
   { id: 'itens', label: 'Itens', blurb: '', groups: [] },
   { id: 'formato', label: 'Formato', blurb: '', groups: [] },
   { id: 'pagina', label: 'Página', blurb: '', groups: [] },
+  { id: 'modelos', label: 'Modelos', blurb: '', groups: [] },
   { id: 'exportar', label: 'Exportar', blurb: '', groups: [] }
 ];
 const tab = ref('itens');
@@ -48,6 +51,7 @@ const snap = ref<SheetSnap>('half');
 const layout = ref<LayoutInfo>({ pageCount: 1, labelCount: 0, itemCount: 0, rowsOnFirstPage: 0, warning: '' });
 const pages = ref<number[][][]>([[]]);
 const bulkOpen = ref(false);
+const tableOpen = ref(false);
 const busy = ref(false);
 const progress = ref('');
 const exportMessage = ref('');
@@ -58,7 +62,7 @@ const showSide = computed(() => roomy.value && wide.value);
 const showSheet = computed(() => !showSide.value && sheetOpen.value);
 
 const docId = new URLSearchParams(location.search).get('doc');
-onMounted(() => { if (docId) void editor.load(docId); else editor.startNew(); });
+onMounted(() => { if (docId) void editor.load(docId); else editor.startNew(stateFromTemplate(new URLSearchParams(location.search).get('modelo')) ?? undefined); });
 
 const saveState = computed<SaveState>(() => editor.loadError.value ? 'unavailable' : editor.saveState.value);
 const statusDetail = computed(() => {
@@ -85,6 +89,11 @@ function onTabKey(event: KeyboardEvent): void {
   if (!next) return;
   tab.value = next.id;
   requestAnimationFrame(() => document.getElementById('tab-' + next.id)?.focus());
+}
+function applyTable(items: LabelItem[], replace: boolean): void {
+  editor.addMany(items.map((it, i) => ({ line: i + 1, code: it.code, description: it.description, copies: it.copies, notes: [] })), replace);
+  tableOpen.value = false;
+  tab.value = 'itens';
 }
 function applyBulk(rows: BulkRow[], replace: boolean): void {
   editor.addMany(rows, replace);
@@ -179,9 +188,15 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
           <button v-for="t in tabs" :id="'tab-' + t.id" :key="t.id" type="button" role="tab" class="tabbtn" :aria-selected="tab === t.id" :aria-controls="'tabpanel'" :tabindex="tab === t.id ? 0 : -1" @click="tab = t.id">{{ t.label }}</button>
         </div>
         <div id="tabpanel" class="panel" role="tabpanel" :aria-labelledby="'tab-' + tab">
-          <ItemsPanel v-if="tab === 'itens'" ref="itemsRef" :items="state.items" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @bulk="bulkOpen = true" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
+          <ItemsPanel v-if="tab === 'itens'" ref="itemsRef" :items="state.items" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @bulk="bulkOpen = true" @import="tableOpen = true" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
           <FormatPanel v-else-if="tab === 'formato'" :state="state" @field="field" />
           <PagePanel v-else-if="tab === 'pagina'" :state="state" :layout="layout" @field="field" />
+          <div v-else-if="tab === 'modelos'" class="tpls" data-testid="templates-panel">
+            <h2 class="tpl-h">Aplicar layout a este documento</h2>
+            <ul class="tpl-list"><li v-for="t in LABEL_TEMPLATES" :key="t.id"><button type="button" class="tpl-btn" :data-layout="t.id" @click="editor.applyLayout(t.layout)"><strong>{{ t.name }}</strong><span>{{ t.description }}</span></button></li></ul>
+            <h2 class="tpl-h">Novo documento a partir de um modelo</h2>
+            <ul class="tpl-list"><li v-for="t in LABEL_TEMPLATES" :key="t.id"><a class="tpl-btn" :href="'/apps/etiquetas/?modelo=' + t.id" :data-template="t.id"><strong>{{ t.name }}</strong><span>Com itens de exemplo editáveis</span></a></li></ul>
+          </div>
           <ExportPanel v-else :state="state" :layout="layout" :busy="busy" :progress="progress" :message="exportMessage" :error="exportError" @print="printSheets" @pdf="downloadPdf" />
         </div>
       </section>
@@ -193,14 +208,21 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
       </div>
     </main>
 
+    <TableImportDialog :open="tableOpen" :current-items="state.items.filter((i) => i.code.trim() || i.description.trim()).length" @close="tableOpen = false" @apply="applyTable" />
     <BulkDialog :open="bulkOpen" :current-items="state.items.filter((i) => i.code.trim() || i.description.trim()).length" @close="bulkOpen = false" @apply="applyBulk" />
     <PrintSheets v-if="!editor.loadError.value" :state="state" :pages="pages" />
 
     <template v-if="!showSide && !editor.loadError.value">
       <BottomSheet v-if="showSheet" v-model:snap="snap" :title="tabs.find((t) => t.id === tab)?.label ?? 'Editor'" :style="{ '--chrome': '180px', ...(snap === 'full' ? { maxHeight: '85dvh' } : {}) }" @close="sheetOpen = false">
-        <ItemsPanel v-if="tab === 'itens'" ref="itemsRef" :items="state.items" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @bulk="bulkOpen = true" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
+        <ItemsPanel v-if="tab === 'itens'" ref="itemsRef" :items="state.items" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @bulk="bulkOpen = true" @import="tableOpen = true" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
         <FormatPanel v-else-if="tab === 'formato'" :state="state" @field="field" />
         <PagePanel v-else-if="tab === 'pagina'" :state="state" :layout="layout" @field="field" />
+        <div v-else-if="tab === 'modelos'" class="tpls" data-testid="templates-panel">
+          <h2 class="tpl-h">Aplicar layout a este documento</h2>
+          <ul class="tpl-list"><li v-for="t in LABEL_TEMPLATES" :key="t.id"><button type="button" class="tpl-btn" :data-layout="t.id" @click="editor.applyLayout(t.layout)"><strong>{{ t.name }}</strong><span>{{ t.description }}</span></button></li></ul>
+          <h2 class="tpl-h">Novo documento a partir de um modelo</h2>
+          <ul class="tpl-list"><li v-for="t in LABEL_TEMPLATES" :key="t.id"><a class="tpl-btn" :href="'/apps/etiquetas/?modelo=' + t.id" :data-template="t.id"><strong>{{ t.name }}</strong><span>Com itens de exemplo editáveis</span></a></li></ul>
+        </div>
           <ExportPanel v-else :state="state" :layout="layout" :busy="busy" :progress="progress" :message="exportMessage" :error="exportError" @print="printSheets" @pdf="downloadPdf" />
       </BottomSheet>
       <ToolStrip :tabs="tabs" :active="sheetOpen ? tab : null" @select="pickTab" />
@@ -236,6 +258,12 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
 .stage { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; position: relative; }
 .summary { margin: 0; padding: 6px max(16px, var(--sa-r)) 6px max(16px, var(--sa-l)); font-size: 12.5px; color: var(--muted); background: var(--surface); border-top: 1px solid var(--border); }
 .warn { margin: 0; padding: 8px max(16px, var(--sa-r)) 8px max(16px, var(--sa-l)); font-size: 13px; background: var(--panel); color: var(--warn); font-weight: 600; border-top: 1px solid var(--border); }
+.tpls { display: grid; gap: 10px; }
+.tpl-h { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 6px 0 0; }
+.tpl-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.tpl-btn { width: 100%; box-sizing: border-box; min-height: 56px; display: grid; gap: 2px; text-align: left; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); color: var(--text); text-decoration: none; }
+.tpl-btn:hover { border-color: var(--app); }
+.tpl-btn span { font-size: 12.5px; color: var(--muted); }
 @media (max-width: 420px) { .bar .appicon { display: none; } .bar .status { white-space: normal; text-align: center; max-width: 104px; font-size: 11px; line-height: 1.2; } }
 @media (max-width: 599px) { .t { display: none; } .doc { display: none; } .bar { gap: 6px; } }
 </style>

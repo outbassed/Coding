@@ -2,10 +2,30 @@
 import type { CopySummary } from '../../storage/documents';
 import { formatDate, imagesSizeText, imagesText, openEditorName, openHref as editorHref, originText, typeLabel } from '../../library/model';
 
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { getCopy } from '../../storage/documents';
+import { createDoc } from '../../editors/docs';
+import { converterFor } from '../../library/convert';
+import { friendlyError } from '../../library/errors';
 
 const props = defineProps<{ copy: CopySummary; busy: boolean }>();
 const openHref = computed(() => editorHref(props.copy));
+const converter = computed(() => (openHref.value ? null : converterFor(props.copy)));
+const converting = ref(false);
+const convertError = ref('');
+/** Cria um documento NOVO no formato 2.0; a cópia do Coding 1.0 continua como estava. */
+async function convert(): Promise<void> {
+  const c = converter.value; if (!c || converting.value) return;
+  converting.value = true; convertError.value = '';
+  try {
+    const record = await getCopy(props.copy.id);
+    if (!record) throw new Error('Esta cópia não existe mais.');
+    const state = c.kind.normalize(c.convert(record.snapshot.doc.state));
+    const files = c.files ? c.files(state, record.snapshot.images ?? []) : [];
+    const created = await createDoc(c.kind, state, files.map((f) => ({ ...f })));
+    location.assign(c.path + '?doc=' + encodeURIComponent(created.id));
+  } catch (err) { convertError.value = 'Não foi possível converter: ' + friendlyError(err); converting.value = false; }
+}
 defineEmits<{ rename: []; export: []; duplicate: []; remove: [] }>();
 </script>
 
@@ -20,6 +40,9 @@ defineEmits<{ rename: []; export: []; duplicate: []; remove: [] }>();
       <div><dt>Revisão</dt><dd>{{ copy.revision }}</dd></div>
     </dl>
     <div class="actions">
+      <button v-if="converter" type="button" class="btn btn-primary wide" data-copy-action="convert" :disabled="converting" :aria-label="'Converter ' + copy.label + ' para o Coding 2.0 e abrir em ' + typeLabel(copy.type)" @click="convert">{{ converting ? 'Convertendo…' : 'Converter e abrir no ' + typeLabel(copy.type) }}</button>
+      <p v-if="converter" class="note muted wide">A conversão cria um documento novo; esta cópia do Coding 1.0 não muda.</p>
+      <p v-if="convertError" class="wide err" role="alert">{{ convertError }}</p>
       <a v-if="openHref" class="btn btn-primary wide" data-copy-action="open" :href="openHref" :aria-label="'Abrir cópia de ' + copy.label + ' no editor de ' + openEditorName(copy.type)">Abrir no editor</a>
       <button type="button" class="btn" data-copy-action="rename" :aria-label="'Renomear cópia de ' + copy.label" :aria-busy="busy" @click="$emit('rename')">Renomear</button>
       <button type="button" class="btn" data-copy-action="export" :aria-label="'Exportar cópia de ' + copy.label" :aria-busy="busy" @click="$emit('export')">Exportar</button>
@@ -39,4 +62,6 @@ dd { margin: 0; text-align: right; overflow-wrap: anywhere; font-weight: 600; }
 .wide { grid-column: 1 / -1; }
 .danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 50%, var(--border)); }
 .note { font-size: 12.5px; margin: 14px 0 0; }
+.actions .note { margin: 0; }
+.err { color: var(--danger); font-weight: 600; margin: 0; }
 </style>

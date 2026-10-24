@@ -97,7 +97,11 @@ onBeforeUnmount(() => { alive = false; requestVersion++; observer?.disconnect();
         <LabelEntry v-for="b in blocks" :key="b.key" :item="b.item" :state="preview.state" />
       </span>
       <!-- eslint-disable-next-line vue/no-v-html -- HTML já saneado por sanitizeTextHtml em previews/model.ts -->
-      <span v-else class="doc" v-html="preview.html"></span>
+      <span v-else-if="preview.kind === 'text'" class="doc" v-html="preview.html"></span>
+      <span v-else-if="preview.kind === 'table'" class="mini-table"><span v-for="(row, r) in preview.rows" :key="r" class="mt-row"><span v-for="(v, c) in row" :key="c" class="mt-cell" :class="{ b: preview.bold[r]?.[c] }">{{ v }}</span></span></span>
+      <!-- SVG gerado localmente pelo app QR / Barras (textos escapados) -->
+      <span v-else-if="preview.kind === 'codes'" class="codes"><span v-for="(svg, i) in preview.svgs" :key="i" class="code" v-html="svg"></span></span>
+      <span v-else class="summary"><strong class="sum-title">{{ preview.title }}</strong><span v-for="(l, i) in preview.lines" :key="i" class="sum-line"><span>{{ l[0] }}</span><b>{{ l[1] }}</b></span></span>
     </span>
     <span v-else-if="state === 'fallback'" class="fallback"><AppIcon v-if="tool" :id="tool" size="md" /><span v-else class="plain"></span></span>
     <span v-else class="skeleton"></span>
@@ -115,6 +119,17 @@ onBeforeUnmount(() => { alive = false; requestVersion++; observer?.disconnect();
 .doc :deep(p), .doc :deep(ul), .doc :deep(ol) { margin: 0 0 .8em; }
 .doc :deep(img) { max-width: 100%; height: auto; display: block; }
 .doc :deep(blockquote) { border-left: 3px solid #8da5d9; padding-left: 15px; margin: 0 0 .8em; color: #36475c; }
+.mini-table { display: grid; align-content: start; box-sizing: border-box; width: 100%; height: 100%; padding: 12mm 10mm; font: 15px/1.3 Arial, sans-serif; }
+.mt-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-bottom: 1px solid #c9d1de; }
+.mt-cell { padding: 6px 6px; border-right: 1px solid #e1e6ee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mt-cell.b { font-weight: 700; background: #eef1f6; }
+.codes { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; padding: 15mm; box-sizing: border-box; width: 100%; height: 100%; align-content: start; }
+.code :deep(svg) { width: 100%; height: auto; display: block; }
+.summary { display: grid; align-content: start; gap: 10px; box-sizing: border-box; width: 100%; height: 100%; padding: 18mm 16mm; font: 22px/1.3 Arial, sans-serif; }
+.sum-title { font-size: 34px; margin-bottom: 10px; overflow-wrap: anywhere; }
+.sum-line { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid #dfe4ec; padding-bottom: 6px; }
+.sum-line span { color: #4a5568; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sum-line b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%; }
 .fallback { position: absolute; inset: 0; display: grid; place-items: center; background: var(--surface); }
 .plain { width: 40%; height: 55%; border-radius: 4px; background: var(--border); }
 .skeleton { position: absolute; inset: 0; background: linear-gradient(100deg, var(--raised, #e9edf3) 30%, color-mix(in srgb, var(--raised, #e9edf3) 60%, #fff) 50%, var(--raised, #e9edf3) 70%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
