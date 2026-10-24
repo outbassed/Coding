@@ -1,0 +1,16 @@
+.coding-context-menu { position:fixed; z-index:2000; min-width:230px; max-width:min(350px,calc(100vw - 16px)); max-height:calc(100dvh - 16px); overflow-y:auto; padding:6px; border:1px solid var(--border); border-radius:14px; background:var(--surface); color:var(--text); box-shadow:0 16px 45px #0004; font:500 13px/1.4 system-ui,sans-serif; }
+.coding-context-menu[hidden] { display:none; }
+.coding-context-heading { padding:7px 9px 8px; color:var(--muted); font-size:11px; font-weight:800; letter-spacing:.035em; text-transform:uppercase; }
+.coding-context-action { display:flex; align-items:center; justify-content:space-between; width:100%; min-height:39px; gap:12px; padding:8px 10px; border:0; border-radius:8px; background:transparent; color:inherit; text-align:left; cursor:pointer; font:inherit; }
+.coding-context-action:hover,.coding-context-action:focus-visible { background:var(--panel); outline:2px solid var(--accent); outline-offset:-2px; }
+.coding-context-action kbd,.coding-context-dialog kbd { font:600 11px/1.4 system-ui; color:var(--muted); background:var(--panel); border:1px solid var(--border); border-radius:5px; padding:3px 5px; white-space:nowrap; }
+.coding-context-separator { height:1px; margin:5px 6px; background:var(--border); }
+.coding-context-overlay { position:fixed; inset:0; z-index:2100; display:grid; place-items:center; padding:18px; background:#0009; }
+.coding-context-dialog { width:min(480px,100%); max-height:85dvh; overflow-y:auto; padding:22px; border:1px solid var(--border); border-radius:18px; background:var(--surface); color:var(--text); box-shadow:0 22px 70px #0006; }
+.coding-context-dialog h2 { margin:0 0 16px; font-size:19px; }
+.coding-context-dialog dl { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:0 12px; margin:0 0 22px; }
+.coding-context-dialog dt,.coding-context-dialog dd { margin:0; padding:9px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.coding-context-dialog dd { text-align:right; }
+.coding-context-dialog .btn { width:100%; }
+@media (pointer:coarse) { .coding-context-action { min-height:46px; } .coding-context-menu { min-width:215px; } }
+@media print { .coding-context-menu,.coding-context-overlay { display:none!important; } }
