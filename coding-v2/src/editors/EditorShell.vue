@@ -113,7 +113,7 @@ const name = computed({
           <slot name="panel" :tab="tab" />
         </div>
       </section>
-      <main id="es-stage" class="es-stage" tabindex="-1" data-testid="editor-stage"><slot /></main>
+      <main id="es-stage" class="es-stage" tabindex="0" aria-label="Documento" data-testid="editor-stage"><slot /></main>
       <aside v-if="$slots.side" v-show="showSide" class="es-side" :aria-label="sideLabel || 'Painel'" data-testid="editor-side"><slot name="side" /></aside>
     </template>
     <div class="sr-only" role="status" aria-live="polite" data-testid="editor-status">{{ doc.note.value }}</div>
@@ -147,6 +147,7 @@ const name = computed({
 .es-panel { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px max(16px, var(--sa-r)) 12px max(16px, var(--sa-l)); max-height: 38vh; overflow: auto; min-width: 0; }
 .es-stage { grid-area: stage; min-width: 0; min-height: 0; overflow: auto; position: relative; }
 .es-stage:focus { outline: none; }
+.es-stage:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
 .es-side { grid-area: side; width: 320px; min-height: 0; overflow: auto; background: var(--surface); border-left: 1px solid var(--border); padding: 12px 14px 20px; box-sizing: border-box; }
 @media (min-width: 1280px) { .es-side { width: 360px; } }
 /* Celular / tablet estreito: prévia em cima; painel e abas embaixo; cabe acima do teclado virtual. */

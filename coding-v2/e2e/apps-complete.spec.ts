@@ -54,11 +54,13 @@ test.describe('Sorteio', () => {
     test.setTimeout(60000);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.addInitScript(() => localStorage.setItem('coding-v2-motion', 'reduce'));
+    page.setDefaultTimeout(8000);
     await page.goto('/apps/sorteio/');
+    await expect(page.getByTestId('spin')).toBeEnabled();
     const names = ['Ana', 'Bruno', 'Carla', 'Davi', 'Elisa', 'Fábio', 'Gabi', 'Hugo'];
     const drawn: string[] = [];
     for (let i = 0; i < 8; i++) {
-      await page.getByTestId('spin').click();
+      await test.step('giro ' + (i + 1), async () => { await page.getByTestId('spin').click(); await expect(page.getByTestId('spin')).toBeEnabled(); });
       const result = page.getByTestId('draw-result').locator('strong');
       await expect(page.getByTestId('history').locator('li')).toHaveCount(i + 1);
       drawn.push((await result.textContent())!.trim());
@@ -79,6 +81,7 @@ test.describe('Sorteio', () => {
 
 test.describe('QR / Barras', () => {
   test('gera, valida EAN-13 e exporta SVG e PNG', async ({ page }) => {
+    page.setDefaultTimeout(8000);
     await page.goto('/apps/qr/');
     await expect(page.getByTestId('code-preview').locator('svg')).toBeVisible();
     await page.getByTestId('code-kind').selectOption('ean13');
