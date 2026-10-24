@@ -61,7 +61,12 @@ const imagePercent = ref(100);
 
 const docId = new URLSearchParams(location.search).get('doc');
 
-function message(text: string): void { note.value = text; }
+let exportNoticeUntil = 0;
+function message(text: string): void {
+  note.value = text;
+  // Um autosave pendente não deve apagar imediatamente a confirmação do PDF/DOCX.
+  if (text.startsWith('PDF gerado') || text.startsWith('DOCX exportado')) exportNoticeUntil = Date.now() + 8000;
+}
 function dirty(): boolean {
   try { return JSON.stringify(normalizedTextState(state.value)) !== committed; }
   catch { return true; } // Invalid or oversized input remains pending until corrected.
@@ -173,7 +178,7 @@ async function saveNow(): Promise<void> {
         committed = value;
         if (first) history.replaceState(null, '', location.pathname + '?doc=' + encodeURIComponent(created.id));
         status.value = dirty() ? 'pending' : 'saved';
-        if (status.value === 'saved') message('Documento salvo neste aparelho.');
+        if (status.value === 'saved' && Date.now() > exportNoticeUntil) message('Documento salvo neste aparelho.');
       } catch (err) {
         status.value = err instanceof RevisionConflict ? 'conflict' : 'error';
         error.value = err instanceof RevisionConflict
@@ -463,6 +468,14 @@ function countPages(): void {
     if (child.tagName === 'HR') { if (onPage) { pages++; used = 0; onPage = 0; } continue; }
     const cs = getComputedStyle(child);
     const h = child.getBoundingClientRect().height + parseFloat(cs.marginTop || '0') + parseFloat(cs.marginBottom || '0');
+    if (h > limit) {
+      // Mesmo critério de textToPdf: fatiar um bloco longo entre páginas.
+      if (onPage) { pages++; used = 0; onPage = 0; }
+      pages += Math.ceil(h / limit) - 1;
+      used = h % limit || limit;
+      onPage = 1;
+      continue;
+    }
     if (used + h > limit && onPage) { pages++; used = 0; onPage = 0; }
     used += h; onPage++;
   }
@@ -486,7 +499,7 @@ async function exportPdf(): Promise<void> {
   try {
     const result = await textToPdf(sanitizeTextHtml(editor.value?.innerHTML ?? state.value.html), state.value.name, (d, t) => { message(d < t ? 'Gerando folha ' + (d + 1) + ' de ' + t + '…' : 'Finalizando PDF…'); });
     downloadBytes(result.bytes, filename() + '.pdf');
-    message('PDF gerado com ' + result.pages + (result.pages === 1 ? ' folha A4.' : ' folhas A4.') + (result.oversized ? ' Um bloco era maior que uma folha e foi cortado; divida-o ou use Imprimir.' : ''));
+    message('PDF gerado com ' + result.pages + (result.pages === 1 ? ' folha A4.' : ' folhas A4.') + (result.oversized ? ' Blocos longos foram divididos automaticamente entre folhas; confira as quebras ou use Imprimir para obter texto selecionável.' : ''));
   } catch (err) { error.value = 'Não foi possível gerar o PDF. ' + friendlyError(err) + ' Use “Imprimir” e escolha “Salvar como PDF”.'; }
   finally { exporting.value = false; }
 }

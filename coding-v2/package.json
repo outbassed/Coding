@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "vue-tsc --noEmit && vite build",
+    "build": "vue-tsc --noEmit && vite build && node scripts/generate-sw.mjs",
     "typecheck": "vue-tsc --noEmit",
     "preview": "vite preview --host 0.0.0.0",
     "test:structure": "node scripts/check-structure.mjs",

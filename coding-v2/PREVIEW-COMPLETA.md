@@ -68,4 +68,4 @@ Todos os apps: modelos editáveis (abrir e experimentar sem enviar arquivo) ✅ 
 - Biblioteca: abrir no app certo (documentos criados na v2), renomear, duplicar, excluir, grade/lista, busca, ordenação, paginação, histórico, prévias reais dos nove tipos ✅
 - Backups JSON e .codingpack ✅ · datas originais preservadas na importação ✅ · miniaturas sem ler Blobs ✅
 - Ajustes: tema, animações, exibição da biblioteca, espaço usado, documentos por app, situação do offline ☑️
-- Uso offline/PWA ⏳ (não oferecido nesta prévia)
+- Uso offline/PWA ☑️ **experimental, opt-in**: cache estático do build com teste de abertura sem rede em Chromium, disponível apenas em deploy de Preview isolado após clique nos Ajustes; instalação mobile/iOS e deploy real ainda não verificados.

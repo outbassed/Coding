@@ -30,11 +30,38 @@ export async function textToPdf(html: string, title: string, progress?: (done: n
     for (const child of Array.from(measure.children)) {
       if (child.tagName === 'HR') { if (groups[groups.length - 1]!.length) { groups.push([]); used = 0; } continue; }
       const cs = getComputedStyle(child);
-      const h = child.getBoundingClientRect().height + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
+      const h = child.getBoundingClientRect().height + (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0);
+      if (h > limit) {
+        // Um parágrafo, tabela ou lista pode ser maior do que uma folha.
+        // Em vez de CORTAR o resto, desenhamos fatias visuais consecutivas
+        // do mesmo bloco em páginas adicionais, mantendo toda a informação.
+        // A impressão nativa continua indicada para texto selecionável.
+        oversized++;
+        if (groups[groups.length - 1]!.length) groups.push([]);
+        let offset = 0;
+        while (offset < h - 0.5) {
+          if (offset > 0) groups.push([]);
+          const size = Math.min(limit, h - offset);
+          const viewport = document.createElement('div');
+          viewport.style.width = '100%';
+          viewport.style.height = size + 'px';
+          viewport.style.overflow = 'hidden';
+          const shifted = document.createElement('div');
+          shifted.style.width = '100%';
+          shifted.style.transform = 'translateY(-' + offset + 'px)';
+          shifted.appendChild(child.cloneNode(true));
+          viewport.appendChild(shifted);
+          groups[groups.length - 1]!.push(viewport);
+          offset += size;
+          if (groups.length > 250) throw new Error('Documento excede o limite de 250 folhas para exportação PDF. Use Imprimir para salvar como PDF.');
+        }
+        used = h % limit || limit;
+        continue;
+      }
       if (used + h > limit && groups[groups.length - 1]!.length) { groups.push([]); used = 0; }
-      if (h > limit) oversized++;
       groups[groups.length - 1]!.push(child);
       used += h;
+      if (groups.length > 250) throw new Error('Documento excede o limite de 250 folhas para exportação PDF. Use Imprimir para salvar como PDF.');
     }
     root.removeChild(measure);
     const sheets: HTMLElement[] = groups.filter((g, i) => g.length || i === 0).map((g) => { const p = document.createElement('div'); p.className = 'txp-page'; for (const el of g) p.appendChild(el.cloneNode(true)); root.appendChild(p); return p; });

@@ -126,9 +126,12 @@ test.describe('comportamento', () => {
     await expect(page).toHaveURL(/\/launcher\/#\/documentos$/);
   });
 
-  test('não declara PWA instalável', async ({ page }) => {
+  test('não instala PWA automaticamente; preparo exige clique explícito', async ({ page }) => {
     await page.goto('/launcher/');
-    expect(await page.locator('link[rel="manifest"]').count()).toBe(0);
+    // Builds normais não incluem manifesto; builds opt-in mostram manifesto
+    // mas nunca registram service worker sem consentimento nos Ajustes.
+    const hasManifest = await page.locator('link[rel="manifest"]').count();
+    expect([0, 1]).toContain(hasManifest);
     expect(await page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).length)).toBe(0);
   });
 });
