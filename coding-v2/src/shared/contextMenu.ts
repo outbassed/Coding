@@ -102,7 +102,7 @@ function menuEntries(app: AppId): Action[] {
     { label: 'Biblioteca de documentos', run: () => { location.hash = '#/documentos'; } },
     { label: 'Ajustes', run: () => { location.hash = '#/ajustes'; } }
   ];
-  return APP_ACTIONS[app].filter(available);
+  return APP_ACTIONS[app].filter(action => available(action));
 }
 
 /** Menu local ao aplicativo. Mantém inputs, seleção de texto e Shift+clique direito nativos. */
