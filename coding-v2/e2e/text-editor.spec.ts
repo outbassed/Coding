@@ -89,15 +89,19 @@ test('Texto mobile mantém a página acima da barra de ferramentas',async({page}
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
-test('Texto usa barra horizontal única no celular, inclusive exportação',async({page})=>{
+test('Texto: painel móvel com categorias, preview acima e exportação funcional',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await page.goto(EDITOR);
-  const bar = page.locator('.toolbar');
-  const before = await bar.evaluate(el => ({ rows: getComputedStyle(el).flexDirection, height: el.getBoundingClientRect().height, scroll: el.scrollWidth > el.clientWidth }));
-  expect(before.rows).toBe('row');
-  expect(before.height).toBeLessThan(85);
-  expect(before.scroll).toBe(true);
-  await bar.evaluate(el => { el.scrollLeft = el.scrollWidth; });
+  const stage = (await page.locator('.stage').boundingBox())!;
+  const controls = (await page.getByTestId('text-controls').boundingBox())!;
+  const tabs = (await page.getByRole('tablist',{name:'Categorias de texto'}).boundingBox())!;
+  expect(stage.y + stage.height).toBeLessThanOrEqual(controls.y + 2);
+  expect(controls.y + controls.height).toBeLessThanOrEqual(tabs.y + 2);
+  await page.getByRole('tab',{name:'Arquivo'}).click();
   await expect(page.getByRole('button',{name:'Exportar HTML'})).toBeVisible();
   await expect(page.getByRole('button',{name:'Imprimir / PDF'})).toBeVisible();
+  await page.getByRole('tab',{name:'Arquivo'}).click();
+  await expect(page.getByTestId('text-controls')).toBeHidden();
+  await page.getByRole('tab',{name:'Formato'}).click();
+  await expect(page.getByTestId('text-controls')).toBeVisible();
 });

@@ -4,6 +4,7 @@ import { getTool } from '../shared/catalog';
 import { LAUNCHER_PATH } from '../shared/links';
 import { useSettingsStore } from '../stores/settings';
 import { useMediaQuery } from '../composables/useMediaQuery';
+import { useResizableSidebar } from '../composables/useResizableSidebar';
 import type { EditorTab } from '../editors/model';
 import AppIcon from '../components/ui/AppIcon.vue';
 import NavIcon from '../components/ui/NavIcon.vue';
@@ -28,6 +29,7 @@ useSettingsStore();
 const tool = getTool('labels');
 const wide = useMediaQuery('(min-width: 900px)', true);
 const roomy = useMediaQuery('(min-width: 600px)', true);
+const desktopSide = useResizableSidebar('labels', 380);
 
 const live = ref('');
 const announce = (text: string): void => { live.value = ''; void nextTick(() => { live.value = text; }); };
@@ -183,7 +185,7 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
       <p v-if="editor.loadError.value" class="problem load" role="alert" data-testid="load-error">
         {{ editor.loadError.value }} <a :href="LAUNCHER_PATH + '#/documentos'">Voltar à biblioteca</a>
       </p>
-      <section v-if="showSide && !editor.loadError.value" class="side" aria-label="Editor de etiquetas">
+      <section v-if="showSide && !editor.loadError.value" class="side" aria-label="Editor de etiquetas" :style="wide ? { width: desktopSide.width.value + 'px' } : {}">
         <div class="tabs" role="tablist" aria-label="Seções do editor" @keydown="onTabKey">
           <button v-for="t in tabs" :id="'tab-' + t.id" :key="t.id" type="button" role="tab" class="tabbtn" :aria-selected="tab === t.id" :aria-controls="'tabpanel'" :tabindex="tab === t.id ? 0 : -1" @click="tab = t.id">{{ t.label }}</button>
         </div>
@@ -199,6 +201,7 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
           </div>
           <ExportPanel v-else :state="state" :layout="layout" :busy="busy" :progress="progress" :message="exportMessage" :error="exportError" @print="printSheets" @pdf="downloadPdf" />
         </div>
+        <div v-if="wide" class="desktop-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Ajustar largura do painel de ferramentas" title="Arraste para ajustar; dois cliques para restaurar" :aria-valuenow="desktopSide.width.value" :aria-valuemin="desktopSide.min" :aria-valuemax="desktopSide.max" :class="{ active: desktopSide.dragging.value }" @pointerdown="desktopSide.start" @pointermove="desktopSide.move" @pointerup="desktopSide.end" @pointercancel="desktopSide.end" @dblclick="desktopSide.reset" @keydown="desktopSide.keys" />
       </section>
 
       <div v-if="!editor.loadError.value" class="stage">
@@ -250,7 +253,9 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
 .conflict p { margin: 0 0 8px; }
 .cf-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .main { flex: 1; min-height: 0; display: flex; }
-.side { width: 380px; flex: none; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); min-height: 0; }
+.side { width: 380px; position: relative; flex: none; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); min-height: 0; }
+.desktop-resizer { position:absolute; top:0; right:-5px; bottom:0; width:10px; z-index:5; cursor:col-resize; touch-action:none; }
+.desktop-resizer:hover, .desktop-resizer.active, .desktop-resizer:focus-visible { background:color-mix(in srgb,var(--app) 45%,transparent); outline:none; }
 .tabs { display: flex; border-bottom: 1px solid var(--border); }
 .tabbtn { flex: 1; min-height: 48px; border: 0; border-bottom: 3px solid transparent; background: transparent; font-weight: 700; color: var(--muted); }
 .tabbtn[aria-selected="true"] { color: var(--text); border-bottom-color: var(--app); }

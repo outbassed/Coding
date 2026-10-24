@@ -39,7 +39,7 @@ Todo app aceita `?doc=<id>` (abre um documento salvo) e `?modelo=<id>` (começa 
 
 ## Arquitetura
 
-- **Casca única dos editores** (`src/editors/EditorShell.vue`): no computador, abas de ferramentas no topo (como Word/Docs), documento no centro e painel lateral quando útil; no celular, prévia em cima e ferramentas embaixo (como CapCut), acompanhando o teclado virtual (`visualViewport`) e as áreas seguras. Etiquetas e Texto mantêm as interfaces próprias, já testadas, com o mesmo princípio.
+- **Casca única dos editores** (`src/editors/EditorShell.vue`): segue o **padrão Etiquetas**. No computador, ferramentas em uma sidebar esquerda de 296–460 px, ajustável/recolhível, e prévia à direita; a lista de miniaturas do Editor PDF fica dentro da sidebar. No celular/tablet estreito, a prévia fica acima da gaveta de ferramentas, que pode ser recolhida, expandida por etapas e ajustada arrastando a alça, com categorias fixas na parte inferior. O layout respeita o teclado virtual (`visualViewport`) e as áreas seguras. Os nove aplicativos mantêm seus próprios recursos de edição; Texto e Etiquetas usam cascas próprias com o mesmo princípio.
 - **Documentos** (`src/editors/useDocument.ts` + `docs.ts`): abrir, criar a partir de modelo, salvar automaticamente só depois de uma alteração, desfazer/refazer, Ctrl+S, proteção contra conflito de revisão (nunca sobrescreve em silêncio) e “Salvo” só depois da transação do IndexedDB terminar. Arquivos binários (fotos, PDFs) ficam como Blobs no armazenamento de ativos do documento.
 - **Armazenamento**: banco próprio `coding-v2-documents`. Backups JSON e `.codingpack` preservados. A importação mantém as datas originais quando são plausíveis. Miniaturas da biblioteca leem só o estado do documento, sem ler Blobs (`getCopyState`).
 - **Arquivos sem dependências novas**: ZIP, CSV, XLSX e DOCX próprios (`src/shared/files/`, `src/text/docx.ts`); PDF com `pdf-lib` e `pdf.js` reaproveitados do Coding 1.0 (`public/vendor/`, carregados só no Editor PDF); QR com o gerador do Coding 1.0 (`src/vendor/qrcode-generator.js`).
@@ -70,3 +70,19 @@ No Launcher, vá a **Ajustes → Uso sem internet → Preparar acesso offline**.
 - No uso online, páginas HTML são buscadas primeiro da rede; JS/CSS e demais assets são entregues do cache versionado da compilação. Offline, os arquivos preparados são servidos localmente.
 - A instalação como aplicativo PWA é um recurso do navegador, distinto da ativação de atalhos e do cache offline. Safari/iOS e a instalação em aparelhos reais continuam sem validação manual.
 - O modo offline não sincroniza documentos entre aparelhos. Use as exportações de backup da Biblioteca para transferência de dados.
+
+### Hospedagem Cloudflare Pages (Preview alternativo)
+
+- Projeto isolado: `coding-v2`, endereço `https://coding-v2.pages.dev/launcher/#/`.
+- Branch: `feature/coding-v2-unified-editor-layout-gpt` (não a `main`).
+- Diretório raiz: `coding-v2`; build: `npm run build`; saída: `dist`.
+- Apenas commits da branch configurada geram deploys, sem previews de outras branches.
+- O projeto Vercel e o Coding 1.0 não são modificados.
+
+### Menu de contexto, atalhos e apps desativados
+
+- No PC, clique direito abre o menu do aplicativo atual. `Shift+clique direito` preserva o menu do navegador; `Shift+F10` ou a tecla Menu abrem o menu personalizado.
+- No celular, pressione uma região não editável por ~550 ms. Campos, seleção de texto, caixas de diálogo e controles interativos não têm o gesto interceptado.
+- O atalho `?`, fora de campos de edição, apresenta a lista **somente do aplicativo aberto**. `Alt+Shift+N` aciona a ação principal de cada aplicativo e `Alt+Shift+E` executa a exportação quando disponível. Controles desativados não são clicados.
+- Desativar no Launcher impede abrir diretamente a página do app no mesmo navegador; o próprio bloqueio oferece o botão **Ativar aplicativo**. Não há autenticação de servidor: é uma preferência local, não controle de autorização.
+- No PC, arraste a divisória do painel esquerdo ou ajuste-a com as setas quando focada; dê dois cliques para restaurar. A largura persiste separadamente por app. Nenhuma mudança na estrutura dos painéis mobile/tablet.
