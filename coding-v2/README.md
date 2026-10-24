@@ -70,3 +70,11 @@ No Launcher, vá a **Ajustes → Uso sem internet → Preparar acesso offline**.
 - No uso online, páginas HTML são buscadas primeiro da rede; JS/CSS e demais assets são entregues do cache versionado da compilação. Offline, os arquivos preparados são servidos localmente.
 - A instalação como aplicativo PWA é um recurso do navegador, distinto da ativação de atalhos e do cache offline. Safari/iOS e a instalação em aparelhos reais continuam sem validação manual.
 - O modo offline não sincroniza documentos entre aparelhos. Use as exportações de backup da Biblioteca para transferência de dados.
+
+### Hospedagem Cloudflare Pages (Preview alternativo)
+
+- Projeto isolado: `coding-v2`, endereço `https://coding-v2.pages.dev/launcher/#/`.
+- Branch: `feature/coding-v2-unified-editor-layout-gpt` (não a `main`).
+- Diretório raiz: `coding-v2`; build: `npm run build`; saída: `dist`.
+- Apenas commits da branch configurada geram deploys, sem previews de outras branches.
+- O projeto Vercel e o Coding 1.0 não são modificados.
