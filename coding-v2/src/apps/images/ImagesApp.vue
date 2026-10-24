@@ -334,7 +334,7 @@ void nextTick;
     </template>
 
     <div class="img-stage">
-      <div ref="stageEl" class="viewport" tabindex="0" aria-label="Área da imagem. Setas movem a camada selecionada; Delete exclui." data-testid="image-viewport" @keydown="onStageKey">
+      <div ref="stageEl" class="viewport" tabindex="0" role="region" aria-label="Área da imagem. Setas movem a camada selecionada; Delete exclui." data-testid="image-viewport" @keydown="onStageKey">
         <div class="board" :style="{ width: state.width * scale + 'px', height: state.height * scale + 'px' }" :class="{ checker: state.background === 'transparent' }">
           <canvas ref="canvasEl" class="cv" :style="{ width: state.width * scale + 'px', height: state.height * scale + 'px' }" role="img" :aria-label="'Composição ' + state.width + ' × ' + state.height + ' com ' + state.layers.length + ' camadas'" data-testid="image-canvas" @pointerdown="onCanvasDown"></canvas>
           <div v-if="frameStyle" class="frame" :style="frameStyle" data-testid="selection-frame">

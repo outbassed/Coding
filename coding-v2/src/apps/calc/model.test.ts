@@ -5,7 +5,8 @@ describe('planilha', () => {
   it('modelo de orçamento calcula totais, % e textos', () => {
     const s = budgetTemplate();
     const ev = new Evaluator(s);
-    const v = (r: number, c: number) => display(ev.value(0, r, c), s.sheets[0]!.cells[r + ':' + c]?.f);
+    // Intl usa espaço não separável entre R$ e o número
+    const v = (r: number, c: number) => display(ev.value(0, r, c), s.sheets[0]!.cells[r + ':' + c]?.f).replace(/\u00a0/g, ' ');
     expect(v(7, 1)).toBe('R$ 4.120,00');
     expect(v(7, 2)).toBe('R$ 4.031,45');
     expect(v(11, 2)).toBe('Dentro do previsto');

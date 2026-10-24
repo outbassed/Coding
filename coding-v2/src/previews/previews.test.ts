@@ -78,7 +78,7 @@ describe('modelos de prévia', () => {
   });
   it('prévias dos apps novos usam os dados reais e recusam formatos antigos do 1.0', () => {
     const calc = buildPreview('calc', budgetTemplate());
-    expect(calc.kind === 'table' && calc.rows.flat()).toContain('R$ 4.120,00');
+    expect(calc.kind === 'table' && calc.rows.flat().map((v) => v.replace(/\u00a0/g, ' '))).toContain('R$ 4.120,00');
     expect(() => buildPreview('calc', { name: 'planilha antiga do Coding 1.0', data: [[1, 2]] })).toThrow();
     const split = buildPreview('split', demoSplit());
     expect(split.kind === 'summary' && split.lines[0]).toEqual(['Total', expect.stringContaining('2.006,40')]);

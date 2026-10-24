@@ -85,7 +85,7 @@ const name = computed({
       <SaveStatus :state="doc.status.value" class="es-status" />
     </header>
 
-    <div class="es-alerts">
+    <div v-if="doc.loadError.value || doc.status.value === 'conflict' || doc.status.value === 'error'" class="es-alerts" role="region" aria-label="Avisos">
       <p v-if="doc.loadError.value" class="es-problem" role="alert" data-testid="load-error">
         {{ doc.loadError.value }} <a :href="LAUNCHER_PATH + '#/documentos'">Voltar à biblioteca</a>
       </p>
@@ -103,13 +103,15 @@ const name = computed({
     </div>
 
     <template v-if="!doc.loadError.value">
-      <div class="es-tabs" role="tablist" aria-label="Ferramentas" data-testid="editor-tabs" @keydown="onTabKey">
-        <button v-for="t in allTabs" :id="'es-tab-' + t.id" :key="t.id" type="button" role="tab" class="es-tab"
-          :aria-selected="tab === t.id" :aria-expanded="!wide ? (tab === t.id && panelOpen) : undefined" aria-controls="es-panel"
-          :tabindex="tab === t.id ? 0 : -1" @click="pick(t.id)">{{ t.label }}</button>
-      </div>
-      <section v-show="showPanel" id="es-panel" class="es-panel" role="tabpanel" :aria-labelledby="'es-tab-' + tab" data-testid="editor-panel">
-        <slot name="panel" :tab="tab" />
+      <section class="es-tools" aria-label="Ferramentas">
+        <div class="es-tabs" role="tablist" aria-label="Categorias de ferramentas" data-testid="editor-tabs" @keydown="onTabKey">
+          <button v-for="t in allTabs" :id="'es-tab-' + t.id" :key="t.id" type="button" role="tab" class="es-tab"
+            :aria-selected="tab === t.id" :aria-expanded="!wide ? (tab === t.id && panelOpen) : undefined" aria-controls="es-panel"
+            :tabindex="tab === t.id ? 0 : -1" @click="pick(t.id)">{{ t.label }}</button>
+        </div>
+        <div v-show="showPanel" id="es-panel" class="es-panel" role="tabpanel" :aria-labelledby="'es-tab-' + tab" data-testid="editor-panel">
+          <slot name="panel" :tab="tab" />
+        </div>
       </section>
       <main id="es-stage" class="es-stage" tabindex="-1" data-testid="editor-stage"><slot /></main>
       <aside v-if="$slots.side" v-show="showSide" class="es-side" :aria-label="sideLabel || 'Painel'" data-testid="editor-side"><slot name="side" /></aside>
@@ -121,8 +123,9 @@ const name = computed({
 <style scoped>
 .es { display: grid; height: 100dvh; background: var(--bg); color: var(--text); overflow: hidden;
   grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto auto auto auto minmax(0, 1fr);
-  grid-template-areas: "head head" "alerts alerts" "tabs tabs" "panel panel" "stage side"; }
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-areas: "head head" "alerts alerts" "tools tools" "stage side"; }
+.es-tools { grid-area: tools; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .es-head { grid-area: head; display: flex; align-items: center; gap: 8px; min-height: calc(56px + var(--sa-t)); padding: var(--sa-t) max(12px, var(--sa-r)) 0 max(8px, var(--sa-l)); background: var(--surface); border-bottom: 3px solid var(--app); min-width: 0; }
 .es-back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; min-width: 44px; justify-content: center; padding: 0 8px; border-radius: 12px; color: var(--accent); font-weight: 700; text-decoration: none; flex: none; }
 .es-back:hover { background: var(--panel); }
@@ -138,10 +141,10 @@ const name = computed({
 .es-problem { margin: 0; padding: 10px max(16px, var(--sa-r)) 10px max(16px, var(--sa-l)); border-bottom: 1px solid var(--danger); background: var(--panel); color: var(--danger); font-weight: 600; display: block; }
 .es-problem a { color: var(--accent); text-decoration: underline; }
 .es-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-.es-tabs { grid-area: tabs; display: flex; gap: 2px; padding: 0 max(12px, var(--sa-r)) 0 max(12px, var(--sa-l)); background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: thin; }
+.es-tabs { display: flex; gap: 2px; padding: 0 max(12px, var(--sa-r)) 0 max(12px, var(--sa-l)); background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: thin; }
 .es-tab { flex: none; min-height: 44px; padding: 0 16px; border: 0; border-bottom: 3px solid transparent; background: transparent; font-weight: 700; color: var(--muted); white-space: nowrap; }
 .es-tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--app); }
-.es-panel { grid-area: panel; background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px max(16px, var(--sa-r)) 12px max(16px, var(--sa-l)); max-height: 38vh; overflow: auto; min-width: 0; }
+.es-panel { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px max(16px, var(--sa-r)) 12px max(16px, var(--sa-l)); max-height: 38vh; overflow: auto; min-width: 0; }
 .es-stage { grid-area: stage; min-width: 0; min-height: 0; overflow: auto; position: relative; }
 .es-stage:focus { outline: none; }
 .es-side { grid-area: side; width: 320px; min-height: 0; overflow: auto; background: var(--surface); border-left: 1px solid var(--border); padding: 12px 14px 20px; box-sizing: border-box; }
@@ -149,8 +152,9 @@ const name = computed({
 /* Celular / tablet estreito: prévia em cima; painel e abas embaixo; cabe acima do teclado virtual. */
 .is-narrow { position: fixed; inset-inline: 0; top: var(--vv-top, 0px); height: var(--vv-h, 100dvh);
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
-  grid-template-areas: "head" "alerts" "stage" "side" "panel" "tabs"; }
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  grid-template-areas: "head" "alerts" "stage" "side" "tools"; }
+.is-narrow .es-tools { flex-direction: column-reverse; }
 .is-narrow .es-panel { border-bottom: 0; border-top: 1px solid var(--border); border-radius: 16px 16px 0 0; max-height: calc(var(--vv-h, 100dvh) * .42); box-shadow: 0 -6px 18px rgb(0 0 0 / 8%); }
 .is-narrow .es-side { width: auto; border-left: 0; border-top: 1px solid var(--border); max-height: calc(var(--vv-h, 100dvh) * .42); }
 .is-narrow .es-tabs { gap: 8px; padding: 8px max(12px, var(--sa-r)) calc(8px + var(--sa-b)) max(12px, var(--sa-l)); border-bottom: 0; border-top: 1px solid var(--border); scroll-snap-type: x proximity; }
@@ -158,5 +162,5 @@ const name = computed({
 .is-narrow .es-tab[aria-selected="true"] { background: var(--app); border-color: var(--app); color: var(--ink); }
 @media (max-width: 599px) { .es-back-t, .es-app { display: none; } .es-head { gap: 4px; } }
 @media (max-width: 420px) { .es-icon { display: none; } .es-status { white-space: normal; text-align: center; max-width: 96px; font-size: 11px; line-height: 1.2; } }
-@media print { .es { display: block; height: auto; position: static; } .es-head, .es-alerts, .es-tabs, .es-panel, .es-side, .skip-link { display: none !important; } .es-stage { overflow: visible; } }
+@media print { .es { display: block; height: auto; position: static; } .es-head, .es-alerts, .es-tools, .es-side, .skip-link { display: none !important; } .es-stage { overflow: visible; } }
 </style>
