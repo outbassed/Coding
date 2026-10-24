@@ -6,7 +6,10 @@ import './styles/base.css';
 /** Uma entrada para os apps 2.0; cada app é carregado sob demanda (um pacote por app). */
 const loaders: Record<string, () => Promise<{ default: Component }>> = {
   calc: () => import('./apps/calc/CalcApp.vue'),
+  images: () => import('./apps/images/ImagesApp.vue'),
+  pdf: () => import('./apps/pdf/PdfApp.vue'),
   codes: () => import('./apps/codes/CodesApp.vue'),
+  'sheet-labels': () => import('./apps/sheet-labels/SheetLabelsApp.vue'),
   draw: () => import('./apps/draw/DrawApp.vue'),
   split: () => import('./apps/split/SplitApp.vue')
 };

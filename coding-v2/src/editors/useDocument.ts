@@ -15,6 +15,8 @@ export interface UseDocumentOptions<S> {
   withImages?: boolean;
   /** Atraso do salvamento automático. */
   delay?: number;
+  /** Filtra os arquivos gravados (ex.: só imagens ainda usadas). Na memória ficam todos, para o desfazer funcionar. */
+  imagesFor?: (state: S, images: LegacyImage[]) => LegacyImage[];
 }
 
 /**
@@ -73,7 +75,7 @@ export function useDocument<S>(options: UseDocumentOptions<S>) {
         try { data = options.kind.normalize(state.value); }
         catch (err) { status.value = 'error'; error.value = friendlyError(err); return; }
         const value = signature();
-        const files = images.value;
+        const files = options.imagesFor ? options.imagesFor(data, images.value) : images.value;
         status.value = 'saving'; error.value = '';
         try {
           const first = !record.value;
@@ -102,7 +104,8 @@ export function useDocument<S>(options: UseDocumentOptions<S>) {
     try {
       const data = options.kind.normalize(state.value);
       const named = { ...(data as object), name: options.kind.label(data) + ' (cópia)' } as S;
-      const created = await createDoc(options.kind, named, options.withImages ? images.value : []);
+      const files = options.imagesFor ? options.imagesFor(data, images.value) : images.value;
+      const created = await createDoc(options.kind, named, options.withImages ? files : []);
       state.value = options.kind.normalize(created.snapshot.doc.state);
       record.value = created;
       committed = safeSignature();

@@ -71,12 +71,24 @@ export function applyFilters(copies: readonly CopySummary[], filters: LibraryFil
 }
 
 /** Endereço do editor quando a cópia pode ser aberta nele; nulo para tipos que ainda não têm editor na v2. */
+/** Apps 2.0 que abrem documentos criados na v2 (prefixo do legacyId) — formatos antigos do 1.0 não são reinterpretados. */
+const V2_APPS: Record<string, { path: string; prefix: string }> = {
+  texts: { path: '/apps/texto/', prefix: 'v2-texts-' },
+  calc: { path: '/apps/planilhas/', prefix: 'v2-calc-' },
+  images: { path: '/apps/imagens/', prefix: 'v2-images-' },
+  pdf: { path: '/apps/pdf/', prefix: 'v2-pdf-' },
+  codes: { path: '/apps/qr/', prefix: 'v2-codes-' },
+  sheet: { path: '/apps/planilha-etiquetas/', prefix: 'v2-sheet-' },
+  draw: { path: '/apps/sorteio/', prefix: 'v2-draw-' },
+  split: { path: '/apps/racha-conta/', prefix: 'v2-split-' }
+};
 export function openHref(copy: Pick<CopySummary, 'id' | 'type' | 'legacyId'>): string | null {
   if (copy.type === 'labels') return '/apps/etiquetas/?doc=' + encodeURIComponent(copy.id);
-  if (copy.type === 'texts' && copy.legacyId.startsWith('v2-texts-')) return '/apps/texto/?doc=' + encodeURIComponent(copy.id);
+  const app = typeof copy.type === 'string' && Object.hasOwn(V2_APPS, copy.type) ? V2_APPS[copy.type] : undefined;
+  if (app && copy.legacyId.startsWith(app.prefix)) return app.path + '?doc=' + encodeURIComponent(copy.id);
   return null;
 }
-export const openEditorName = (type: unknown): string => (type === 'texts' ? 'Texto' : 'Etiquetas');
+export const openEditorName = (type: unknown): string => typeLabel(type);
 
 export function toolsPresent(copies: readonly Pick<CopySummary, 'type'>[]): ToolId[] {
   const found = new Set<ToolId>();
