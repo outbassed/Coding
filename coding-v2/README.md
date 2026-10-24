@@ -52,6 +52,21 @@ Todo app aceita `?doc=<id>` (abre um documento salvo) e `?modelo=<id>` (começa 
 - O HTML do Texto é sempre saneado (lista fechada de tags, estilos e imagens `data:`).
 - Documentos de formatos antigos do 1.0 com o mesmo tipo não são reinterpretados pelos apps novos (ficam na biblioteca, com backup, mas não abrem num editor que poderia corrompê-los).
 
-## Offline / PWA
+## Offline / PWA (Preview isolado, opt-in)
 
-Não há service worker nem manifesto nesta prévia (verificado por `npm run test:structure`). Os apps precisam de internet para abrir; depois de abertos, editar e salvar funcionam no aparelho.
+Há uma implementação **experimental** de cache estático offline, desativada por padrão para proteger a versão 1.0. Não afeta o IndexedDB nem armazena documentos, backups ou respostas de API em cache.
+
+Para testar exclusivamente num domínio HTTPS separado do Coding 1.0:
+
+```bash
+VITE_CODING_PREVIEW_PWA=1 npm run build
+npm run preview
+```
+
+No Launcher, vá a **Ajustes → Uso sem internet → Preparar acesso offline**. O navegador baixa os arquivos *reais do build*, incluindo as nove páginas, chunks, estilos, ícones e as bibliotecas locais de PDF. Se algum arquivo falhar, a instalação do worker não é concluída; a versão anterior permanece ativa. Depois da preparação, as páginas visitadas podem abrir sem rede, com os documentos já salvos no IndexedDB local.
+
+- O serviço é registrado somente por ação explícita nos Ajustes e apenas em HTTPS ou localhost. Há bloqueio adicional dos domínios conhecidos da versão 1.0.
+- O service worker tem escopo `/` e foi projetado **somente para um projeto Vercel Preview separado**, cujo domínio seja dedicado ao Coding 2.0. Não ative o sinalizador em um domínio compartilhado com a versão 1.0.
+- No uso online, páginas HTML são buscadas primeiro da rede; JS/CSS e demais assets são entregues do cache versionado da compilação. Offline, os arquivos preparados são servidos localmente.
+- A instalação como aplicativo PWA é um recurso do navegador, distinto da ativação de atalhos e do cache offline. Safari/iOS e a instalação em aparelhos reais continuam sem validação manual.
+- O modo offline não sincroniza documentos entre aparelhos. Use as exportações de backup da Biblioteca para transferência de dados.
