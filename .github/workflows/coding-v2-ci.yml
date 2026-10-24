@@ -25,5 +25,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run test:unit
       - run: npm run build
+        env:
+          # CI exercita a PWA somente no Preview isolado do vite preview.
+          VITE_CODING_PREVIEW_PWA: '1'
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
