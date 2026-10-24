@@ -725,8 +725,8 @@ onBeforeUnmount(() => {
             <button type="button" class="tool strong" aria-label="Imprimir / PDF" @click="printDocument"><span class="wide-label">Imprimir / </span>PDF</button>
           </div>
         </section>
-        </aside>
         <div v-if="wideText" class="text-desktop-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Ajustar largura do painel de ferramentas" title="Arraste para ajustar; dois cliques para restaurar" :aria-valuenow="desktopSide.width.value" :aria-valuemin="desktopSide.min" :aria-valuemax="desktopSide.max" :class="{ active: desktopSide.dragging.value }" @pointerdown="desktopSide.start" @pointermove="desktopSide.move" @pointerup="desktopSide.end" @pointercancel="desktopSide.end" @dblclick="desktopSide.reset" @keydown="desktopSide.keys" />
+        </aside>
         <main ref="stageEl" class="stage" tabindex="0" aria-label="Área de edição" @scroll.passive="updateFrame">
           <p v-if="loading" class="muted" role="status">Abrindo documento…</p>
           <section v-show="!loading" ref="paperEl" class="paper" aria-label="Página do documento">
@@ -764,8 +764,8 @@ onBeforeUnmount(() => {
 .document-meta label { font-weight: 700; font-size: 13px; white-space: nowrap; }
 .document-meta input { flex: 1; min-width: 0; padding: 9px 12px; min-height: 44px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
 .editing { display: grid; position: relative; grid-template-columns: var(--text-side-width,356px) minmax(0, 1fr); grid-template-rows: minmax(0,1fr); flex: 1; min-height: 0; min-width: 0; }
-.text-controls { min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); scrollbar-width: thin; }
-.text-desktop-resizer { position:absolute; z-index:5; left:calc(var(--text-side-width,356px) - 5px); top:0; bottom:0; width:10px; cursor:col-resize; touch-action:none; }
+.text-controls { position:relative; min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); scrollbar-width: thin; }
+.text-desktop-resizer { position:absolute; z-index:5; right:0; top:0; bottom:0; width:10px; cursor:col-resize; touch-action:none; }
 .text-desktop-resizer:hover, .text-desktop-resizer.active, .text-desktop-resizer:focus-visible { background:color-mix(in srgb,var(--app) 45%,transparent); outline:none; }
 .text-sheet-head, .text-bottom-nav { display: none; }
 .toolbar { display: flex; flex: 1; flex-direction: column; align-items: stretch; gap: 12px; padding: 14px; background: var(--surface); min-width: 0; }
