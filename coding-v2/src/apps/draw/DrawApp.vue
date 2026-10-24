@@ -139,8 +139,7 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
     <div class="stage" :data-mode="state.mode">
       <div class="play">
         <template v-if="state.mode === 'wheel'">
-          <div class="wheel-box">
-            <span class="pointer" aria-hidden="true">▼</span>
+          <div class="wheel-wrap"><span class="pointer" aria-hidden="true">▼</span><div class="wheel-box">
             <svg viewBox="0 0 200 200" class="wheel" :class="{ animated: !reduced }" :style="{ transform: 'rotate(' + rotation + 'deg)' }" role="img" :aria-label="'Roleta com ' + wheelNames.length + ' nomes'" data-testid="wheel">
               <circle cx="100" cy="100" r="98" fill="var(--surface)" stroke="var(--border)" stroke-width="2" />
               <template v-if="wheelNames.length">
@@ -151,7 +150,7 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
               </template>
               <circle cx="100" cy="100" r="12" fill="#fff" stroke="#141922" stroke-width="2" />
             </svg>
-          </div>
+          </div></div>
           <button type="button" class="btn btn-app big" :disabled="spinning" data-testid="spin" @click="spin">{{ spinning ? 'Girando…' : 'Girar a roleta' }}</button>
           <p class="muted small">{{ pool.length }} de {{ total }} nomes disponíveis</p>
         </template>
@@ -198,9 +197,14 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
 @media (min-width: 900px) { .stage { grid-template-columns: minmax(0, 1fr) 300px; align-items: start; } }
 .play { display: grid; justify-items: center; gap: 12px; text-align: center; }
 .wheel-box { position: relative; width: min(78vw, 46vh, 420px); aspect-ratio: 1; }
-.wheel { width: 100%; height: 100%; display: block; }
+.wheel { width: 100%; height: 100%; display: block; pointer-events: none; }
+/* a roleta girada não pode cobrir os botões abaixo dela */
+.wheel-box { clip-path: circle(50% at 50% 50%); }
+.pointer { clip-path: none; }
+.big { position: relative; z-index: 1; }
 .wheel.animated { transition: transform 4.2s cubic-bezier(.12, .7, .14, 1); }
-.pointer { position: absolute; top: -6px; left: 50%; transform: translateX(-50%); z-index: 1; font-size: 26px; color: var(--text); line-height: 1; }
+.wheel-wrap { position: relative; padding-top: 14px; }
+.pointer { position: absolute; top: -4px; left: 50%; transform: translateX(-50%); z-index: 1; font-size: 26px; color: var(--text); line-height: 1; }
 .big { min-height: 52px; font-size: 16px; padding: 0 24px; }
 .small { font-size: 13px; margin: 0; }
 .result { display: grid; gap: 4px; padding: 14px 20px; border-radius: 16px; background: var(--surface); border: 2px solid var(--app); min-width: min(320px, 100%); }

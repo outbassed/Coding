@@ -85,6 +85,7 @@ test.describe('QR / Barras', () => {
     await page.goto('/apps/qr/');
     await expect(page.getByTestId('code-preview').locator('svg')).toBeVisible();
     await page.getByTestId('code-kind').selectOption('ean13');
+    await page.getByTestId('code-caption').fill('');
     await page.getByTestId('code-value').fill('7891234567890');
     await expect(page.getByTestId('code-error')).toContainText('Dígito verificador incorreto');
     await page.getByTestId('code-value').fill('789123456789');
