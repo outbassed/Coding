@@ -326,7 +326,7 @@ const printRange = computed(() => {
           :aria-activedescendant="'cell-' + focus.r + '-' + focus.c" :style="{ width: 48 + colsShown.reduce((s, c) => s + width(c), 0) + 'px' }"
           @keydown="onGridKey" @copy="onCopy" @paste="onPaste">
           <colgroup><col style="width: 48px" /><col v-for="c in colsShown" :key="c" :style="{ width: width(c) + 'px' }" /></colgroup>
-          <thead><tr role="row" aria-rowindex="1"><th class="corner" role="columnheader" aria-label="Linhas e colunas"></th><th v-for="c in colsShown" :key="c" role="columnheader" :class="{ hl: c >= range.c1 && c <= range.c2 }" scope="col">{{ indexToCol(c) }}</th></tr></thead>
+          <thead><tr role="row" aria-rowindex="1"><th class="corner" role="columnheader"><span class="sr-only">Linha</span></th><th v-for="c in colsShown" :key="c" role="columnheader" :class="{ hl: c >= range.c1 && c <= range.c2 }" scope="col">{{ indexToCol(c) }}</th></tr></thead>
           <tbody>
             <tr v-if="firstRow > 0" aria-hidden="true" class="spacer" :style="{ height: firstRow * ROW_H + 'px' }"><td :colspan="sheet.cols + 1"></td></tr>
             <tr v-for="r in rowsShown" :key="r" role="row" :aria-rowindex="r + 2">

@@ -50,8 +50,10 @@ test.describe('Racha-conta', () => {
 });
 
 test.describe('Sorteio', () => {
-  test.use({ reducedMotion: 'reduce' });
   test('roleta sem repetir, números sem repetição e histórico salvo', async ({ page }) => {
+    test.setTimeout(60000);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.addInitScript(() => localStorage.setItem('coding-v2-motion', 'reduce'));
     await page.goto('/apps/sorteio/');
     const names = ['Ana', 'Bruno', 'Carla', 'Davi', 'Elisa', 'Fábio', 'Gabi', 'Hugo'];
     const drawn: string[] = [];

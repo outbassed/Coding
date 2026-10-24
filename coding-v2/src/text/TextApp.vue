@@ -453,11 +453,20 @@ function setImageAlign(value: 'inline' | 'left' | 'center' | 'right'): void {
 }
 // --- páginas A4 na tela ---
 const pageCount = ref(1);
+/** Mesma regra da exportação em PDF: blocos inteiros por folha (257 mm úteis) e quebras de página forçadas. */
 function countPages(): void {
   const host = editor.value; if (!host) return;
   const pxPerMm = (paperEl.value?.getBoundingClientRect().width ?? 794) / 210 || 96 / 25.4;
-  const breaks = host.querySelectorAll('hr[data-break="page"]').length;
-  pageCount.value = Math.max(1, Math.ceil(host.scrollHeight / (297 * pxPerMm)) + breaks);
+  const limit = (297 - 40) * pxPerMm;
+  let pages = 1, used = 0, onPage = 0;
+  for (const child of Array.from(host.children)) {
+    if (child.tagName === 'HR') { if (onPage) { pages++; used = 0; onPage = 0; } continue; }
+    const cs = getComputedStyle(child);
+    const h = child.getBoundingClientRect().height + parseFloat(cs.marginTop || '0') + parseFloat(cs.marginBottom || '0');
+    if (used + h > limit && onPage) { pages++; used = 0; onPage = 0; }
+    used += h; onPage++;
+  }
+  pageCount.value = pages;
 }
 // --- exportar DOCX e PDF ---
 const exporting = ref(false);
