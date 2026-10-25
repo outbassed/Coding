@@ -191,7 +191,7 @@ test.describe('Limites de projetos salvos', () => {
     await expect(page.getByTestId('tier-reasons')).toContainText('Você tem 40 projetos salvos');
     // Um app não aceita valor menor que a quantidade salva nele.
     const row = page.locator('[data-testid="limit-apps"] li[data-app="labels"]');
-    await expect(row.locator('option[value="32"]')).toBeDisabled();
+    await expect(row.locator('option[value="32"]')).toHaveAttribute('disabled', '');
     await expect(row).toContainText('40 de');
   });
 
