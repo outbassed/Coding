@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import EditorShell from '../../editors/EditorShell.vue';
 import FileTab from '../../editors/FileTab.vue';
 import { useDocument } from '../../editors/useDocument';
@@ -117,11 +117,8 @@ let imageData: Uint8ClampedArray | null = null;
 function runExtract(): void {
   extracted.value = imageData ? extractPalette(imageData, extractCount.value).map((c) => toHex(c)) : [];
 }
-async function onImage(event: Event): Promise<void> {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  input.value = '';
-  if (!file) return;
+let imageW = 0, imageH = 0;
+async function loadImage(file: Blob, label: string): Promise<void> {
   imageError.value = '';
   if (!/^image\/(png|jpe?g|webp|gif|bmp)$/.test(file.type)) { imageError.value = 'Escolha uma imagem PNG, JPG, WebP, GIF ou BMP.'; return; }
   if (file.size > MAX_IMAGE_BYTES) { imageError.value = 'A imagem passa de 25 MB. Escolha uma menor.'; return; }
@@ -139,16 +136,71 @@ async function onImage(event: Event): Promise<void> {
     if (!ctx) throw new Error('canvas');
     ctx.drawImage(img, 0, 0, w, h);
     imageData = ctx.getImageData(0, 0, w, h).data;
+    imageW = w; imageH = h;
     if (imageUrl.value) URL.revokeObjectURL(imageUrl.value);
-    imageUrl.value = url; imageName.value = file.name;
+    imageUrl.value = url; imageName.value = label;
     runExtract();
     if (!extracted.value.length) imageError.value = 'A imagem é transparente: não há cores para extrair.';
-    else doc.say(extracted.value.length + ' cores extraídas de ' + file.name + '.');
+    else doc.say(extracted.value.length + ' cores extraídas de ' + label + '.');
   } catch {
     URL.revokeObjectURL(url);
     imageError.value = 'Não foi possível ler essa imagem. Tente outro arquivo.';
   }
 }
+async function onImage(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (file) await loadImage(file, file.name);
+}
+function isTextTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el?.tagName) return false;
+  if (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') return true;
+  if (el.tagName === 'INPUT') return !['button', 'checkbox', 'radio', 'range', 'color', 'file', 'submit', 'reset'].includes((el as HTMLInputElement).type);
+  return el.isContentEditable;
+}
+/** Ctrl+V com uma imagem na área de transferência: abre a aba Imagem e extrai as cores (colar texto nos campos segue normal). */
+function onPaste(event: ClipboardEvent): void {
+  if (event.defaultPrevented || isTextTarget(event.target)) return;
+  const file = Array.from(event.clipboardData?.files ?? []).find((f) => f.type.startsWith('image/'));
+  if (!file) return;
+  event.preventDefault();
+  tab.value = 'imagem';
+  void loadImage(file, file.name && file.name !== 'image.png' ? file.name : 'Imagem colada');
+}
+function onDropFile(event: DragEvent): void {
+  const file = Array.from(event.dataTransfer?.files ?? [])[0];
+  if (!file) return;
+  event.preventDefault();
+  tab.value = 'imagem';
+  void loadImage(file, file.name);
+}
+async function pasteButton(): Promise<void> {
+  imageError.value = '';
+  try {
+    for (const item of await navigator.clipboard.read()) {
+      const type = item.types.find((t) => t.startsWith('image/'));
+      if (type) { const blob = await item.getType(type); await loadImage(blob, 'Imagem colada'); return; }
+    }
+    imageError.value = 'A área de transferência não tem uma imagem.';
+  } catch { imageError.value = 'O navegador não deixou ler a área de transferência. Clique na página e use Ctrl+V.'; }
+}
+/** Clicar na imagem copia a cor exata do ponto clicado para o editor. */
+function pickFromImage(event: MouseEvent): void {
+  const img = event.currentTarget as HTMLImageElement;
+  if (!imageData || !imageW || !imageH) return;
+  const r = img.getBoundingClientRect();
+  const x = Math.min(imageW - 1, Math.max(0, Math.floor(((event.clientX - r.left) / r.width) * imageW)));
+  const y = Math.min(imageH - 1, Math.max(0, Math.floor(((event.clientY - r.top) / r.height) * imageH)));
+  const i = (y * imageW + x) * 4;
+  if (imageData[i + 3]! < 8) { imageError.value = 'Esse ponto é transparente: não há cor para pegar.'; return; }
+  imageError.value = '';
+  useAsBase(toHex({ r: imageData[i]!, g: imageData[i + 1]!, b: imageData[i + 2]!, a: 1 }));
+}
+const dragOver = (event: DragEvent): void => { if (event.dataTransfer?.types.includes('Files')) event.preventDefault(); };
+onMounted(() => { window.addEventListener('paste', onPaste); window.addEventListener('dragover', dragOver); window.addEventListener('drop', onDropFile); });
+onBeforeUnmount(() => { window.removeEventListener('paste', onPaste); window.removeEventListener('dragover', dragOver); window.removeEventListener('drop', onDropFile); });
 watch(extractCount, runExtract);
 
 // ---- paleta
@@ -235,16 +287,17 @@ function exportAs(kind: 'css' | 'json' | 'txt' | 'svg'): void {
       <div v-else-if="current === 'imagem'" class="ed-group">
         <label class="ed-field"><span class="ed-label">Imagem</span>
           <input type="file" class="inp" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" aria-label="Escolher uma imagem para extrair cores" data-testid="image-input" @change="onImage" /></label>
+        <div class="ed-row"><button type="button" class="btn" data-testid="paste-image" @click="pasteButton">Colar imagem da área de transferência</button></div>
         <label class="ed-field"><span class="ed-label">Quantidade de cores: {{ extractCount }}</span><input v-model.number="extractCount" type="range" min="2" max="12" step="1" aria-label="Quantidade de cores a extrair" data-testid="extract-count" /></label>
         <p v-if="imageError" class="ed-error" role="alert" data-testid="image-error">{{ imageError }}</p>
         <template v-if="imageUrl">
-          <img :src="imageUrl" class="thumb" :alt="'Imagem escolhida: ' + imageName" />
+          <img :src="imageUrl" class="thumb pickable" :alt="'Imagem escolhida: ' + imageName + '. Clique para pegar a cor de um ponto.'" data-testid="image-preview" @click="pickFromImage" />
           <ul class="chips" data-testid="extracted-list">
             <li v-for="hex in extracted" :key="hex"><button type="button" class="chip" :style="{ background: hex, color: textOn(hex) }" :aria-label="'Editar a cor ' + hex" @click="useAsBase(hex)">{{ hex }}</button></li>
           </ul>
           <div class="ed-row"><button type="button" class="btn btn-app" :disabled="!extracted.length" data-testid="add-extracted" @click="add(extracted)">Adicionar todas à paleta</button></div>
         </template>
-        <p v-else class="ed-hint">A imagem é lida só neste aparelho, nada é enviado. As cores dominantes são calculadas e você escolhe quais guardar.</p>
+        <p v-else class="ed-hint">A imagem é lida só neste aparelho, nada é enviado. Escolha um arquivo, cole com Ctrl+V ou solte aqui. As cores dominantes são calculadas e você escolhe quais guardar; depois clique na imagem para pegar a cor exata de um ponto.</p>
       </div>
 
       <div v-else-if="current === 'paleta'" class="ed-group">
@@ -323,6 +376,7 @@ function exportAs(kind: 'css' | 'json' | 'txt' | 'svg'): void {
 .mark { font-weight: 900; width: 1.2em; }
 .checks li[data-ok="sim"] .mark { color: var(--ok); }
 .checks li[data-ok="nao"] .mark { color: var(--danger); }
+.pickable { cursor: crosshair; }
 .thumb { max-width: 100%; max-height: 160px; border-radius: 12px; border: 1px solid var(--border); object-fit: contain; justify-self: start; }
 .plist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-height: 50vh; overflow: auto; }
 .plist li { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }

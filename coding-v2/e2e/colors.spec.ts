@@ -123,6 +123,35 @@ test.describe('Estúdio de Cores', () => {
     await expect(page.getByTestId('image-error')).toBeVisible();
   });
 
+  test('Ctrl+V com imagem abre a aba Imagem, extrai cores e clicar na imagem pega a cor exata', async ({ page }) => {
+    await page.goto('/apps/cores/');
+    const png = await page.evaluate(() => {
+      const c = document.createElement('canvas'); c.width = 40; c.height = 20;
+      const g = c.getContext('2d')!; g.fillStyle = '#ff0000'; g.fillRect(0, 0, 20, 20); g.fillStyle = '#0000ff'; g.fillRect(20, 0, 20, 20);
+      return c.toDataURL('image/png').split(',')[1] as string;
+    });
+    const firePaste = (payload: { b64?: string; text?: string }, selector = '') => page.evaluate(({ b64, text, selector }) => {
+      const dt = new DataTransfer();
+      if (b64) dt.items.add(new File([Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0))], 'image.png', { type: 'image/png' }));
+      if (text) dt.setData('text/plain', text);
+      const target = selector ? document.querySelector(selector)! : document.body;
+      const event = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+      target.dispatchEvent(event);
+      return event.defaultPrevented;
+    }, { b64: payload.b64 ?? '', text: payload.text ?? '', selector });
+    // texto puro não é tomado pelo app
+    expect(await firePaste({ text: '#123456' })).toBe(false);
+    expect(await firePaste({ b64: png })).toBe(true);
+    await expect(tab(page, 'Imagem')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('extracted-list')).toContainText('#FF0000');
+    await expect(page.getByTestId('extracted-list')).toContainText('#0000FF');
+    // clicar no lado direito da imagem (azul) leva #0000FF para o editor
+    const box = (await page.getByTestId('image-preview').boundingBox())!;
+    await page.mouse.click(box.x + box.width * 0.85, box.y + box.height * 0.5);
+    await expect(tab(page, 'Cor')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByText('#0000FF').first()).toBeVisible();
+  });
+
   test('exporta CSS, JSON, SVG e TXT com a paleta', async ({ page }) => {
     await page.goto('/apps/cores/?modelo=marca');
     await tab(page, 'Arquivo').click();
