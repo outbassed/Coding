@@ -38,6 +38,9 @@ npm run dev
 | `/apps/cores/` | Estúdio de Cores |
 | `/apps/zip/` | Compactador ZIP |
 | `/apps/comparador/` | Comparador de Arquivos |
+| `/apps/codigo/` | Código (HTML, CSS e JavaScript em página isolada; exporta ZIP) |
+| `/apps/visualizador/` | Visualizador (imagem, SVG saneado, vídeo, áudio, 3D STL/OBJ/GLB, PDF e texto) |
+| `/apps/pintar/` | Pintar (desenho em camadas, balde, formas; exporta PNG, JPG e WebP) |
 
 Todo app aceita `?doc=<id>` (abre um documento salvo) e `?modelo=<id>` (começa por um modelo editável). Sem parâmetro, abre o primeiro modelo: dá para experimentar sem enviar arquivo.
 
