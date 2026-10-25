@@ -62,10 +62,33 @@ Todos os apps: modelos editáveis (abrir e experimentar sem enviar arquivo) ✅ 
 - Saldos e acertos sugeridos ✅ · cálculos em centavos inteiros ✅
 - Resumo financeiro ✅ · exportar CSV ✅ e TXT ☑️ · imprimir ☑️ · modelos ✅
 
+## Calculadora
+- Modo Básico (teclado, memória MC/MR/M+/M−, porcentagem, troca de sinal) e modo Pro (funções científicas, parênteses, constantes, variáveis) ✅
+- Leitor de expressões próprio, sem `eval` nem `Function`: texto hostil é recusado e nada é executado ✅
+- Graus/radianos, casas decimais, histórico salvo com reuso da conta ou do resultado, copiar resultado e exportar histórico ✅ · modelos ✅
+
+## Estúdio de Cores
+- Cor em HEX, RGB, HSL, HSV e CMYK (conversão matemática simples, não perfil de impressão), seletor, sliders e códigos digitados ✅ · conta-gotas da tela só onde o navegador oferece ☑️
+- Harmonias (complementar, análoga, tríade, tétrade, dividida, monocromática, escala de tons) ✅ · contraste WCAG com sugestão de texto ✅
+- Extração das cores dominantes de uma imagem (feita no aparelho) ✅ · paleta com nomes, ordem e importação de texto ✅ · exportar CSS, JSON, SVG e TXT ✅ · modelos ✅
+
+## Compactador ZIP
+- Cria .zip reais (compactado ou só agrupado) e abre .zip existentes; conferido com `unzip -t` e Python (`zipfile`) nos dois sentidos ✅
+- Lista o conteúdo, extrai um item, adiciona ao projeto e testa a integridade (tamanho e CRC-32) ✅
+- Recusa arquivo que não é ZIP, ZIP com senha e ZIP64; limpa nomes perigosos (`..`, raiz) e limita o tamanho descompactado ✅
+- Os arquivos do projeto ficam salvos no documento ✅ · compressão depende do navegador (`CompressionStream`); sem ela, grava sem compressão ☑️
+
+## Comparador de Arquivos
+- Diferença mínima linha a linha (algoritmo de Myers, verificado contra o LCS) com destaque por palavra, lado a lado ou unificada ✅
+- Ignorar maiúsculas, espaços e linhas em branco; Windows × Linux nunca conta como diferença ✅ · navegar entre diferenças ✅
+- Arquivos que não são texto: byte a byte, com a primeira diferença em hexadecimal ✅ · tamanho e SHA-256 de cada lado ✅
+- Exportar `.diff` idêntico ao `diff -u` (conferido contra o GNU diff) e relatório ✅ · textos e arquivos ficam salvos ✅
+- Limite: acima de 2000 diferenças o trecho aparece como trocado por inteiro (aviso na tela); acima de 50 000 linhas não compara.
+
 ## Launcher, Biblioteca e Ajustes
-- Nove apps reais no catálogo, com categorias, busca, filtros, ativação (sem confundir com instalação/offline) ✅
+- Doze apps reais no catálogo, com categorias, busca, filtros, ativação (sem confundir com instalação/offline) ✅
 - Detalhes no estilo loja com recursos prontos ✅ · 3 colunas em 320–430 px ✅
-- Biblioteca: abrir no app certo (documentos criados na v2), renomear, duplicar, excluir, grade/lista, busca, ordenação, paginação, histórico, prévias reais dos nove tipos ✅
+- Biblioteca: abrir no app certo (documentos criados na v2), renomear, duplicar, excluir, grade/lista, busca, ordenação, paginação, histórico, prévias reais dos tipos de documento ✅
 - Backups JSON e .codingpack ✅ · datas originais preservadas na importação ✅ · miniaturas sem ler Blobs ✅
 - Ajustes: tema, animações, exibição da biblioteca, espaço usado, documentos por app, situação do offline ☑️
-- Uso offline/PWA ☑️ **experimental, opt-in**: cache estático do build com teste de abertura sem rede em Chromium, disponível apenas em deploy de Preview isolado após clique nos Ajustes; instalação mobile/iOS e deploy real ainda não verificados.
+- Uso offline/PWA **experimental, opt-in**, agora por app: instalar, cancelar, atualizar e remover cada app, com conferência de tamanho e SHA-256 e Núcleo do Launcher como pré-requisito ✅ (Chromium contra o build real, rede cortada); disponível apenas em deploy de Preview isolado; instalação mobile/iOS e deploy real ainda não verificados.
