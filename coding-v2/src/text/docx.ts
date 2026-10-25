@@ -2,7 +2,7 @@ import { writeZip, utf8 } from '../shared/files/zip';
 import { escapeXml } from '../shared/files/xml';
 
 /** Modelo intermediário do documento (independente do DOM) usado para gerar o DOCX. */
-export interface DRun { text: string; b?: boolean; i?: boolean; u?: boolean; s?: boolean; font?: string; sizePx?: number; color?: string; bg?: string; br?: boolean }
+export interface DRun { text: string; b?: boolean; i?: boolean; u?: boolean; s?: boolean; font?: string; sizePx?: number; color?: string; bg?: string; br?: boolean; href?: string }
 export interface DImage { data: Uint8Array; ext: 'png' | 'jpeg'; widthPx: number; heightPx: number; percent: number }
 export type DInline = DRun | { image: DImage };
 export interface DPara { kind: 'p'; style: 'Normal' | 'Heading1' | 'Heading2' | 'Heading3' | 'Quote'; align?: 'left' | 'center' | 'right' | 'justify'; runs: DInline[]; list?: { type: 'ul' | 'ol'; id: number }; pageBreakBefore?: boolean }
@@ -26,7 +26,7 @@ function runXml(r: DRun): string {
   if (r.br) return '<w:r>' + rPr + '<w:br/></w:r>';
   return '<w:r>' + rPr + '<w:t xml:space="preserve">' + escapeXml(r.text) + '</w:t></w:r>';
 }
-interface Ctx { images: { name: string; data: Uint8Array; rid: string }[]; nextDraw: number }
+interface Ctx { images: { name: string; data: Uint8Array; rid: string }[]; links: { rid: string; href: string }[]; nextDraw: number }
 function imageXml(img: DImage, ctx: Ctx): string {
   const n = ctx.images.length + 1;
   const rid = 'rIdImg' + n;
@@ -44,7 +44,14 @@ function paraXml(p: DPara, ctx: Ctx, numIds: Map<number, number>): string {
   if (p.list) props.push(`<w:numPr><w:ilvl w:val="0"/><w:numId w:val="${numIds.get(p.list.id) ?? 1}"/></w:numPr>`);
   if (p.align) props.push(`<w:jc w:val="${p.align === 'justify' ? 'both' : p.align}"/>`);
   const pPr = props.length ? '<w:pPr>' + props.join('') + '</w:pPr>' : '';
-  const runs = p.runs.map((r) => ('image' in r ? imageXml(r.image, ctx) : runXml(r))).join('');
+  const runs = p.runs.map((r) => {
+    if ('image' in r) return imageXml(r.image, ctx);
+    if (!r.href || r.br) return runXml(r);
+    // link de verdade: relação externa + estilo azul sublinhado (sem depender do estilo "Hyperlink")
+    let link = ctx.links.find((l) => l.href === r.href);
+    if (!link) { link = { rid: 'rIdLink' + (ctx.links.length + 1), href: r.href }; ctx.links.push(link); }
+    return `<w:hyperlink r:id="${link.rid}" w:history="1">${runXml({ ...r, color: r.color ?? '#1155CC', u: true })}</w:hyperlink>`;
+  }).join('');
   return '<w:p>' + pPr + runs + '</w:p>';
 }
 function tableXml(t: DTable, ctx: Ctx, numIds: Map<number, number>): string {
@@ -69,7 +76,7 @@ const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:style w:type="paragraph" w:styleId="Quote"><w:name w:val="Quote"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="567"/><w:pBdr><w:left w:val="single" w:sz="18" w:space="8" w:color="8DA5D9"/></w:pBdr></w:pPr><w:rPr><w:color w:val="36475C"/></w:rPr></w:style>
 </w:styles>`;
 export async function buildDocx(blocks: readonly DBlock[], title: string): Promise<Uint8Array> {
-  const ctx: Ctx = { images: [], nextDraw: 1 };
+  const ctx: Ctx = { images: [], links: [], nextDraw: 1 };
   // uma numeração por lista: listas numeradas diferentes recomeçam do 1
   const listIds = new Map<number, 'ul' | 'ol'>();
   const visit = (p: DPara) => { if (p.list) listIds.set(p.list.id, p.list.type); };
@@ -88,7 +95,7 @@ export async function buildDocx(blocks: readonly DBlock[], title: string): Promi
 <w:abstractNum w:abstractNumId="1"><w:multiLevelType w:val="singleLevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl></w:abstractNum>
 ${numXml || '<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>'}</w:numbering>`;
   const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdNum" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>${ctx.images.map((i) => `<Relationship Id="${i.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${i.name}"/>`).join('')}</Relationships>`;
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdNum" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>${ctx.images.map((i) => `<Relationship Id="${i.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${i.name}"/>`).join('')}${ctx.links.map((l) => `<Relationship Id="${l.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${escapeXml(l.href)}" TargetMode="External"/>`).join('')}</Relationships>`;
   const types = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>`;
   const root = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

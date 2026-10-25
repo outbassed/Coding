@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from 'vue';
 import { getTool } from '../shared/catalog';
 import { LAUNCHER_PATH } from '../shared/links';
 import { useSettingsStore } from '../stores/settings';
@@ -10,7 +10,7 @@ import ProjectTabs from '../editors/ProjectTabs.vue';
 import { newProjectUrl, useProjectTabs } from '../editors/projectTabs';
 import { forgetDocument, restoreTarget } from '../workspace/prefs';
 import { friendlyError } from '../library/errors';
-import { MAX_IMAGE_BYTES, MIN_IMAGE_PERCENT, TEXT_FONTS, TEXT_SIZES, cleanFont, initialTextState, normalizedTextState, sanitizeTextHtml, type TextState } from './model';
+import { MAX_IMAGE_BYTES, MIN_IMAGE_PERCENT, TEXT_FONTS, TEXT_SIZES, cleanFont, cleanHref, initialTextState, linkFromInput, normalizedTextState, sanitizeTextHtml, type TextState } from './model';
 import { TextHistory } from './history';
 import { readOffsets, writeOffsets } from './selection';
 import { useVisualViewport } from '../composables/useVisualViewport';
@@ -35,6 +35,7 @@ const mobileToolTabs = [
   { id: 'paragrafo', label: 'Parágrafo', group: 'Parágrafo' },
   { id: 'inserir', label: 'Inserir', group: 'Inserir' },
   { id: 'imagem', label: 'Imagem', group: 'Imagem' },
+  { id: 'estrutura', label: 'Estrutura', group: 'Estrutura' },
   { id: 'arquivo', label: 'Arquivo', group: 'Exportar' }
 ];
 const activeMobileTool = ref('formato');
@@ -216,6 +217,7 @@ function capture(key = 'typing'): void {
   ensureCaretVisible();
   updateFrame();
   countPages();
+  refreshOutline();
 }
 function applySnapshot(snap: { html: string; start: number; end: number }): void {
   const host = editor.value;
@@ -224,6 +226,7 @@ function applySnapshot(snap: { html: string; start: number; end: number }): void
   state.value.html = snap.html;
   clearImage();
   host.focus();
+  refreshOutline();
   try { writeOffsets(host, snap.start, snap.end); } catch { /* cursor fora do texto novo */ }
   storeSelection();
   checkChange();
@@ -301,6 +304,7 @@ async function reloadSaved(): Promise<void> {
     documentRecord.value = result.record; state.value = result.state;
     if (editor.value) editor.value.innerHTML = result.state.html;
     clearImage();
+    refreshOutline();
     editHistory.reset({ html: editor.value?.innerHTML ?? result.state.html, start: 0, end: 0 }); historyTick.value += 1;
     committed = JSON.stringify(result.state); status.value = 'saved'; error.value = '';
     message('Versão salva reaberta.');
@@ -312,6 +316,7 @@ function storeSelection(): void {
   savedRange = selection.getRangeAt(0).cloneRange();
   updateFormat();
   refreshTableState();
+  refreshLinkState();
 }
 function updateFormat(): void {
   const host = editor.value, selection = window.getSelection();
@@ -375,6 +380,100 @@ function clearHighlight(): void {
   capture('');
 }
 
+// --- links ---
+const inLink = ref(false);
+const linkOpen = ref(false);
+const linkUrl = ref('');
+const linkError = ref('');
+const linkInput = ref<HTMLInputElement | null>(null);
+function currentLink(): HTMLAnchorElement | null {
+  const sel = window.getSelection();
+  const node = sel?.anchorNode ?? null;
+  const el = node instanceof Element ? node : node?.parentElement ?? null;
+  const a = el?.closest('a') as HTMLAnchorElement | null;
+  return a && editor.value?.contains(a) ? a : null;
+}
+function refreshLinkState(): void { inLink.value = !!currentLink(); }
+function openLink(): void {
+  storeSelection();
+  const existing = currentLink();
+  linkUrl.value = existing?.getAttribute('href') ?? '';
+  linkError.value = '';
+  linkOpen.value = true;
+  void nextTick(() => linkInput.value?.focus());
+}
+function closeLink(): void { linkOpen.value = false; linkError.value = ''; restoreSelection(); }
+function applyLink(): void {
+  const href = linkFromInput(linkUrl.value);
+  if (!href) { linkError.value = 'Endereço inválido. Use http://, https:// ou um e-mail (mailto:).'; return; }
+  restoreSelection();
+  const existing = currentLink();
+  const sel = window.getSelection();
+  if (existing) {
+    existing.setAttribute('href', href);
+    capture('');
+    message('Endereço do link atualizado.');
+  } else if (sel && sel.isCollapsed) {
+    command('insertHTML', '<a href="' + escapeHtml(href) + '">' + escapeHtml(linkUrl.value.trim()) + '</a>&nbsp;');
+    message('Link inserido. Selecione um texto antes para transformá-lo em link.');
+  } else {
+    command('createLink', href);
+    message('Link aplicado ao texto selecionado.');
+  }
+  linkOpen.value = false; linkError.value = '';
+  refreshLinkState();
+}
+function removeLink(): void {
+  restoreSelection();
+  const existing = currentLink();
+  if (existing && window.getSelection()?.isCollapsed) {
+    const range = document.createRange();
+    range.selectNodeContents(existing);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+  }
+  command('unlink');
+  linkOpen.value = false;
+  refreshLinkState();
+  message('Link removido; o texto continua no documento.');
+}
+function onEditorLinkClick(event: MouseEvent): boolean {
+  const a = (event.target instanceof Element ? event.target.closest('a') : null) as HTMLAnchorElement | null;
+  if (!a || !editor.value?.contains(a)) return false;
+  event.preventDefault(); // dentro do editor o clique só posiciona o cursor
+  if (event.ctrlKey || event.metaKey) {
+    const href = cleanHref(a.getAttribute('href') ?? '');
+    if (href) window.open(href, '_blank', 'noopener,noreferrer');
+  } else message('Link: ' + (a.getAttribute('href') ?? '') + ' — Ctrl+clique abre em outra aba.');
+  return true;
+}
+
+// --- estrutura (títulos) ---
+interface Heading { index: number; level: number; text: string }
+const headings = ref<Heading[]>([]);
+function refreshOutline(): void {
+  const host = editor.value; if (!host) return;
+  const found: Heading[] = [];
+  host.querySelectorAll('h1,h2,h3').forEach((h, index) => {
+    const text = (h.textContent ?? '').replace(/\s+/g, ' ').trim();
+    found.push({ index, level: Number(h.tagName.slice(1)), text: text || '(título vazio)' });
+  });
+  const same = found.length === headings.value.length && found.every((h, i) => h.text === headings.value[i]!.text && h.level === headings.value[i]!.level);
+  if (!same) headings.value = found;
+}
+function goToHeading(h: Heading): void {
+  const host = editor.value; if (!host) return;
+  const el = host.querySelectorAll('h1,h2,h3')[h.index] as HTMLElement | undefined;
+  if (!el) return;
+  host.focus();
+  const range = document.createRange();
+  range.selectNodeContents(el); range.collapse(true);
+  const sel = window.getSelection(); sel?.removeAllRanges(); sel?.addRange(range);
+  el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  storeSelection();
+  message('Título: ' + h.text);
+}
+
 // --- imagem: seleção, tamanho e remoção ---
 function clearImage(): void { selectedImg.value = null; frame.value = null; }
 function updateFrame(): void {
@@ -392,6 +491,7 @@ function contentWidth(): number {
   return host.clientWidth - Number.parseFloat(css.paddingLeft) - Number.parseFloat(css.paddingRight);
 }
 function onEditorClick(event: MouseEvent): void {
+  if (onEditorLinkClick(event)) return;
   const target = event.target;
   if (target instanceof HTMLImageElement && editor.value?.contains(target)) {
     selectedImg.value = target;
@@ -613,7 +713,8 @@ function keyboard(event: KeyboardEvent): void {
   const active = document.activeElement;
   const inDocument = !!editor.value && (editor.value.contains(active) || active === document.body);
   if (!inDocument) return; // no campo do nome valem os atalhos do próprio campo
-  if (key === 'z' && !event.shiftKey) { event.preventDefault(); undo(); }
+  if (key === 'k' && !event.shiftKey && editor.value?.contains(active)) { event.preventDefault(); openLink(); }
+  else if (key === 'z' && !event.shiftKey) { event.preventDefault(); undo(); }
   else if ((key === 'z' && event.shiftKey) || key === 'y') { event.preventDefault(); redo(); }
 }
 function flushOnHide(): void { if (document.visibilityState === 'hidden' && status.value === 'pending') void saveNow(); }
@@ -637,7 +738,7 @@ onMounted(async () => {
     }
     if (editor.value) editor.value.innerHTML = state.value.html;
     editHistory.reset({ html: editor.value?.innerHTML ?? state.value.html, start: 0, end: 0 });
-    requestAnimationFrame(countPages);
+    requestAnimationFrame(() => { countPages(); refreshOutline(); });
   } catch (err) {
     const missing = err instanceof MissingCopy || (err as Error)?.name === 'MissingCopy';
     if (missing && docId) { forgetDocument(docId); projects.reload(); }
@@ -744,6 +845,15 @@ onBeforeUnmount(() => {
           <div class="grp" role="group" aria-label="Inserir" data-tool-group="inserir">
             <button type="button" class="tool" data-testid="text-table" @mousedown.prevent @click="insertTable">Tabela</button>
             <button type="button" class="tool" aria-label="Quebra de página" title="Quebra de página" data-testid="text-page-break" @mousedown.prevent @click="insertPageBreak">⤓<span class="wide-label"> Quebra</span></button>
+            <button type="button" class="tool" :aria-pressed="inLink" aria-label="Inserir ou editar link" title="Inserir ou editar link (Ctrl+K)" data-testid="text-link" @mousedown.prevent @click="openLink">Link</button>
+            <button v-if="inLink" type="button" class="tool danger" aria-label="Remover link" data-testid="text-unlink" @mousedown.prevent @click="removeLink">Remover link</button>
+            <form v-if="linkOpen" class="linkform" data-testid="text-link-form" @submit.prevent="applyLink">
+              <label class="sr-only" for="text-link-url">Endereço do link</label>
+              <input id="text-link-url" ref="linkInput" v-model="linkUrl" type="text" inputmode="url" autocomplete="off" placeholder="https://… ou nome@site.com" data-testid="text-link-url" @keydown.esc.prevent="closeLink" />
+              <button type="submit" class="tool strong" data-testid="text-link-apply">Aplicar</button>
+              <button type="button" class="tool" data-testid="text-link-cancel" @click="closeLink">Cancelar</button>
+              <p v-if="linkError" class="linkerr" role="alert" data-testid="text-link-error">{{ linkError }}</p>
+            </form>
             <template v-if="inTable">
               <button type="button" class="tool" aria-label="Linha acima" data-testid="row-above" @mousedown.prevent @click="tableOp('row-above')">+ Linha ↑</button>
               <button type="button" class="tool" aria-label="Linha abaixo" data-testid="row-below" @mousedown.prevent @click="tableOp('row-below')">+ Linha ↓</button>
@@ -769,6 +879,13 @@ onBeforeUnmount(() => {
               </select>
               <button type="button" class="tool danger" aria-label="Remover imagem" data-testid="img-remove" @mousedown.prevent @click="removeImage">Remover</button>
             </template>
+          </div>
+          <div class="grp outline" role="group" aria-label="Estrutura do documento" data-tool-group="estrutura" data-testid="text-outline">
+            <p class="outline-title">Estrutura <span class="muted tiny">({{ headings.length }} {{ headings.length === 1 ? 'título' : 'títulos' }})</span></p>
+            <p v-if="!headings.length" class="muted outline-empty">Use “Título 1”, “Título 2” ou “Título 3” no estilo do parágrafo para montar a estrutura e navegar por ela.</p>
+            <ul v-else class="outline-list">
+              <li v-for="h in headings" :key="h.index"><button type="button" class="outline-item" :class="'lv' + h.level" data-testid="outline-item" :data-level="h.level" @mousedown.prevent @click="goToHeading(h)">{{ h.text }}</button></li>
+            </ul>
           </div>
           <div class="grp output" role="group" aria-label="Exportar" data-tool-group="arquivo">
             <button type="button" class="tool" aria-label="Exportar HTML" @click="exportHtml"><span class="wide-label">Exportar </span>HTML</button>
@@ -822,6 +939,17 @@ onBeforeUnmount(() => {
 .text-desktop-resizer:hover, .text-desktop-resizer.active, .text-desktop-resizer:focus-visible { background:color-mix(in srgb,var(--app) 45%,transparent); outline:none; }
 .text-sheet-head, .text-bottom-nav { display: none; }
 .toolbar { display: flex; flex: 1; flex-direction: column; align-items: stretch; gap: 12px; padding: 14px; background: var(--surface); min-width: 0; }
+.linkform { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.linkform input { flex: 1 1 180px; min-width: 0; min-height: 40px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: inherit; font: inherit; }
+.linkerr { flex: 1 1 100%; margin: 0; color: var(--danger); font-size: 13px; }
+.outline-title { flex: 1 1 100%; margin: 0; font-weight: 700; }
+.outline-empty { flex: 1 1 100%; margin: 0; font-size: 13px; }
+.outline-list { flex: 1 1 100%; list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 220px; overflow: auto; }
+.outline-item { width: 100%; min-height: 36px; text-align: left; padding: 4px 8px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; font-size: 14px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.outline-item:hover, .outline-item:focus-visible { background: var(--surface-2, rgba(127,127,127,.15)); }
+.outline-item.lv1 { font-weight: 700; }
+.outline-item.lv2 { padding-left: 20px; }
+.outline-item.lv3 { padding-left: 34px; font-size: 13px; }
 .grp { display: flex; flex-wrap: wrap; align-content: flex-start; align-items: center; gap: 6px; min-width: 0; padding: 8px 0 12px; border-bottom: 1px solid var(--border); scroll-margin-top: 14px; }
 .tool { border: 1px solid transparent; background: var(--panel); color: var(--text); border-radius: 9px; min-width: 44px; min-height: 44px; padding: 7px 10px; font-size: 14px; font-weight: 700; white-space: nowrap; }
 .tool:hover:not(:disabled) { border-color: var(--accent); }
@@ -847,6 +975,7 @@ onBeforeUnmount(() => {
 .body :deep(h3) { font-size: 18px; line-height: 1.35; margin: 0 0 .5em; }
 .body :deep(p) { margin: 0 0 .8em; }
 .body :deep(img) { max-width: 100%; height: auto; display: block; cursor: pointer; }
+.body :deep(a) { color: #1155cc; text-decoration: underline; cursor: text; }
 .body :deep(blockquote) { border-left: 3px solid #8da5d9; padding-left: 15px; margin: 0 0 .8em; color: #36475c; }
 .body :deep(table) { border-collapse: collapse; width: 100%; margin: 0 0 .8em; table-layout: fixed; }
 .body :deep(td), .body :deep(th) { border: 1px solid #9aa4b4; padding: 4px 8px; vertical-align: top; min-width: 2em; overflow-wrap: anywhere; }

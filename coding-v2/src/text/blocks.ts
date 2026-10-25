@@ -1,5 +1,5 @@
 import type { DBlock, DImage, DInline, DPara, DRun } from './docx';
-import { cleanColor, cleanFont, cleanSize } from './model';
+import { cleanColor, cleanFont, cleanHref, cleanSize } from './model';
 
 /** Converte o HTML já saneado do editor no modelo do DOCX (navegador). */
 type Fmt = Omit<DRun, 'text' | 'br'>;
@@ -38,6 +38,7 @@ async function inlines(node: Node, fmt: Fmt, out: DInline[]): Promise<void> {
   if (tag === 'I' || tag === 'EM') next.i = true;
   if (tag === 'U') next.u = true;
   if (tag === 'S') next.s = true;
+  if (tag === 'A') { const href = cleanHref(el.getAttribute('href') ?? ''); if (href) next.href = href; }
   const font = el.style.fontFamily ? cleanFont(el.style.fontFamily) : null; if (font) next.font = font;
   const size = el.style.fontSize ? cleanSize(el.style.fontSize) : null; if (size) next.sizePx = size;
   const color = el.style.color ? cleanColor(el.style.color) : null; if (color) next.color = color;
