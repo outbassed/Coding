@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import EditorShell from '../../editors/EditorShell.vue';
 import FileTab from '../../editors/FileTab.vue';
 import { useDocument } from '../../editors/useDocument';
 import { downloadBlob, downloadText, safeFileName } from '../../shared/files/download';
 import { CodeError } from './barcodes';
 import { renderCode, svgToPng, SYMBOLOGIES, type Rendered } from './render';
-import { cid, MAX_ITEMS, type CodeItem } from './model';
+import { cid, MAX_ITEMS, MAX_STYLE_PRESETS, normalizeStyle, type CodeItem } from './model';
+import { buildEmail, buildPhone, buildSms, buildUrl, buildVcard, buildWifi, type Built, type WifiSecurity } from './content';
 import { codesKind, codesTemplates } from './kind';
 
 const doc = useDocument({ kind: codesKind, templates: codesTemplates, path: '/apps/qr/' });
@@ -56,6 +57,78 @@ function printSheet(): void {
   if (!sheet.value.length) { doc.say('Nenhum código válido para imprimir.'); return; }
   window.print();
 }
+// assistente: monta o conteúdo de um QR a partir de campos
+type AssistKind = 'url' | 'wifi' | 'email' | 'phone' | 'sms' | 'vcard';
+const ASSIST_KINDS: { id: AssistKind; name: string }[] = [{ id: 'url', name: 'Site' }, { id: 'wifi', name: 'Wi-Fi' }, { id: 'email', name: 'E-mail' }, { id: 'phone', name: 'Telefone' }, { id: 'sms', name: 'SMS' }, { id: 'vcard', name: 'Contato (vCard)' }];
+const assistKind = ref<AssistKind>('url');
+const assist = reactive({ url: '', ssid: '', password: '', security: 'WPA' as WifiSecurity, hidden: false, to: '', subject: '', body: '', phone: '', smsText: '', vName: '', vOrg: '', vPhone: '', vEmail: '', vUrl: '' });
+const assistError = ref('');
+function buildAssist(): Built {
+  switch (assistKind.value) {
+    case 'url': return buildUrl(assist.url);
+    case 'wifi': return buildWifi({ ssid: assist.ssid, password: assist.password, security: assist.security, hidden: assist.hidden });
+    case 'email': return buildEmail({ to: assist.to, subject: assist.subject, body: assist.body });
+    case 'phone': return buildPhone(assist.phone);
+    case 'sms': return buildSms({ phone: assist.phone, message: assist.smsText });
+    default: return buildVcard({ name: assist.vName, org: assist.vOrg, phone: assist.vPhone, email: assist.vEmail, url: assist.vUrl });
+  }
+}
+function applyAssist(): void {
+  const built = buildAssist();
+  if (!built.ok) { assistError.value = built.error; return; }
+  assistError.value = '';
+  if (!selected.value) addItem();
+  const s = selected.value; if (!s) return;
+  s.kind = 'qr'; s.value = built.value;
+  if (assistKind.value === 'wifi' && !s.caption.trim()) s.caption = ('Rede: ' + assist.ssid.trim()).slice(0, 80);
+  doc.say('Conteúdo montado e colocado no QR code selecionado.');
+}
+// vários códigos de uma vez (um por linha)
+const batchText = ref('');
+function addBatch(): void {
+  const lines = batchText.value.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (!lines.length) { doc.say('Escreva um conteúdo por linha.'); return; }
+  const room = MAX_ITEMS - state.value.items.length;
+  if (room <= 0) { doc.say('Limite de ' + MAX_ITEMS + ' códigos.'); return; }
+  const kind = selected.value?.kind ?? 'qr';
+  const take = lines.slice(0, room);
+  const first = cid();
+  take.forEach((v, i) => state.value.items.push({ id: i === 0 ? first : cid(), kind, value: v.slice(0, 2000), caption: '', copies: 1 }));
+  selectedId.value = first;
+  batchText.value = '';
+  doc.say(take.length + (take.length === 1 ? ' código adicionado' : ' códigos adicionados') + (lines.length > take.length ? '; ' + (lines.length - take.length) + ' ficaram de fora pelo limite de ' + MAX_ITEMS + '.' : '.'));
+}
+// aparências guardadas
+const styleName = ref('');
+const stylePick = ref('');
+function saveStyle(): void {
+  const name = styleName.value.trim().slice(0, 60);
+  if (!name) { doc.say('Dê um nome à aparência antes de salvar.'); return; }
+  const same = state.value.stylePresets.find((p) => p.name.toLowerCase() === name.toLowerCase());
+  const style = normalizeStyle({ ...state.value.style });
+  if (same) { same.style = style; same.name = name; stylePick.value = same.id; doc.say('Aparência “' + name + '” atualizada.'); }
+  else {
+    if (state.value.stylePresets.length >= MAX_STYLE_PRESETS) { doc.say('Limite de ' + MAX_STYLE_PRESETS + ' aparências salvas. Exclua uma para guardar outra.'); return; }
+    const id = cid();
+    state.value.stylePresets.push({ id, name, style });
+    stylePick.value = id;
+    doc.say('Aparência “' + name + '” salva.');
+  }
+  styleName.value = '';
+}
+function applyStyle(): void {
+  const p = state.value.stylePresets.find((x) => x.id === stylePick.value);
+  if (!p) return;
+  Object.assign(state.value.style, normalizeStyle(p.style));
+  doc.say('Aparência “' + p.name + '” aplicada a todos os códigos.');
+}
+function deleteStyle(): void {
+  const i = state.value.stylePresets.findIndex((x) => x.id === stylePick.value);
+  if (i < 0) return;
+  const [gone] = state.value.stylePresets.splice(i, 1);
+  stylePick.value = '';
+  doc.say('Aparência “' + gone!.name + '” excluída.');
+}
 const swatch = (k: 'fg' | 'bg') => computed({ get: () => state.value.style[k], set: (v: string) => { state.value.style[k] = v; } });
 const fg = swatch('fg'), bg = swatch('bg');
 </script>
@@ -84,6 +157,45 @@ const fg = swatch('fg'), bg = swatch('bg');
           </div>
           <p id="code-hint" class="ed-hint">{{ hint }}</p>
         </template>
+        <details class="tools" data-testid="assist">
+          <summary>Montar conteúdo do QR (Wi-Fi, contato, e-mail…)</summary>
+          <div class="ed-row">
+            <label class="ed-field"><span class="ed-label">O que o QR faz</span>
+              <select v-model="assistKind" class="inp" data-testid="assist-kind"><option v-for="k in ASSIST_KINDS" :key="k.id" :value="k.id">{{ k.name }}</option></select></label>
+          </div>
+          <div v-if="assistKind === 'url'" class="ed-row"><label class="ed-field grow"><span class="ed-label">Endereço do site</span><input v-model="assist.url" class="inp" inputmode="url" autocomplete="off" placeholder="exemplo.com.br" data-testid="assist-url" /></label></div>
+          <div v-else-if="assistKind === 'wifi'" class="ed-row">
+            <label class="ed-field grow"><span class="ed-label">Nome da rede (SSID)</span><input v-model="assist.ssid" class="inp" maxlength="32" autocomplete="off" data-testid="assist-ssid" /></label>
+            <label class="ed-field grow"><span class="ed-label">Senha</span><input v-model="assist.password" class="inp" maxlength="63" autocomplete="off" :disabled="assist.security === 'nopass'" data-testid="assist-password" /></label>
+            <label class="ed-field"><span class="ed-label">Segurança</span>
+              <select v-model="assist.security" class="inp" data-testid="assist-security"><option value="WPA">WPA/WPA2/WPA3</option><option value="WEP">WEP</option><option value="nopass">Sem senha</option></select></label>
+            <label class="check"><input v-model="assist.hidden" type="checkbox" /> Rede oculta</label>
+          </div>
+          <div v-else-if="assistKind === 'email'" class="ed-row">
+            <label class="ed-field grow"><span class="ed-label">Para</span><input v-model="assist.to" class="inp" type="email" autocomplete="off" data-testid="assist-to" /></label>
+            <label class="ed-field grow"><span class="ed-label">Assunto (opcional)</span><input v-model="assist.subject" class="inp" maxlength="200" /></label>
+            <label class="ed-field grow"><span class="ed-label">Mensagem (opcional)</span><input v-model="assist.body" class="inp" maxlength="500" /></label>
+          </div>
+          <div v-else-if="assistKind === 'phone' || assistKind === 'sms'" class="ed-row">
+            <label class="ed-field grow"><span class="ed-label">Telefone com DDD</span><input v-model="assist.phone" class="inp" type="tel" autocomplete="off" placeholder="+55 11 91234-5678" data-testid="assist-phone" /></label>
+            <label v-if="assistKind === 'sms'" class="ed-field grow"><span class="ed-label">Mensagem</span><input v-model="assist.smsText" class="inp" maxlength="300" data-testid="assist-sms" /></label>
+          </div>
+          <div v-else class="ed-row">
+            <label class="ed-field grow"><span class="ed-label">Nome</span><input v-model="assist.vName" class="inp" maxlength="100" autocomplete="off" data-testid="assist-vname" /></label>
+            <label class="ed-field grow"><span class="ed-label">Empresa (opcional)</span><input v-model="assist.vOrg" class="inp" maxlength="100" /></label>
+            <label class="ed-field grow"><span class="ed-label">Telefone (opcional)</span><input v-model="assist.vPhone" class="inp" type="tel" /></label>
+            <label class="ed-field grow"><span class="ed-label">E-mail (opcional)</span><input v-model="assist.vEmail" class="inp" type="email" /></label>
+            <label class="ed-field grow"><span class="ed-label">Site (opcional)</span><input v-model="assist.vUrl" class="inp" inputmode="url" /></label>
+          </div>
+          <div class="ed-row"><button type="button" class="btn btn-app" data-testid="assist-apply" @click="applyAssist">Usar no QR selecionado</button></div>
+          <p v-if="assistError" class="ed-error" role="alert" data-testid="assist-error">{{ assistError }}</p>
+        </details>
+        <details class="tools" data-testid="batch">
+          <summary>Adicionar vários códigos de uma vez</summary>
+          <label class="ed-field"><span class="ed-label">Um conteúdo por linha (usa o tipo do código selecionado)</span>
+            <textarea v-model="batchText" class="inp" rows="4" data-testid="batch-text"></textarea></label>
+          <div class="ed-row"><button type="button" class="btn" data-testid="batch-add" @click="addBatch">Adicionar à lista</button></div>
+        </details>
       </div>
       <div v-else-if="currentTab === 'aparencia'" class="ed-row">
         <label class="ed-field"><span class="ed-label">Tamanho do módulo (px)</span><input v-model.number="state.style.module" class="inp inp-num" type="number" min="1" max="20" data-testid="module-size" /></label>
@@ -95,6 +207,20 @@ const fg = swatch('fg'), bg = swatch('bg');
         <label class="ed-field"><span class="ed-label">Fundo</span><input v-model="bg" class="inp color" type="color" /></label>
         <label class="check"><input v-model="state.style.showText" type="checkbox" /> Mostrar texto</label>
         <p class="ed-hint wide">Para leitura confiável, mantenha a cor escura sobre fundo claro e a margem de pelo menos 4 módulos.</p>
+        <details class="tools wide" data-testid="style-presets">
+          <summary>Aparências salvas ({{ state.stylePresets.length }})</summary>
+          <div class="ed-row">
+            <label class="ed-field grow"><span class="ed-label">Nome da aparência</span><input v-model="styleName" class="inp" maxlength="60" placeholder="Ex.: Etiqueta pequena" data-testid="style-name" @keydown.enter.prevent="saveStyle" /></label>
+            <button type="button" class="btn" data-testid="style-save" @click="saveStyle">Salvar aparência atual</button>
+          </div>
+          <div v-if="state.stylePresets.length" class="ed-row">
+            <label class="ed-field grow"><span class="ed-label">Aparências guardadas</span>
+              <select v-model="stylePick" class="inp" data-testid="style-select"><option value="">Escolha…</option><option v-for="p in state.stylePresets" :key="p.id" :value="p.id">{{ p.name }}</option></select></label>
+            <button type="button" class="btn" :disabled="!stylePick" data-testid="style-apply" @click="applyStyle">Aplicar</button>
+            <button type="button" class="btn" :disabled="!stylePick" data-testid="style-delete" @click="deleteStyle">Excluir</button>
+          </div>
+          <p v-else class="ed-hint">Guarde tamanho, cores, margem e correção para repetir em outros códigos e documentos.</p>
+        </details>
       </div>
       <div v-else-if="currentTab === 'folha'" class="ed-row">
         <label class="ed-field"><span class="ed-label">Colunas na folha A4</span><input v-model.number="state.layout.cols" class="inp inp-num" type="number" min="1" max="6" data-testid="sheet-cols" /></label>
@@ -132,6 +258,9 @@ const fg = swatch('fg'), bg = swatch('bg');
 <style scoped>
 .grow { flex: 1 1 220px; }
 .wide { flex-basis: 100%; }
+.tools { border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; }
+.tools summary { cursor: pointer; font-weight: 600; min-height: 36px; display: flex; align-items: center; }
+.tools textarea { width: 100%; resize: vertical; }
 .color { width: 64px; padding: 4px; }
 .check { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; font-weight: 600; }
 .check input { width: 20px; height: 20px; }
