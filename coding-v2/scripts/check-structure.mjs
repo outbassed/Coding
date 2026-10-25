@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
-const APP_PAGES = ['apps/etiquetas/index.html', 'apps/texto/index.html', 'apps/planilhas/index.html', 'apps/imagens/index.html', 'apps/pdf/index.html', 'apps/qr/index.html', 'apps/sorteio/index.html', 'apps/racha-conta/index.html', 'apps/calculadora/index.html', 'apps/cores/index.html', 'apps/zip/index.html', 'apps/comparador/index.html'];
+const APP_PAGES = ['apps/etiquetas/index.html', 'apps/texto/index.html', 'apps/planilhas/index.html', 'apps/imagens/index.html', 'apps/pdf/index.html', 'apps/qr/index.html', 'apps/sorteio/index.html', 'apps/racha-conta/index.html', 'apps/calculadora/index.html', 'apps/cores/index.html', 'apps/zip/index.html', 'apps/comparador/index.html', 'apps/codigo/index.html'];
 /** Página estática que explica que Planilha → Etiquetas foi incorporado a Etiquetas (sem app nem script de módulo). */
 const REMOVED_APP_PAGE = 'apps/planilha-etiquetas/index.html';
 const expected = [
@@ -12,8 +12,8 @@ const expected = [
 for (const path of expected) assert.ok(existsSync(path), 'Falta arquivo: ' + path);
 
 const c = readFileSync('src/shared/catalog.ts', 'utf8');
-for (const id of ['labels', 'texts', 'calc', 'images', 'pdf', 'codes', 'draw', 'split', 'calculator', 'colors', 'zip', 'compare']) assert.ok(c.includes("id: '" + id + "'"), 'Ferramenta ausente: ' + id);
-assert.equal((c.match(/status: 'preview'/g) ?? []).length, 12, 'Os doze apps devem existir no Coding 2.0.');
+for (const id of ['labels', 'texts', 'calc', 'images', 'pdf', 'codes', 'draw', 'split', 'calculator', 'colors', 'zip', 'compare', 'code']) assert.ok(c.includes("id: '" + id + "'"), 'Ferramenta ausente: ' + id);
+assert.equal((c.match(/status: 'preview'/g) ?? []).length, 13, 'Os treze apps devem existir no Coding 2.0.');
 
 const config = readFileSync('vite.config.ts', 'utf8');
 for (const name of ['launcher/index.html', ...APP_PAGES, REMOVED_APP_PAGE]) assert.ok(config.includes(name), 'vite.config sem entrada ' + name);

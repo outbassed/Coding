@@ -14,6 +14,7 @@ import { formatNumber } from '../apps/calculator/format';
 import { normalizeColors } from '../apps/colors/model';
 import { normalizeCompare, bothTextual } from '../apps/compare/model';
 import { compareText } from '../apps/compare/diff';
+import { normalizeCode, totalChars as codeChars } from '../apps/code/model';
 import { normalizeZip, totalSize as zipTotal } from '../apps/zip/model';
 import { formatBytes } from '../shared/bytes';
 
@@ -89,7 +90,7 @@ export function textPreview(raw: unknown): Preview {
   return { kind: 'text', html: sanitizeTextHtml(out.body.innerHTML) };
 }
 
-const PREVIEW_TYPES = ['labels', 'texts', 'calc', 'sheet', 'codes', 'split', 'draw', 'images', 'pdf', 'calculator', 'colors', 'zip', 'compare'] as const;
+const PREVIEW_TYPES = ['labels', 'texts', 'calc', 'sheet', 'codes', 'split', 'draw', 'images', 'pdf', 'calculator', 'colors', 'zip', 'compare', 'code'] as const;
 export type PreviewType = typeof PREVIEW_TYPES[number];
 export function previewable(type: unknown): type is PreviewType { return typeof type === 'string' && (PREVIEW_TYPES as readonly string[]).includes(type); }
 const obj = (raw: unknown): Record<string, unknown> => (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {});
@@ -190,6 +191,15 @@ export function comparePreview(raw: unknown): Preview {
   } else if (!bothTextual(s)) lines.push(['Comparação', 'Byte a byte']);
   return { kind: 'summary', title: s.name || 'Comparação de arquivos', lines };
 }
+export function codePreview(raw: unknown): Preview {
+  const o = obj(raw);
+  if (typeof o.html !== 'string' && typeof o.css !== 'string' && typeof o.js !== 'string') throw new Error('Formato sem prévia');
+  const s = normalizeCode(raw);
+  const lines: [string, string][] = [['HTML', s.html.split('\n').length + ' linhas'], ['CSS', s.css.split('\n').length + ' linhas'], ['JavaScript', s.js.split('\n').length + ' linhas'], ['Tamanho', codeChars(s).toLocaleString('pt-BR') + ' caracteres']];
+  const title = /<title[^>]*>([^<]{1,60})<\/title>/i.exec(s.html)?.[1]?.trim();
+  if (title) lines.unshift(['Título da página', title]);
+  return { kind: 'summary', title: s.name || 'Projeto de código', lines };
+}
 export function pdfPreview(raw: unknown): Preview {
   need(raw, 'pages');
   const s = normalizePdf(raw);
@@ -213,6 +223,7 @@ export function buildPreview(type: string | undefined, state: unknown): Preview 
     case 'colors': return colorsPreview(state);
     case 'zip': return zipPreview(state);
     case 'compare': return comparePreview(state);
+    case 'code': return codePreview(state);
     default: throw new Error('Tipo sem prévia');
   }
 }

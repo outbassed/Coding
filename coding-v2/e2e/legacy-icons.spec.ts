@@ -22,7 +22,7 @@ test('Catálogo usa os oito ícones clássicos e todos carregam', async ({ page 
   const imgs = page.locator('article.card [data-testid="app-icon"] img');
   await expect(imgs).toHaveCount(APP_COUNT);
   const sources = await imgs.evaluateAll((elements) => elements.map((el) => (el as HTMLImageElement).getAttribute('src')));
-  for (const name of ['labels','texts','calc','images','pdf','codes','draw','split','calculator','colors','zip','compare']) {
+  for (const name of ['labels','texts','calc','images','pdf','codes','draw','split','calculator','colors','zip','compare','code']) {
     expect(sources).toContain('/legacy-icons/' + name + '.svg');
   }
   await expect.poll(() => imgs.evaluateAll((elements) => elements.every((el) => {

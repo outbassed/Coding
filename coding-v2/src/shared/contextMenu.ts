@@ -66,6 +66,11 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
     { label: 'Próxima diferença', selector: '[data-testid="next-diff"]' },
     { label: 'Trocar A e B', selector: '[data-testid="swap-sides"]', tab: 'Arquivos' },
     { label: 'Exportar diferenças', selector: '[data-testid="export-diff"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' }
+  ],
+  code: [
+    { label: 'Executar', selector: '[data-testid="run-code"]', tab: 'Executar', shortcut: 'Ctrl+Enter' },
+    { label: 'Baixar ZIP do projeto', selector: '[data-testid="download-zip"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
+    { label: 'Baixar página única', selector: '[data-testid="download-html"]', tab: 'Arquivo' }
   ]
 };
 

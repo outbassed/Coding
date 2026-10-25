@@ -25,7 +25,8 @@ export default defineConfig({
         'calculadora': resolve(import.meta.dirname, 'apps/calculadora/index.html'),
         'cores': resolve(import.meta.dirname, 'apps/cores/index.html'),
         'zip': resolve(import.meta.dirname, 'apps/zip/index.html'),
-        'comparador': resolve(import.meta.dirname, 'apps/comparador/index.html')
+        'comparador': resolve(import.meta.dirname, 'apps/comparador/index.html'),
+        'codigo': resolve(import.meta.dirname, 'apps/codigo/index.html')
       }
     }
   }
