@@ -31,7 +31,7 @@ npm run dev
 | `/apps/imagens/` | Imagens |
 | `/apps/pdf/` | Editor PDF |
 | `/apps/qr/` | QR / Barras |
-| `/apps/planilha-etiquetas/` | Planilha → Etiquetas |
+| `/apps/planilha-etiquetas/` | Aviso estático: o app Planilha → Etiquetas foi incorporado a Etiquetas |
 | `/apps/sorteio/` | Sorteio |
 | `/apps/racha-conta/` | Racha-conta |
 
@@ -63,7 +63,7 @@ VITE_CODING_PREVIEW_PWA=1 npm run build
 npm run preview
 ```
 
-No Launcher, vá a **Ajustes → Uso sem internet → Preparar acesso offline**. O navegador baixa os arquivos *reais do build*, incluindo as nove páginas, chunks, estilos, ícones e as bibliotecas locais de PDF. Se algum arquivo falhar, a instalação do worker não é concluída; a versão anterior permanece ativa. Depois da preparação, as páginas visitadas podem abrir sem rede, com os documentos já salvos no IndexedDB local.
+No Launcher, vá a **Ajustes → Uso sem internet → Preparar acesso offline**. O navegador baixa os arquivos *reais do build*, incluindo as oito páginas, chunks, estilos, ícones e as bibliotecas locais de PDF. Se algum arquivo falhar, a instalação do worker não é concluída; a versão anterior permanece ativa. Depois da preparação, as páginas visitadas podem abrir sem rede, com os documentos já salvos no IndexedDB local.
 
 - O serviço é registrado somente por ação explícita nos Ajustes e apenas em HTTPS ou localhost. Há bloqueio adicional dos domínios conhecidos da versão 1.0.
 - O service worker tem escopo `/` e foi projetado **somente para um projeto Vercel Preview separado**, cujo domínio seja dedicado ao Coding 2.0. Não ative o sinalizador em um domínio compartilhado com a versão 1.0.

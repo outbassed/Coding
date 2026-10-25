@@ -6,21 +6,21 @@ beforeEach(() => { localStorage.clear(); });
 afterEach(() => { document.body.innerHTML = ''; });
 
 describe('Launcher · telas', () => {
-  it('Início mostra os nove apps ativados e um único h1', async () => {
+  it('Início mostra os oito apps ativados e um único h1', async () => {
     const { wrapper } = await mountLauncher('/');
     expect(wrapper.findAll('h1')).toHaveLength(1);
-    expect(wrapper.findAll('article.card')).toHaveLength(9);
+    expect(wrapper.findAll('article.card')).toHaveLength(8);
     expect(wrapper.text()).toContain('Explorar o catálogo');
     wrapper.unmount();
   });
 
-  it('Catálogo lista os nove e filtra', async () => {
+  it('Catálogo lista os oito e filtra', async () => {
     const { wrapper } = await mountLauncher('/catalogo');
-    expect(wrapper.findAll('article.card')).toHaveLength(9);
+    expect(wrapper.findAll('article.card')).toHaveLength(8);
     // nenhum app é "em breve": o filtro não aparece
     expect(wrapper.findAll('button.f').some((b) => b.text() === 'Em breve')).toBe(false);
     await wrapper.findAll('button.f').find((b) => b.text() === 'Ativados')?.trigger('click');
-    expect(wrapper.findAll('article.card')).toHaveLength(9);
+    expect(wrapper.findAll('article.card')).toHaveLength(8);
     await wrapper.findAll('button.f').find((b) => b.text() === 'Não ativados')?.trigger('click');
     expect(wrapper.findAll('article.card')).toHaveLength(0);
     wrapper.unmount();
@@ -84,7 +84,7 @@ describe('Launcher · aparência de loja', () => {
     expect(hero.text()).toContain('Editor funcional');
     expect(hero.find('a[href="/apps/etiquetas/"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="recent-docs"]').exists()).toBe(false);
-    expect(wrapper.text()).toContain('9 editores disponíveis');
+    expect(wrapper.text()).toContain('8 editores disponíveis');
     wrapper.unmount();
   });
 
@@ -96,7 +96,7 @@ describe('Launcher · aparência de loja', () => {
     expect(wrapper.find('[data-testid="spotlight"]').exists()).toBe(false);
     await wrapper.find('[data-testid="clear-filters"]').trigger('click');
     await flushPromises();
-    expect(wrapper.findAll('article.card')).toHaveLength(9);
+    expect(wrapper.findAll('article.card')).toHaveLength(8);
     wrapper.unmount();
   });
 
@@ -158,7 +158,7 @@ describe('Launcher · ativação', () => {
     await flushPromises();
     await wrapper.findAll('dialog button').find((b) => b.text() === 'Cancelar')?.trigger('click');
     await flushPromises();
-    expect(wrapper.findAll('article.card')).toHaveLength(9);
+    expect(wrapper.findAll('article.card')).toHaveLength(8);
     wrapper.unmount();
   });
 

@@ -10,8 +10,8 @@ const expected = [
 for (const path of expected) assert.ok(existsSync(path), 'Falta arquivo: ' + path);
 
 const c = readFileSync('src/shared/catalog.ts', 'utf8');
-for (const id of ['labels', 'texts', 'calc', 'images', 'pdf', 'codes', 'sheet-labels', 'draw', 'split']) assert.ok(c.includes("id: '" + id + "'"), 'Ferramenta ausente: ' + id);
-assert.equal((c.match(/status: 'preview'/g) ?? []).length, 9, 'Os nove apps devem existir no Coding 2.0.');
+for (const id of ['labels', 'texts', 'calc', 'images', 'pdf', 'codes', 'draw', 'split']) assert.ok(c.includes("id: '" + id + "'"), 'Ferramenta ausente: ' + id);
+assert.equal((c.match(/status: 'preview'/g) ?? []).length, 8, 'Os oito apps devem existir no Coding 2.0.');
 
 const config = readFileSync('vite.config.ts', 'utf8');
 for (const name of ['launcher/index.html', ...APP_PAGES]) assert.ok(config.includes(name), 'vite.config sem entrada ' + name);
@@ -34,4 +34,4 @@ assert.ok(pwa.includes('VITE_CODING_PREVIEW_PWA') && pwa.includes('codingtxt.ver
 const sources = ['src/stores/apps.ts', 'src/stores/settings.ts', 'src/EditorApp.vue', 'src/main-editor.ts', 'src/main-launcher.ts', 'src/main-apps.ts', 'src/editors/docs.ts', 'src/editors/useDocument.ts'];
 for (const file of sources) assert.ok(!/indexedDB\.open|coding-db/.test(readFileSync(file, 'utf8')), 'Acesso ao coding-db proibido em ' + file);
 
-console.log('Estrutura Coding 2.0 verificada: nove apps com página própria, tema sem piscada, PWA opcional e protegida, sem acesso ao coding-db.');
+console.log('Estrutura Coding 2.0 verificada: oito apps com página própria, tema sem piscada, PWA opcional e protegida, sem acesso ao coding-db.');

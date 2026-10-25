@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import type { CopySummary } from '../../storage/documents';
-import { formatDate, imagesSizeText, imagesText, openEditorName, openHref as editorHref, originText, typeLabel } from '../../library/model';
+import { formatDate, imagesSizeText, imagesText, isLegacySheet, openEditorName, openHref as editorHref, originText, typeLabel } from '../../library/model';
 
 import { computed, ref } from 'vue';
 import { getCopy } from '../../storage/documents';
 import { createDoc } from '../../editors/docs';
-import { converterFor } from '../../library/convert';
+import { converterFor, sheetToLabels } from '../../library/convert';
+import { createLabelsDocument } from '../../labels/store';
 import { friendlyError } from '../../library/errors';
 
 const props = defineProps<{ copy: CopySummary; busy: boolean }>();
 const openHref = computed(() => editorHref(props.copy));
 const converter = computed(() => (openHref.value ? null : converterFor(props.copy)));
+const legacySheet = computed(() => isLegacySheet(props.copy.type));
 const converting = ref(false);
 const convertError = ref('');
 /** Cria um documento NOVO no formato 2.0; a cópia do Coding 1.0 continua como estava. */
@@ -24,6 +26,19 @@ async function convert(): Promise<void> {
     const files = c.files ? c.files(state, record.snapshot.images ?? []) : [];
     const created = await createDoc(c.kind, state, files.map((f) => ({ ...f })));
     location.assign(c.path + '?doc=' + encodeURIComponent(created.id));
+  } catch (err) { convertError.value = 'Não foi possível converter: ' + friendlyError(err); converting.value = false; }
+}
+/** Planilha → Etiquetas (descontinuado): gera um documento novo no editor de Etiquetas; o original continua na Biblioteca. */
+async function convertSheetToLabels(): Promise<void> {
+  if (converting.value) return;
+  converting.value = true; convertError.value = '';
+  try {
+    const record = await getCopy(props.copy.id);
+    if (!record) throw new Error('Esta cópia não existe mais.');
+    const { labels, rows } = sheetToLabels(record.snapshot.doc.state, props.copy.legacyId);
+    if (!rows) throw new Error('A planilha não tem linhas válidas para gerar etiquetas.');
+    const created = await createLabelsDocument(labels);
+    location.assign('/apps/etiquetas/?doc=' + encodeURIComponent(created.id));
   } catch (err) { convertError.value = 'Não foi possível converter: ' + friendlyError(err); converting.value = false; }
 }
 defineEmits<{ rename: []; export: []; duplicate: []; remove: [] }>();
@@ -40,6 +55,8 @@ defineEmits<{ rename: []; export: []; duplicate: []; remove: [] }>();
       <div><dt>Revisão</dt><dd>{{ copy.revision }}</dd></div>
     </dl>
     <div class="actions">
+      <button v-if="legacySheet" type="button" class="btn btn-primary wide" data-copy-action="to-labels" :disabled="converting" :aria-label="'Converter ' + copy.label + ' em um documento de Etiquetas'" @click="convertSheetToLabels">{{ converting ? 'Convertendo…' : 'Converter em Etiquetas' }}</button>
+      <p v-if="legacySheet" class="note muted wide">O app Planilha → Etiquetas foi removido: a importação de CSV/XLSX agora fica dentro de Etiquetas. A conversão cria um documento novo; esta cópia continua aqui e pode ser exportada.</p>
       <button v-if="converter" type="button" class="btn btn-primary wide" data-copy-action="convert" :disabled="converting" :aria-label="'Converter ' + copy.label + ' para o Coding 2.0 e abrir em ' + typeLabel(copy.type)" @click="convert">{{ converting ? 'Convertendo…' : 'Converter e abrir no ' + typeLabel(copy.type) }}</button>
       <p v-if="converter" class="note muted wide">A conversão cria um documento novo; esta cópia do Coding 1.0 não muda.</p>
       <p v-if="convertError" class="wide err" role="alert">{{ convertError }}</p>

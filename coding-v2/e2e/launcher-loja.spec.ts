@@ -21,7 +21,7 @@ test.describe('Launcher · loja no computador', () => {
     await expect(hero.getByRole('link', { name: 'Abrir o editor de Etiquetas' })).toHaveAttribute('href', '/apps/etiquetas/');
     await expect(page.getByRole('heading', { level: 2, name: 'Meus aplicativos' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Explorar o catálogo' })).toBeVisible();
-    await expect(page.getByText('9 editores disponíveis', { exact: false }).first()).toBeVisible();
+    await expect(page.getByText('8 editores disponíveis', { exact: false }).first()).toBeVisible();
     await expect(page.getByTestId('recent-docs')).toHaveCount(0);
     expect(await hasDb(page)).toBe(false); // olhar o Início não cria banco algum
     await page.getByRole('link', { name: 'Abrir catálogo' }).click();
@@ -46,7 +46,7 @@ test.describe('Launcher · loja no computador', () => {
   test('Catálogo: categorias, busca, filtros, limpar e detalhes', async ({ page }) => {
     await page.goto('/launcher/#/catalogo');
     await expect(page.getByTestId('spotlight')).toBeVisible();
-    await expect(page.locator('article.card')).toHaveCount(9);
+    await expect(page.locator('article.card')).toHaveCount(8);
     await page.getByRole('button', { name: 'Etiquetas e códigos' }).click();
     await expect(page.locator('article.card')).toHaveCount(3);
     await expect(page.getByTestId('spotlight')).toHaveCount(0);
@@ -54,11 +54,11 @@ test.describe('Launcher · loja no computador', () => {
     await page.getByRole('button', { name: 'Não ativados', exact: true }).click();
     await expect(page.locator('article.card')).toHaveCount(0);
     await page.getByTestId('clear-filters').click();
-    await expect(page.locator('article.card')).toHaveCount(9);
+    await expect(page.locator('article.card')).toHaveCount(8);
     await page.getByRole('searchbox', { name: 'Buscar aplicativos' }).fill('zzzz');
     await expect(page.getByText('Nada encontrado.')).toBeVisible();
     await page.getByRole('button', { name: 'Limpar busca e filtros' }).first().click();
-    await expect(page.locator('article.card')).toHaveCount(9);
+    await expect(page.locator('article.card')).toHaveCount(8);
     await page.getByTestId('spotlight').getByRole('link', { name: 'Ver detalhes' }).click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Etiquetas');
     await expect(page.getByTestId('ready-list')).toContainText('Colar lista de itens');

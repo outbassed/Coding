@@ -15,7 +15,7 @@ describe('níveis de disponibilidade', () => {
     }
   });
   it('os apps novos do 2.0 também separam ativação de offline e instalação', () => {
-    for (const id of ['calc', 'images', 'pdf', 'codes', 'sheet-labels', 'draw', 'split'] as const) {
+    for (const id of ['calc', 'images', 'pdf', 'codes', 'draw', 'split'] as const) {
       const states = levelsFor(getTool(id), false).map((level) => level.state);
       expect(states).toEqual(['off', 'unverified', 'unproven']);
     }

@@ -15,7 +15,6 @@ const loaders: Record<string, () => Promise<{ default: Component }>> = {
   images: () => import('./apps/images/ImagesApp.vue'),
   pdf: () => import('./apps/pdf/PdfApp.vue'),
   codes: () => import('./apps/codes/CodesApp.vue'),
-  'sheet-labels': () => import('./apps/sheet-labels/SheetLabelsApp.vue'),
   draw: () => import('./apps/draw/DrawApp.vue'),
   split: () => import('./apps/split/SplitApp.vue')
 };

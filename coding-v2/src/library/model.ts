@@ -4,13 +4,17 @@ import { findTool, type ToolId } from '../shared/catalog';
 /** Tipos gravados pelo Coding atual → ferramentas do catálogo 2.0. */
 const TYPE_TO_TOOL: Record<string, ToolId> = {
   labels: 'labels', texts: 'texts', calc: 'calc', images: 'images', pdf: 'pdf',
-  codes: 'codes', sheet: 'sheet-labels', draw: 'draw', split: 'split'
+  codes: 'codes', sheet: 'labels', draw: 'draw', split: 'split'
 };
 
 export function toolIdForType(type: unknown): ToolId | null {
   return typeof type === 'string' && Object.hasOwn(TYPE_TO_TOOL, type) ? (TYPE_TO_TOOL[type] ?? null) : null;
 }
+/** Tipo do app removido “Planilha → Etiquetas”: os documentos continuam na Biblioteca e podem virar Etiquetas. */
+export const LEGACY_SHEET_LABEL = 'Planilha → Etiquetas (descontinuado)';
+export const isLegacySheet = (type: unknown): boolean => type === 'sheet';
 export function typeLabel(type: unknown): string {
+  if (isLegacySheet(type)) return LEGACY_SHEET_LABEL;
   const id = toolIdForType(type);
   return id ? (findTool(id)?.name ?? 'Documento') : 'Tipo desconhecido';
 }
@@ -78,7 +82,6 @@ const V2_APPS: Record<string, { path: string; prefix: string }> = {
   images: { path: '/apps/imagens/', prefix: 'v2-images-' },
   pdf: { path: '/apps/pdf/', prefix: 'v2-pdf-' },
   codes: { path: '/apps/qr/', prefix: 'v2-codes-' },
-  sheet: { path: '/apps/planilha-etiquetas/', prefix: 'v2-sheet-' },
   draw: { path: '/apps/sorteio/', prefix: 'v2-draw-' },
   split: { path: '/apps/racha-conta/', prefix: 'v2-split-' }
 };

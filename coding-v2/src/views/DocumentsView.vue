@@ -26,7 +26,7 @@ import { encodeSafeBackup, encodeBinaryPackage, decodeBinaryPackage, importBinar
 import { friendlyError } from '../library/errors';
 import {
   activeFilterCount, applyFilters, defaultFilters, filtersFromQuery, filtersToQuery, originLabels, sortLabels,
-  toolsPresent, type LibraryFilters, type SortKey
+  toolIdForType, toolsPresent, type LibraryFilters, type SortKey
 } from '../library/model';
 import type { Source } from '../storage/documents';
 
@@ -56,7 +56,7 @@ const viewMode = ref<ViewMode>(readView());
 function setView(mode: ViewMode): void { viewMode.value = mode; writeView(mode); say(mode === 'grid' ? 'Exibindo em grade.' : 'Exibindo em lista.'); }
 const toolCounts = computed(() => {
   const counts = new Map<string, number>();
-  for (const copy of copies.value) counts.set(String(copy.type), (counts.get(String(copy.type)) ?? 0) + 1);
+  for (const copy of copies.value) { const key = toolIdForType(copy.type) ?? String(copy.type); counts.set(key, (counts.get(key) ?? 0) + 1); }
   return counts;
 });
 const selectedId = ref<string | null>(null);
@@ -402,8 +402,8 @@ const toolName = (id: ToolId): string => getTool(id).name;
     <nav v-if="copies.length && toolOptions.length" class="app-tabs" aria-label="Documentos por aplicativo" data-testid="document-app-tabs">
       <button type="button" :aria-pressed="filters.tool === 'all'" @click="filters.tool = 'all'">Todos ({{ copies.length }})</button>
       <button v-for="t in toolOptions" :key="t.id" type="button" :aria-pressed="filters.tool === t.id" @click="filters.tool = t.id">
-        <img :src="'/legacy-icons/' + (t.id === 'sheet-labels' ? 'sheet' : t.id) + '.svg'" alt="" width="22" height="22" />
-        {{ t.name }} ({{ toolCounts.get(t.id === 'sheet-labels' ? 'sheet' : t.id) ?? 0 }})
+        <img :src="'/legacy-icons/' + t.id + '.svg'" alt="" width="22" height="22" />
+        {{ t.name }} ({{ toolCounts.get(t.id) ?? 0 }})
       </button>
     </nav>
 

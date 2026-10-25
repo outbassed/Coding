@@ -7,7 +7,7 @@ const apps = [
   { id: 'images', url: '/apps/imagens/' },
   { id: 'pdf', url: '/apps/pdf/' },
   { id: 'codes', url: '/apps/qr/' },
-  { id: 'sheet-labels', url: '/apps/planilha-etiquetas/' },
+  { id: url: '/apps/planilha-etiquetas/' },
   { id: 'draw', url: '/apps/sorteio/' },
   { id: 'split', url: '/apps/racha-conta/' }
 ];

@@ -74,7 +74,7 @@ const tone = (state: LevelState): PillTone => state === 'on' ? 'on' : state === 
   </template>
   <template v-else>
     <PageHeader title="Aplicativo não encontrado" />
-    <EmptyState title="Não existe um app com esse endereço." text="Confira o catálogo para ver os nove aplicativos.">
+    <EmptyState title="Não existe um app com esse endereço." text="Confira o catálogo para ver os oito aplicativos.">
       <RouterLink :to="{ name: 'catalog' }" class="btn btn-primary">Ver catálogo</RouterLink>
     </EmptyState>
   </template>

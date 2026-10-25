@@ -16,12 +16,12 @@ test('Os SVGs restaurados são servidos pelo build sem alterar os desenhos origi
   }
 });
 
-test('Catálogo usa os nove ícones clássicos e todos carregam', async ({ page }) => {
+test('Catálogo usa os oito ícones clássicos e todos carregam', async ({ page }) => {
   await page.goto('/launcher/#/catalogo');
   const imgs = page.locator('article.card [data-testid="app-icon"] img');
-  await expect(imgs).toHaveCount(9);
+  await expect(imgs).toHaveCount(8);
   const sources = await imgs.evaluateAll((elements) => elements.map((el) => (el as HTMLImageElement).getAttribute('src')));
-  for (const name of ['labels','texts','calc','images','pdf','codes','sheet','draw','split']) {
+  for (const name of ['labels','texts','calc','images','pdf','codes','draw','split']) {
     expect(sources).toContain('/legacy-icons/' + name + '.svg');
   }
   await expect.poll(() => imgs.evaluateAll((elements) => elements.every((el) => {

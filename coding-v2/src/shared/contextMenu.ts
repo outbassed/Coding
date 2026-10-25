@@ -37,11 +37,6 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
     { label: 'Baixar PNG', selector: '[data-testid="export-png"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
     { label: 'Baixar SVG', selector: '[data-testid="export-svg"]', tab: 'Arquivo' }
   ],
-  'sheet-labels': [
-    { label: 'Adicionar linha', selector: '[data-testid="add-row"]', tab: 'Dados', shortcut: 'Alt+Shift+N' },
-    { label: 'Importar CSV ou XLSX', selector: '[data-testid="import-table"]', tab: 'Dados' },
-    { label: 'Criar documento de Etiquetas', selector: '[data-testid="create-labels"]', tab: 'Gerar', shortcut: 'Alt+Shift+E' }
-  ],
   draw: [
     { label: 'Girar roleta', selector: '[data-testid="spin"]', tab: 'Roleta', shortcut: 'Alt+Shift+N' },
     { label: 'Sortear números', selector: '[data-testid="draw-numbers"]', tab: 'Números' },

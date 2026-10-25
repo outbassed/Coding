@@ -41,7 +41,7 @@ test.describe('Launcher · celulares', () => {
       }
       await page.goto('/launcher/#/catalogo');
       const grid = await columns(page);
-      expect(grid.cards).toBe(9);
+      expect(grid.cards).toBe(8);
       expect(grid.cols).toBe(3);
       expect(grid.maxRight).toBeLessThanOrEqual(width);
       const nav = page.getByRole('navigation', { name: 'Navegação móvel' });

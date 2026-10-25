@@ -2,7 +2,7 @@ import { test, expect, type Page, type Download } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 
-/* Fumaça funcional dos nove apps: abrir, editar, salvar, reabrir e exportar de verdade. */
+/* Fumaça funcional dos apps: abrir, editar, salvar, reabrir e exportar de verdade. */
 const saved = (page: Page) => expect(page.getByTestId('save-status')).toHaveText('Salvo neste aparelho', { timeout: 10000 });
 async function axeClean(page: Page, label = ''): Promise<void> {
   const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'best-practice']).analyze();
@@ -131,22 +131,21 @@ test.describe('Planilhas', () => {
   });
 });
 
-test.describe('Planilha → Etiquetas', () => {
-  test('planilha de exemplo vira documento de Etiquetas; importação mostra linhas com problema', async ({ page }) => {
+test.describe('Planilha → Etiquetas (app removido)', () => {
+  test('a página antiga explica a mudança; documentos antigos viram Etiquetas sem apagar o original', async ({ page }) => {
     await page.goto('/apps/planilha-etiquetas/');
-    await tab(page, 'Gerar').click();
-    await expect(page.getByTestId('conversion-summary')).toContainText('5 itens · 13 etiquetas');
-    await page.getByTestId('create-labels').click();
-    await expect(page.getByTestId('created')).toContainText('Estoque da oficina');
-    await page.getByTestId('open-created').click();
+    await expect(page.getByRole('heading', { name: 'Este app foi incorporado a Etiquetas' })).toBeVisible();
+    await page.goto('/launcher/#/documentos');
+    const backup = { schema: 'coding-v2-safe-backup', version: 1, entries: [{ source: 'backup', images: [], doc: { id: 'planilha-antiga', type: 'sheet', state: { name: 'Estoque antigo', rows: [['Código', 'Descrição', 'Qtd'], ['A1', 'Item um', '2'], ['A2', 'Item dois', '1']], header: true, colCode: 0, colDesc: 1, colCopies: 2, defCopies: 1 } } }] };
+    await page.locator('input[type="file"][accept*=".json"]').setInputFiles({ name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) });
+    const card = page.locator('[data-copy-card]', { hasText: 'Estoque antigo' });
+    await expect(card).toContainText('descontinuado');
+    await card.click();
+    await page.getByRole('button', { name: /^Converter Estoque antigo em um documento de Etiquetas/ }).click();
     await expect(page).toHaveURL(/\/apps\/etiquetas\/\?doc=/);
-    await expect(page.getByTestId('doc-title')).toHaveText('Estoque da oficina');
-    await page.goto('/apps/planilha-etiquetas/?modelo=em-branco');
-    await page.getByTestId('table-input').setInputFiles({ name: 'itens.csv', mimeType: 'text/csv', buffer: Buffer.from('SKU;Produto;Qtd\nX1;Item um;2\nX2;Item dois;dez\nX3;Item três;\n') });
-    await expect(page.getByTestId('map-code')).toHaveValue('0');
-    await tab(page, 'Gerar').click();
-    await expect(page.getByTestId('conversion-summary')).toContainText('2 itens · 3 etiquetas');
-    await expect(page.getByTestId('issues')).toContainText('Linha 3');
+    await expect(page.getByTestId('doc-title')).toHaveText('Estoque antigo');
+    await page.goto('/launcher/#/documentos');
+    await expect(page.getByTestId('copy-count')).toContainText('2 cópias');
   });
 });
 
@@ -290,7 +289,7 @@ test.describe('Documentos do Coding 1.0', () => {
 });
 
 test.describe('Casca dos editores · celular e acessibilidade', () => {
-  const apps = ['/apps/planilhas/', '/apps/imagens/', '/apps/pdf/', '/apps/qr/', '/apps/planilha-etiquetas/', '/apps/sorteio/', '/apps/racha-conta/'];
+  const apps = ['/apps/planilhas/', '/apps/imagens/', '/apps/pdf/', '/apps/qr/', '/apps/sorteio/', '/apps/racha-conta/'];
   test('celular (390 px): prévia em cima, ferramentas embaixo, sem rolagem horizontal, sem violações', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     for (const url of apps) {

@@ -6,7 +6,7 @@ import type { ToolId } from '../../shared/catalog';
 const props = withDefaults(defineProps<{ id: ToolId; size?: 'sm' | 'md' | 'lg' | 'xl' }>(), { size: 'md' });
 const originalNames: Record<ToolId, string> = {
   labels: 'labels', texts: 'texts', calc: 'calc', images: 'images',
-  pdf: 'pdf', codes: 'codes', 'sheet-labels': 'sheet',
+  pdf: 'pdf', codes: 'codes',
   draw: 'draw', split: 'split'
 };
 const src = computed(() => '/legacy-icons/' + originalNames[props.id] + '.svg');

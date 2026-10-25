@@ -94,7 +94,7 @@ const perApp = computed(() => tools.map((t) => ({ tool: t, count: (copies.value 
     <h2 id="off-h">Uso sem internet</h2>
     <p v-if="!canPrepareOffline" class="muted" data-testid="offline-status">A preparação offline é opcional e está desativada neste ambiente. Ela só pode ser usada em um build de Preview separado, para não interferir no Coding atual.</p>
     <template v-else>
-      <p v-if="offlineState === 'ready'" class="muted" data-testid="offline-status">Arquivos do Coding 2.0 preparados neste navegador. Você pode abrir o Launcher e os nove aplicativos sem rede; documentos já salvos continuam no armazenamento local.</p>
+      <p v-if="offlineState === 'ready'" class="muted" data-testid="offline-status">Arquivos do Coding 2.0 preparados neste navegador. Você pode abrir o Launcher e os oito aplicativos sem rede; documentos já salvos continuam no armazenamento local.</p>
       <p v-else class="muted" data-testid="offline-status">{{ offlineState === 'working' ? 'Preparando os arquivos estáticos do Preview…' : 'É possível preparar os arquivos do Preview para abrir os aplicativos sem internet. Seus documentos não são enviados nem armazenados no cache.' }}</p>
       <p v-if="offlineError" class="muted" role="alert">{{ offlineError }}</p>
       <button type="button" class="btn btn-primary" data-testid="prepare-offline" :disabled="offlineState === 'working'" @click="activateOffline">{{ offlineState === 'working' ? 'Preparando…' : offlineState === 'ready' ? 'Preparar novamente' : 'Preparar acesso offline' }}</button>

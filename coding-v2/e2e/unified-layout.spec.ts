@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 const shared = [
   '/apps/planilhas/', '/apps/imagens/', '/apps/pdf/', '/apps/qr/',
-  '/apps/planilha-etiquetas/', '/apps/sorteio/', '/apps/racha-conta/'
+  '/apps/sorteio/', '/apps/racha-conta/'
 ];
 
 test.describe('Padrão visual do Etiquetas · sete editores', () => {
