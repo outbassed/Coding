@@ -57,7 +57,6 @@ test.describe('Calculadora · Básica', () => {
     await expect(page.getByTestId('calc-error')).toHaveText('Divisão por zero.');
     await expect(page.getByTestId('calc-error')).toHaveAttribute('role', 'alert');
     await key(page, 'back').click();
-    await key(page, 'back').click();
     await press(page, ['2', 'eq']);
     await expect(page.getByTestId('calc-error')).toHaveCount(0);
     await expect(result(page)).toHaveText('2,5');

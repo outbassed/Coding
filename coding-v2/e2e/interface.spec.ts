@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { APP_COUNT } from './helpers';
 
 const viewports = [
   { name: '320', width: 320, height: 640 }, { name: '360', width: 360, height: 740 }, { name: '390', width: 390, height: 844 },
@@ -83,9 +84,9 @@ test.describe('comportamento', () => {
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.getByRole('button', { name: 'Desativar atalho' }).click();
     // Em Meus apps só aparecem os ativados: o Texto passa para “Disponíveis para ativar”.
-    await expect(page.locator('article.card')).toHaveCount(7);
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT - 1);
     await page.reload();
-    await expect(page.locator('article.card')).toHaveCount(7);
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT - 1);
     await expect(page.getByTestId('available-to-activate')).toContainText('Texto');
     await expect(page.locator('article.card[data-tool="texts"]')).toHaveCount(0);
   });

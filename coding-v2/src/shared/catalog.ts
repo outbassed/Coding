@@ -1,4 +1,4 @@
-export type ToolId = 'labels' | 'texts' | 'calc' | 'images' | 'pdf' | 'codes' | 'draw' | 'split' | 'calculator';
+export type ToolId = 'labels' | 'texts' | 'calc' | 'images' | 'pdf' | 'codes' | 'draw' | 'split' | 'calculator' | 'colors';
 
 /**
  * preview: o app existe no Coding 2.0 (Prévia). Com `ready` preenchido, o editor é funcional.
@@ -47,6 +47,7 @@ const READY_pdf = ['Abrir PDFs e ver miniaturas das páginas', 'Juntar, dividir 
 const READY_codes = ['QR code, Code 128, EAN-13, EAN-8, UPC-A e Code 39', 'Validação com dígito verificador', 'Tamanho, cores, margem e legenda', 'Baixar PNG e SVG', 'Folha A4 para imprimir'] as const;
 const READY_draw = ['Roleta animada (respeita “reduzir movimento”)', 'Números, dados e equipes', 'Não repetir quem já foi sorteado', 'Histórico salvo no documento', 'Modelos prontos para editar'] as const;
 const READY_split = ['Pessoas e despesas', 'Divisão igual, por porcentagem ou por valores', 'Saldos e acertos sugeridos', 'Cálculos em centavos inteiros', 'Exportar CSV e TXT; imprimir'] as const;
+const READY_colors = ['Cor atual em HEX, RGB, HSL, HSV e CMYK, com seletor, sliders e conta-gotas (quando o navegador permite)', 'Harmonias: complementar, análoga, tríade, tétrade, dividida, monocromática e escala de tons', 'Verificador de contraste WCAG com sugestão de texto', 'Extração das cores dominantes de uma imagem, feita só neste aparelho', 'Paleta salva com nomes, exportada em CSS, JSON, SVG ou TXT'] as const;
 const READY_calculator = ['Modo Básico (teclado, memória e porcentagem) e modo Pro (funções científicas)', 'Leitor de expressões próprio e seguro: nada é executado como código', 'Graus ou radianos, casas decimais e variáveis com nome', 'Histórico salvo com reuso da conta ou do resultado', 'Copiar resultado e exportar o histórico'] as const;
 
 export const tools: readonly CodingTool[] = [
@@ -58,7 +59,8 @@ export const tools: readonly CodingTool[] = [
   { id: 'codes', category: 'labels', ready: READY_codes, name: 'QR / Barras', description: 'QR codes e códigos de barras', color: '#976DF7', textLight: '#7C59CB', textDark: '#976DF7', path: '/apps/qr/', legacyHash: '#/qr', status: 'preview', initiallyActive: true, planned: ['Data Matrix e PDF417', 'Gerar em lote a partir de planilha'] },
   { id: 'draw', category: 'fun', ready: READY_draw, name: 'Sorteio', description: 'Roleta, equipes, dados e números', color: '#F5B820', textLight: '#896712', textDark: '#F5B820', path: '/apps/sorteio/', legacyHash: '#/sorteio', status: 'preview', initiallyActive: true, planned: ['Sorteio com pesos', 'Exportar o resultado como imagem'] },
   { id: 'split', category: 'data', ready: READY_split, name: 'Racha-conta', description: 'Divisão de despesas e resumos', color: '#84CC16', textLight: '#4F7A0D', textDark: '#84CC16', path: '/apps/racha-conta/', legacyHash: '#/racha', status: 'preview', initiallyActive: true, planned: ['Várias moedas', 'Compartilhar o resumo por link'] },
-  { id: 'calculator', category: 'fun', ready: READY_calculator, name: 'Calculadora', description: 'Básica e Pro, com histórico', color: '#7C8BFF', textLight: '#4351C8', textDark: '#7C8BFF', path: '/apps/calculadora/', legacyHash: null, status: 'preview', initiallyActive: true, planned: ['Conversão de unidades', 'Calculadora financeira e de datas'] }
+  { id: 'calculator', category: 'fun', ready: READY_calculator, name: 'Calculadora', description: 'Básica e Pro, com histórico', color: '#7C8BFF', textLight: '#4351C8', textDark: '#7C8BFF', path: '/apps/calculadora/', legacyHash: null, status: 'preview', initiallyActive: true, planned: ['Conversão de unidades', 'Calculadora financeira e de datas'] },
+  { id: 'colors', category: 'fun', ready: READY_colors, name: 'Estúdio de Cores', description: 'Paletas, harmonias e contraste', color: '#EC6FB5', textLight: '#B02F7C', textDark: '#EC6FB5', path: '/apps/cores/', legacyHash: null, status: 'preview', initiallyActive: true, planned: ['Paletas a partir de URLs de sites', 'Simulação de daltonismo'] }
 ] as const;
 
 export const isToolId = (value: unknown): value is ToolId => typeof value === 'string' && tools.some((tool) => tool.id === value);

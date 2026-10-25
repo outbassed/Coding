@@ -9,13 +9,14 @@ const apps = [
   { id: 'codes', url: '/apps/qr/' },
   { id: 'draw', url: '/apps/sorteio/' },
   { id: 'split', url: '/apps/racha-conta/' },
-  { id: 'calculator', url: '/apps/calculadora/' }
+  { id: 'calculator', url: '/apps/calculadora/' },
+  { id: 'colors', url: '/apps/cores/' }
 ];
 
 for (const tool of apps) {
   test('App desativado bloqueia URL direta e permite reativar: ' + tool.id, async ({ page }) => {
     await page.addInitScript((id: string) => {
-      const ids = ['labels','texts','calc','images','pdf','codes','sheet-labels','draw','split','calculator'];
+      const ids = ['labels','texts','calc','images','pdf','codes','sheet-labels','draw','split','calculator','colors'];
       if (localStorage.getItem('coding-v2-apps') === null) localStorage.setItem('coding-v2-apps', JSON.stringify({ v: 2, known: ids, enabled: ids.filter(item => item !== id) }));
     }, tool.id);
     await page.goto(tool.url);

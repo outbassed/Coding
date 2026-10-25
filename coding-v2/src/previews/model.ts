@@ -11,6 +11,7 @@ import { normalizePdf } from '../apps/pdf/model';
 import { normalizeSheetLabels } from '../apps/sheet-labels/model';
 import { normalizeCalc as normalizeCalculator, preview as calculatorLive } from '../apps/calculator/model';
 import { formatNumber } from '../apps/calculator/format';
+import { normalizeColors } from '../apps/colors/model';
 
 /** Limites do que entra no cache: só o que cabe na primeira folha/tela precisa ser guardado. */
 export const MAX_PREVIEW_BLOCKS = 60;
@@ -84,7 +85,7 @@ export function textPreview(raw: unknown): Preview {
   return { kind: 'text', html: sanitizeTextHtml(out.body.innerHTML) };
 }
 
-const PREVIEW_TYPES = ['labels', 'texts', 'calc', 'sheet', 'codes', 'split', 'draw', 'images', 'pdf', 'calculator'] as const;
+const PREVIEW_TYPES = ['labels', 'texts', 'calc', 'sheet', 'codes', 'split', 'draw', 'images', 'pdf', 'calculator', 'colors'] as const;
 export type PreviewType = typeof PREVIEW_TYPES[number];
 export function previewable(type: unknown): type is PreviewType { return typeof type === 'string' && (PREVIEW_TYPES as readonly string[]).includes(type); }
 const obj = (raw: unknown): Record<string, unknown> => (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {});
@@ -158,6 +159,13 @@ export function calculatorPreview(raw: unknown): Preview {
   if (s.vars.length) lines.push(['Variáveis', String(s.vars.length)]);
   return { kind: 'summary', title: s.name || 'Calculadora', lines };
 }
+export function colorsPreview(raw: unknown): Preview {
+  need(raw, 'palette');
+  const s = normalizeColors(raw);
+  const lines: [string, string][] = [['Cor atual', s.base], ['Cores na paleta', String(s.palette.length)]];
+  for (const p of s.palette.slice(0, 8)) lines.push([(p.name || 'Cor').slice(0, 30), p.hex]);
+  return { kind: 'summary', title: s.name || 'Paleta de cores', lines };
+}
 export function pdfPreview(raw: unknown): Preview {
   need(raw, 'pages');
   const s = normalizePdf(raw);
@@ -178,6 +186,7 @@ export function buildPreview(type: string | undefined, state: unknown): Preview 
     case 'images': return imagesPreview(state);
     case 'pdf': return pdfPreview(state);
     case 'calculator': return calculatorPreview(state);
+    case 'colors': return colorsPreview(state);
     default: throw new Error('Tipo sem prévia');
   }
 }

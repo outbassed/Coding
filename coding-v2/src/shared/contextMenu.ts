@@ -51,6 +51,11 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
     { label: 'Limpar entrada', selector: '[data-testid="key-clear"]', shortcut: 'Esc' },
     { label: 'Copiar resultado', selector: '[data-testid="copy-result"]' },
     { label: 'Exportar histórico', selector: '[data-testid="export-history"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' }
+  ],
+  colors: [
+    { label: 'Adicionar cor à paleta', selector: '[data-testid="add-base"]', tab: 'Cor' },
+    { label: 'Ver contraste', selector: '[data-testid="contrast-ratio"]', tab: 'Contraste' },
+    { label: 'Exportar CSS', selector: '[data-testid="export-css"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' }
   ]
 };
 

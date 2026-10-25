@@ -22,7 +22,8 @@ export default defineConfig({
         'planilha-etiquetas': resolve(import.meta.dirname, 'apps/planilha-etiquetas/index.html'),
         'sorteio': resolve(import.meta.dirname, 'apps/sorteio/index.html'),
         'racha-conta': resolve(import.meta.dirname, 'apps/racha-conta/index.html'),
-        'calculadora': resolve(import.meta.dirname, 'apps/calculadora/index.html')
+        'calculadora': resolve(import.meta.dirname, 'apps/calculadora/index.html'),
+        'cores': resolve(import.meta.dirname, 'apps/cores/index.html')
       }
     }
   }

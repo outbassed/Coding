@@ -13,7 +13,7 @@ test.describe('Instalação offline por app (build real, sem rede simulada por m
     test.setTimeout(120_000);
     const manifest = (await (await request.get('/offline-manifest.json')).json()) as Manifest;
     expect(manifest.schema).toBe(1);
-    expect(Object.keys(manifest.apps).sort()).toEqual(['calc', 'codes', 'draw', 'images', 'labels', 'pdf', 'split', 'texts']);
+    expect(Object.keys(manifest.apps).sort()).toEqual(['calc', 'calculator', 'codes', 'colors', 'draw', 'images', 'labels', 'pdf', 'split', 'texts']);
     expect(Object.keys(manifest.apps)).not.toContain('sheet-labels');
     const unique = new Map<string, ManifestFile>();
     for (const entry of [manifest.core, ...Object.values(manifest.apps)]) {
@@ -148,6 +148,8 @@ test.describe('Instalação offline por app (build real, sem rede simulada por m
     const leftover = await page.evaluate(async () => { const c = await caches.open('coding-v2-offline-files'); return (await c.keys()).length; });
     // Núcleo pode ter sido concluído antes do cancelamento, mas o PDF nunca fica registrado.
     const records = await page.evaluate(async () => {
+      // Não abrir um banco que ainda não existe (abrir cria um vazio, sem as tabelas).
+      if (!(await indexedDB.databases()).some((d) => d.name === 'coding-v2-offline')) return [];
       const db = await new Promise<IDBDatabase>((res, rej) => { const r = indexedDB.open('coding-v2-offline'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
       const all = await new Promise<{ id: string }[]>((res) => { const q = db.transaction('records').objectStore('records').getAll(); q.onsuccess = () => res(q.result as { id: string }[]); });
       db.close();
