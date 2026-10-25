@@ -287,6 +287,9 @@ test.describe('Pintar · ferramentas avançadas', () => {
 
   test('dureza: pincel macio tem borda translúcida e o duro é sólido até a borda', async ({ page }) => {
     await page.goto('/apps/pintar/?modelo=quadrado');
+    // só desenha depois que a camada do modelo existe (senão o primeiro toque pode se perder)
+    await expect(canvas(page)).toBeVisible();
+    await expect.poll(async () => isWhite(await pixel(page, 0.5, 0.5))).toBe(true);
     await pickColor(page, RED);
     await page.getByTestId('brush-size').fill('200');
     await page.getByTestId('brush-hardness').fill('0');
