@@ -14,6 +14,8 @@ import { formatNumber } from '../apps/calculator/format';
 import { normalizeColors } from '../apps/colors/model';
 import { normalizeCompare, bothTextual } from '../apps/compare/model';
 import { compareText } from '../apps/compare/diff';
+import { normalizeViewer } from '../apps/viewer/model';
+import { KIND_LABELS } from '../apps/viewer/kinds';
 import { normalizeCode, totalChars as codeChars } from '../apps/code/model';
 import { normalizeZip, totalSize as zipTotal } from '../apps/zip/model';
 import { formatBytes } from '../shared/bytes';
@@ -90,7 +92,7 @@ export function textPreview(raw: unknown): Preview {
   return { kind: 'text', html: sanitizeTextHtml(out.body.innerHTML) };
 }
 
-const PREVIEW_TYPES = ['labels', 'texts', 'calc', 'sheet', 'codes', 'split', 'draw', 'images', 'pdf', 'calculator', 'colors', 'zip', 'compare', 'code'] as const;
+const PREVIEW_TYPES = ['labels', 'texts', 'calc', 'sheet', 'codes', 'split', 'draw', 'images', 'pdf', 'calculator', 'colors', 'zip', 'compare', 'code', 'viewer'] as const;
 export type PreviewType = typeof PREVIEW_TYPES[number];
 export function previewable(type: unknown): type is PreviewType { return typeof type === 'string' && (PREVIEW_TYPES as readonly string[]).includes(type); }
 const obj = (raw: unknown): Record<string, unknown> => (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {});
@@ -200,6 +202,13 @@ export function codePreview(raw: unknown): Preview {
   if (title) lines.unshift(['Título da página', title]);
   return { kind: 'summary', title: s.name || 'Projeto de código', lines };
 }
+export function viewerPreview(raw: unknown): Preview {
+  need(raw, 'files');
+  const s = normalizeViewer(raw);
+  const lines: [string, string][] = [['Arquivos', String(s.files.length)], ['Tamanho', formatBytes(s.files.reduce((n, f) => n + f.size, 0))]];
+  for (const f of s.files.slice(0, 6)) lines.push([f.name.slice(0, 30), KIND_LABELS[f.kind]]);
+  return { kind: 'summary', title: s.name || 'Arquivos para visualizar', lines };
+}
 export function pdfPreview(raw: unknown): Preview {
   need(raw, 'pages');
   const s = normalizePdf(raw);
@@ -224,6 +233,7 @@ export function buildPreview(type: string | undefined, state: unknown): Preview 
     case 'zip': return zipPreview(state);
     case 'compare': return comparePreview(state);
     case 'code': return codePreview(state);
+    case 'viewer': return viewerPreview(state);
     default: throw new Error('Tipo sem prévia');
   }
 }

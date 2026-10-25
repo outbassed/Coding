@@ -71,6 +71,11 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
     { label: 'Executar', selector: '[data-testid="run-code"]', tab: 'Executar', shortcut: 'Ctrl+Enter' },
     { label: 'Baixar ZIP do projeto', selector: '[data-testid="download-zip"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
     { label: 'Baixar página única', selector: '[data-testid="download-html"]', tab: 'Arquivo' }
+  ],
+  viewer: [
+    { label: 'Abrir arquivos', selector: '[data-testid="open-files"]', tab: 'Arquivos', shortcut: 'Alt+Shift+N' },
+    { label: 'Baixar o arquivo atual', selector: '[data-testid="download-original"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
+    { label: 'Redefinir vista 3D', selector: '[data-testid="reset-3d"]', tab: 'Exibição' }
   ]
 };
 
