@@ -587,6 +587,9 @@ export async function deleteCopy(id: string, expectedRevision: number): Promise<
 
 /** Quantos projetos salvos cada app tem (a contagem de cada app é independente das demais). */
 export async function countSavedByApp(): Promise<Record<string, number>> {
+  // Só conta se o banco já existir: abrir um app não pode criar o banco de cópias (nada é gravado antes da primeira edição).
+  if (typeof indexedDB === 'undefined' || typeof indexedDB.databases !== 'function') return {};
+  if (!(await indexedDB.databases()).some((d) => d.name === COPIES_DB_NAME)) return {};
   const db = await openCopies();
   try {
     const tx = db.transaction('copies', 'readonly');

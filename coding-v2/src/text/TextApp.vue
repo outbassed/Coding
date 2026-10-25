@@ -616,9 +616,13 @@ function keyboard(event: KeyboardEvent): void {
   if (key === 'z' && !event.shiftKey) { event.preventDefault(); undo(); }
   else if ((key === 'z' && event.shiftKey) || key === 'y') { event.preventDefault(); redo(); }
 }
+function flushOnHide(): void { if (document.visibilityState === 'hidden' && status.value === 'pending') void saveNow(); }
+function flushOnPageHide(): void { if (status.value === 'pending') void saveNow(); }
 onMounted(async () => {
   mounted = true;
   window.addEventListener('beforeunload', beforeUnload);
+  document.addEventListener('visibilitychange', flushOnHide);
+  window.addEventListener('pagehide', flushOnPageHide);
   window.addEventListener('keydown', keyboard);
   document.addEventListener('selectionchange', storeSelection);
   try {
@@ -653,6 +657,8 @@ onBeforeUnmount(() => {
   clearTimeout(pendingTimer);
   document.removeEventListener('selectionchange', storeSelection);
   window.removeEventListener('beforeunload', beforeUnload);
+  document.removeEventListener('visibilitychange', flushOnHide);
+  window.removeEventListener('pagehide', flushOnPageHide);
   window.removeEventListener('keydown', keyboard);
 });
 </script>

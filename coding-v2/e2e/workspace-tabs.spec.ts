@@ -183,7 +183,9 @@ test.describe('Limites de projetos salvos', () => {
   test('Ajustes: faixas abaixo da quantidade salva ficam desativadas, com o motivo', async ({ page }) => {
     await seed(page, ...named(40));
     await page.goto('/launcher/#/ajustes');
+    await expect(page.locator('[data-testid="doc-counts"] li', { hasText: 'Etiquetas' })).toContainText('40');
     await page.getByTestId('limit-manual').check();
+    await expect(page.getByTestId('limit-tiers')).toBeVisible();
     await expect(page.getByTestId('tier-32')).toBeDisabled();
     await expect(page.getByTestId('tier-64')).toBeEnabled();
     await expect(page.getByTestId('tier-reasons')).toContainText('Você tem 40 projetos salvos');

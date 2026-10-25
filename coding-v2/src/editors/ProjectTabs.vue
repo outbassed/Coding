@@ -108,10 +108,10 @@ const plusLabel = computed(() => (p.overflowCount.value > 0 ? '+' + p.overflowCo
     <template v-if="listOpen">
       <div v-if="!wide" class="pt-backdrop" @click="closeList()"></div>
       <section class="pt-panel" :class="{ 'pt-sheet': !wide }" role="dialog" aria-modal="false" :aria-label="wide ? 'Projetos abertos escondidos' : 'Projetos abertos'" data-testid="tab-list" @keydown="onPanelKey">
-        <header class="pt-panel-head">
+        <div class="pt-panel-head">
           <h2>{{ wide ? 'Outros projetos abertos' : 'Projetos abertos' }} <span class="pt-count">{{ wide ? p.overflowCount.value : total }}</span></h2>
           <button type="button" class="ib" aria-label="Fechar lista" @click="closeList()"><NavIcon name="close" /></button>
-        </header>
+        </div>
         <label class="sr-only" for="pt-search">Buscar projeto aberto pelo nome</label>
         <input id="pt-search" ref="searchBox" v-model="query" type="search" class="pt-search" placeholder="Buscar pelo nome" autocomplete="off" data-testid="tab-search" />
         <ul class="pt-list">

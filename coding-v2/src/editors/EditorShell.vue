@@ -139,7 +139,7 @@ const { width: sideWidth, dragging: draggingSide, start: resizeStart, move: resi
       </div>
       <template v-if="!wide">
         <BottomSheet v-if="panelOpen" v-model:snap="snap" class="es-mobile-sheet" :title="currentTitle"
-          :style="{ '--chrome': '155px', ...(snap === 'full' ? { maxHeight: 'min(70dvh, calc(var(--vv-h, 100dvh) - 220px))' } : {}) }"
+          :style="{ '--chrome': '208px', ...(snap === 'full' ? { maxHeight: 'min(70dvh, calc(var(--vv-h, 100dvh) - 220px))' } : {}) }"
           @close="panelOpen = false">
           <section v-if="tab === SIDE && $slots.side" id="es-panel" role="tabpanel" :aria-labelledby="'es-tab-' + tab" data-testid="editor-panel">
             <slot name="side" />

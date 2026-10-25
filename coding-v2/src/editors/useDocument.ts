@@ -198,8 +198,15 @@ export function useDocument<S>(options: UseDocumentOptions<S>) {
     if (key === 'z' && !event.shiftKey) { event.preventDefault(); undo(); }
     else if ((key === 'z' && event.shiftKey) || key === 'y') { event.preventDefault(); redo(); }
   }
+  /** Ao esconder a aba ou sair da página, grava na hora o que estiver pendente (o navegador pode não dar outra chance). */
+  function flushOnHide(): void {
+    if (document.visibilityState === 'hidden' && status.value === 'pending') void saveNow();
+  }
+  function flushOnPageHide(): void { if (status.value === 'pending') void saveNow(); }
   onMounted(async () => {
     window.addEventListener('beforeunload', beforeUnload);
+    document.addEventListener('visibilitychange', flushOnHide);
+    window.addEventListener('pagehide', flushOnPageHide);
     window.addEventListener('keydown', keys);
     if (!docId) return;
     try {
@@ -226,6 +233,8 @@ export function useDocument<S>(options: UseDocumentOptions<S>) {
   onBeforeUnmount(() => {
     alive = false; clearTimeout(timer);
     window.removeEventListener('beforeunload', beforeUnload);
+    document.removeEventListener('visibilitychange', flushOnHide);
+    window.removeEventListener('pagehide', flushOnPageHide);
     window.removeEventListener('keydown', keys);
   });
 

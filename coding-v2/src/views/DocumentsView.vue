@@ -23,6 +23,8 @@ import {
 } from '../storage/documents';
 import { importBackupToCopies, decodeBackupEntries } from '../storage/archive';
 import { encodeSafeBackup, encodeBinaryPackage, decodeBinaryPackage, importBinaryPackage } from '../storage/archive-pack';
+import { buildZipBackup, decodeZipBackup, importZipBackup, looksLikeZip } from '../storage/archive-zip';
+import { appKeyForType } from '../workspace/limits';
 import { friendlyError } from '../library/errors';
 import {
   activeFilterCount, applyFilters, defaultFilters, filtersFromQuery, filtersToQuery, originLabels, sortLabels,
@@ -302,6 +304,29 @@ async function exportAll(format: BackupChoice = 'auto'): Promise<void> {
   } catch (err) { fail('Não foi possível exportar. ' + friendlyError(err)); }
   finally { busy.value = false; }
 }
+/** Backup em ZIP: todos os apps ou um só (um ZIP comporta até 1.000 arquivos e 200 MB). */
+const zipScope = ref<'all' | ToolId>('all');
+const zipApps = computed(() => tools.filter((t) => copies.value.some((c) => appKeyForType(c.type) === t.id)));
+async function exportZip(): Promise<void> {
+  if (busy.value || !copies.value.length) return;
+  busy.value = true; error.value = '';
+  try {
+    const pick = copies.value.filter((c) => zipScope.value === 'all' || appKeyForType(c.type) === zipScope.value);
+    if (!pick.length) throw new Error('Não há projetos neste app.');
+    const full: CopyRecord[] = [];
+    for (const summary of pick) {
+      const record = await getCopy(summary.id);
+      if (!record) throw new MissingCopy(); // nunca omite um projeto em silêncio
+      full.push(toRaw(record));
+    }
+    const built = await buildZipBackup(full);
+    // Confere os bytes exatos entregues ao navegador (manifesto, SHA-256 e imagens).
+    if ((await decodeZipBackup(built.bytes)).length !== full.length) throw new Error('Falha na verificação do backup ZIP.');
+    downloadFile(new Blob([built.bytes as BlobPart], { type: 'application/zip' }), 'coding-v2-backup-' + (zipScope.value === 'all' ? 'todos' : zipScope.value) + '-' + new Date().toISOString().slice(0, 10) + '.zip');
+    say('Backup ZIP de ' + full.length + ' projeto(s) e ' + built.images + ' imagem(ns) verificado. Confirme que o arquivo foi salvo no aparelho.');
+  } catch (err) { fail('Não foi possível exportar o ZIP. ' + friendlyError(err)); }
+  finally { busy.value = false; }
+}
 async function duplicate(): Promise<void> {
   const copy = selected.value; if (!copy || busy.value) return;
   busy.value = true; saveState.value = 'saving'; error.value = '';
@@ -360,11 +385,14 @@ async function importFile(event: Event): Promise<void> {
   const file = input.files?.[0]; if (!file) return;
   busy.value = true; saveState.value = 'saving'; error.value = '';
   try {
-    const isPackage = file.name.toLowerCase().endsWith('.codingpack')
-      || (await file.slice(0, 14).text()) === 'CODING-PACK-1\n';
-    if (!isPackage && file.size > 64 * 1024 * 1024) throw new Error('Backup JSON acima do limite de 64 MB. Use .codingpack.');
+    const isZip = looksLikeZip(new Uint8Array(await file.slice(0, 4).arrayBuffer()));
+    const isPackage = !isZip && (file.name.toLowerCase().endsWith('.codingpack')
+      || (await file.slice(0, 14).text()) === 'CODING-PACK-1\n');
+    if (isZip && file.size > 200 * 1024 * 1024) throw new Error('Backup ZIP acima do limite de 200 MB.');
+    if (!isZip && !isPackage && file.size > 64 * 1024 * 1024) throw new Error('Backup JSON acima do limite de 64 MB. Use .zip ou .codingpack.');
     markOwn();
-    const count = isPackage ? await importBinaryPackage(file) : await importBackupToCopies(await file.text());
+    const count = isZip ? await importZipBackup(new Uint8Array(await file.arrayBuffer()))
+      : isPackage ? await importBinaryPackage(file) : await importBackupToCopies(await file.text());
     markOwn();
     await refresh();
     saveState.value = 'saved';
@@ -469,9 +497,17 @@ const toolName = (id: ToolId): string => getTool(id).name;
       <button type="button" class="btn" :disabled="busy || !copies.length" @click="exportAll()">Exportar backup das cópias</button>
       <button type="button" class="btn" :disabled="busy || !copies.length" data-testid="export-codingpack" @click="exportAll('binary')">Baixar .codingpack</button>
       <button type="button" class="btn" :disabled="busy" @click="importInput?.click()">Importar backup do Coding 2.0</button>
-      <input ref="importInput" type="file" accept=".json,.codingpack,application/json,application/octet-stream" class="visually-hidden" aria-label="Escolher backup JSON ou CODINGPACK do Coding 2.0" @change="importFile" />
+      <input ref="importInput" type="file" accept=".json,.codingpack,.zip,application/json,application/zip,application/octet-stream" class="visually-hidden" aria-label="Escolher backup ZIP, JSON ou CODINGPACK do Coding 2.0" @change="importFile" />
     </div>
-    <details class="backup-help"><summary>Sobre os formatos e a segurança dos backups</summary><p class="muted small">JSON: até 64 MB por arquivo. O .codingpack suporta imagens binárias verificadas por SHA-256. Importações não substituem documentos existentes e dependem do espaço disponível no navegador.</p></details>
+    <div class="row zip-row" data-testid="zip-backup">
+      <label for="zip-scope" class="small">Backup em ZIP de</label>
+      <select id="zip-scope" v-model="zipScope" data-testid="zip-scope">
+        <option value="all">Todos os apps</option>
+        <option v-for="t in zipApps" :key="t.id" :value="t.id">{{ t.name }}</option>
+      </select>
+      <button type="button" class="btn" :disabled="busy || !copies.length" data-testid="export-zip" @click="exportZip()">Baixar backup .zip</button>
+    </div>
+    <details class="backup-help"><summary>Sobre os formatos e a segurança dos backups</summary><p class="muted small">JSON: até 64 MB por arquivo. O ZIP abre em qualquer programa e traz um manifesto com SHA-256 de cada arquivo (até 1.000 arquivos e 200 MB; exporte um app por vez se passar). O .codingpack suporta imagens binárias verificadas por SHA-256. Importações não substituem documentos existentes e dependem do espaço disponível no navegador.</p></details>
     <StoragePanel :refresh-key="storageKey" @announce="say" />
     <details class="backup-help"><summary>Compatibilidade com o Coding antigo</summary><p class="muted small">O Coding 1.0 não é alterado. Ferramentas não migradas continuam no <a :href="LEGACY_URL">Coding atual</a>.</p></details>
   </section>
@@ -542,6 +578,8 @@ h2:focus { outline: none; }
 .more { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
 .more p { margin: 0; }
 .row { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+.zip-row { align-items: center; }
+.zip-row select { min-height: 44px; max-width: 100%; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); }
 .small { font-size: 12.5px; }
 .sheet-h { font-size: 19px; margin-bottom: 12px; overflow-wrap: anywhere; }
 .sheet-h:focus { outline: none; }

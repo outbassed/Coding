@@ -265,7 +265,7 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
     <PrintSheets v-if="!editor.loadError.value" :state="state" :pages="pages" />
 
     <template v-if="!showSide && !editor.loadError.value">
-      <BottomSheet v-if="showSheet" v-model:snap="snap" :title="tabs.find((t) => t.id === tab)?.label ?? 'Editor'" :style="{ '--chrome': '180px', ...(snap === 'full' ? { maxHeight: '85dvh' } : {}) }" @close="sheetOpen = false">
+      <BottomSheet v-if="showSheet" v-model:snap="snap" :title="tabs.find((t) => t.id === tab)?.label ?? 'Editor'" :style="{ '--chrome': '233px', ...(snap === 'full' ? { maxHeight: '85dvh' } : {}) }" @close="sheetOpen = false">
         <ItemsPanel v-if="tab === 'itens'" ref="itemsRef" :items="state.items" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @bulk="bulkOpen = true" @import="tableOpen = true" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
         <FormatPanel v-else-if="tab === 'formato'" :state="state" @field="field" />
         <PagePanel v-else-if="tab === 'pagina'" :state="state" :layout="layout" @field="field" />
