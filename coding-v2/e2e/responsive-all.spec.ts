@@ -5,6 +5,8 @@ const APPS = [
   '/apps/etiquetas/', '/apps/texto/', '/apps/planilhas/', '/apps/imagens/', '/apps/pdf/', '/apps/qr/', '/apps/sorteio/',
   '/apps/racha-conta/', '/apps/calculadora/', '/apps/cores/', '/apps/zip/', '/apps/comparador/', '/apps/codigo/', '/apps/visualizador/', '/apps/pintar/'
 ];
+/** Etiquetas e Texto têm editor próprio, sem o painel padrão: só a página inteira é verificada. */
+const OWN_LAYOUT = new Set(['/apps/etiquetas/', '/apps/texto/']);
 const WIDTHS = [320, 375, 390, 430, 600, 768, 1024, 1280];
 
 /** Controles visíveis que escapam da tela sem estarem dentro de uma área com rolagem própria. */
@@ -38,15 +40,20 @@ test.describe('Responsivo · todos os apps', () => {
       await page.setViewportSize({ width, height });
       for (const url of APPS) {
         await page.goto(url);
-        await expect(page.getByTestId('editor-tabs').first(), url).toBeVisible();
+        if (OWN_LAYOUT.has(url)) {
+          await page.waitForLoadState('networkidle');
+          await expect(page.locator('#app button').first(), url).toBeVisible();
+        } else await expect(page.getByTestId('editor-tabs').first(), url).toBeVisible();
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-        expect(overflow, url + ' rolagem horizontal').toBeLessThanOrEqual(0);
-        const tabs = (await page.getByTestId('editor-tabs').first().boundingBox())!;
-        expect(tabs.x, url).toBeGreaterThanOrEqual(-1);
-        expect(tabs.x + tabs.width, url).toBeLessThanOrEqual(width + 1);
-        expect(tabs.y + tabs.height, url).toBeLessThanOrEqual(height + 1);
+        expect.soft(overflow, url + ' rolagem horizontal').toBeLessThanOrEqual(0);
+        if (!OWN_LAYOUT.has(url)) {
+          const tabs = (await page.getByTestId('editor-tabs').first().boundingBox())!;
+          expect.soft(tabs.x, url).toBeGreaterThanOrEqual(-1);
+          expect.soft(tabs.x + tabs.width, url).toBeLessThanOrEqual(width + 1);
+          expect.soft(tabs.y + tabs.height, url).toBeLessThanOrEqual(height + 1);
+        }
         const escaped = await page.evaluate(escapedControls);
-        expect(escaped, url + ' controles fora da tela').toEqual([]);
+        expect.soft(escaped, url + ' controles fora da tela').toEqual([]);
       }
     });
   }
