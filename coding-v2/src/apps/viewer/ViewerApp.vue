@@ -12,6 +12,10 @@ import { countLines, decodeText, hexDump, MAX_FILE_BYTES, MAX_FILES, prettyJson,
 import { boundsOf, defaultCamera, drawMesh, parseModel, type Bounds, type Camera, type Mesh } from './mesh';
 import { sanitizeSvg } from './svg';
 import { viewerKind, viewerTemplates } from './kind';
+import { createDoc } from '../../editors/docs';
+import { useAppsStore } from '../../stores/apps';
+import { codeKind } from '../code/kind';
+import { cleanPath, isTextPath, normalizeCode } from '../code/model';
 
 const doc = useDocument({
   kind: viewerKind, templates: viewerTemplates, path: '/apps/visualizador/', withImages: true,
@@ -88,6 +92,66 @@ function downloadCurrent(): void {
   if (!f || !b) return;
   downloadBlob(b, f.name);
   ok('“' + f.name + '” baixado como estava.');
+}
+
+// ---------------------------------------------------------------- navegação, filtro, tela cheia e apresentação
+const filter = ref('');
+const shownFiles = computed(() => {
+  const q = filter.value.trim().toLowerCase();
+  return q ? state.value.files.filter((f) => f.name.toLowerCase().includes(q) || KIND_LABELS[f.kind].toLowerCase().includes(q)) : state.value.files;
+});
+const position = computed(() => state.value.files.findIndex((f) => f.id === state.value.activeId));
+function step(delta: number): void {
+  const n = state.value.files.length;
+  if (n < 2) return;
+  state.value.activeId = state.value.files[(((position.value < 0 ? 0 : position.value) + delta) % n + n) % n]!.id;
+}
+const canFullscreen = typeof document !== 'undefined' && document.fullscreenEnabled === true;
+async function toggleFullscreen(): Promise<void> {
+  const el = stage.value; if (!el) return;
+  try { if (document.fullscreenElement) await document.exitFullscreen(); else await el.requestFullscreen(); }
+  catch { fail('O navegador não permitiu a tela cheia.'); }
+}
+const slides = computed(() => state.value.files.filter((f) => f.kind === 'image' || f.kind === 'svg'));
+const playing = ref(false);
+const slideSeconds = ref(3);
+let slideTimer: ReturnType<typeof setInterval> | undefined;
+function advanceSlide(): void {
+  const list = slides.value;
+  if (list.length < 2) { playing.value = false; return; }
+  const i = list.findIndex((f) => f.id === state.value.activeId);
+  state.value.activeId = list[(i + 1) % list.length]!.id;
+}
+function toggleSlideshow(): void {
+  if (playing.value) { playing.value = false; ok('Apresentação parada.'); return; }
+  if (slides.value.length < 2) { fail('Abra pelo menos duas imagens para fazer uma apresentação.'); return; }
+  if (!slides.value.some((f) => f.id === state.value.activeId)) state.value.activeId = slides.value[0]!.id;
+  playing.value = true; ok('Apresentação iniciada: troca de imagem a cada ' + slideSeconds.value + ' s. Esc para parar.');
+}
+watch([playing, slideSeconds], () => {
+  clearInterval(slideTimer);
+  if (playing.value) slideTimer = setInterval(advanceSlide, slideSeconds.value * 1000);
+});
+watch(() => slides.value.length, (n) => { if (n < 2) playing.value = false; });
+function onEscape(event: KeyboardEvent): void { if (event.key === 'Escape' && playing.value) { playing.value = false; ok('Apresentação parada.'); } }
+onMounted(() => window.addEventListener('keydown', onEscape));
+onBeforeUnmount(() => { window.removeEventListener('keydown', onEscape); clearInterval(slideTimer); });
+
+// ---------------------------------------------------------------- abrir em outro app (cópia; o original continua aqui)
+const apps = useAppsStore();
+const codeName = computed(() => (current.value && (current.value.kind === 'text' || current.value.kind === 'svg') ? cleanPath(current.value.name) : null));
+const canOpenInCode = computed(() => !!codeName.value && isTextPath(codeName.value));
+async function openInCode(): Promise<void> {
+  const f = current.value, b = currentBlob.value, path = codeName.value;
+  if (!f || !b || !path) return;
+  try {
+    const decoded = decodeText(new Uint8Array(await b.arrayBuffer()));
+    if (decoded.truncated) { fail('“' + f.name + '” é grande demais para o Código (passa de 4 MB).'); return; }
+    const project = normalizeCode({ name: f.name.slice(0, 80), files: [{ path, text: decoded.text.replace(/\r\n?/g, '\n') }], active: path, open: [path] });
+    const created = await createDoc(codeKind, project);
+    await doc.saveNow();
+    location.assign('/apps/codigo/?doc=' + encodeURIComponent(created.id));
+  } catch { fail('Não foi possível criar o projeto no Código.'); }
 }
 
 // ---------------------------------------------------------------- preparo do arquivo atual
@@ -303,8 +367,11 @@ const title = computed(() => current.value ? current.value.name : '');
           <input ref="fileInput" type="file" class="sr-only" multiple aria-label="Escolher arquivos para visualizar" data-testid="viewer-input" @change="onPick" />
         </div>
         <p class="ed-hint">Também dá para arrastar arquivos para a área de visualização ou colar uma imagem com Ctrl+V. Os arquivos ficam só neste aparelho e podem ser guardados no projeto (até {{ MAX_FILES }} arquivos de {{ Math.round(MAX_FILE_BYTES / 1048576) }} MB).</p>
+        <label v-if="state.files.length > 1" class="ed-field"><span class="ed-label">Buscar na lista (nome ou tipo)</span>
+          <input v-model="filter" type="search" class="inp" autocomplete="off" data-testid="viewer-filter" /></label>
+        <p v-if="filter.trim()" class="ed-hint" role="status" data-testid="viewer-filter-count">{{ shownFiles.length }} de {{ state.files.length }} arquivos.</p>
         <ul v-if="state.files.length" class="files" data-testid="viewer-files" aria-label="Arquivos do projeto">
-          <li v-for="f in state.files" :key="f.id" :class="{ on: f.id === state.activeId }">
+          <li v-for="f in shownFiles" :key="f.id" :class="{ on: f.id === state.activeId }">
             <button type="button" class="pick" :aria-pressed="f.id === state.activeId" :data-file="f.name" @click="state.activeId = f.id">
               <span class="nm">{{ f.name }}</span><small class="muted">{{ KIND_LABELS[f.kind] }} · {{ formatBytes(f.size) }}</small>
             </button>
@@ -312,6 +379,18 @@ const title = computed(() => current.value ? current.value.name : '');
           </li>
         </ul>
         <p v-else class="ed-hint" data-testid="viewer-empty-hint">Nenhum arquivo aberto ainda.</p>
+        <div v-if="slides.length > 1" class="ed-row">
+          <label class="ed-field"><span class="ed-label">Apresentação: trocar a cada</span>
+            <select v-model.number="slideSeconds" class="inp" data-testid="slide-interval"><option :value="1">1 s</option><option :value="3">3 s</option><option :value="5">5 s</option><option :value="10">10 s</option></select></label>
+          <button type="button" class="btn" :aria-pressed="playing" data-testid="slideshow" @click="toggleSlideshow">{{ playing ? 'Parar apresentação' : 'Iniciar apresentação' }}</button>
+        </div>
+        <dl v-if="current" class="props" data-testid="viewer-props">
+          <dt>Nome</dt><dd>{{ current.name }}</dd>
+          <dt>Tipo detectado</dt><dd>{{ KIND_LABELS[current.kind] }}</dd>
+          <dt>Tipo MIME</dt><dd>{{ current.mime || 'não informado' }}</dd>
+          <dt>Tamanho</dt><dd>{{ current.size.toLocaleString('pt-BR') }} bytes ({{ formatBytes(current.size) }})</dd>
+          <template v-if="extra"><dt>Detalhes</dt><dd>{{ extra }}</dd></template>
+        </dl>
       </div>
       <div v-else-if="now === 'exibicao'" class="ed-row">
         <p v-if="!current" class="ed-hint">Abra um arquivo para ver as opções de exibição.</p>
@@ -359,6 +438,8 @@ const title = computed(() => current.value ? current.value.name : '');
       </div>
       <FileTab v-else :templates="viewerTemplates" @new="doc.newFrom">
         <button type="button" class="btn" :disabled="!current" data-testid="download-original" @click="downloadCurrent">Baixar o arquivo atual</button>
+        <button v-if="canOpenInCode" type="button" class="btn" :disabled="!apps.isEnabled('code')" data-testid="open-in-code" @click="openInCode">Abrir uma cópia no Código</button>
+        <p v-if="canOpenInCode && !apps.isEnabled('code')" class="ed-hint">O app Código está desativado. Ative-o no Launcher para abrir uma cópia nele.</p>
         <template #after><p v-if="message" class="ed-hint" role="status" data-testid="viewer-message">{{ message }}</p></template>
       </FileTab>
     </template>
@@ -367,6 +448,12 @@ const title = computed(() => current.value ? current.value.name : '');
       <div class="bar" data-testid="viewer-bar">
         <strong class="name" data-testid="viewer-name">{{ title || 'Nenhum arquivo aberto' }}</strong>
         <span v-if="current" class="muted meta" data-testid="viewer-meta">{{ KIND_LABELS[current.kind] }} · {{ formatBytes(current.size) }}<template v-if="extra"> · {{ extra }}</template></span>
+        <span v-if="state.files.length > 1" class="nav">
+          <button type="button" class="ib" aria-label="Arquivo anterior" data-testid="viewer-prev" @click="step(-1)">‹</button>
+          <span class="muted" data-testid="viewer-position">{{ position + 1 }} de {{ state.files.length }}</span>
+          <button type="button" class="ib" aria-label="Próximo arquivo" data-testid="viewer-next" @click="step(1)">›</button>
+        </span>
+        <button v-if="current && canFullscreen" type="button" class="btn small" data-testid="viewer-fullscreen" @click="toggleFullscreen">Tela cheia</button>
       </div>
       <p v-if="problem" class="ed-error err" role="alert" data-testid="viewer-error">{{ problem }}</p>
       <div ref="stage" class="stage" :class="'bd-' + backdrop" data-testid="viewer-stage">
@@ -408,6 +495,13 @@ const title = computed(() => current.value ? current.value.name : '');
 .files li.on { border-color: var(--app); box-shadow: inset 0 0 0 1px var(--app); }
 .pick { flex: 1; min-width: 0; min-height: 44px; display: grid; text-align: left; border: 0; background: transparent; padding: 2px 8px; }
 .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+.nav .ib { min-width: 44px; min-height: 44px; font-size: 22px; }
+.small { min-height: 44px; }
+.props { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 8px 0 0; padding: 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); font-size: 13px; }
+.props dt { color: var(--muted); }
+.props dd { margin: 0; overflow-wrap: anywhere; }
+.stage:fullscreen { background: var(--raised); }
 .viewer { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--raised); }
 .bar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 8px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .name { overflow-wrap: anywhere; }

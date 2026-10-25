@@ -148,6 +148,69 @@ test.describe('Visualizador', () => {
     await expect(page.getByTestId('viewer-meta')).toContainText('20 × 10 px');
   });
 
+  test('lista de arquivos: busca por nome ou tipo, anterior/próximo e propriedades honestas', async ({ page }) => {
+    await page.goto('/apps/visualizador/');
+    const png = await pngBuffer(page, 40, 20);
+    await open(page, [
+      { name: 'a.png', mimeType: 'image/png', buffer: png },
+      { name: 'b.png', mimeType: 'image/png', buffer: png },
+      { name: 'notas.txt', mimeType: 'text/plain', buffer: Buffer.from('linha 1\nlinha 2\n') }
+    ]);
+    await expect(page.getByTestId('viewer-position')).toHaveText('3 de 3');
+    await page.getByTestId('viewer-prev').click();
+    await expect(page.getByTestId('viewer-position')).toHaveText('2 de 3');
+    await expect(page.getByTestId('viewer-name')).toHaveText('b.png');
+    await page.getByTestId('viewer-next').click();
+    await page.getByTestId('viewer-next').click(); // dá a volta
+    await expect(page.getByTestId('viewer-name')).toHaveText('a.png');
+    await page.getByTestId('viewer-filter').fill('notas');
+    await expect(page.getByTestId('viewer-filter-count')).toHaveText('1 de 3 arquivos.');
+    await expect(page.getByTestId('viewer-files').locator('li')).toHaveCount(1);
+    await page.getByTestId('viewer-filter').fill('imagem');
+    await expect(page.getByTestId('viewer-files').locator('li')).toHaveCount(2);
+    const props = page.getByTestId('viewer-props');
+    await expect(props).toContainText('a.png');
+    await expect(props).toContainText('image/png');
+    await expect(props).toContainText(png.length.toLocaleString('pt-BR') + ' bytes');
+    await expect(props).toContainText('40 × 20 px');
+  });
+
+  test('apresentação de imagens troca sozinha e pára; tela cheia entra e sai', async ({ page }) => {
+    await page.goto('/apps/visualizador/');
+    const png = await pngBuffer(page, 30, 30);
+    await open(page, [{ name: 'um.png', mimeType: 'image/png', buffer: png }, { name: 'dois.png', mimeType: 'image/png', buffer: png }]);
+    await page.getByTestId('slide-interval').selectOption('1');
+    const first = (await page.getByTestId('viewer-name').textContent()) ?? '';
+    await page.getByTestId('slideshow').click();
+    await expect(page.getByTestId('slideshow')).toHaveText('Parar apresentação');
+    await expect(page.getByTestId('viewer-name')).not.toHaveText(first, { timeout: 4000 });
+    await page.getByTestId('slideshow').click();
+    await expect(page.getByTestId('slideshow')).toHaveText('Iniciar apresentação');
+    const stopped = await page.getByTestId('viewer-name').textContent();
+    await page.waitForTimeout(1600);
+    await expect(page.getByTestId('viewer-name')).toHaveText(stopped ?? '');
+    // Esc também pára
+    await page.getByTestId('slideshow').click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('slideshow')).toHaveText('Iniciar apresentação');
+
+    await page.getByTestId('viewer-fullscreen').click();
+    await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true);
+    await page.getByTestId('viewer-fullscreen').click();
+    await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(false);
+  });
+
+  test('abre uma cópia de um arquivo de texto no Código e mantém o original aqui', async ({ page }) => {
+    await page.goto('/apps/visualizador/');
+    await open(page, [{ name: 'nota.js', mimeType: 'text/javascript', buffer: Buffer.from("console.log('vindo do visualizador');\r\n") }]);
+    await expect(page.getByTestId('text-body')).toContainText('vindo do visualizador');
+    await tab(page, 'Arquivo').click();
+    await page.getByTestId('open-in-code').click();
+    await expect(page).toHaveURL(/\/apps\/codigo\/\?doc=/);
+    await expect(page.getByTestId('code-editor')).toHaveAttribute('data-file', 'nota.js');
+    await expect(page.getByTestId('code-editor')).toHaveValue("console.log('vindo do visualizador');\n");
+  });
+
   test('celular: sem rolagem horizontal e sem violações de acessibilidade', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/apps/visualizador/');
