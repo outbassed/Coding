@@ -77,7 +77,7 @@ test.describe('Imagens · colar e soltar', () => {
       dt.items.add(new File(['oi'], 'nota.txt', { type: 'text/plain' }));
       el.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
     });
-    await expect(page.getByText('Solte arquivos de imagem')).toBeVisible();
+    await expect(page.getByText('Solte arquivos de imagem').first()).toBeVisible();
     await expect(layers(page)).toHaveCount(1);
   });
 
@@ -98,7 +98,7 @@ test.describe('Imagens · colar e soltar', () => {
       dt.items.add(new File(['<svg xmlns="http://www.w3.org/2000/svg"/>'], 'x.svg', { type: 'image/svg+xml' }));
       document.body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
     });
-    await expect(page.getByText('SVG não é aceito como camada')).toBeVisible();
+    await expect(page.getByText('SVG não é aceito como camada').first()).toBeVisible();
     await expect(layers(page)).toHaveCount(1);
   });
 

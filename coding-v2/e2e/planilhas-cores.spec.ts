@@ -38,7 +38,7 @@ test.describe('Planilhas · cores', () => {
     await page.locator('th[data-row="4"]').click();
     await page.getByTestId('fg-c00000').click();
     await expect(cell(page, 'A4')).toHaveCSS('color', RED);
-    await expect(cell(page, 'L4')).toHaveCSS('color', RED);
+    await expect(cell(page, 'J4')).toHaveCSS('color', RED);
 
     // atalho do teclado: Ctrl+Espaço seleciona a coluna da célula ativa
     await cell(page, 'F3').click();
@@ -50,7 +50,7 @@ test.describe('Planilhas · cores', () => {
     await expect(cell(page, 'B2')).toHaveCSS('background-color', YELLOW);
     await expect(cell(page, 'B2')).toHaveCSS('color', RED);
     await expect(cell(page, 'D12')).toHaveCSS('background-color', GREEN);
-    await expect(cell(page, 'L4')).toHaveCSS('color', RED);
+    await expect(cell(page, 'J4')).toHaveCSS('color', RED);
 
     // XLSX baixado e importado de volta como nova aba mantém as cores
     await tab(page, 'Arquivo').click();
@@ -85,10 +85,11 @@ test.describe('Planilhas · cores', () => {
     await cell(page, 'B3').click();
     await page.getByTestId('select-column').click();
     await expect(page.getByTestId('cell-address')).toContainText('B1:B');
+    await cell(page, 'B3').click();
     await page.getByTestId('select-row').click();
-    await expect(page.getByTestId('cell-address')).toHaveText(/^A3:/);
+    await expect(page.getByTestId('cell-address')).toHaveText('A3:J3');
     await page.getByTestId('select-all').click();
-    await expect(page.getByTestId('cell-address')).toContainText('A1:L');
+    await expect(page.getByTestId('cell-address')).toContainText('A1:J');
     await page.locator('th[data-col="B"]').click();
     await page.locator('th[data-col="D"]').click({ modifiers: ['Shift'] });
     await expect(page.getByTestId('cell-address')).toContainText('B1:D');
