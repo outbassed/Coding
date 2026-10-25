@@ -60,6 +60,8 @@ async function pngFile(page: Page, w: number, h: number, fill: string): Promise<
 const RED: Rgb = [192, 57, 43];
 
 test.describe('Editor PDF · anotações', () => {
+  // a página A4 ocupa ~1260 px de altura; a janela alta evita que o mouse do teste saia da tela ao desenhar e arrastar
+  test.use({ viewport: { width: 1280, height: 1700 } });
   test('retângulo, elipse e linha aparecem na tela, se movem e vão para o PDF no lugar certo', async ({ page }) => {
     await newBlank(page);
     await page.getByTestId('add-rect').click();
