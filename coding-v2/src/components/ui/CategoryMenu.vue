@@ -16,7 +16,15 @@ const list = ref<HTMLElement | null>(null);
 const selectedIndex = computed(() => Math.max(0, options.findIndex((o) => o.id === props.modelValue)));
 const currentLabel = computed(() => options[selectedIndex.value]!.label);
 
+const listStyle = ref<Record<string, string>>({});
+/** No celular a lista ocupa a largura da tela (nunca passa da borda); no computador fica sob o botão. */
+function place(): void {
+  if (typeof window === 'undefined' || window.innerWidth >= 600 || !button.value) { listStyle.value = {}; return; }
+  const rect = button.value.getBoundingClientRect();
+  listStyle.value = { position: 'fixed', left: '12px', right: '12px', top: Math.round(rect.bottom + 6) + 'px', width: 'auto', maxWidth: 'none', minWidth: '0' };
+}
 async function openMenu(): Promise<void> {
+  place();
   open.value = true; active.value = selectedIndex.value;
   await nextTick(); list.value?.focus();
 }
@@ -39,10 +47,10 @@ function onListKey(event: KeyboardEvent): void {
 }
 function onOutside(event: Event): void { if (open.value && root.value && !root.value.contains(event.target as Node)) closeMenu(false); }
 watch(open, (isOpen) => {
-  if (isOpen) { document.addEventListener('pointerdown', onOutside, true); document.addEventListener('focusin', onOutside, true); }
-  else { document.removeEventListener('pointerdown', onOutside, true); document.removeEventListener('focusin', onOutside, true); }
+  if (isOpen) { document.addEventListener('pointerdown', onOutside, true); document.addEventListener('focusin', onOutside, true); window.addEventListener('scroll', place, true); window.addEventListener('resize', place); }
+  else { document.removeEventListener('pointerdown', onOutside, true); document.removeEventListener('focusin', onOutside, true); window.removeEventListener('scroll', place, true); window.removeEventListener('resize', place); }
 });
-onBeforeUnmount(() => { document.removeEventListener('pointerdown', onOutside, true); document.removeEventListener('focusin', onOutside, true); });
+onBeforeUnmount(() => { document.removeEventListener('pointerdown', onOutside, true); document.removeEventListener('focusin', onOutside, true); window.removeEventListener('scroll', place, true); window.removeEventListener('resize', place); });
 </script>
 
 <template>
@@ -51,7 +59,7 @@ onBeforeUnmount(() => { document.removeEventListener('pointerdown', onOutside, t
       <span class="cm-l">Categoria:</span> <strong>{{ currentLabel }}</strong>
       <NavIcon name="chevron-down" class="cm-i" />
     </button>
-    <ul v-show="open" :id="menuId" ref="list" class="cm-list" role="listbox" tabindex="-1" aria-label="Categorias" :aria-activedescendant="open ? menuId + '-' + active : undefined" data-testid="category-list" @keydown="onListKey">
+    <ul v-show="open" :id="menuId" ref="list" class="cm-list" :style="listStyle" role="listbox" tabindex="-1" aria-label="Categorias" :aria-activedescendant="open ? menuId + '-' + active : undefined" data-testid="category-list" @keydown="onListKey">
       <li v-for="(option, i) in options" :id="menuId + '-' + i" :key="option.id" role="option" class="cm-opt" :class="{ act: i === active }" :aria-selected="option.id === modelValue" :data-category="option.id" @click="choose(i)" @mousemove="active = i">{{ option.label }}</li>
     </ul>
   </div>

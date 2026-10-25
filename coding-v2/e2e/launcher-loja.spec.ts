@@ -60,7 +60,7 @@ test.describe('Launcher · loja no computador', () => {
     await expect(page.getByText('Nada encontrado.')).toBeVisible();
     await page.getByRole('button', { name: 'Limpar busca e filtros' }).first().click();
     await expect(page.locator('article.card')).toHaveCount(8);
-    await page.locator('article.card[data-tool="labels"]').getByRole('link', { name: 'Etiquetas' }).click();
+    await page.locator('article.card[data-tool="labels"]').getByRole('link', { name: 'Etiquetas', exact: true }).click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Etiquetas');
     await expect(page.getByTestId('ready-list')).toContainText('Colar lista de itens');
     await expect(page.getByTestId('detail-meta')).toContainText('Editor funcional');
@@ -130,7 +130,7 @@ test.describe('Launcher · loja no celular', () => {
         expect(new Set(boxes.slice(0,3).map(b => b.x)).size).toBe(3);
         expect(boxes[3]?.y).toBeGreaterThan(boxes[0]!.y);
         const labels = page.locator('article.card[data-tool="labels"]');
-        await labels.getByRole('link', { name: 'Etiquetas' }).click();
+        await labels.getByRole('link', { name: 'Etiquetas', exact: true }).click();
         await expect(page.getByTestId('detail-meta')).toContainText('Editor funcional');
         await expect(page.getByRole('link', { name: 'Abrir editor' })).toBeVisible();
         await expect(page.getByRole('searchbox')).toHaveCount(0);

@@ -20,5 +20,6 @@
 .beta { border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; }
 @media (max-width: 599px) {
   .top { gap: 10px; padding-inline: max(12px, var(--sa-l)) max(12px, var(--sa-r)); min-height: calc(52px + var(--sa-t)); }
+  .beta { display: none; }
 }
 </style>

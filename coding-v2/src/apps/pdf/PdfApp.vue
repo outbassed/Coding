@@ -76,11 +76,13 @@ const blankW = ref(210);
 const blankH = ref(297);
 const blankFresh = computed(() => state.value.pages.length === 0);
 function openBlank(): void {
+  blankFormat.value = 'a4'; blankOrientation.value = 'portrait'; blankCount.value = 1; blankW.value = 210; blankH.value = 297;
   blankName.value = blankFresh.value ? 'Documento em branco' : state.value.name;
   blankOpen.value = true;
 }
 function createBlank(): void {
-  const count = Math.min(MAX_NEW_PAGES, Math.max(1, Math.round(Number(blankCount.value)) || 1));
+  const wanted = Math.max(1, Math.round(Number(blankCount.value)) || 1);
+  const count = Math.min(MAX_NEW_PAGES, wanted);
   if (state.value.pages.length + count > MAX_PAGES) { fail('O projeto passaria de ' + MAX_PAGES + ' páginas.'); return; }
   const size = blankSize(blankFormat.value, blankOrientation.value, { w: blankW.value, h: blankH.value });
   const first = state.value.pages.length;
@@ -88,13 +90,19 @@ function createBlank(): void {
   if (first === 0) state.value.name = blankName.value.trim().slice(0, 200) || 'Documento em branco';
   current.value = first;
   blankOpen.value = false;
-  note(count + (count === 1 ? ' página em branco criada.' : ' páginas em branco criadas.'));
+  note(count + (count === 1 ? ' página em branco criada.' : ' páginas em branco criadas.') + (wanted > count ? ' O limite por vez é de ' + MAX_NEW_PAGES + ' páginas.' : ''));
 }
 /** Nova página em branco logo depois da atual, com o mesmo tamanho dela. */
-function insertBlankAfter(): void {
+async function insertBlankAfter(): Promise<void> {
   if (!page.value) return;
   if (state.value.pages.length >= MAX_PAGES) { fail('Limite de ' + MAX_PAGES + ' páginas.'); return; }
   const p = page.value;
+  // O tamanho vem da página realmente desenhada; se ela ainda não terminou de carregar, espera.
+  if (!p.blank && boxKey.value !== p.id + ':' + p.rotate) {
+    await nextTick();
+    await drawCurrent();
+    if (boxKey.value !== p.id + ':' + p.rotate) { fail('A página ainda está carregando. Tente de novo em instantes.'); return; }
+  }
   const size: BlankSize = p.blank ? { ...p.blank } : (p.rotate % 180 ? { w: pageBox.value.h, h: pageBox.value.w } : { w: pageBox.value.w, h: pageBox.value.h });
   state.value.pages.splice(current.value + 1, 0, { id: pid(), src: '', index: 0, rotate: 0, blank: size });
   current.value += 1;
@@ -105,6 +113,8 @@ const canvas = ref<HTMLCanvasElement | null>(null);
 const viewEl = ref<HTMLElement | null>(null);
 const viewW = ref(600);
 const pageBox = ref({ w: 595, h: 842 });
+/** Qual página (e giro) o `pageBox` descreve; evita usar o tamanho de outra página enquanto a atual carrega. */
+const boxKey = ref('');
 const zoom = ref(1);
 let token = 0;
 async function drawCurrent(): Promise<void> {
@@ -112,10 +122,12 @@ async function drawCurrent(): Promise<void> {
   const my = ++token;
   try {
     const width = Math.max(200, Math.min(1400, (viewW.value - 32) * zoom.value));
-    if (p.blank) { pageBox.value = renderBlank(p.blank, p.rotate, c, width); return; }
+    if (p.blank) { pageBox.value = renderBlank(p.blank, p.rotate, c, width); boxKey.value = p.id + ':' + p.rotate; return; }
     const d = await viewDoc(p.src, () => bytesOf(p.src));
     if (my !== token) return;
-    pageBox.value = await renderPage(d, p.index, p.rotate, c, width);
+    const box = await renderPage(d, p.index, p.rotate, c, width);
+    if (my !== token) return;
+    pageBox.value = box; boxKey.value = p.id + ':' + p.rotate;
   } catch (e) { if (my === token) fail((e as Error).message); }
 }
 watch([page, zoom, viewW, () => images.value.length], () => { void nextTick(drawCurrent); }, { deep: true });
@@ -314,7 +326,7 @@ function sourceName(src: string): string { return state.value.sources.find((s) =
       </div>
     </div>
     <ModalDialog :open="blankOpen" label="Criar páginas em branco" @close="blankOpen = false">
-      <form class="blank-form" data-testid="blank-dialog" @submit.prevent="createBlank">
+      <form class="blank-form" data-testid="blank-dialog" novalidate @submit.prevent="createBlank">
         <h2>{{ blankFresh ? 'Novo documento em branco' : 'Adicionar páginas em branco' }}</h2>
         <label v-if="blankFresh" class="bf"><span>Nome do arquivo</span><input v-model="blankName" class="inp" maxlength="200" data-testid="blank-name" data-autofocus /></label>
         <label class="bf"><span>Formato</span>

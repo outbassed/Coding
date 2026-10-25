@@ -19,8 +19,7 @@ for (const width of [1280, 768, 390, 320]) {
       expect(icon.y).toBeGreaterThanOrEqual(box.y);
       expect(icon.y + icon.height).toBeLessThanOrEqual(box.y + box.height + 1);
       const img = li.locator('img');
-      const natural = await img.evaluate((el) => (el as HTMLImageElement).naturalWidth);
-      expect(natural).toBeGreaterThan(0);
+      await expect.poll(() => img.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
     }
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
