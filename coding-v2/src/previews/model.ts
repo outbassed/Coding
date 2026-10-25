@@ -12,6 +12,10 @@ import { normalizeSheetLabels } from '../apps/sheet-labels/model';
 import { normalizeCalc as normalizeCalculator, preview as calculatorLive } from '../apps/calculator/model';
 import { formatNumber } from '../apps/calculator/format';
 import { normalizeColors } from '../apps/colors/model';
+import { normalizeCompare, bothTextual } from '../apps/compare/model';
+import { compareText } from '../apps/compare/diff';
+import { normalizeZip, totalSize as zipTotal } from '../apps/zip/model';
+import { formatBytes } from '../shared/bytes';
 
 /** Limites do que entra no cache: só o que cabe na primeira folha/tela precisa ser guardado. */
 export const MAX_PREVIEW_BLOCKS = 60;
@@ -85,7 +89,7 @@ export function textPreview(raw: unknown): Preview {
   return { kind: 'text', html: sanitizeTextHtml(out.body.innerHTML) };
 }
 
-const PREVIEW_TYPES = ['labels', 'texts', 'calc', 'sheet', 'codes', 'split', 'draw', 'images', 'pdf', 'calculator', 'colors'] as const;
+const PREVIEW_TYPES = ['labels', 'texts', 'calc', 'sheet', 'codes', 'split', 'draw', 'images', 'pdf', 'calculator', 'colors', 'zip', 'compare'] as const;
 export type PreviewType = typeof PREVIEW_TYPES[number];
 export function previewable(type: unknown): type is PreviewType { return typeof type === 'string' && (PREVIEW_TYPES as readonly string[]).includes(type); }
 const obj = (raw: unknown): Record<string, unknown> => (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {});
@@ -166,6 +170,26 @@ export function colorsPreview(raw: unknown): Preview {
   for (const p of s.palette.slice(0, 8)) lines.push([(p.name || 'Cor').slice(0, 30), p.hex]);
   return { kind: 'summary', title: s.name || 'Paleta de cores', lines };
 }
+export function zipPreview(raw: unknown): Preview {
+  need(raw, 'files');
+  const s = normalizeZip(raw);
+  const lines: [string, string][] = [['Arquivos', String(s.files.length)], ['Tamanho', formatBytes(zipTotal(s))], ['Gravação', s.compress ? 'Compactado' : 'Sem compressão']];
+  for (const f of s.files.slice(0, 6)) lines.push([f.path.slice(0, 30), formatBytes(f.size)]);
+  return { kind: 'summary', title: s.name || 'Arquivos compactados', lines };
+}
+export function comparePreview(raw: unknown): Preview {
+  const o = obj(raw);
+  if (typeof o.a !== 'object' || o.a === null || typeof o.b !== 'object' || o.b === null) throw new Error('Formato sem prévia');
+  const s = normalizeCompare(raw);
+  const lines: [string, string][] = [['A', s.a.name.slice(0, 30) + ' · ' + formatBytes(s.a.size)], ['B', s.b.name.slice(0, 30) + ' · ' + formatBytes(s.b.size)]];
+  if (bothTextual(s) && (s.a.kind !== 'empty' || s.b.kind !== 'empty')) {
+    const r = compareText(s.a.text, s.b.text, s.options);
+    if (r.tooLarge) lines.push(['Resultado', 'Arquivos grandes demais']);
+    else if (r.identical) lines.push(['Resultado', 'Idênticos']);
+    else lines.push(['Semelhança', r.stats.similarity + '%'], ['Trocadas', String(r.stats.changed)], ['Removidas', String(r.stats.removed)], ['Acrescentadas', String(r.stats.added)]);
+  } else if (!bothTextual(s)) lines.push(['Comparação', 'Byte a byte']);
+  return { kind: 'summary', title: s.name || 'Comparação de arquivos', lines };
+}
 export function pdfPreview(raw: unknown): Preview {
   need(raw, 'pages');
   const s = normalizePdf(raw);
@@ -187,6 +211,8 @@ export function buildPreview(type: string | undefined, state: unknown): Preview 
     case 'pdf': return pdfPreview(state);
     case 'calculator': return calculatorPreview(state);
     case 'colors': return colorsPreview(state);
+    case 'zip': return zipPreview(state);
+    case 'compare': return comparePreview(state);
     default: throw new Error('Tipo sem prévia');
   }
 }

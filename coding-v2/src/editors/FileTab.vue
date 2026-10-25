@@ -8,9 +8,9 @@ const emit = defineEmits<{ new: [id: string] }>();
 
 <template>
   <div class="file-tab">
-    <section class="ed-group" aria-labelledby="ft-export"><h3 id="ft-export">Exportar e imprimir</h3><div class="ed-row"><slot /></div><slot name="after" /></section>
+    <section class="ed-group" aria-labelledby="ft-export"><h2 id="ft-export">Exportar e imprimir</h2><div class="ed-row"><slot /></div><slot name="after" /></section>
     <section class="ed-group" aria-labelledby="ft-new">
-      <h3 id="ft-new">Novo a partir de um modelo</h3>
+      <h2 id="ft-new">Novo a partir de um modelo</h2>
       <ul class="tpl" data-testid="templates">
         <li v-for="t in templates" :key="t.id">
           <button type="button" class="tpl-btn" :data-template="t.id" @click="emit('new', t.id)"><strong>{{ t.name }}</strong><span>{{ t.description }}</span></button>

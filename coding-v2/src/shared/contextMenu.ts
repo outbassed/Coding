@@ -56,6 +56,16 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
     { label: 'Adicionar cor à paleta', selector: '[data-testid="add-base"]', tab: 'Cor' },
     { label: 'Ver contraste', selector: '[data-testid="contrast-ratio"]', tab: 'Contraste' },
     { label: 'Exportar CSS', selector: '[data-testid="export-css"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' }
+  ],
+  zip: [
+    { label: 'Criar e baixar o ZIP', selector: '[data-testid="create-zip"]', tab: 'Compactar' },
+    { label: 'Abrir um ZIP', selector: '[data-testid="zip-open-input"]', tab: 'Abrir ZIP' },
+    { label: 'Esvaziar projeto', selector: '[data-testid="clear-project"]', tab: 'Arquivos' }
+  ],
+  compare: [
+    { label: 'Próxima diferença', selector: '[data-testid="next-diff"]' },
+    { label: 'Trocar A e B', selector: '[data-testid="swap-sides"]', tab: 'Arquivos' },
+    { label: 'Exportar diferenças', selector: '[data-testid="export-diff"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' }
   ]
 };
 

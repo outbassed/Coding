@@ -23,7 +23,9 @@ export default defineConfig({
         'sorteio': resolve(import.meta.dirname, 'apps/sorteio/index.html'),
         'racha-conta': resolve(import.meta.dirname, 'apps/racha-conta/index.html'),
         'calculadora': resolve(import.meta.dirname, 'apps/calculadora/index.html'),
-        'cores': resolve(import.meta.dirname, 'apps/cores/index.html')
+        'cores': resolve(import.meta.dirname, 'apps/cores/index.html'),
+        'zip': resolve(import.meta.dirname, 'apps/zip/index.html'),
+        'comparador': resolve(import.meta.dirname, 'apps/comparador/index.html')
       }
     }
   }

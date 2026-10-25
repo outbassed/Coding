@@ -5,7 +5,7 @@ import FileTab from '../../editors/FileTab.vue';
 import { useDocument } from '../../editors/useDocument';
 import { downloadText, safeFileName } from '../../shared/files/download';
 import {
-  bestText, cssCmyk, cssHsl, cssHsv, cssRgb, extractPalette, hslToRgb, parseColor, rgbToHsl, SCHEMES, suggestForeground, toHex, wcag, type SchemeKind
+  bestText, cssCmyk, cssHsl, cssHsv, cssRgb, extractPalette, hslToRgb, parseColor, rgbToHsl, SCHEMES, suggestForeground, toHex, wcag
 } from './color';
 import {
   addColors, hexOf, importFromText, MAX_SWATCHES, moveSwatch, paletteCss, paletteJson, paletteSvg, paletteText, removeSwatch, renameSwatch, schemeHexes, type ColorsState
@@ -94,9 +94,9 @@ function onPair(which: 'fg' | 'bg'): void {
   const hex = hexOf(which === 'fg' ? fgDraft.value : bgDraft.value);
   if (hex) set(which === 'fg' ? { fg: hex } : { bg: hex });
 }
-function pickPair(which: 'fg' | 'bg', event: Event): void { const v = hexOf((event.target as HTMLInputElement).value); if (v) set({ [which]: v }); }
+function pickPair(which: 'fg' | 'bg', event: Event): void { const v = hexOf((event.target as HTMLInputElement).value); if (v) set(which === 'fg' ? { fg: v } : { bg: v }); }
 function swapPair(): void { set({ fg: state.value.bg, bg: state.value.fg }); }
-function useBaseIn(which: 'fg' | 'bg'): void { set({ [which]: state.value.base }); }
+function useBaseIn(which: 'fg' | 'bg'): void { set(which === 'fg' ? { fg: state.value.base } : { bg: state.value.base }); }
 function applySuggestion(): void { if (suggestion.value) { set({ fg: suggestion.value }); doc.say('Texto ajustado para ' + suggestion.value + '.'); } }
 const checks = computed(() => [
   { id: 'aa', label: 'AA, texto normal (4,5)', ok: report2.value.aaNormal },

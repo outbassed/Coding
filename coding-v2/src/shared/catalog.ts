@@ -1,4 +1,4 @@
-export type ToolId = 'labels' | 'texts' | 'calc' | 'images' | 'pdf' | 'codes' | 'draw' | 'split' | 'calculator' | 'colors';
+export type ToolId = 'labels' | 'texts' | 'calc' | 'images' | 'pdf' | 'codes' | 'draw' | 'split' | 'calculator' | 'colors' | 'zip' | 'compare';
 
 /**
  * preview: o app existe no Coding 2.0 (Prévia). Com `ready` preenchido, o editor é funcional.
@@ -48,6 +48,8 @@ const READY_codes = ['QR code, Code 128, EAN-13, EAN-8, UPC-A e Code 39', 'Valid
 const READY_draw = ['Roleta animada (respeita “reduzir movimento”)', 'Números, dados e equipes', 'Não repetir quem já foi sorteado', 'Histórico salvo no documento', 'Modelos prontos para editar'] as const;
 const READY_split = ['Pessoas e despesas', 'Divisão igual, por porcentagem ou por valores', 'Saldos e acertos sugeridos', 'Cálculos em centavos inteiros', 'Exportar CSV e TXT; imprimir'] as const;
 const READY_colors = ['Cor atual em HEX, RGB, HSL, HSV e CMYK, com seletor, sliders e conta-gotas (quando o navegador permite)', 'Harmonias: complementar, análoga, tríade, tétrade, dividida, monocromática e escala de tons', 'Verificador de contraste WCAG com sugestão de texto', 'Extração das cores dominantes de uma imagem, feita só neste aparelho', 'Paleta salva com nomes, exportada em CSS, JSON, SVG ou TXT'] as const;
+const READY_zip = ['Junte vários arquivos num único .zip e escolha entre compactar ou só agrupar', 'Abra um .zip, veja o conteúdo e extraia só o que precisar', 'Teste de integridade (tamanho e CRC-32) de cada arquivo', 'Recusa ZIPs com senha, corrompidos ou perigosos; nomes de caminho são limpos', 'Tudo no aparelho: os arquivos do projeto ficam salvos, nada é enviado'] as const;
+const READY_compare = ['Compara dois textos linha a linha (algoritmo de Myers) com destaque por palavra, lado a lado ou unificado', 'Ignora maiúsculas, espaços e linhas em branco, e nunca conta Windows × Linux como diferença', 'Arquivos que não são texto: byte a byte, com a primeira diferença em hexadecimal', 'Tamanho e SHA-256 de cada lado', 'Exporta as diferenças (.diff, igual ao diff -u) e um relatório'] as const;
 const READY_calculator = ['Modo Básico (teclado, memória e porcentagem) e modo Pro (funções científicas)', 'Leitor de expressões próprio e seguro: nada é executado como código', 'Graus ou radianos, casas decimais e variáveis com nome', 'Histórico salvo com reuso da conta ou do resultado', 'Copiar resultado e exportar o histórico'] as const;
 
 export const tools: readonly CodingTool[] = [
@@ -60,7 +62,9 @@ export const tools: readonly CodingTool[] = [
   { id: 'draw', category: 'fun', ready: READY_draw, name: 'Sorteio', description: 'Roleta, equipes, dados e números', color: '#F5B820', textLight: '#896712', textDark: '#F5B820', path: '/apps/sorteio/', legacyHash: '#/sorteio', status: 'preview', initiallyActive: true, planned: ['Sorteio com pesos', 'Exportar o resultado como imagem'] },
   { id: 'split', category: 'data', ready: READY_split, name: 'Racha-conta', description: 'Divisão de despesas e resumos', color: '#84CC16', textLight: '#4F7A0D', textDark: '#84CC16', path: '/apps/racha-conta/', legacyHash: '#/racha', status: 'preview', initiallyActive: true, planned: ['Várias moedas', 'Compartilhar o resumo por link'] },
   { id: 'calculator', category: 'fun', ready: READY_calculator, name: 'Calculadora', description: 'Básica e Pro, com histórico', color: '#7C8BFF', textLight: '#4351C8', textDark: '#7C8BFF', path: '/apps/calculadora/', legacyHash: null, status: 'preview', initiallyActive: true, planned: ['Conversão de unidades', 'Calculadora financeira e de datas'] },
-  { id: 'colors', category: 'fun', ready: READY_colors, name: 'Estúdio de Cores', description: 'Paletas, harmonias e contraste', color: '#EC6FB5', textLight: '#B02F7C', textDark: '#EC6FB5', path: '/apps/cores/', legacyHash: null, status: 'preview', initiallyActive: true, planned: ['Paletas a partir de URLs de sites', 'Simulação de daltonismo'] }
+  { id: 'colors', category: 'fun', ready: READY_colors, name: 'Estúdio de Cores', description: 'Paletas, harmonias e contraste', color: '#EC6FB5', textLight: '#B02F7C', textDark: '#EC6FB5', path: '/apps/cores/', legacyHash: null, status: 'preview', initiallyActive: true, planned: ['Paletas a partir de URLs de sites', 'Simulação de daltonismo'] },
+  { id: 'zip', category: 'data', ready: READY_zip, name: 'Compactador ZIP', description: 'Criar, abrir e conferir arquivos ZIP', color: '#2DB89C', textLight: '#0E7562', textDark: '#2DB89C', path: '/apps/zip/', legacyHash: null, status: 'preview', initiallyActive: true, planned: ['ZIP com senha', 'Arrastar e soltar pastas inteiras'] },
+  { id: 'compare', category: 'data', ready: READY_compare, name: 'Comparador de Arquivos', description: 'Diferenças entre textos e arquivos', color: '#8FA6C2', textLight: '#4A6A8F', textDark: '#8FA6C2', path: '/apps/comparador/', legacyHash: null, status: 'preview', initiallyActive: true, planned: ['Comparar pastas inteiras', 'Mesclar as diferenças'] }
 ] as const;
 
 export const isToolId = (value: unknown): value is ToolId => typeof value === 'string' && tools.some((tool) => tool.id === value);

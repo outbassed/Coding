@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 
 /** Quantidade de aplicativos do catálogo (cartões no Catálogo e no Início). */
-export const APP_COUNT = 10;
+export const APP_COUNT = 12;
 
 export const SCHEMA = 'coding-v2-safe-backup';
 export function backupDoc(id: string, name: string, opts: { type?: string; image?: boolean; updatedAt?: number } = {}) {
