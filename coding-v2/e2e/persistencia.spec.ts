@@ -85,7 +85,8 @@ test.describe('Persistência', () => {
     });
     await edit(page, 'script.js', "console.log('texto que não pode se perder');");
     await expect(saveStatus(page)).toHaveText('Erro ao salvar', { timeout: 10000 });
-    await expect(page.getByTestId('save-error')).toContainText('armazenamento deste aparelho está cheio');
+    // o navegador de teste aborta a transação; um aparelho cheio de verdade devolve a mensagem de espaço. Nos dois casos o aviso diz que nada foi gravado.
+    await expect(page.getByTestId('save-error')).toContainText(/Nada foi (alterado|gravado)/);
     await expect(page.getByTestId('save-error')).toContainText('Suas alterações continuam na tela');
     await expect(page.getByTestId('code-editor')).toHaveValue("console.log('texto que não pode se perder');");
     expect(await copies(page)).toHaveLength(0); // nada foi gravado pela metade

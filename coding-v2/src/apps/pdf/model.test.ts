@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blankSize, normalizePdf, parseRanges, toPdfSpace, winAnsi } from './model';
+import { blankSize, MAX_INK_POINTS, normalizePdf, parseRanges, thinPoints, toPdfSpace, winAnsi } from './model';
 import { pdfTemplates } from './kind';
 
 describe('Editor PDF', () => {
@@ -51,5 +51,43 @@ describe('Editor PDF', () => {
     const b = pdfTemplates.find((t) => t.id === 'branco-a4-paisagem')!.create();
     expect(a.pages[0]!.blank!.h).toBeGreaterThan(a.pages[0]!.blank!.w);
     expect(b.pages[0]!.blank!.w).toBeGreaterThan(b.pages[0]!.blank!.h);
+  });
+  describe('anotações: elipse, linha, desenho livre e imagem', () => {
+    const base = { sources: [], pages: [{ id: 'b1', src: '', index: 0, rotate: 0, blank: { w: 595, h: 842 } }] };
+    it('mantém espessura, diagonal e traço, limitando valores absurdos', () => {
+      const s = normalizePdf({ ...base, annotations: [
+        { id: 'e', page: 'b1', kind: 'ellipse', stroke: 999 },
+        { id: 'l', page: 'b1', kind: 'line', flip: true, stroke: -4 },
+        { id: 'i', page: 'b1', kind: 'ink', points: [0, 0, 2, -1, 0.5, 0.5], stroke: 3 }
+      ] });
+      expect(s.annotations.map((a) => a.kind)).toEqual(['ellipse', 'line', 'ink']);
+      expect(s.annotations[0]!.stroke).toBe(24);
+      expect(s.annotations[1]).toMatchObject({ flip: true, stroke: 0.5 });
+      expect(s.annotations[2]!.points).toEqual([0, 0, 1, 0, 0.5, 0.5]);
+    });
+    it('desenho sem pelo menos dois pontos e imagem sem arquivo são descartados', () => {
+      const s = normalizePdf({ ...base, annotations: [
+        { id: 'i1', page: 'b1', kind: 'ink', points: [0.1, 0.1] }, { id: 'i2', page: 'b1', kind: 'ink' },
+        { id: 'm1', page: 'b1', kind: 'image' }, { id: 'm2', page: 'b1', kind: 'image', img: 'pdfimg-1' }
+      ] });
+      expect(s.annotations.map((a) => a.id)).toEqual(['m2']);
+      expect(s.annotations[0]!.img).toBe('pdfimg-1');
+    });
+    it('tipo desconhecido vira texto; texto não ganha campos de forma; reabre igual', () => {
+      const s = normalizePdf({ ...base, annotations: [{ id: 't', page: 'b1', kind: 'foguete', text: 'oi', stroke: 5, points: [1, 2, 3, 4] }, { id: 'r', page: 'b1', kind: 'rect' }] });
+      expect('stroke' in s.annotations[0]!).toBe(false);
+      expect('points' in s.annotations[0]!).toBe(false);
+      expect(s.annotations[1]!.stroke).toBe(2);
+      expect(normalizePdf(JSON.parse(JSON.stringify(s)))).toEqual(s);
+    });
+    it('traços longos são reduzidos mantendo início e fim', () => {
+      const pts: number[] = [];
+      for (let i = 0; i < 5000; i++) pts.push(i / 4999, (i % 10) / 10);
+      const thin = thinPoints(pts);
+      expect(thin).toHaveLength(MAX_INK_POINTS * 2);
+      expect(thin.slice(0, 2)).toEqual([0, 0]);
+      expect(thin.slice(-2)).toEqual([1, (4999 % 10) / 10]);
+      expect(thinPoints([0.1, 0.2, 0.3, 0.4])).toEqual([0.1, 0.2, 0.3, 0.4]);
+    });
   });
 });

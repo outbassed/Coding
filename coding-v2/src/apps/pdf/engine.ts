@@ -1,5 +1,7 @@
 import { hexToRgb, toPdfSpace, winAnsi, type Annotation, type BlankSize, type PdfPage } from './model';
 
+const isPng = (b: Uint8Array): boolean => b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
+
 /* Bibliotecas do Coding 1.0 (pdf-lib e pdf.js), carregadas sob demanda a partir de /vendor/. */
 interface PdfLibGlobal {
   PDFDocument: { load(bytes: Uint8Array, opts?: Record<string, unknown>): Promise<PdfLibDoc>; create(): Promise<PdfLibDoc> };
@@ -7,8 +9,8 @@ interface PdfLibGlobal {
   degrees(n: number): unknown;
   rgb(r: number, g: number, b: number): unknown;
 }
-interface PdfLibPage { getSize(): { width: number; height: number }; getRotation(): { angle: number }; setRotation(r: unknown): void; drawText(t: string, o: Record<string, unknown>): void; drawRectangle(o: Record<string, unknown>): void }
-interface PdfLibDoc { getPageCount(): number; copyPages(src: PdfLibDoc, idx: number[]): Promise<PdfLibPage[]>; addPage(p?: PdfLibPage | [number, number]): PdfLibPage; embedFont(name: string): Promise<{ widthOfTextAtSize(t: string, s: number): number }>; save(o?: Record<string, unknown>): Promise<Uint8Array>; setTitle(t: string): void; setProducer(t: string): void; setCreator(t: string): void; isEncrypted?: boolean }
+interface PdfLibPage { getSize(): { width: number; height: number }; getRotation(): { angle: number }; setRotation(r: unknown): void; drawText(t: string, o: Record<string, unknown>): void; drawRectangle(o: Record<string, unknown>): void; drawEllipse(o: Record<string, unknown>): void; drawLine(o: Record<string, unknown>): void; drawImage(img: unknown, o: Record<string, unknown>): void }
+interface PdfLibDoc { getPageCount(): number; copyPages(src: PdfLibDoc, idx: number[]): Promise<PdfLibPage[]>; addPage(p?: PdfLibPage | [number, number]): PdfLibPage; embedFont(name: string): Promise<{ widthOfTextAtSize(t: string, s: number): number }>; embedPng(bytes: Uint8Array): Promise<unknown>; embedJpg(bytes: Uint8Array): Promise<unknown>; save(o?: Record<string, unknown>): Promise<Uint8Array>; setTitle(t: string): void; setProducer(t: string): void; setCreator(t: string): void; isEncrypted?: boolean }
 interface PdfJsDoc { numPages: number; getPage(n: number): Promise<PdfJsPage>; destroy(): Promise<void> }
 interface PdfJsPage { rotate: number; getViewport(o: { scale: number; rotation?: number }): { width: number; height: number }; render(o: { canvasContext: CanvasRenderingContext2D; viewport: unknown }): { promise: Promise<void>; cancel(): void } }
 interface PdfJsGlobal { getDocument(o: Record<string, unknown>): { promise: Promise<PdfJsDoc> }; GlobalWorkerOptions: { workerSrc: string } }
@@ -101,6 +103,7 @@ export async function buildPdf(pages: readonly PdfPage[], annotations: readonly 
   out.setTitle(title); out.setProducer('Coding 2.0'); out.setCreator('Coding 2.0 · Editor PDF');
   const docs = new Map<string, PdfLibDoc>();
   const font = await out.embedFont(L.StandardFonts.Helvetica!);
+  const embedded = new Map<string, unknown>();
   for (const p of pages) {
     let page: PdfLibPage;
     if (p.blank) page = out.addPage([p.blank.w, p.blank.h]);
@@ -120,15 +123,37 @@ export async function buildPdf(pages: readonly PdfPage[], annotations: readonly 
     for (const a of annotations.filter((x) => x.page === p.id)) {
       const [r, g, b] = hexToRgb(a.color);
       const dw = a.w * Dw, dh = a.h * Dh, dx = a.x * Dw, dy = a.y * Dh;
+      const thickness = a.stroke ?? 2;
       if (a.kind === 'text') {
         const lines = winAnsi(a.text).split('\n');
         lines.forEach((line, i) => {
           const pt = toPdfSpace(dx, dy + a.size * (0.85 + i * 1.2), W, H, total);
           page.drawText(line, { x: pt.x, y: pt.y, size: a.size, font, color: L.rgb(r, g, b), rotate: L.degrees(total) });
         });
-      } else {
+      } else if (a.kind === 'rect' || a.kind === 'highlight') {
         const pt = toPdfSpace(dx, dy + dh, W, H, total);
-        page.drawRectangle({ x: pt.x, y: pt.y, width: dw, height: dh, rotate: L.degrees(total), ...(a.kind === 'highlight' ? { color: L.rgb(r, g, b), opacity: 0.35 } : { borderColor: L.rgb(r, g, b), borderWidth: 2 }) });
+        page.drawRectangle({ x: pt.x, y: pt.y, width: dw, height: dh, rotate: L.degrees(total), ...(a.kind === 'highlight' ? { color: L.rgb(r, g, b), opacity: 0.35 } : { borderColor: L.rgb(r, g, b), borderWidth: thickness }) });
+      } else if (a.kind === 'ellipse') {
+        const c = toPdfSpace(dx + dw / 2, dy + dh / 2, W, H, total);
+        page.drawEllipse({ x: c.x, y: c.y, xScale: dw / 2, yScale: dh / 2, rotate: L.degrees(total), borderColor: L.rgb(r, g, b), borderWidth: thickness });
+      } else if (a.kind === 'line') {
+        const from = toPdfSpace(dx, a.flip ? dy + dh : dy, W, H, total), to = toPdfSpace(dx + dw, a.flip ? dy : dy + dh, W, H, total);
+        page.drawLine({ start: from, end: to, thickness, color: L.rgb(r, g, b), lineCap: 1 });
+      } else if (a.kind === 'ink' && a.points) {
+        const pts = a.points;
+        for (let i = 0; i + 3 < pts.length; i += 2) {
+          const from = toPdfSpace(dx + pts[i]! * dw, dy + pts[i + 1]! * dh, W, H, total), to = toPdfSpace(dx + pts[i + 2]! * dw, dy + pts[i + 3]! * dh, W, H, total);
+          page.drawLine({ start: from, end: to, thickness, color: L.rgb(r, g, b), lineCap: 1 });
+        }
+      } else if (a.kind === 'image' && a.img) {
+        let image = embedded.get(a.img);
+        if (!image) {
+          const raw = await bytesOf(a.img);
+          image = isPng(raw) ? await out.embedPng(raw) : await out.embedJpg(raw);
+          embedded.set(a.img, image);
+        }
+        const pt = toPdfSpace(dx, dy + dh, W, H, total);
+        page.drawImage(image, { x: pt.x, y: pt.y, width: dw, height: dh, rotate: L.degrees(total) });
       }
     }
   }
