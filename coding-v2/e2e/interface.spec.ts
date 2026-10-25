@@ -88,10 +88,10 @@ test.describe('comportamento', () => {
     await expect(page.locator('article.card[data-tool="texts"]')).toHaveCount(0);
   });
 
-  test('busca no topo leva ao catálogo filtrado', async ({ page }) => {
-    await page.goto('/launcher/');
-    await page.getByRole('searchbox', { name: 'Buscar aplicativos' }).fill('sorteio');
-    await expect(page).toHaveURL(/#\/catalogo\?q=sorteio/);
+  test('a busca do catálogo filtra no lugar, sem trocar de tela', async ({ page }) => {
+    await page.goto('/launcher/#/catalogo');
+    await page.getByRole('searchbox', { name: 'Buscar no catálogo' }).fill('sorteio');
+    await expect(page).toHaveURL(/#\/catalogo$/);
     await expect(page.locator('article.card')).toHaveCount(1);
   });
 

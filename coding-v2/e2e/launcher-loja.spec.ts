@@ -45,21 +45,21 @@ test.describe('Launcher · loja no computador', () => {
 
   test('Catálogo: categorias, busca, filtros, limpar e detalhes', async ({ page }) => {
     await page.goto('/launcher/#/catalogo');
-    await expect(page.getByTestId('spotlight')).toBeVisible();
     await expect(page.locator('article.card')).toHaveCount(8);
-    await page.getByRole('button', { name: 'Etiquetas e códigos' }).click();
-    await expect(page.locator('article.card')).toHaveCount(3);
-    await expect(page.getByTestId('spotlight')).toHaveCount(0);
+    await page.getByTestId('category-button').click();
+    await page.getByRole('option', { name: 'Etiquetas e códigos' }).click();
+    await expect(page.getByTestId('category-button')).toContainText('Etiquetas e códigos');
+    await expect(page.locator('article.card')).toHaveCount(2);
     await expect(page.getByRole('button', { name: 'Em breve', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Não ativados', exact: true }).click();
     await expect(page.locator('article.card')).toHaveCount(0);
     await page.getByTestId('clear-filters').click();
     await expect(page.locator('article.card')).toHaveCount(8);
-    await page.getByRole('searchbox', { name: 'Buscar aplicativos' }).fill('zzzz');
+    await page.getByRole('searchbox', { name: 'Buscar no catálogo' }).fill('zzzz');
     await expect(page.getByText('Nada encontrado.')).toBeVisible();
     await page.getByRole('button', { name: 'Limpar busca e filtros' }).first().click();
     await expect(page.locator('article.card')).toHaveCount(8);
-    await page.getByTestId('spotlight').getByRole('link', { name: 'Ver detalhes' }).click();
+    await page.locator('article.card[data-tool="labels"]').getByRole('link', { name: 'Etiquetas' }).click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Etiquetas');
     await expect(page.getByTestId('ready-list')).toContainText('Colar lista de itens');
     await expect(page.getByTestId('detail-meta')).toContainText('Editor funcional');
@@ -132,7 +132,7 @@ test.describe('Launcher · loja no celular', () => {
         await labels.getByRole('link', { name: 'Etiquetas' }).click();
         await expect(page.getByTestId('detail-meta')).toContainText('Editor funcional');
         await expect(page.getByRole('link', { name: 'Abrir editor' })).toBeVisible();
-        await expect(page.getByRole('searchbox', { name: 'Buscar aplicativos' })).toBeVisible();
+        await expect(page.getByRole('searchbox')).toHaveCount(0);
         await axeClean(page);
       });
 

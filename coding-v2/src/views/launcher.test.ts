@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
 import { mountLauncher, violations } from '../test/helpers';
 
-beforeEach(() => { localStorage.clear(); });
+beforeEach(() => { localStorage.clear(); sessionStorage.clear(); });
 afterEach(() => { document.body.innerHTML = ''; });
 
 describe('Launcher · telas', () => {
@@ -27,11 +27,10 @@ describe('Launcher · telas', () => {
   });
 
   it('busca ignora acentos', async () => {
-    const { wrapper, router } = await mountLauncher('/catalogo');
-    await router.replace({ name: 'catalog', query: { q: 'planilha' } });
-    await flushPromises();
+    const { wrapper } = await mountLauncher('/catalogo');
+    await wrapper.get('#catalog-search').setValue('PLANILHÁ');
     const names = wrapper.findAll('article.card h3').map((h) => h.text());
-    expect(names).toEqual(expect.arrayContaining(['Planilhas', 'Planilha → Etiquetas']));
+    expect(names).toEqual(['Planilhas']);
     expect(names).not.toContain('Texto');
     wrapper.unmount();
   });
@@ -88,12 +87,20 @@ describe('Launcher · aparência de loja', () => {
     wrapper.unmount();
   });
 
-  it('Catálogo filtra por categoria e mostra o destaque só sem filtros', async () => {
+  it('Catálogo filtra pela lista suspensa de categorias e combina com a busca', async () => {
     const { wrapper } = await mountLauncher('/catalogo');
-    expect(wrapper.find('[data-testid="spotlight"]').exists()).toBe(true);
-    await wrapper.findAll('button.cat').find((b) => b.text() === 'Etiquetas e códigos')?.trigger('click');
-    expect(wrapper.findAll('article.card h3').map((h) => h.text()).sort()).toEqual(['Etiquetas', 'Planilha → Etiquetas', 'QR / Barras']);
-    expect(wrapper.find('[data-testid="spotlight"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="category-list"]').isVisible()).toBe(false);
+    await wrapper.get('[data-testid="category-button"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.get('[data-testid="category-list"]').isVisible()).toBe(true);
+    await wrapper.get('[data-category="labels"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.get('[data-testid="category-button"]').text()).toContain('Etiquetas e códigos');
+    expect(wrapper.findAll('article.card h3').map((h) => h.text()).sort()).toEqual(['Etiquetas', 'QR / Barras']);
+    await wrapper.get('#catalog-search').setValue('qr');
+    expect(wrapper.findAll('article.card h3').map((h) => h.text())).toEqual(['QR / Barras']);
+    await wrapper.get('#catalog-search').setValue('texto');
+    expect(wrapper.findAll('article.card')).toHaveLength(0);
     await wrapper.find('[data-testid="clear-filters"]').trigger('click');
     await flushPromises();
     expect(wrapper.findAll('article.card')).toHaveLength(8);
