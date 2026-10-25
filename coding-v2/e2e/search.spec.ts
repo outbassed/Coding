@@ -122,7 +122,7 @@ test.describe('Lista suspensa de categorias', () => {
     await page.goto('/launcher/#/catalogo');
     await page.getByTestId('category-button').click();
     await page.getByRole('option', { name: 'Planilhas e contas' }).click();
-    await expect(page.locator('article.card')).toHaveCount(2);
+    await expect(page.locator('article.card')).toHaveCount(4); // Planilhas, Racha-conta, Compactador ZIP e Comparador
     await page.getByRole('button', { name: 'Ativados', exact: true }).click();
     await catalogBox(page).fill('racha');
     await expect(page.locator('article.card')).toHaveCount(1);

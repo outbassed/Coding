@@ -183,9 +183,11 @@ test.describe('Comparador de Arquivos', () => {
     await page.setViewportSize({ width: 320, height: 640 });
     await page.goto('/apps/comparador/?modelo=versoes');
     await expect(page.getByTestId('diff-view')).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    // Se estourar, o erro aponta quais elementos passam da largura da tela.
+    const wide = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth ? [] : Array.from(document.querySelectorAll('body *')).filter((el) => el.getBoundingClientRect().right > window.innerWidth + 1 && el.getBoundingClientRect().width > 0).slice(0, 6).map((el) => el.tagName.toLowerCase() + '.' + String(el.className).slice(0, 30) + ' ' + Math.round(el.getBoundingClientRect().right)));
+    expect(await wide()).toEqual([]);
     await tab(page, 'Arquivos').click();
     await page.getByTestId('side-a-file').waitFor();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(await wide()).toEqual([]);
   });
 });

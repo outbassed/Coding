@@ -291,7 +291,7 @@ const rowText = (side: { n: number; text: string } | undefined): string => (side
 </template>
 
 <style scoped>
-.stage { display: grid; gap: 16px; width: min(100%, 1100px); margin: 0 auto; padding: 14px max(14px, var(--sa-r)) 28px max(14px, var(--sa-l)); box-sizing: border-box; min-width: 0; }
+.stage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; width: min(100%, 1100px); margin: 0 auto; padding: 14px max(14px, var(--sa-r)) 28px max(14px, var(--sa-l)); box-sizing: border-box; min-width: 0; }
 .sh { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .ed-label-h { margin: 0; font-size: 14px; }
 .side { display: grid; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
@@ -307,14 +307,14 @@ textarea.inp { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menl
 .hash dt { font-weight: 700; overflow-wrap: anywhere; }
 .hash dd { margin: 0 0 8px; display: grid; gap: 2px; min-width: 0; }
 .hash code { overflow-wrap: anywhere; font-size: 12.5px; }
-.hexwrap { display: grid; gap: 6px; overflow-x: auto; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.hexwrap { max-width: 100%; display: grid; gap: 6px; overflow-x: auto; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .hexrow { display: grid; grid-template-columns: 70px max-content max-content; gap: 12px; align-items: start; }
 .off { color: var(--muted); }
 .hx { white-space: pre; }
 mark { background: color-mix(in srgb, var(--danger) 28%, transparent); color: inherit; border-radius: 3px; }
-.diff { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); font: 13.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-x: auto; }
+.diff { max-width: 100%; box-sizing: border-box; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); font: 13.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-x: auto; }
 .drow { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px minmax(0, 1fr); min-width: 0; }
-.drow > span { padding: 1px 6px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.drow > span { min-width: 0; padding: 1px 6px; overflow-wrap: anywhere; white-space: pre-wrap; }
 .ln { text-align: right; color: var(--muted); user-select: none; border-right: 1px solid var(--border); }
 .drow[data-kind="del"] .a, .drow[data-kind="chg"] .a { background: color-mix(in srgb, var(--danger) 12%, transparent); }
 .drow[data-kind="add"] .b, .drow[data-kind="chg"] .b { background: color-mix(in srgb, var(--ok) 14%, transparent); }

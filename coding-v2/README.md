@@ -34,12 +34,16 @@ npm run dev
 | `/apps/planilha-etiquetas/` | Aviso estático: o app Planilha → Etiquetas foi incorporado a Etiquetas |
 | `/apps/sorteio/` | Sorteio |
 | `/apps/racha-conta/` | Racha-conta |
+| `/apps/calculadora/` | Calculadora (Básica e Pro) |
+| `/apps/cores/` | Estúdio de Cores |
+| `/apps/zip/` | Compactador ZIP |
+| `/apps/comparador/` | Comparador de Arquivos |
 
 Todo app aceita `?doc=<id>` (abre um documento salvo) e `?modelo=<id>` (começa por um modelo editável). Sem parâmetro, abre o primeiro modelo: dá para experimentar sem enviar arquivo.
 
 ## Arquitetura
 
-- **Casca única dos editores** (`src/editors/EditorShell.vue`): segue o **padrão Etiquetas**. No computador, ferramentas em uma sidebar esquerda de 296–460 px, ajustável/recolhível, e prévia à direita; a lista de miniaturas do Editor PDF fica dentro da sidebar. No celular/tablet estreito, a prévia fica acima da gaveta de ferramentas, que pode ser recolhida, expandida por etapas e ajustada arrastando a alça, com categorias fixas na parte inferior. O layout respeita o teclado virtual (`visualViewport`) e as áreas seguras. Os nove aplicativos mantêm seus próprios recursos de edição; Texto e Etiquetas usam cascas próprias com o mesmo princípio.
+- **Casca única dos editores** (`src/editors/EditorShell.vue`): segue o **padrão Etiquetas**. No computador, ferramentas em uma sidebar esquerda de 296–460 px, ajustável/recolhível, e prévia à direita; a lista de miniaturas do Editor PDF fica dentro da sidebar. No celular/tablet estreito, a prévia fica acima da gaveta de ferramentas, que pode ser recolhida, expandida por etapas e ajustada arrastando a alça, com categorias fixas na parte inferior. O layout respeita o teclado virtual (`visualViewport`) e as áreas seguras. Os doze aplicativos mantêm seus próprios recursos de edição; Texto e Etiquetas usam cascas próprias com o mesmo princípio.
 - **Documentos** (`src/editors/useDocument.ts` + `docs.ts`): abrir, criar a partir de modelo, salvar automaticamente só depois de uma alteração, desfazer/refazer, Ctrl+S, proteção contra conflito de revisão (nunca sobrescreve em silêncio) e “Salvo” só depois da transação do IndexedDB terminar. Arquivos binários (fotos, PDFs) ficam como Blobs no armazenamento de ativos do documento.
 - **Armazenamento**: banco próprio `coding-v2-documents`. Backups JSON e `.codingpack` preservados. A importação mantém as datas originais quando são plausíveis. Miniaturas da biblioteca leem só o estado do documento, sem ler Blobs (`getCopyState`).
 - **Arquivos sem dependências novas**: ZIP, CSV, XLSX e DOCX próprios (`src/shared/files/`, `src/text/docx.ts`); PDF com `pdf-lib` e `pdf.js` reaproveitados do Coding 1.0 (`public/vendor/`, carregados só no Editor PDF); QR com o gerador do Coding 1.0 (`src/vendor/qrcode-generator.js`).
@@ -63,8 +67,15 @@ VITE_CODING_PREVIEW_PWA=1 npm run build
 npm run preview
 ```
 
-No Launcher, vá a **Ajustes → Uso sem internet → Preparar acesso offline**. O navegador baixa os arquivos *reais do build*, incluindo as oito páginas, chunks, estilos, ícones e as bibliotecas locais de PDF. Se algum arquivo falhar, a instalação do worker não é concluída; a versão anterior permanece ativa. Depois da preparação, as páginas visitadas podem abrir sem rede, com os documentos já salvos no IndexedDB local.
+No Launcher, vá a **Ajustes → Uso sem internet**. Cada aplicativo tem a sua linha, com **Instalar offline**, **Cancelar**, **Tentar de novo**, **Atualizar** e **Remover**, e mostra o tamanho real a baixar. Antes do primeiro app, o navegador baixa o **Núcleo do Launcher** (páginas e estilos compartilhados); depois, só o que cada app precisa, incluindo as bibliotecas locais de PDF quando for o caso.
 
+- O manifesto `dist/offline-manifest.json` é gerado depois do build, a partir dos arquivos reais de `dist/` (caminho, tamanho e SHA-256 de cada um, com o grafo de dependências de cada app). A página baixa cada arquivo e **só registra o app depois de conferir tamanho e SHA-256**; se um arquivo falhar ou divergir, nada fica pela metade e o app anterior continua como estava.
+- O service worker (`public/sw.js`) é genérico e não tem lista de arquivos: ele só serve do cache `coding-v2-offline-files` o que a página instalou. O registro do que está instalado fica no IndexedDB `coding-v2-offline`, separado dos documentos.
+- **Remover** apaga apenas os arquivos daquele app. Documentos, backups e o IndexedDB de documentos nunca são tocados. Apps compartilham arquivos: um arquivo só sai do cache quando nenhum app instalado o usa.
+- **Atualizar** reaparece quando o build novo muda algum arquivo de um app instalado; a atualização é conferida do mesmo jeito e só substitui depois de concluída.
+- Só olhar a tela de Ajustes não cria cache nem banco: o estado é lido sem criar nada.
+- No Catálogo e em Meus apps, o cartão mostra o selo **Offline** nos apps instalados, e o Catálogo filtra por instalados ou não.
+- Limite honesto: o teste automático roda no Chromium (Playwright) contra o build real, servido por HTTP local, com a rede realmente cortada no navegador. Safari/iOS e a instalação em aparelhos reais não foram validados.
 - O serviço é registrado somente por ação explícita nos Ajustes e apenas em HTTPS ou localhost. Há bloqueio adicional dos domínios conhecidos da versão 1.0.
 - O service worker tem escopo `/` e foi projetado **somente para um projeto Vercel Preview separado**, cujo domínio seja dedicado ao Coding 2.0. Não ative o sinalizador em um domínio compartilhado com a versão 1.0.
 - No uso online, páginas HTML são buscadas primeiro da rede; JS/CSS e demais assets são entregues do cache versionado da compilação. Offline, os arquivos preparados são servidos localmente.

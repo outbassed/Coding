@@ -303,7 +303,7 @@ function exportAs(kind: 'css' | 'json' | 'txt' | 'svg'): void {
 </template>
 
 <style scoped>
-.stage { display: grid; gap: 16px; width: min(100%, 640px); margin: 0 auto; padding: 14px max(14px, var(--sa-r)) 28px max(14px, var(--sa-l)); box-sizing: border-box; }
+.stage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; width: min(100%, 640px); margin: 0 auto; padding: 14px max(14px, var(--sa-r)) 28px max(14px, var(--sa-l)); box-sizing: border-box; }
 .hero { display: grid; gap: 4px; align-content: end; min-height: 160px; padding: 16px; border-radius: 20px; border: 1px solid var(--border); font-weight: 650; }
 .hero-hex { font-size: clamp(28px, 8vw, 40px); font-weight: 800; letter-spacing: .02em; }
 .sh { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }

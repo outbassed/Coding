@@ -256,7 +256,7 @@ function listText(): void {
 </template>
 
 <style scoped>
-.stage { display: grid; gap: 16px; width: min(100%, 720px); margin: 0 auto; padding: 14px max(14px, var(--sa-r)) 28px max(14px, var(--sa-l)); box-sizing: border-box; }
+.stage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; width: min(100%, 720px); margin: 0 auto; padding: 14px max(14px, var(--sa-r)) 28px max(14px, var(--sa-l)); box-sizing: border-box; }
 .sh { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .sum { margin: 0 0 8px; font-weight: 700; }
 .rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }

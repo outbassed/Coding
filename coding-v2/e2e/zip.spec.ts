@@ -137,7 +137,6 @@ test.describe('Compactador ZIP', () => {
     await expect(page.getByTestId('entry-1').getByTestId('entry-unsafe')).toBeVisible();
     // “Ao projeto” grava com o nome já limpo
     await page.getByTestId('to-project-0').click();
-    await expect(page.getByTestId('file-list')).toContainText('fora.txt');
     await expect(page.getByTestId('file-list').getByRole('textbox')).toHaveValue('fora.txt');
   });
 
