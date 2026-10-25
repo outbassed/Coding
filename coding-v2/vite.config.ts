@@ -27,7 +27,8 @@ export default defineConfig({
         'zip': resolve(import.meta.dirname, 'apps/zip/index.html'),
         'comparador': resolve(import.meta.dirname, 'apps/comparador/index.html'),
         'codigo': resolve(import.meta.dirname, 'apps/codigo/index.html'),
-        'visualizador': resolve(import.meta.dirname, 'apps/visualizador/index.html')
+        'visualizador': resolve(import.meta.dirname, 'apps/visualizador/index.html'),
+        'pintar': resolve(import.meta.dirname, 'apps/pintar/index.html')
       }
     }
   }

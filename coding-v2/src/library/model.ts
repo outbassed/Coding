@@ -5,7 +5,7 @@ import { formatBytes } from '../shared/bytes';
 /** Tipos gravados pelo Coding atual → ferramentas do catálogo 2.0. */
 const TYPE_TO_TOOL: Record<string, ToolId> = {
   labels: 'labels', texts: 'texts', calc: 'calc', images: 'images', pdf: 'pdf',
-  codes: 'codes', sheet: 'labels', draw: 'draw', split: 'split', calculator: 'calculator', colors: 'colors', zip: 'zip', compare: 'compare', code: 'code', viewer: 'viewer'
+  codes: 'codes', sheet: 'labels', draw: 'draw', split: 'split', calculator: 'calculator', colors: 'colors', zip: 'zip', compare: 'compare', code: 'code', viewer: 'viewer', paint: 'paint'
 };
 
 export function toolIdForType(type: unknown): ToolId | null {
@@ -90,7 +90,8 @@ const V2_APPS: Record<string, { path: string; prefix: string }> = {
   zip: { path: '/apps/zip/', prefix: 'v2-zip-' },
   compare: { path: '/apps/comparador/', prefix: 'v2-compare-' },
   code: { path: '/apps/codigo/', prefix: 'v2-code-' },
-  viewer: { path: '/apps/visualizador/', prefix: 'v2-viewer-' }
+  viewer: { path: '/apps/visualizador/', prefix: 'v2-viewer-' },
+  paint: { path: '/apps/pintar/', prefix: 'v2-paint-' }
 };
 export function openHref(copy: Pick<CopySummary, 'id' | 'type' | 'legacyId'>): string | null {
   if (copy.type === 'labels') return '/apps/etiquetas/?doc=' + encodeURIComponent(copy.id);

@@ -16,6 +16,7 @@ import { normalizeCompare, bothTextual } from '../apps/compare/model';
 import { compareText } from '../apps/compare/diff';
 import { normalizeViewer } from '../apps/viewer/model';
 import { KIND_LABELS } from '../apps/viewer/kinds';
+import { normalizePaint } from '../apps/paint/model';
 import { normalizeCode, totalChars as codeChars } from '../apps/code/model';
 import { normalizeZip, totalSize as zipTotal } from '../apps/zip/model';
 import { formatBytes } from '../shared/bytes';
@@ -92,7 +93,7 @@ export function textPreview(raw: unknown): Preview {
   return { kind: 'text', html: sanitizeTextHtml(out.body.innerHTML) };
 }
 
-const PREVIEW_TYPES = ['labels', 'texts', 'calc', 'sheet', 'codes', 'split', 'draw', 'images', 'pdf', 'calculator', 'colors', 'zip', 'compare', 'code', 'viewer'] as const;
+const PREVIEW_TYPES = ['labels', 'texts', 'calc', 'sheet', 'codes', 'split', 'draw', 'images', 'pdf', 'calculator', 'colors', 'zip', 'compare', 'code', 'viewer', 'paint'] as const;
 export type PreviewType = typeof PREVIEW_TYPES[number];
 export function previewable(type: unknown): type is PreviewType { return typeof type === 'string' && (PREVIEW_TYPES as readonly string[]).includes(type); }
 const obj = (raw: unknown): Record<string, unknown> => (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {});
@@ -209,6 +210,12 @@ export function viewerPreview(raw: unknown): Preview {
   for (const f of s.files.slice(0, 6)) lines.push([f.name.slice(0, 30), KIND_LABELS[f.kind]]);
   return { kind: 'summary', title: s.name || 'Arquivos para visualizar', lines };
 }
+export function paintPreview(raw: unknown): Preview {
+  need(raw, 'layers');
+  const s = normalizePaint(raw);
+  const lines: [string, string][] = [['Tela', s.width + ' × ' + s.height + ' px'], ['Camadas', String(s.layers.length)], ['Fundo', s.background === 'transparent' ? 'Transparente' : s.background]];
+  return { kind: 'summary', title: s.name || 'Desenho', lines };
+}
 export function pdfPreview(raw: unknown): Preview {
   need(raw, 'pages');
   const s = normalizePdf(raw);
@@ -234,6 +241,7 @@ export function buildPreview(type: string | undefined, state: unknown): Preview 
     case 'compare': return comparePreview(state);
     case 'code': return codePreview(state);
     case 'viewer': return viewerPreview(state);
+    case 'paint': return paintPreview(state);
     default: throw new Error('Tipo sem prévia');
   }
 }

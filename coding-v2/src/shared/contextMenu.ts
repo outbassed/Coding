@@ -72,6 +72,11 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
     { label: 'Baixar ZIP do projeto', selector: '[data-testid="download-zip"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
     { label: 'Baixar página única', selector: '[data-testid="download-html"]', tab: 'Arquivo' }
   ],
+  paint: [
+    { label: 'Nova camada', selector: '[data-testid="add-layer"]', tab: 'Camadas' },
+    { label: 'Baixar PNG', selector: '[data-testid="export-png"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
+    { label: 'Importar imagem como camada', selector: '[data-testid="import-layer"]', tab: 'Tela' }
+  ],
   viewer: [
     { label: 'Abrir arquivos', selector: '[data-testid="open-files"]', tab: 'Arquivos', shortcut: 'Alt+Shift+N' },
     { label: 'Baixar o arquivo atual', selector: '[data-testid="download-original"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },

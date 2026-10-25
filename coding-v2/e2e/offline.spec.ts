@@ -13,7 +13,7 @@ test.describe('Instalação offline por app (build real, sem rede simulada por m
     test.setTimeout(120_000);
     const manifest = (await (await request.get('/offline-manifest.json')).json()) as Manifest;
     expect(manifest.schema).toBe(1);
-    expect(Object.keys(manifest.apps).sort()).toEqual(['calc', 'calculator', 'code', 'codes', 'colors', 'compare', 'draw', 'images', 'labels', 'pdf', 'split', 'texts', 'viewer', 'zip']);
+    expect(Object.keys(manifest.apps).sort()).toEqual(['calc', 'calculator', 'code', 'codes', 'colors', 'compare', 'draw', 'images', 'labels', 'paint', 'pdf', 'split', 'texts', 'viewer', 'zip']);
     expect(Object.keys(manifest.apps)).not.toContain('sheet-labels');
     const unique = new Map<string, ManifestFile>();
     for (const entry of [manifest.core, ...Object.values(manifest.apps)]) {

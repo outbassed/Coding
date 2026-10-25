@@ -4,7 +4,7 @@ import { contrast } from '../test/color';
 
 describe('catálogo', () => {
   it('tem ferramentas com ids únicos', () => {
-    expect(tools).toHaveLength(14);
+    expect(tools).toHaveLength(15);
     expect(new Set(tools.map((tool) => tool.id)).size).toBe(tools.length);
   });
   it('os apps existem no 2.0, abrem por endereço próprio e listam o que já funciona', () => {
@@ -18,7 +18,7 @@ describe('catálogo', () => {
     const hashes = tools.map((tool) => tool.legacyHash).filter((hash): hash is string => hash !== null);
     expect(new Set(hashes).size).toBe(hashes.length);
     expect(hashes).toHaveLength(8);
-    for (const id of ['calculator', 'colors', 'zip', 'compare', 'code', 'viewer']) expect(tools.find((tool) => tool.id === id)?.legacyHash).toBeNull();
+    for (const id of ['calculator', 'colors', 'zip', 'compare', 'code', 'viewer', 'paint']) expect(tools.find((tool) => tool.id === id)?.legacyHash).toBeNull();
   });
 });
 
