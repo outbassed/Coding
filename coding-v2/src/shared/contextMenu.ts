@@ -19,17 +19,28 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
   calc: [
     { label: 'Nova aba', selector: '[data-testid="add-sheet"]', tab: 'Linhas e abas', shortcut: 'Alt+Shift+N' },
     { label: 'Preencher para baixo', selector: '[data-testid="fill-down"]', tab: 'Início' },
+    { label: 'Selecionar coluna', selector: '[data-testid="select-column"]', tab: 'Início' },
+    { label: 'Selecionar linha', selector: '[data-testid="select-row"]', tab: 'Início' },
     { label: 'Exportar XLSX', selector: '[data-testid="export-xlsx"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' }
   ],
   images: [
     { label: 'Adicionar imagem', selector: '[data-testid="add-image"]', tab: 'Camadas', shortcut: 'Alt+Shift+N' },
     { label: 'Adicionar texto', selector: '[data-testid="add-text"]', tab: 'Camadas' },
-    { label: 'Adicionar retângulo', selector: '[data-testid="add-rect"]', tab: 'Camadas' }
+    { label: 'Adicionar retângulo', selector: '[data-testid="add-rect"]', tab: 'Camadas' },
+    { label: 'Colar imagem', selector: '[data-testid="paste-image"]', tab: 'Camadas' },
+    { label: 'Girar camada 90°', selector: '[data-testid="rotate90"]', tab: 'Ajustar' },
+    { label: 'Exportar PNG', selector: '[data-testid="export-png"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
+    { label: 'Exportar WebP', selector: '[data-testid="export-webp"]', tab: 'Arquivo' }
   ],
   pdf: [
     { label: 'Abrir ou juntar PDF', selector: '[data-testid="open-pdf"]', tab: 'Arquivo', shortcut: 'Alt+Shift+N' },
     { label: 'Girar página', selector: '[data-testid="rotate-page"]', tab: 'Páginas' },
-    { label: 'Duplicar página', selector: '[data-testid="duplicate-page"]', tab: 'Páginas' }
+    { label: 'Duplicar página', selector: '[data-testid="duplicate-page"]', tab: 'Páginas' },
+    { label: 'Adicionar texto', selector: '[data-testid="add-note-text"]', tab: 'Anotar' },
+    { label: 'Adicionar linha', selector: '[data-testid="add-line"]', tab: 'Anotar' },
+    { label: 'Desenhar assinatura', selector: '[data-testid="ink-toggle"]', tab: 'Anotar' },
+    { label: 'Inserir imagem', selector: '[data-testid="add-image"]', tab: 'Anotar' },
+    { label: 'Exportar PDF', selector: '[data-testid="export-pdf"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' }
   ],
   codes: [
     { label: 'Novo código', selector: '[data-testid="add-code"]', tab: 'Código', shortcut: 'Alt+Shift+N' },
@@ -54,20 +65,26 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
   colors: [
     { label: 'Adicionar cor à paleta', selector: '[data-testid="add-base"]', tab: 'Cor' },
     { label: 'Ver contraste', selector: '[data-testid="contrast-ratio"]', tab: 'Contraste' },
-    { label: 'Exportar CSS', selector: '[data-testid="export-css"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' }
+    { label: 'Exportar CSS', selector: '[data-testid="export-css"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
+    { label: 'Exportar JSON', selector: '[data-testid="export-json"]', tab: 'Arquivo' },
+    { label: 'Importar imagem para extrair cores', selector: '[data-testid="image-input"]', tab: 'Imagem' }
   ],
   zip: [
     { label: 'Criar e baixar o ZIP', selector: '[data-testid="create-zip"]', tab: 'Compactar' },
     { label: 'Abrir um ZIP', selector: '[data-testid="zip-open-input"]', tab: 'Abrir ZIP' },
+    { label: 'Verificar ZIP', selector: '[data-testid="verify-zip"]', tab: 'Abrir ZIP' },
     { label: 'Esvaziar projeto', selector: '[data-testid="clear-project"]', tab: 'Arquivos' }
   ],
   compare: [
     { label: 'Próxima diferença', selector: '[data-testid="next-diff"]' },
     { label: 'Trocar A e B', selector: '[data-testid="swap-sides"]', tab: 'Arquivos' },
+    { label: 'Diferença anterior', selector: '[data-testid="prev-diff"]' },
+    { label: 'Copiar diferenças', selector: '[data-testid="copy-diff"]', tab: 'Arquivo' },
     { label: 'Exportar diferenças', selector: '[data-testid="export-diff"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' }
   ],
   code: [
     { label: 'Novo arquivo', selector: '[data-testid="new-file"]', tab: 'Explorador', shortcut: 'Alt+Shift+N' },
+    { label: 'Nova pasta', selector: '[data-testid="new-folder"]', tab: 'Explorador' },
     { label: 'Executar', selector: '[data-testid="run-code"]', tab: 'Executar', shortcut: 'Ctrl+Enter' },
     { label: 'Baixar ZIP do projeto', selector: '[data-testid="download-zip"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
     { label: 'Baixar página única', selector: '[data-testid="download-html"]', tab: 'Arquivo' }
@@ -75,12 +92,20 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
   paint: [
     { label: 'Nova camada', selector: '[data-testid="add-layer"]', tab: 'Camadas' },
     { label: 'Baixar PNG', selector: '[data-testid="export-png"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
-    { label: 'Importar imagem como camada', selector: '[data-testid="import-layer"]', tab: 'Tela' }
+    { label: 'Importar imagem como camada', selector: '[data-testid="import-layer"]', tab: 'Tela' },
+    { label: 'Copiar seleção', selector: '[data-testid="sel-copy"]', tab: 'Ferramentas' },
+    { label: 'Colar seleção', selector: '[data-testid="sel-paste"]', tab: 'Ferramentas' },
+    { label: 'Mesclar camada abaixo', selector: '[data-testid="merge-down"]', tab: 'Camadas' },
+    { label: 'Exportar WebP', selector: '[data-testid="export-webp"]', tab: 'Arquivo' }
   ],
   viewer: [
     { label: 'Abrir arquivos', selector: '[data-testid="open-files"]', tab: 'Arquivos', shortcut: 'Alt+Shift+N' },
     { label: 'Baixar o arquivo atual', selector: '[data-testid="download-original"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
-    { label: 'Redefinir vista 3D', selector: '[data-testid="reset-3d"]', tab: 'Exibição' }
+    { label: 'Redefinir vista 3D', selector: '[data-testid="reset-3d"]', tab: 'Exibição' },
+    { label: 'Arquivo anterior', selector: '[data-testid="viewer-prev"]' },
+    { label: 'Próximo arquivo', selector: '[data-testid="viewer-next"]' },
+    { label: 'Apresentação de imagens', selector: '[data-testid="slideshow"]', tab: 'Arquivos' },
+    { label: 'Tela cheia', selector: '[data-testid="viewer-fullscreen"]' }
   ]
 };
 
@@ -104,7 +129,8 @@ function findControl(action: Action): HTMLButtonElement | null {
 function available(action: Action, allowSwitchTab = false): boolean {
   if (!action.selector) return true;
   const button = findControl(action);
-  if (button && !button.disabled && button.getClientRects().length > 0) return true;
+  if (button?.disabled) return false;
+  if (button && button.getClientRects().length > 0) return true;
   return !!(allowSwitchTab && action.tab && getTab(action.tab));
 }
 function runControl(action: Action): void {
@@ -172,7 +198,7 @@ function menuEntries(app: AppId): Action[] {
     { label: 'Biblioteca de documentos', run: () => { location.hash = '#/documentos'; } },
     { label: 'Ajustes', run: () => { location.hash = '#/ajustes'; } }
   ];
-  return APP_ACTIONS[app].filter(action => available(action));
+  return APP_ACTIONS[app].filter(action => available(action, true));
 }
 
 /** Menu local ao aplicativo. Mantém inputs, seleção de texto e Shift+clique direito nativos. */
