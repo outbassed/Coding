@@ -64,12 +64,12 @@ test.describe('Código', () => {
     await frame(page).getByRole('button', { name: '+1' }).click();
     await expect(frame(page).locator('#valor')).toHaveText('2');
     await expect(consoleText(page)).toContainText('valor: 2');
-    await page.getByTestId('doc-title').fill('Meu contador');
+    await page.getByTestId('doc-name').fill('Meu contador');
     await setFile(page, 'js', "console.log('versão salva');");
     await saved(page);
     await page.reload();
     await expect(page).toHaveURL(/\?doc=/);
-    await expect(page.getByTestId('doc-title')).toHaveValue('Meu contador');
+    await expect(page.getByTestId('doc-name')).toHaveValue('Meu contador');
     await page.locator('#code-file-js').click();
     await expect(page.getByTestId('code-editor')).toHaveValue("console.log('versão salva');");
     await expect(consoleText(page)).toContainText('versão salva');
