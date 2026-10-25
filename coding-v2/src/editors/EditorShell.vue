@@ -10,6 +10,8 @@ import AppIcon from '../components/ui/AppIcon.vue';
 import NavIcon from '../components/ui/NavIcon.vue';
 import BottomSheet, { type SheetSnap } from '../components/editor/BottomSheet.vue';
 import SaveStatus, { type SaveState } from '../components/editor/SaveStatus.vue';
+import ProjectTabs from './ProjectTabs.vue';
+import type { ProjectTabsController } from './projectTabs';
 
 export interface ShellDoc {
   state: Ref<{ name: string }>;
@@ -19,6 +21,8 @@ export interface ShellDoc {
   note: Ref<string>;
   canUndo: Ref<boolean>;
   canRedo: Ref<boolean>;
+  /** Abas de projeto do app (ausente em editores que ainda não as usam). */
+  projects?: ProjectTabsController;
   undo(): void; redo(): void; saveNow(): Promise<void>; saveAsCopy(): Promise<void>; reloadSaved(): Promise<void>;
 }
 export interface ShellTab { id: string; label: string }
@@ -88,6 +92,8 @@ const { width: sideWidth, dragging: draggingSide, start: resizeStart, move: resi
       </div>
       <SaveStatus :state="doc.status.value" class="es-status" />
     </header>
+
+    <ProjectTabs v-if="doc.projects && !doc.loadError.value" :projects="doc.projects" :wide="wide" />
 
     <div v-if="doc.loadError.value || doc.status.value === 'conflict' || doc.status.value === 'error'" class="es-alerts" role="region" aria-label="Avisos">
       <p v-if="doc.loadError.value" class="es-problem" role="alert" data-testid="load-error">

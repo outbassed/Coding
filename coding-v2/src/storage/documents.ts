@@ -5,6 +5,9 @@
  * New copies live in a separate database and retain the original raw object + Blob images.
  * No editor engine is connected to these copies yet.
  */
+import { appKeyForType, canAdd, effectiveLimit, LimitReached, MAX_TIER } from '../workspace/limits';
+import { forgetDocument, loadLimitSettings, loadRecommended } from '../workspace/prefs';
+
 export const LEGACY_DB_NAME = 'coding-db';
 export const COPIES_DB_NAME = 'coding-v2-documents';
 const COPIES_VERSION = 2;
@@ -328,8 +331,13 @@ export async function getCopyState(id: string): Promise<{ type?: string; revisio
   } finally { db.close(); }
 }
 
-/** Entire batch is a single readwrite transaction. No partial import on quota or validation failure. */
-export async function importCopiesAtomic(records: readonly CopyRecord[], allowDuplicates = false): Promise<number> {
+/**
+ * Entire batch is a single readwrite transaction. No partial import on quota or validation failure.
+ * `quota`: 'strict' (criar/duplicar) respeita o limite do app; 'elevate' (restaurar backup, migrar do Coding atual)
+ * nunca recusa documentos que já existiam: o limite efetivo sobe para a faixa seguinte, até 1024.
+ */
+export type QuotaMode = 'strict' | 'elevate';
+export async function importCopiesAtomic(records: readonly CopyRecord[], allowDuplicates = false, quota: QuotaMode = 'strict'): Promise<number> {
   if (!records.length) return 0;
   const identities = new Set<string>();
   const ids = new Set<string>();
@@ -348,18 +356,36 @@ export async function importCopiesAtomic(records: readonly CopyRecord[], allowDu
     // All preflight checks and writes occur while this transaction holds the store lock.
     const all = store.getAll() as IDBRequest<CopyRecord[]>;
     let duplicate = false;
+    let reached: number | null = null;
     all.onsuccess = () => {
       const existingIds = new Set(all.result.map((copy) => copy.id));
       const existingSources = new Set(all.result.map((copy) => JSON.stringify([copy.source, copy.legacyId])));
       if (records.some((record) => existingIds.has(record.id) || (!allowDuplicates && existingSources.has(JSON.stringify([record.source, record.legacyId]))))) {
         duplicate = true; tx.abort(); return;
       }
+      // Limite de projetos salvos de cada app, conferido dentro da mesma transação que grava:
+      // duas janelas criando ao mesmo tempo não conseguem passar do limite.
+      const saved = new Map<string, number>();
+      for (const copy of all.result) { const k = appKeyForType(copy.snapshot.doc.type); saved.set(k, (saved.get(k) ?? 0) + 1); }
+      const incoming = new Map<string, number>();
+      for (const copy of records) { const k = appKeyForType(copy.snapshot.doc.type); incoming.set(k, (incoming.get(k) ?? 0) + 1); }
+      const settings = loadLimitSettings();
+      const recommended = loadRecommended();
+      for (const [key, adding] of incoming) {
+        const have = saved.get(key) ?? 0;
+        if (quota === 'elevate') {
+          if (have + adding > MAX_TIER) { reached = MAX_TIER; tx.abort(); return; }
+          continue;
+        }
+        const effective = effectiveLimit(settings, key, have, recommended);
+        if (!canAdd(effective, adding)) { reached = effective.limit; tx.abort(); return; }
+      }
       for (const copy of records) {
         store.add(withoutEmbeddedImages(copy));
         queueAssets(assets, copy.id, copy.snapshot.images);
       }
     };
-    try { await done; } catch (err) { if (duplicate) throw new DuplicateCopy(); throw err; }
+    try { await done; } catch (err) { if (duplicate) throw new DuplicateCopy(); if (reached !== null) throw new LimitReached(reached); throw err; }
   } finally { db.close(); }
   for (const record of records) notify(record.id);
   return records.length;
@@ -404,7 +430,7 @@ export async function importLegacySnapshotsAtomic(snapshots: readonly LegacySnap
       ...importedTimes(snapshot.doc, now), snapshot
     };
   });
-  return importCopiesAtomic(entries);
+  return importCopiesAtomic(entries, false, 'elevate');
 }
 
 export interface StorageEstimate {
@@ -555,7 +581,22 @@ export async function deleteCopy(id: string, expectedRevision: number): Promise<
       throw err;
     }
   } finally { db.close(); }
+  forgetDocument(id);
   notify(id);
+}
+
+/** Quantos projetos salvos cada app tem (a contagem de cada app é independente das demais). */
+export async function countSavedByApp(): Promise<Record<string, number>> {
+  const db = await openCopies();
+  try {
+    const tx = db.transaction('copies', 'readonly');
+    const done = committed(tx);
+    const all = requestResult(tx.objectStore('copies').getAll() as IDBRequest<CopyRecord[]>);
+    const [copies] = await Promise.all([all, done]);
+    const counts: Record<string, number> = {};
+    for (const copy of copies) { const k = appKeyForType(copy.snapshot.doc.type); counts[k] = (counts[k] ?? 0) + 1; }
+    return counts;
+  } finally { db.close(); }
 }
 
 export function errorText(error: unknown): string {

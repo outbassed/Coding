@@ -12,6 +12,8 @@ import PageHeader from '../components/ui/PageHeader.vue';
 import AppIcon from '../components/ui/AppIcon.vue';
 import StoragePanel from '../components/library/StoragePanel.vue';
 import OfflineManager from '../components/ui/OfflineManager.vue';
+import LimitsPanel from '../components/ui/LimitsPanel.vue';
+import { appKeyForType } from '../workspace/limits';
 
 const settings = useSettingsStore();
 const apps = useAppsStore();
@@ -28,6 +30,12 @@ async function dbExists(): Promise<boolean> {
   try { if (typeof indexedDB === 'undefined') return false; if (typeof indexedDB.databases !== 'function') return true; return (await indexedDB.databases()).some((d) => d.name === 'coding-v2-documents'); } catch { return false; }
 }
 onMounted(async () => { try { copies.value = (await dbExists()) ? await listCopySummaries() : []; } catch { copies.value = null; } });
+const counts = computed<Record<string, number> | null>(() => {
+  if (!copies.value) return null;
+  const result: Record<string, number> = {};
+  for (const c of copies.value) { const k = appKeyForType(c.type); result[k] = (result[k] ?? 0) + 1; }
+  return result;
+});
 const perApp = computed(() => tools.map((t) => ({ tool: t, count: (copies.value ?? []).filter((c) => toolIdForType(c.type) === t.id).length })));
 </script>
 
@@ -50,6 +58,8 @@ const perApp = computed(() => tools.map((t) => ({ tool: t, count: (copies.value 
       <button type="button" class="opt" :aria-pressed="view === 'list'" @click="setView('list')">Lista</button>
     </div>
   </section>
+
+  <LimitsPanel :counts="counts" @announce="announce" />
 
   <section class="card" aria-labelledby="docs-h">
     <h2 id="docs-h">Documentos e armazenamento</h2>

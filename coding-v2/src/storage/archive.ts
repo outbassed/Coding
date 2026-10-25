@@ -315,7 +315,7 @@ export async function importBackupToCopies(text: string): Promise<number> {
   });
   // A signed v2 archive may contain two deliberate forks from the same source.
   // Their distinct copy IDs must both restore; re-importing an existing ID still fails.
-  return importCopiesAtomic(copies, entries.every((entry) => entry.kind === 'copy'));
+  return importCopiesAtomic(copies, entries.every((entry) => entry.kind === 'copy'), 'elevate');
 }
 export function downloadBackup(text: string, filename: string): void {
   limited(text);

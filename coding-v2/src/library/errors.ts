@@ -2,6 +2,7 @@
 export function friendlyError(err: unknown): string {
   const name = err instanceof Error ? err.name : '';
   const message = err instanceof Error ? err.message : String(err);
+  if (name === 'LimitReached') return message;
   if (name === 'RevisionConflict') return 'Esta cópia foi alterada em outra janela. Nada foi sobrescrito.';
   if (name === 'DuplicateCopy') return 'Já existe uma cópia deste documento, ou o arquivo repete um documento. Nada foi gravado.';
   if (name === 'MissingCopy') return 'Esta cópia não existe mais neste aparelho. Atualize a lista.';

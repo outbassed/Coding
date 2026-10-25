@@ -5,7 +5,10 @@ import { LAUNCHER_PATH } from '../shared/links';
 import { useSettingsStore } from '../stores/settings';
 import AppIcon from '../components/ui/AppIcon.vue';
 import SaveStatus, { type SaveState } from '../components/editor/SaveStatus.vue';
-import { RevisionConflict, type CopyRecord } from '../storage/documents';
+import { MissingCopy, RevisionConflict, type CopyRecord } from '../storage/documents';
+import ProjectTabs from '../editors/ProjectTabs.vue';
+import { newProjectUrl, useProjectTabs } from '../editors/projectTabs';
+import { forgetDocument, restoreTarget } from '../workspace/prefs';
 import { friendlyError } from '../library/errors';
 import { MAX_IMAGE_BYTES, MIN_IMAGE_PERCENT, TEXT_FONTS, TEXT_SIZES, cleanFont, initialTextState, normalizedTextState, sanitizeTextHtml, type TextState } from './model';
 import { TextHistory } from './history';
@@ -88,7 +91,12 @@ const editor = ref<HTMLElement | null>(null);
 const stageEl = ref<HTMLElement | null>(null);
 const paperEl = ref<HTMLElement | null>(null);
 const pictureInput = ref<HTMLInputElement | null>(null);
-const state = ref<TextState>((new URLSearchParams(location.search).get('doc') ? null : textTemplate(new URLSearchParams(location.search).get('modelo'))) ?? initialTextState());
+const query = new URLSearchParams(location.search);
+const explicitDoc = query.get('doc');
+// Sem ?doc, ?modelo ou ?novo o app volta ao último projeto aberto (preferência "Continuar de onde parei").
+const restoredDoc = !explicitDoc && !query.has('modelo') && !query.has('novo') ? restoreTarget('texts') : null;
+const docId = explicitDoc ?? restoredDoc;
+const state = ref<TextState>((docId ? null : textTemplate(query.get('modelo'))) ?? initialTextState());
 const status = ref<SaveState>('new');
 const error = ref('');
 const loadError = ref('');
@@ -121,7 +129,27 @@ const selectedImg = shallowRef<HTMLImageElement | null>(null);
 const frame = ref<{ left: number; top: number; width: number; height: number } | null>(null);
 const imagePercent = ref(100);
 
-const docId = new URLSearchParams(location.search).get('doc');
+let leaving = false;
+const projects = useProjectTabs({
+  type: 'texts',
+  path: location.pathname,
+  currentId: () => documentRecord.value?.id ?? null,
+  canLeave: async () => {
+    await saveNow();
+    if (dirty() || status.value === 'conflict' || status.value === 'error') {
+      if (!confirm('Há alterações que podem não ter sido salvas. Sair deste projeto mesmo assim?')) return false;
+    }
+    leaving = true;
+    return true;
+  },
+  renameCurrent: (name) => { state.value.name = name; onNameChange(); }
+});
+let lastTitle = '';
+function trackProject(record: CopyRecord, first: boolean): void {
+  if (first) { projects.register(record.id, record.label); void projects.refreshCount(); }
+  else if (record.label !== lastTitle) projects.retitle(record.id, record.label);
+  lastTitle = record.label;
+}
 
 let exportNoticeUntil = 0;
 function message(text: string): void {
@@ -239,6 +267,7 @@ async function saveNow(): Promise<void> {
         documentRecord.value = created;
         committed = value;
         if (first) history.replaceState(null, '', location.pathname + '?doc=' + encodeURIComponent(created.id));
+        trackProject(created, first);
         status.value = dirty() ? 'pending' : 'saved';
         if (status.value === 'saved' && Date.now() > exportNoticeUntil) message('Documento salvo neste aparelho.');
       } catch (err) {
@@ -260,6 +289,7 @@ async function resolveConflictCopy(): Promise<void> {
     state.value.name = data.name + ' (cópia)';
     committed = JSON.stringify(normalizedTextState(state.value));
     history.replaceState(null, '', location.pathname + '?doc=' + encodeURIComponent(created.id));
+    trackProject(created, true);
     status.value = 'saved'; error.value = '';
     message('Nova cópia salva. A versão de outra aba permaneceu intacta.');
   } catch (err) { status.value = 'error'; error.value = friendlyError(err); }
@@ -569,9 +599,11 @@ function newDocument(): void {
   if (dirty() || status.value === 'saving' || status.value === 'error' || status.value === 'conflict') {
     if (!confirm('Há alterações que podem não ter sido salvas. Criar outro documento mesmo assim?')) return;
   }
-  location.assign('/apps/texto/');
+  leaving = true;
+  location.assign(newProjectUrl(location.pathname));
 }
 function beforeUnload(event: BeforeUnloadEvent): void {
+  if (leaving) return;
   if (dirty() || saving || status.value === 'conflict') { event.preventDefault(); event.returnValue = ''; }
 }
 function keyboard(event: KeyboardEvent): void {
@@ -595,11 +627,25 @@ onMounted(async () => {
       if (!mounted) return;
       documentRecord.value = opened.record; state.value = opened.state;
       committed = JSON.stringify(opened.state); status.value = 'saved';
+      lastTitle = opened.record.label;
+      projects.register(opened.record.id, opened.record.label);
+      if (restoredDoc) { try { history.replaceState(null, '', location.pathname + '?doc=' + encodeURIComponent(opened.record.id)); } catch { /* sem URL */ } }
     }
     if (editor.value) editor.value.innerHTML = state.value.html;
     editHistory.reset({ html: editor.value?.innerHTML ?? state.value.html, start: 0, end: 0 });
     requestAnimationFrame(countPages);
-  } catch (err) { loadError.value = friendlyError(err); status.value = 'unavailable'; }
+  } catch (err) {
+    const missing = err instanceof MissingCopy || (err as Error)?.name === 'MissingCopy';
+    if (missing && docId) { forgetDocument(docId); projects.reload(); }
+    if (missing && restoredDoc) {
+      // O último projeto não existe mais: abre um texto em branco, sem alarme.
+      state.value = initialTextState(); committed = JSON.stringify(normalizedTextState(state.value)); status.value = 'new';
+      if (editor.value) editor.value.innerHTML = state.value.html;
+      editHistory.reset({ html: editor.value?.innerHTML ?? state.value.html, start: 0, end: 0 });
+      try { history.replaceState(null, '', newProjectUrl(location.pathname)); } catch { /* sem URL */ }
+      message('O último projeto não está mais neste aparelho. Abri um documento novo.');
+    } else { loadError.value = friendlyError(err); status.value = 'unavailable'; }
+  }
   finally { loading.value = false; }
 });
 onBeforeUnmount(() => {
@@ -623,6 +669,7 @@ onBeforeUnmount(() => {
       </div>
       <SaveStatus :state="status" />
     </header>
+    <ProjectTabs v-if="!loadError" :projects="projects" :wide="wideText" />
     <section v-if="status === 'conflict'" role="alert" class="alert" data-testid="text-conflict">
       <strong>Conflito de edição.</strong> {{ error }}
       <button class="btn btn-primary" type="button" @click="resolveConflictCopy">Salvar como nova cópia</button>

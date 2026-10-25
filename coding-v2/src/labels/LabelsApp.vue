@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { getTool } from '../shared/catalog';
 import { LAUNCHER_PATH } from '../shared/links';
 import { useSettingsStore } from '../stores/settings';
 import { useMediaQuery } from '../composables/useMediaQuery';
 import { useResizableSidebar } from '../composables/useResizableSidebar';
 import type { EditorTab } from '../editors/model';
+import ProjectTabs from '../editors/ProjectTabs.vue';
+import { useProjectTabs } from '../editors/projectTabs';
+import { forgetDocument, restoreTarget } from '../workspace/prefs';
 import AppIcon from '../components/ui/AppIcon.vue';
 import NavIcon from '../components/ui/NavIcon.vue';
 import SaveStatus, { type SaveState } from '../components/editor/SaveStatus.vue';
@@ -63,8 +66,53 @@ const itemsRef = ref<InstanceType<typeof ItemsPanel>[] | InstanceType<typeof Ite
 const showSide = computed(() => roomy.value && wide.value);
 const showSheet = computed(() => !showSide.value && sheetOpen.value);
 
-const docId = new URLSearchParams(location.search).get('doc');
-onMounted(() => { if (docId) void editor.load(docId); else editor.startNew(stateFromTemplate(new URLSearchParams(location.search).get('modelo')) ?? undefined); });
+const query = new URLSearchParams(location.search);
+const explicitDoc = query.get('doc');
+// Sem ?doc, ?modelo ou ?novo o app volta ao último projeto aberto (preferência "Continuar de onde parei").
+const restoredDoc = !explicitDoc && !query.has('modelo') && !query.has('novo') ? restoreTarget('labels') : null;
+const docId = explicitDoc ?? restoredDoc;
+
+let leaving = false;
+const projects = useProjectTabs({
+  type: 'labels',
+  path: location.pathname,
+  currentId: () => editor.copyId.value,
+  canLeave: async () => {
+    await editor.saveNow();
+    const st = editor.saveState.value;
+    if (st === 'pending' || st === 'saving' || st === 'error' || st === 'conflict') {
+      if (!confirm('Há alterações que podem não ter sido salvas. Sair deste projeto mesmo assim?')) return false;
+    }
+    leaving = true;
+    return true;
+  },
+  renameCurrent: (name) => { editor.setField('name', name); }
+});
+// Registra a aba quando o documento ganha id (abrir ou primeira gravação) e acompanha o nome.
+watch(() => editor.copyId.value, (id) => { if (id) { projects.register(id, editor.state.value.name.trim() || 'Etiquetas'); void projects.refreshCount(); } });
+watch(() => editor.state.value.name, (name) => { const id = editor.copyId.value; if (id && editor.saveState.value === 'saved') projects.retitle(id, name.trim() || 'Etiquetas'); });
+watch(() => editor.saveState.value, (st) => { const id = editor.copyId.value; if (id && st === 'saved') projects.retitle(id, editor.state.value.name.trim() || 'Etiquetas'); });
+function guardUnload(event: BeforeUnloadEvent): void { if (leaving) event.stopImmediatePropagation(); }
+window.addEventListener('beforeunload', guardUnload, true);
+onBeforeUnmount(() => window.removeEventListener('beforeunload', guardUnload, true));
+
+onMounted(async () => {
+  if (!docId) { editor.startNew(stateFromTemplate(query.get('modelo')) ?? undefined); return; }
+  await editor.load(docId);
+  if (!editor.loadError.value) {
+    if (restoredDoc) { try { history.replaceState(null, '', location.pathname + '?doc=' + encodeURIComponent(docId)); } catch { /* sem URL */ } }
+    return;
+  }
+  const lost = editor.loadError.value;
+  if (/não existe mais/i.test(lost)) { forgetDocument(docId); projects.reload(); }
+  if (restoredDoc && /não existe mais/i.test(lost)) {
+    // O último projeto não existe mais: abre um em branco, sem alarme.
+    editor.loadError.value = '';
+    editor.startNew();
+    try { history.replaceState(null, '', location.pathname + '?novo=1'); } catch { /* sem URL */ }
+    announce('O último projeto não está mais neste aparelho. Abri um projeto novo.');
+  }
+});
 
 const saveState = computed<SaveState>(() => editor.loadError.value ? 'unavailable' : editor.saveState.value);
 const statusDetail = computed(() => {
@@ -165,6 +213,7 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
       </div>
       <SaveStatus :state="saveState" class="status" />
     </header>
+    <ProjectTabs v-if="!editor.loadError.value" :projects="projects" :wide="roomy" />
 
     <div class="live sr-only" role="status" aria-live="polite" data-testid="editor-status">{{ live }}</div>
 

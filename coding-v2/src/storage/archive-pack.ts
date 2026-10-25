@@ -154,7 +154,7 @@ export async function decodeBinaryPackage(file: Blob): Promise<CopyRecord[]> {
 /** Import with the same atomic and duplicate-ID protections as signed JSON backups. */
 export async function importBinaryPackage(file: Blob): Promise<number> {
   const copies = await decodeBinaryPackage(file);
-  return importCopiesAtomic(copies, true);
+  return importCopiesAtomic(copies, true, 'elevate');
 }
 /**
  * Choose the existing JSON format for small backups; use raw binary when JSON

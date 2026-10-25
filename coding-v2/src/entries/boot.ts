@@ -1,4 +1,5 @@
 import { exposePreviewManifest } from '../pwa';
+import { refreshRecommendation } from '../workspace/prefs';
 import { installContextMenu } from '../shared/contextMenu';
 import '../shared/contextMenu.css';
 import { createApp, type Component } from 'vue';
@@ -15,6 +16,7 @@ import '../styles/base.css';
  * app baixa apenas o que aquele app usa (mais os pacotes realmente compartilhados).
  */
 export function bootApp(id: ToolId, component: Component): void {
+  void refreshRecommendation();
   const root = document.getElementById('app');
   if (!root) return;
   const pinia = createPinia();
