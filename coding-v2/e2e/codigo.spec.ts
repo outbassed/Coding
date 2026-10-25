@@ -383,8 +383,7 @@ test.describe('Código', () => {
   test('celular: busca e explorador passam na verificação de acessibilidade', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/apps/codigo/?modelo=site');
-    await tab(page, 'Explorador').click();
-    await row(page, 'css').click();
+    await row(page, 'css').click(); // o Explorador já é a aba aberta; clicar nela de novo recolheria a gaveta
     await tab(page, 'Buscar').click();
     await page.getByTestId('search-query').fill('a');
     await expect(page.getByTestId('search-hit').first()).toBeVisible();
