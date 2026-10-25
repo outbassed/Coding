@@ -317,4 +317,3 @@ test.describe('Pintar · ferramentas avançadas', () => {
     })).toBe(2);
   });
 });
-});
