@@ -1,5 +1,4 @@
 import { findTool, type ToolId } from './catalog';
-import { LAUNCHER_PATH } from './links';
 
 type AppId = ToolId | 'launcher';
 type Action = { label: string; shortcut?: string; selector?: string; tab?: string; run?: () => void; id?: string };
@@ -125,6 +124,46 @@ function runControl(action: Action): void {
   requestAnimationFrame(click);
 }
 
+/** Operações específicas do elemento, sem misturar navegação com edição. */
+function contextualEntries(app: AppId, target?: Element): { title: string; actions: Action[] } | null {
+  if (!target || app === 'launcher') return null;
+  if (app === 'calc') {
+    const el = target.closest<HTMLElement>('[data-col],[data-row],[data-cell]');
+    if (!el) return null;
+    const col = el.dataset.col;
+    const row = el.dataset.row;
+    const cell = el.dataset.cell;
+    const act = (command: string, label: string): Action => ({
+      label, run: () => document.dispatchEvent(new CustomEvent('coding:sheet-context-action', { detail: { command } }))
+    });
+    if (col) return { title: 'Coluna ' + col, actions: [
+      act('copy', 'Copiar coluna ' + col), act('cut', 'Recortar coluna ' + col), act('paste', 'Colar na coluna ' + col),
+      act('duplicate-column', 'Duplicar coluna'), act('insert-column-left', 'Inserir coluna à esquerda'),
+      act('insert-column-right', 'Inserir coluna à direita'), act('delete-column', 'Excluir coluna')
+    ] };
+    if (row) return { title: 'Linha ' + row, actions: [
+      act('copy', 'Copiar linha ' + row), act('cut', 'Recortar linha ' + row), act('paste', 'Colar na linha ' + row),
+      act('duplicate-row', 'Duplicar linha'), act('insert-row-above', 'Inserir linha acima'),
+      act('insert-row-below', 'Inserir linha abaixo'), act('delete-row', 'Excluir linha')
+    ] };
+    if (cell) return { title: 'Célula ' + cell, actions: [
+      act('copy', 'Copiar seleção'), act('cut', 'Recortar seleção'), act('paste', 'Colar na seleção'),
+      act('clear', 'Limpar conteúdo')
+    ] };
+  }
+  if (app === 'labels') {
+    const itemElement = target.closest<HTMLElement>('[data-item]');
+    if (itemElement) {
+      const duplicate = itemElement.querySelector<HTMLButtonElement>('button[aria-label^="Duplicar item"]');
+      const remove = itemElement.querySelector<HTMLButtonElement>('button[aria-label^="Excluir item"]');
+      const actions: Action[] = [];
+      if (duplicate && !duplicate.disabled) actions.push({ label: 'Duplicar item', run: () => duplicate.click() });
+      if (remove && !remove.disabled) actions.push({ label: 'Excluir item', run: () => remove.click() });
+      return actions.length ? { title: 'Item de etiqueta', actions } : null;
+    }
+  }
+  return null;
+}
 function menuEntries(app: AppId): Action[] {
   if (app === 'launcher') return [
     { label: 'Início', run: () => { location.hash = '#/'; } },
@@ -227,15 +266,23 @@ export function installContextMenu(app: AppId): void {
     document.addEventListener('keydown', onKey, true);
     dialog.append(h, list, done); backdrop.append(dialog); document.body.append(backdrop); done.focus();
   }
-  function open(x: number, y: number, fromTouch = false): void {
+  function open(x: number, y: number, fromTouch = false, target?: Element): void {
     close();
     opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const actions = menuEntries(app);
-    if (actions.length) { header('Ferramentas · ' + name); actions.forEach(item); }
-    if (app !== 'launcher') {
-      const sep = document.createElement('div'); sep.className = 'coding-context-separator'; sep.setAttribute('role', 'separator'); menu.append(sep);
-      item({ label: 'Voltar ao Launcher', run: () => { location.assign(LAUNCHER_PATH); } });
+    const focused = contextualEntries(app, target);
+    if (focused?.actions.length) {
+      header(focused.title);
+      focused.actions.forEach(item);
     }
+    const actions = menuEntries(app);
+    if (actions.length) {
+      if (focused?.actions.length) {
+        const sep = document.createElement('div'); sep.className = 'coding-context-separator'; sep.setAttribute('role', 'separator'); menu.append(sep);
+      }
+      header('Ferramentas · ' + name);
+      actions.forEach(item);
+    }
+    if (!actions.length && !focused?.actions.length) header('Ações · ' + name);
     item({ label: 'Atalhos de ' + name, shortcut: '?', run: help });
     menu.hidden = false;
     const width = menu.offsetWidth, height = menu.offsetHeight;
@@ -258,7 +305,7 @@ export function installContextMenu(app: AppId): void {
     if (e.shiftKey) return;
     e.preventDefault();
     if (Date.now() - lastTouchOpen < 850) return;
-    open(e.clientX, e.clientY);
+    open(e.clientX, e.clientY, false, target);
   });
   document.addEventListener('pointerdown', e => {
     if (!menu.hidden && !menu.contains(e.target as Node)) close();
@@ -270,7 +317,7 @@ export function installContextMenu(app: AppId): void {
     press = { x, y, timer: setTimeout(() => {
       press = null;
       lastTouchOpen = Date.now();
-      open(x, y, true);
+      open(x, y, true, target);
     }, 550) };
   }, true);
   document.addEventListener('pointermove', e => { if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) cancelPress(); }, true);
@@ -291,7 +338,7 @@ export function installContextMenu(app: AppId): void {
       e.preventDefault();
       const target = document.activeElement instanceof HTMLElement ? document.activeElement : document.body;
       const rect = target.getBoundingClientRect();
-      open(rect.left + 12, rect.bottom + 4);
+      open(rect.left + 12, rect.bottom + 4, false, target);
       return;
     }
     if (e.key === '?' && !e.ctrlKey && !e.altKey && !e.metaKey && !active.closest('[data-testid="grid"]')) { e.preventDefault(); help(); return; }

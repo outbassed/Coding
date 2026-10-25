@@ -308,6 +308,125 @@ function onPaste(event: ClipboardEvent): void {
   doc.say(skipped ? 'Colado; parte ficou fora da área da aba.' : 'Colado.');
 }
 
+// ---- menu contextual da grade (mesma seleção usada por teclado e painel) ----
+function onGridContextMenu(event: MouseEvent): void {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  const col = target.closest<HTMLElement>('[data-col]');
+  const row = target.closest<HTMLElement>('[data-row]');
+  const cell = target.closest<HTMLElement>('[data-cell]');
+  if (col?.dataset.col) {
+    const c = indexFromLetter(col.dataset.col);
+    if (c >= 0) selectColumns(c);
+  } else if (row?.dataset.row) {
+    selectRows(Number(row.dataset.row) - 1);
+  } else if (cell?.dataset.cell) {
+    const match = /^([A-Z]+)([0-9]+)$/.exec(cell.dataset.cell);
+    if (match) {
+      const c = indexFromLetter(match[1]!);
+      const r = Number(match[2]!) - 1;
+      if (c >= 0 && !inRange(r, c)) select(r, c);
+    }
+  }
+}
+function indexFromLetter(label: string): number {
+  let value = 0;
+  for (const letter of label) value = value * 26 + letter.charCodeAt(0) - 64;
+  return value - 1;
+}
+function selectionTsv(): string {
+  const { r1, c1, r2, c2 } = range.value;
+  const lines: string[] = [];
+  for (let r = r1; r <= r2; r++) {
+    const cells: string[] = [];
+    for (let c = c1; c <= c2; c++) cells.push(sheet.value.cells[key(r, c)]?.v ?? '');
+    lines.push(cells.join('\t'));
+  }
+  return lines.join('\n');
+}
+async function copySelection(): Promise<boolean> {
+  if (editing.value) commit();
+  const text = selectionTsv();
+  try {
+    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
+    else {
+      const temp = document.createElement('textarea');
+      temp.value = text;
+      temp.style.cssText = 'position:fixed;left:-9999px;top:0';
+      document.body.append(temp);
+      temp.select();
+      const ok = document.execCommand('copy');
+      temp.remove();
+      if (!ok) throw new Error('clipboard');
+    }
+    doc.say('Copiado: ' + activeName.value + '.');
+    return true;
+  } catch {
+    doc.say('O navegador bloqueou a cópia. Selecione a grade e pressione Ctrl+C.');
+    return false;
+  }
+}
+async function pasteSelection(): Promise<void> {
+  if (editing.value) commit();
+  try {
+    if (!navigator.clipboard?.readText) throw new Error('clipboard');
+    const text = await navigator.clipboard.readText();
+    if (!text) { doc.say('A área de transferência está vazia.'); return; }
+    pasteTsv(text);
+  } catch { doc.say('O navegador bloqueou o acesso. Selecione a grade e pressione Ctrl+V.'); }
+}
+function pasteTsv(text: string): void {
+  const lines = text.replace(/\r/g, '').replace(/\n$/, '').split('\n').map(line => line.split('\t'));
+  const { r, c } = focus.value;
+  let skipped = false;
+  for (let i = 0; i < lines.length; i++) for (let j = 0; j < lines[i]!.length; j++) {
+    if (r + i >= sheet.value.rows || c + j >= sheet.value.cols) { skipped = true; continue; }
+    setCell(r + i, c + j, { v: lines[i]![j]!.slice(0, 5000) });
+  }
+  doc.say(skipped ? 'Colado parcialmente: ultrapassou o tamanho da aba.' : 'Dados colados.');
+}
+function duplicateSelectionAxis(axis: 'column' | 'row'): void {
+  const { r1, r2, c1, c2 } = range.value;
+  if (axis === 'column') {
+    const count = c2 - c1 + 1;
+    const snapshots = Array.from({ length: count }, (_, n) =>
+      Array.from({ length: sheet.value.rows }, (_, r) => sheet.value.cells[key(r, c1 + n)] ? { ...sheet.value.cells[key(r, c1 + n)]! } : null));
+    if (!insertCols(state.value, si.value, c2 + 1, count)) { doc.say('Não há espaço para duplicar colunas.'); return; }
+    snapshots.forEach((column, n) => column.forEach((cell, r) => { if (cell) sheet.value.cells[key(r, c2 + 1 + n)] = cell; }));
+    selectColumns(c2 + 1);
+    doc.say(count + ' coluna(s) duplicada(s).');
+  } else {
+    const count = r2 - r1 + 1;
+    const snapshots = Array.from({ length: count }, (_, n) =>
+      Array.from({ length: sheet.value.cols }, (_, c) => sheet.value.cells[key(r1 + n, c)] ? { ...sheet.value.cells[key(r1 + n, c)]! } : null));
+    if (!insertRows(state.value, si.value, r2 + 1, count)) { doc.say('Não há espaço para duplicar linhas.'); return; }
+    snapshots.forEach((row, n) => row.forEach((cell, c) => { if (cell) sheet.value.cells[key(r2 + 1 + n, c)] = cell; }));
+    selectRows(r2 + 1);
+    doc.say(count + ' linha(s) duplicada(s).');
+  }
+}
+async function sheetContextAction(event: Event): Promise<void> {
+  const detail = (event as CustomEvent<{ command: string }>).detail;
+  if (!detail) return;
+  switch (detail.command) {
+    case 'copy': await copySelection(); break;
+    case 'cut': if (await copySelection()) clearRange(); break;
+    case 'paste': await pasteSelection(); break;
+    case 'duplicate-column': duplicateSelectionAxis('column'); break;
+    case 'duplicate-row': duplicateSelectionAxis('row'); break;
+    case 'insert-column-left': colsOp('left'); break;
+    case 'insert-column-right': colsOp('right'); break;
+    case 'delete-column': if (confirm('Excluir a(s) coluna(s) selecionada(s)?')) colsOp('delete'); break;
+    case 'insert-row-above': rowsOp('above'); break;
+    case 'insert-row-below': rowsOp('below'); break;
+    case 'delete-row': if (confirm('Excluir a(s) linha(s) selecionada(s)?')) rowsOp('delete'); break;
+    case 'clear': clearRange(); doc.say('Conteúdo limpo.'); break;
+    case 'format': break;
+  }
+}
+onMounted(() => document.addEventListener('coding:sheet-context-action', sheetContextAction));
+onBeforeUnmount(() => document.removeEventListener('coding:sheet-context-action', sheetContextAction));
+
 // ---- arquivo ----
 const fileInput = ref<HTMLInputElement | null>(null);
 const busy = ref(false);
@@ -410,6 +529,37 @@ const printRange = computed(() => {
       </FileTab>
     </template>
 
+    <template #inspector>
+      <div class="calc-properties" data-testid="calc-properties">
+        <p class="ed-hint">Seleção ativa: <strong>{{ activeName }}</strong></p>
+        <label class="ed-field"><span class="ed-label">Formato da seleção</span>
+          <select class="inp" :value="currentFormat" aria-label="Formato nas propriedades" @change="setFormat(($event.target as HTMLSelectElement).value as CellFormat)">
+            <option v-for="(label, f) in formatNames" :key="f" :value="f">{{ label }}</option>
+          </select>
+        </label>
+        <div class="ed-field"><span class="ed-label">Alinhamento e estilo</span>
+          <div class="prop-buttons">
+            <button type="button" class="btn" :aria-pressed="allBold" @click="toggleBold">Negrito</button>
+            <button type="button" class="btn" @click="setAlign('left')">Esquerda</button>
+            <button type="button" class="btn" @click="setAlign('center')">Centro</button>
+            <button type="button" class="btn" @click="setAlign('right')">Direita</button>
+          </div>
+        </div>
+        <div class="prop-colors">
+          <label class="ed-field"><span class="ed-label">Cor da fonte</span><input type="color" :value="colorOf('fg')" aria-label="Cor da fonte nas propriedades" @input="paint('fg', ($event.target as HTMLInputElement).value)" /></label>
+          <label class="ed-field"><span class="ed-label">Preenchimento</span><input type="color" :value="colorOf('bg')" aria-label="Preenchimento nas propriedades" @input="paint('bg', ($event.target as HTMLInputElement).value)" /></label>
+        </div>
+        <label class="ed-field"><span class="ed-label">Largura da coluna {{ indexToCol(focus.c) }} (px)</span><input v-model.number="colWidth" class="inp inp-num" type="number" min="40" max="600" step="10" /></label>
+        <div class="prop-buttons">
+          <button type="button" class="btn" @click="selectColumns(focus.c)">Selecionar coluna</button>
+          <button type="button" class="btn" @click="selectRows(focus.r)">Selecionar linha</button>
+          <button type="button" class="btn" @click="copySelection()">Copiar seleção</button>
+          <button type="button" class="btn" @click="pasteSelection()">Colar</button>
+          <button type="button" class="btn" @click="clearRange()">Limpar conteúdo</button>
+        </div>
+        <p v-if="selectionStats" class="ed-hint">{{ selectionStats }}</p>
+      </div>
+    </template>
     <div class="calc">
       <div class="fbar">
         <span class="addr" data-testid="cell-address" aria-live="off">{{ activeName }}</span>
@@ -420,7 +570,7 @@ const printRange = computed(() => {
       </div>
       <p v-if="activeError" class="ed-error ferr" role="status">Fórmula com erro: {{ activeError }}</p>
       <div ref="gridEl" class="grid" data-testid="grid" @scroll="onScroll">
-        <table ref="tableEl" tabindex="0" role="grid" :aria-label="'Aba ' + sheet.name" :aria-rowcount="sheet.rows + 1" :aria-colcount="sheet.cols + 1"
+        <table ref="tableEl" tabindex="0" role="grid" @contextmenu="onGridContextMenu" :aria-label="'Aba ' + sheet.name" :aria-rowcount="sheet.rows + 1" :aria-colcount="sheet.cols + 1"
           :aria-activedescendant="'cell-' + focus.r + '-' + focus.c" :style="{ width: 48 + colsShown.reduce((s, c) => s + width(c), 0) + 'px' }"
           @keydown="onGridKey" @copy="onCopy" @paste="onPaste">
           <colgroup><col style="width: 48px" /><col v-for="c in colsShown" :key="c" :style="{ width: width(c) + 'px' }" /></colgroup>
@@ -455,6 +605,11 @@ const printRange = computed(() => {
 </template>
 
 <style scoped>
+.calc-properties { display: grid; align-content: start; gap: 15px; }
+.prop-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.prop-buttons .btn { min-height: 36px; }
+.prop-colors { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.prop-colors input { width: 100%; min-height: 38px; cursor: pointer; background: transparent; border: 1px solid var(--border); border-radius: 8px; }
 .seg { display: inline-flex; gap: 2px; }
 .swatches { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; max-width: 360px; }
 .sw { width: 28px; height: 28px; min-width: 28px; padding: 0; border-radius: 8px; border: 1px solid var(--border); box-shadow: inset 0 0 0 1px color-mix(in srgb, #000 18%, transparent); }
