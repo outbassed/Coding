@@ -186,8 +186,8 @@ test.describe('Comparador de Arquivos', () => {
     // Se estourar, o erro aponta quais elementos passam da largura da tela.
     const wide = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth ? [] : Array.from(document.querySelectorAll('body *')).filter((el) => el.getBoundingClientRect().right > window.innerWidth + 1 && el.getBoundingClientRect().width > 0).slice(0, 6).map((el) => el.tagName.toLowerCase() + '.' + String(el.className).slice(0, 30) + ' ' + Math.round(el.getBoundingClientRect().right)));
     expect(await wide()).toEqual([]);
-    await tab(page, 'Arquivos').click();
-    await page.getByTestId('side-a-file').waitFor();
+    // A aba Arquivos já vem aberta; clicar nela de novo recolheria a gaveta no celular.
+    await expect(page.getByTestId('side-a-file')).toBeVisible();
     expect(await wide()).toEqual([]);
   });
 });
