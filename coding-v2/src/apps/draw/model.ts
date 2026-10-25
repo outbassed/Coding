@@ -20,6 +20,7 @@ export function shuffle<T>(list: readonly T[], rng: Rng = cryptoRng): T[] {
 
 export type DrawMode = 'wheel' | 'numbers' | 'dice' | 'teams';
 export interface DrawResult { at: number; mode: DrawMode; text: string }
+export interface DrawPreset { id: string; name: string; participants: string[] }
 export interface DrawState {
   name: string;
   mode: DrawMode;
@@ -30,9 +31,12 @@ export interface DrawState {
   dice: { count: number; sides: number };
   teams: { count: number };
   history: DrawResult[];
+  /** Listas de participantes guardadas com nome, para reutilizar. */
+  presets: DrawPreset[];
 }
 export const MAX_PARTICIPANTS = 500;
 export const MAX_HISTORY = 100;
+export const MAX_PRESETS = 20;
 const clampInt = (v: unknown, min: number, max: number, d: number) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : d; };
 
 export function normalizeDraw(raw: unknown): DrawState {
@@ -49,8 +53,27 @@ export function normalizeDraw(raw: unknown): DrawState {
     numbers: { min, max: clampInt(n.max, min, 1_000_000, Math.max(min, 100)), count: clampInt(n.count, 1, 100, 1), unique: n.unique !== false },
     dice: { count: clampInt(d.count, 1, 12, 2), sides: clampInt(d.sides, 2, 100, 6) },
     teams: { count: clampInt(s.teams?.count, 2, 50, 2) },
+    presets: normalizePresets(s.presets),
     history: Array.isArray(s.history) ? s.history.filter((h) => h && typeof h.text === 'string').slice(-MAX_HISTORY).map((h) => ({ at: Number(h.at) || 0, mode: h.mode ?? 'wheel', text: h.text.slice(0, 2000) })) : []
   };
+}
+export function normalizePresets(raw: unknown): DrawPreset[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: DrawPreset[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const p = item as Partial<DrawPreset>;
+    const name = typeof p.name === 'string' ? p.name.trim().slice(0, 60) : '';
+    if (!name || !Array.isArray(p.participants)) continue;
+    const participants = p.participants.filter((x): x is string => typeof x === 'string').map((x) => x.slice(0, 80)).slice(0, MAX_PARTICIPANTS);
+    let id = typeof p.id === 'string' && p.id ? p.id.slice(0, 40) : 'lista-' + (out.length + 1);
+    while (seen.has(id)) id += '-';
+    seen.add(id);
+    out.push({ id, name, participants });
+    if (out.length >= MAX_PRESETS) break;
+  }
+  return out;
 }
 /** Nomes válidos (sem vazios), mantendo duplicatas que o usuário digitou de propósito. */
 export const cleanNames = (list: readonly string[]): string[] => list.map((x) => x.trim()).filter(Boolean);

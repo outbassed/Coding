@@ -340,6 +340,8 @@ function updateFormat(): void {
   format.line = (el.closest('p,h1,h2,h3,li,blockquote,td,th') as HTMLElement | null)?.style.lineHeight ?? '';
 }
 function restoreSelection(): void {
+  // o evento selectionchange chega com atraso: antes de voltar ao trecho guardado, anota o trecho atual (se ainda estiver no texto)
+  storeSelection();
   editor.value?.focus();
   if (!savedRange) return;
   try {
