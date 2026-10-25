@@ -143,7 +143,8 @@ test.describe('Lista suspensa de categorias', () => {
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(360);
     await page.getByRole('option', { name: 'Imagens e PDF' }).tap().catch(() => page.getByRole('option', { name: 'Imagens e PDF' }).click());
-    await expect(page.locator('article.card')).toHaveCount(2);
+    // Imagens, PDF, Visualizador e Pintar
+    await expect(page.locator('article.card')).toHaveCount(4);
   });
 });
 

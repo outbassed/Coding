@@ -48,6 +48,26 @@ export function sanitizeSvg(source: string): string {
   walk(root);
   // atributos do próprio <svg>
   root.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-  if (!root.getAttribute('viewBox') && !(root.getAttribute('width') && root.getAttribute('height'))) { /* sem tamanho: o <img> usa 300×150 */ }
+  ensureSize(root);
   return new XMLSerializer().serializeToString(root);
+}
+
+/** Um <svg> só com viewBox (ou com tamanho em %) não tem tamanho próprio e some dentro de um <img>: dá a ele um tamanho em pixels. */
+function ensureSize(root: Element): void {
+  const px = (v: string | null): number | null => {
+    if (!v || /%\s*$/.test(v)) return null;
+    const n = parseFloat(v);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+  let w = px(root.getAttribute('width')), h = px(root.getAttribute('height'));
+  if (w && h) return;
+  const vb = (root.getAttribute('viewBox') ?? '').trim().split(/[\s,]+/).map(Number);
+  const ratio = vb.length === 4 && vb.every(Number.isFinite) && vb[2]! > 0 && vb[3]! > 0 ? vb[2]! / vb[3]! : null;
+  if (w && ratio) h = w / ratio;
+  else if (h && ratio) w = h * ratio;
+  else if (ratio) { w = vb[2]!; h = vb[3]!; }
+  else { w = w ?? 300; h = h ?? 150; }
+  const cap = 4096, k = Math.min(1, cap / Math.max(w!, h!));
+  root.setAttribute('width', String(Math.round(w! * k * 100) / 100));
+  root.setAttribute('height', String(Math.round(h! * k * 100) / 100));
 }

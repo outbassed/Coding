@@ -39,3 +39,26 @@ describe('SVG · saneamento', () => {
     expect(() => sanitizeSvg('x'.repeat(9 * 1024 * 1024))).toThrow(/grande demais/);
   });
 });
+
+describe('SVG · tamanho próprio', () => {
+  const size = (out: string): [string | null, string | null] => {
+    const el = new DOMParser().parseFromString(out, 'image/svg+xml').documentElement;
+    return [el.getAttribute('width'), el.getAttribute('height')];
+  };
+  it('só com viewBox: usa o tamanho do viewBox', () => { expect(size(sanitizeSvg(wrap('<rect width="1" height="1"/>')))).toEqual(['10', '10']); });
+  it('largura em %: troca por pixels mantendo a proporção', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100" width="100%"><rect width="1" height="1"/></svg>';
+    expect(size(sanitizeSvg(svg))).toEqual(['200', '100']);
+  });
+  it('só com width: calcula a altura pela proporção', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100" width="400"><rect width="1" height="1"/></svg>';
+    expect(size(sanitizeSvg(svg))).toEqual(['400', '200']);
+  });
+  it('tamanho completo é preservado', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="32"><rect width="1" height="1"/></svg>';
+    expect(size(sanitizeSvg(svg))).toEqual(['64', '32']);
+  });
+  it('sem viewBox nem tamanho: 300 × 150', () => {
+    expect(size(sanitizeSvg('<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>'))).toEqual(['300', '150']);
+  });
+});

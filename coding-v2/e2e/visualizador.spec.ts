@@ -64,6 +64,7 @@ test.describe('Visualizador', () => {
     await page.getByTestId('format-json').click();
     await expect(page.getByTestId('text-body')).toContainText('"nome": "Ação"');
     await expect(page.getByTestId('viewer-meta')).toContainText('linhas');
+    await tab(page, 'Arquivos').click();
     await open(page, [{ name: 'antigo.txt', mimeType: 'text/plain', buffer: Buffer.from([0x6f, 0x6c, 0xe1, 0x0a, 0x6f, 0x6b]) }]);
     await expect(page.getByTestId('text-body')).toContainText('olá');
     await expect(page.getByTestId('viewer-meta')).toContainText('Latin-1');
