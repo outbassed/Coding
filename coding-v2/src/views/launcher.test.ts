@@ -85,7 +85,7 @@ describe('Launcher · aparência de loja', () => {
     expect(card.find('a[href="/apps/etiquetas/"]').exists()).toBe(true);
     expect(wrapper.findAll('[data-testid="home-actions"] a').map((a) => a.text())).toEqual(['Meus apps', 'Catálogo', 'Documentos']);
     expect(wrapper.find('[data-testid="recent-docs"]').exists()).toBe(false);
-    expect(wrapper.text()).toContain('8 editores disponíveis');
+    expect(wrapper.text()).toContain(tools.length + ' editores disponíveis');
     wrapper.unmount();
   });
 
@@ -157,7 +157,7 @@ describe('Launcher · ativação', () => {
     await confirm?.trigger('click');
     await flushPromises();
     // Em Meus apps o app desativado sai dos cartões e passa para “Disponíveis para ativar”.
-    expect(wrapper.findAll('article.card')).toHaveLength(7);
+    expect(wrapper.findAll('article.card')).toHaveLength(tools.length - 1);
     expect(wrapper.find('[data-testid="available-to-activate"]').text()).toContain('Etiquetas');
     expect(wrapper.find('[data-testid="announcer"]').text()).toContain('Seus documentos não foram removidos');
     wrapper.unmount();
