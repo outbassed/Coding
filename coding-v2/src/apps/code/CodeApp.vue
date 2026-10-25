@@ -190,7 +190,7 @@ const levelText: Record<ConsoleLine['level'], string> = { log: 'log', info: 'inf
 .pane-editor { border-right: 1px solid var(--border); }
 .files { display: flex; gap: 2px; padding: 4px 6px 0; border-bottom: 1px solid var(--border); background: var(--panel); overflow-x: auto; }
 .file { flex: none; min-height: 40px; padding: 0 14px; border: 0; border-radius: 10px 10px 0 0; background: transparent; font-weight: 700; color: var(--muted); }
-.file small { font-weight: 500; opacity: .85; margin-left: 4px; }
+.file small { font-weight: 500; margin-left: 4px; }
 .file[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: inset 0 -3px var(--app); }
 .editor { flex: 1; min-height: 0; width: 100%; box-sizing: border-box; resize: none; border: 0; padding: 12px; background: var(--surface); color: var(--text); font: 14px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; tab-size: 2; white-space: pre; overflow: auto; outline: none; }
 .editor:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
