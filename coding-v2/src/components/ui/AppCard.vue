@@ -6,8 +6,11 @@ import { legacyLink } from '../../shared/links';
 import AppIcon from './AppIcon.vue';
 import StatusPill from './StatusPill.vue';
 import ActivateButton from './ActivateButton.vue';
+import { useFavoritesStore } from '../../stores/favorites';
 
 const props = defineProps<{ tool: CodingTool; enabled: boolean }>();
+const favorites = useFavoritesStore();
+const fav = computed(() => favorites.isFavorite(props.tool.id));
 const avail = computed(() => availabilityOf(props.tool));
 const category = computed(() => categories.find((c) => c.id === props.tool.category)?.label ?? '');
 const pill = computed(() => props.tool.status !== 'preview'
@@ -17,6 +20,9 @@ const pill = computed(() => props.tool.status !== 'preview'
 
 <template>
   <article class="card" :style="{ '--app': tool.color }" :data-tool="tool.id">
+    <button type="button" class="star" :aria-pressed="fav" :aria-label="(fav ? 'Remover ' : 'Favoritar ') + tool.name + (fav ? ' dos favoritos' : '')" data-testid="favorite" @click.stop="favorites.toggle(tool.id)">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9 6.8 19.7l1-5.9L3.5 9.7l5.9-.8z" :fill="fav ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></svg>
+    </button>
     <div class="top">
       <AppIcon :id="tool.id" size="lg" />
       <StatusPill :tone="pill.tone" :label="pill.label" />
@@ -37,6 +43,9 @@ const pill = computed(() => props.tool.status !== 'preview'
 <style scoped>
 .card { display:flex; flex-direction:column; align-items:center; text-align:center; min-width:0; padding:20px 12px 14px; background:var(--surface); border:1px solid var(--border); border-radius:20px; position:relative; gap:8px; }
 .card:hover { border-color:color-mix(in srgb,var(--accent) 42%,var(--border)); background:var(--panel); }
+.star { position:absolute; top:2px; right:2px; z-index:2; display:grid; place-items:center; width:44px; height:44px; padding:0; border:0; background:transparent; border-radius:12px; color:var(--muted); }
+.star[aria-pressed="true"] { color:var(--app); }
+.star:hover { color:var(--text); }
 .top { display:grid; justify-items:center; gap:7px; margin-bottom:1px; }
 .top :deep(.app-icon) { width:78px; height:78px; }
 h3 { font-size:15px; line-height:1.25; margin:0; max-width:100%; font-weight:760; overflow-wrap:anywhere; }

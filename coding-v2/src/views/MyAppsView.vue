@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useAppsStore } from '../stores/apps';
+import { useFavoritesStore } from '../stores/favorites';
 import { matchesQuery, usePageStateStore } from '../stores/pageState';
 import PageHeader from '../components/ui/PageHeader.vue';
 import AppGrid from '../components/ui/AppGrid.vue';
@@ -14,14 +15,29 @@ import EmptyState from '../components/ui/EmptyState.vue';
 
 const apps = useAppsStore();
 const page = usePageStateStore();
+const favorites = useFavoritesStore();
 const query = computed(() => page.myAppsQuery.trim());
-const active = computed(() => apps.activeTools.filter((t) => matchesQuery(page.myAppsQuery, t.name, t.description)));
+const active = computed(() => {
+  const list = apps.activeTools.filter((t) => matchesQuery(page.myAppsQuery, t.name, t.description));
+  if (page.mySort === 'name') return [...list].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
+  if (page.mySort === 'favorites') return [...list].sort((a, b) => Number(favorites.isFavorite(b.id)) - Number(favorites.isFavorite(a.id)));
+  return list;
+});
 const available = computed(() => tools.filter((t) => isPreviewTool(t) && !apps.isEnabled(t.id) && matchesQuery(page.myAppsQuery, t.name, t.description)));
 </script>
 
 <template>
   <PageHeader compact title="Meus apps" logo="/legacy-icons/my-apps.svg" lead="Seus aplicativos ativados." />
-  <div class="bar"><PageSearch v-model="page.myAppsQuery" input-id="myapps-search" label="Buscar nos meus apps" placeholder="Buscar nos meus apps…" /></div>
+  <div class="bar">
+    <PageSearch v-model="page.myAppsQuery" input-id="myapps-search" label="Buscar nos meus apps" placeholder="Buscar nos meus apps…" />
+    <label class="sort"><span class="sr-only">Ordenar meus apps</span>
+      <select v-model="page.mySort" data-testid="myapps-sort">
+        <option value="catalog">Ordem do catálogo</option>
+        <option value="name">Nome (A a Z)</option>
+        <option value="favorites">Favoritos primeiro</option>
+      </select>
+    </label>
+  </div>
   <p class="sr-only" role="status">{{ active.length }} aplicativos ativados e {{ available.length }} disponíveis para ativar</p>
 
   <section aria-labelledby="ativados" class="sec">
@@ -51,7 +67,9 @@ const available = computed(() => tools.filter((t) => isPreviewTool(t) && !apps.i
 </template>
 
 <style scoped>
-.bar { display: flex; margin-bottom: 14px; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.sort { flex: 0 0 auto; }
+.sort select { min-height: 44px; padding: 0 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); color: var(--text); font-size: 15px; }
 .after { margin-top: 22px; }
 .avail { margin-top: 32px; }
 .avail h2 { font-size: 20px; margin-bottom: 4px; }

@@ -11,14 +11,17 @@ export type CatalogState = 'all' | 'on' | 'off' | 'soon';
 const STATES: readonly CatalogState[] = ['all', 'on', 'off', 'soon'];
 const MAX = 80;
 
-interface Saved { myApps: string; catalog: string; category: CategoryId | 'all'; state: CatalogState }
-const blank = (): Saved => ({ myApps: '', catalog: '', category: 'all', state: 'all' });
+export type MyAppsSort = 'catalog' | 'name' | 'favorites';
+const SORTS: readonly MyAppsSort[] = ['catalog', 'name', 'favorites'];
+interface Saved { mySort: MyAppsSort; myApps: string; catalog: string; category: CategoryId | 'all'; state: CatalogState }
+const blank = (): Saved => ({ mySort: 'catalog', myApps: '', catalog: '', category: 'all', state: 'all' });
 
 export function parseSaved(raw: string | null): Saved {
   const result = blank();
   if (!raw) return result;
   try {
     const v = JSON.parse(raw) as Record<string, unknown>;
+    if (SORTS.includes(v.mySort as MyAppsSort)) result.mySort = v.mySort as MyAppsSort;
     if (typeof v.myApps === 'string') result.myApps = v.myApps.slice(0, MAX);
     if (typeof v.catalog === 'string') result.catalog = v.catalog.slice(0, MAX);
     if (v.category === 'all' || categories.some((c) => c.id === v.category)) result.category = v.category as CategoryId | 'all';
@@ -32,13 +35,14 @@ export const usePageStateStore = defineStore('page-state', () => {
   const initial = read();
   const myAppsQuery = ref(initial.myApps);
   const catalogQuery = ref(initial.catalog);
+  const mySort = ref<MyAppsSort>(initial.mySort);
   const category = ref<CategoryId | 'all'>(initial.category);
   const state = ref<CatalogState>(initial.state);
-  watch([myAppsQuery, catalogQuery, category, state], () => {
-    try { sessionStorage.setItem(PAGE_STATE_KEY, JSON.stringify({ myApps: myAppsQuery.value, catalog: catalogQuery.value, category: category.value, state: state.value })); } catch { /* armazenamento indisponível */ }
+  watch([myAppsQuery, catalogQuery, category, state, mySort], () => {
+    try { sessionStorage.setItem(PAGE_STATE_KEY, JSON.stringify({ mySort: mySort.value, myApps: myAppsQuery.value, catalog: catalogQuery.value, category: category.value, state: state.value })); } catch { /* armazenamento indisponível */ }
   });
   function resetCatalog(): void { catalogQuery.value = ''; category.value = 'all'; state.value = 'all'; }
-  return { myAppsQuery, catalogQuery, category, state, resetCatalog };
+  return { mySort, myAppsQuery, catalogQuery, category, state, resetCatalog };
 });
 
 /** Comparação sem acento e sem diferença entre maiúsculas e minúsculas. */

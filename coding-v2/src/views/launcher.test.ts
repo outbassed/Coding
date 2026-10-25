@@ -76,12 +76,13 @@ describe('Launcher · telas', () => {
 });
 
 describe('Launcher · aparência de loja', () => {
-  it('Início destaca o app funcional com ação real e não inventa documentos recentes', async () => {
+  it('Início tem ações rápidas, cards reais e não inventa documentos recentes', async () => {
     const { wrapper } = await mountLauncher('/');
-    const hero = wrapper.find('[data-testid="featured"]');
-    expect(hero.text()).toContain('Etiquetas');
-    expect(hero.text()).toContain('Editor funcional');
-    expect(hero.find('a[href="/apps/etiquetas/"]').exists()).toBe(true);
+    const card = wrapper.find('article.card[data-tool="labels"]');
+    expect(card.text()).toContain('Etiquetas');
+    expect(card.text()).toContain('Editor funcional');
+    expect(card.find('a[href="/apps/etiquetas/"]').exists()).toBe(true);
+    expect(wrapper.findAll('[data-testid="home-actions"] a').map((a) => a.text())).toEqual(['Meus apps', 'Catálogo', 'Documentos']);
     expect(wrapper.find('[data-testid="recent-docs"]').exists()).toBe(false);
     expect(wrapper.text()).toContain('8 editores disponíveis');
     wrapper.unmount();

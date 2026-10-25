@@ -145,3 +145,17 @@ test.describe('Lista suspensa de categorias', () => {
     await expect(page.locator('article.card')).toHaveCount(2);
   });
 });
+
+test.describe('Favoritos', () => {
+  test('favoritar aparece no Início e ordena Meus apps', async ({ page }) => {
+    await page.goto('/launcher/');
+    await expect(page.getByTestId('favorites')).toHaveCount(0);
+    await page.locator('article.card[data-tool="split"]').getByTestId('favorite').click();
+    await expect(page.getByTestId('favorites').locator('article.card')).toHaveCount(1);
+    await page.reload();
+    await expect(page.getByTestId('favorites').locator('article.card[data-tool="split"]')).toBeVisible();
+    await page.goto('/launcher/#/meus-apps');
+    await page.getByTestId('myapps-sort').selectOption('favorites');
+    await expect(page.locator('article.card').first()).toHaveAttribute('data-tool', 'split');
+  });
+});

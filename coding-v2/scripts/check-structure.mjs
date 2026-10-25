@@ -1,9 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
-const APP_PAGES = ['apps/etiquetas/index.html', 'apps/texto/index.html', 'apps/planilhas/index.html', 'apps/imagens/index.html', 'apps/pdf/index.html', 'apps/qr/index.html', 'apps/planilha-etiquetas/index.html', 'apps/sorteio/index.html', 'apps/racha-conta/index.html'];
+const APP_PAGES = ['apps/etiquetas/index.html', 'apps/texto/index.html', 'apps/planilhas/index.html', 'apps/imagens/index.html', 'apps/pdf/index.html', 'apps/qr/index.html', 'apps/sorteio/index.html', 'apps/racha-conta/index.html'];
+/** Página estática que explica que Planilha → Etiquetas foi incorporado a Etiquetas (sem app nem script de módulo). */
+const REMOVED_APP_PAGE = 'apps/planilha-etiquetas/index.html';
 const expected = [
-  'index.html', 'launcher/index.html', ...APP_PAGES, 'src/main-apps.ts',
+  'index.html', 'launcher/index.html', ...APP_PAGES, REMOVED_APP_PAGE, 'src/main-apps.ts',
   'src/main-launcher.ts', 'src/main-editor.ts', 'src/shared/catalog.ts', 'src/router/index.ts',
   'src/styles/tokens.css', 'src/styles/base.css', 'package-lock.json'
 ];
@@ -14,7 +16,7 @@ for (const id of ['labels', 'texts', 'calc', 'images', 'pdf', 'codes', 'draw', '
 assert.equal((c.match(/status: 'preview'/g) ?? []).length, 8, 'Os oito apps devem existir no Coding 2.0.');
 
 const config = readFileSync('vite.config.ts', 'utf8');
-for (const name of ['launcher/index.html', ...APP_PAGES]) assert.ok(config.includes(name), 'vite.config sem entrada ' + name);
+for (const name of ['launcher/index.html', ...APP_PAGES, REMOVED_APP_PAGE]) assert.ok(config.includes(name), 'vite.config sem entrada ' + name);
 
 // Anti-piscada de tema: script inline antes do carregamento do app em todas as entradas.
 for (const page of ['launcher/index.html', ...APP_PAGES]) {

@@ -16,9 +16,10 @@ test.describe('Launcher · loja no computador', () => {
 
   test('Início: destaque real, meus apps, atalho ao catálogo e nenhum documento inventado', async ({ page }) => {
     await page.goto('/launcher/');
-    const hero = page.getByTestId('featured');
-    await expect(hero).toContainText('Etiquetas');
-    await expect(hero.getByRole('link', { name: 'Abrir o editor de Etiquetas' })).toHaveAttribute('href', '/apps/etiquetas/');
+    const actions = page.getByTestId('home-actions');
+    for (const name of ['Meus apps', 'Catálogo', 'Documentos']) await expect(actions.getByRole('link', { name })).toBeVisible();
+    await expect(page.getByTestId('stat-docs')).toHaveText('0');
+    await expect(page.locator('article.card[data-tool="labels"]').getByRole('link', { name: 'Abrir o editor de Etiquetas' })).toHaveAttribute('href', '/apps/etiquetas/');
     await expect(page.getByRole('heading', { level: 2, name: 'Meus aplicativos' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Explorar o catálogo' })).toBeVisible();
     await expect(page.getByText('8 editores disponíveis', { exact: false }).first()).toBeVisible();

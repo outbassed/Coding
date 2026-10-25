@@ -59,7 +59,7 @@ onBeforeUnmount(() => { alive = false; stop?.(); });
   <section v-if="recent.length || toolId" class="recent" aria-labelledby="recentes" data-testid="recent-docs">
     <div class="head">
       <button type="button" class="all" data-testid="open-history" @click="expanded = true">☰ <span>Ver histórico</span></button>
-      <h2 id="recentes">{{ toolId ? 'Arquivos recentes' : 'Documentos recentes' }}</h2>
+      <h2 id="recentes">{{ toolId ? 'Arquivos recentes' : 'Continuar de onde parou' }}</h2>
       <span v-if="recent.length" class="count muted">{{ recent.length }} recentes</span>
     </div>
     <div v-if="recent.length" class="scroller" role="list" aria-label="Últimos oito arquivos editados">
