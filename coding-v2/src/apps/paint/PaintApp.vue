@@ -8,7 +8,7 @@ import { downloadBlob, safeFileName } from '../../shared/files/download';
 import type { LegacyImage } from '../../storage/documents';
 import { floodMask, growMask, maskSize } from './fill';
 import { hexToRgba, layerId, MAX_LAYERS, MAX_SIDE, MIN_SIDE, type PaintLayer } from './model';
-import { boxFrom, constrainLine, type Pt } from './shapes';
+import { boxFrom, constrainLine, stamps, type Pt } from './shapes';
 import { UndoStack } from './undo';
 import { paintKind, paintTemplates } from './kind';
 
@@ -22,10 +22,11 @@ const tab = ref('ferramentas');
 const message = ref('');
 function note(text: string): void { message.value = text; doc.say(text); }
 
-type Tool = 'brush' | 'eraser' | 'bucket' | 'line' | 'rect' | 'ellipse' | 'picker' | 'hand';
+type Tool = 'brush' | 'eraser' | 'bucket' | 'line' | 'rect' | 'ellipse' | 'picker' | 'hand' | 'select' | 'text';
 const TOOLS: { id: Tool; label: string; key: string }[] = [
   { id: 'brush', label: 'Pincel', key: 'B' }, { id: 'eraser', label: 'Borracha', key: 'E' }, { id: 'bucket', label: 'Balde', key: 'G' },
   { id: 'line', label: 'Linha', key: 'L' }, { id: 'rect', label: 'Retângulo', key: 'R' }, { id: 'ellipse', label: 'Elipse', key: 'O' },
+  { id: 'select', label: 'Selecionar', key: 'S' }, { id: 'text', label: 'Texto', key: 'T' },
   { id: 'picker', label: 'Conta-gotas', key: 'I' }, { id: 'hand', label: 'Mão', key: 'H' }
 ];
 const tool = ref<Tool>('brush');
@@ -35,6 +36,17 @@ const opacity = ref(100);
 const tolerance = ref(24);
 const sampleAll = ref(false);
 const filled = ref(false);
+const hardness = ref(100);
+const pixelMode = ref(false);
+const textValue = ref('');
+const fontFamily = ref<'sans-serif' | 'serif' | 'monospace'>('sans-serif');
+const fontSize = ref(48);
+const bold = ref(false);
+interface Box { x: number; y: number; w: number; h: number }
+const sel = ref<Box | null>(null);
+const hasClip = ref(false);
+let clip: HTMLCanvasElement | null = null;
+let clipOrigin: Pt = { x: 0, y: 0 };
 const SWATCHES = ['#000000', '#ffffff', '#7f7f7f', '#e63946', '#f4a261', '#ffd166', '#06d6a0', '#118ab2', '#4c8df6', '#7b2cbf', '#e8538f', '#8d5524'];
 
 // ---------------------------------------------------------------- camadas em memória
@@ -135,7 +147,10 @@ function measure(): void { const el = viewportEl.value; if (el) box.value = { w:
 onMounted(() => { measure(); if (typeof ResizeObserver !== 'undefined' && viewportEl.value) { ro = new ResizeObserver(measure); ro.observe(viewportEl.value); } });
 onBeforeUnmount(() => ro?.disconnect());
 
-interface ActiveStroke { tool: Tool; layerId: string; before: HTMLCanvasElement; last: Pt; mid: Pt; start: Pt; erase: boolean; alpha: number; points: number }
+interface ActiveStroke {
+  tool: Tool | 'move'; layerId: string; before: HTMLCanvasElement; last: Pt; mid: Pt; start: Pt; erase: boolean; alpha: number; points: number;
+  stamped: boolean; move?: { floating: HTMLCanvasElement; origin: Pt; dx: number; dy: number };
+}
 let current: ActiveStroke | null = null;
 
 function composeInto(ctx: CanvasRenderingContext2D, w: number, h: number, withBackground: boolean, forExport = false): void {
@@ -188,20 +203,56 @@ const cursorText = ref('');
 function strokeStyle(g: CanvasRenderingContext2D): void {
   g.strokeStyle = color.value; g.fillStyle = color.value; g.lineWidth = size.value; g.lineCap = 'round'; g.lineJoin = 'round';
 }
-function begin(e: PointerEvent): void {
+/** Camada ativa pronta para receber pixels: visível e destravada (senão avisa o porquê). */
+function writable(): PaintLayer | null {
   const layer = active.value;
+  if (!layer) return null;
+  if (!layer.visible) { note('A camada “' + layer.name + '” está oculta. Mostre-a para editar.'); return null; }
+  if (layer.locked) { note('A camada “' + layer.name + '” está travada. Destrave-a para editar.'); return null; }
+  return layer;
+}
+const rgbaOf = (hex: string, a: number): string => { const [r, g, b] = hexToRgba(hex); return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')'; };
+const pressureOf = (e: PointerEvent): number => (e.pointerType === 'pen' ? Math.min(1, Math.max(0.12, e.pressure * 1.6)) : 1);
+const usesStamps = (e: PointerEvent): boolean => pixelMode.value || hardness.value < 100 || e.pointerType === 'pen';
+/** Um carimbo do pincel: redondo duro, macio (dureza < 100) ou quadrado sem suavização (modo pixel). */
+function dab(g: CanvasRenderingContext2D, p: Pt, factor: number, erase: boolean): void {
+  const col = erase ? '#000000' : color.value;
+  const d = Math.max(1, size.value * factor);
+  if (pixelMode.value) {
+    const side = Math.max(1, Math.round(d));
+    g.fillStyle = col; g.fillRect(Math.round(p.x - side / 2), Math.round(p.y - side / 2), side, side);
+    return;
+  }
+  const r = d / 2;
+  if (hardness.value >= 100) { g.fillStyle = col; g.beginPath(); g.arc(p.x, p.y, r, 0, Math.PI * 2); g.fill(); return; }
+  const grad = g.createRadialGradient(p.x, p.y, r * (hardness.value / 100), p.x, p.y, r);
+  grad.addColorStop(0, rgbaOf(col, 1)); grad.addColorStop(1, rgbaOf(col, 0));
+  g.fillStyle = grad; g.beginPath(); g.arc(p.x, p.y, r, 0, Math.PI * 2); g.fill();
+}
+function newStroke(t: ActiveStroke['tool'], layerId: string, before: HTMLCanvasElement, p: Pt): ActiveStroke {
+  return { tool: t, layerId, before, last: p, mid: p, start: p, erase: t === 'eraser', alpha: t === 'move' ? 1 : opacity.value / 100, points: 1, stamped: false };
+}
+function begin(e: PointerEvent): void {
+  const layer = writable();
   if (!layer) return;
-  if (!layer.visible) { note('A camada “' + layer.name + '” está oculta. Mostre-a para desenhar nela.'); return; }
   sizeStroke();
   const p = pointOf(e);
   const g = stroke.getContext('2d')!;
   g.clearRect(0, 0, stroke.width, stroke.height);
-  current = { tool: tool.value, layerId: layer.id, before: copyOf(canvasOf(layer.id)), last: p, mid: p, start: p, erase: tool.value === 'eraser', alpha: opacity.value / 100, points: 1 };
+  current = newStroke(tool.value, layer.id, copyOf(canvasOf(layer.id)), p);
   if (tool.value === 'brush' || tool.value === 'eraser') {
-    g.fillStyle = tool.value === 'eraser' ? '#000' : color.value;
-    g.beginPath(); g.arc(p.x, p.y, size.value / 2, 0, Math.PI * 2); g.fill();
+    current.stamped = usesStamps(e);
+    if (current.stamped) dab(g, p, pressureOf(e), current.erase);
+    else { g.fillStyle = current.erase ? '#000' : color.value; g.beginPath(); g.arc(p.x, p.y, size.value / 2, 0, Math.PI * 2); g.fill(); }
   }
   requestRender();
+}
+const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
+function boxBetween(a: Pt, b: Pt): Box {
+  const W = state.value.width, H = state.value.height;
+  const x0 = clamp(Math.round(Math.min(a.x, b.x)), 0, W), y0 = clamp(Math.round(Math.min(a.y, b.y)), 0, H);
+  const x1 = clamp(Math.round(Math.max(a.x, b.x)), 0, W), y1 = clamp(Math.round(Math.max(a.y, b.y)), 0, H);
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 function extend(e: PointerEvent): void {
   if (!current) return;
@@ -210,11 +261,17 @@ function extend(e: PointerEvent): void {
   for (const ev of events) {
     const p = pointOf(ev);
     if (current.tool === 'brush' || current.tool === 'eraser') {
-      strokeStyle(g);
-      if (current.tool === 'eraser') { g.strokeStyle = '#000'; g.fillStyle = '#000'; }
-      const mid = { x: (current.last.x + p.x) / 2, y: (current.last.y + p.y) / 2 };
-      g.beginPath(); g.moveTo(current.mid.x, current.mid.y); g.quadraticCurveTo(current.last.x, current.last.y, mid.x, mid.y); g.stroke();
-      current.mid = mid; current.last = p; current.points++;
+      if (current.stamped) {
+        const f = pressureOf(ev);
+        for (const q of stamps(current.last, p, pixelMode.value ? 1 : Math.max(1, size.value * f * 0.12))) dab(g, q, f, current.erase);
+        current.mid = p; current.last = p; current.points++;
+      } else {
+        strokeStyle(g);
+        if (current.tool === 'eraser') { g.strokeStyle = '#000'; g.fillStyle = '#000'; }
+        const mid = { x: (current.last.x + p.x) / 2, y: (current.last.y + p.y) / 2 };
+        g.beginPath(); g.moveTo(current.mid.x, current.mid.y); g.quadraticCurveTo(current.last.x, current.last.y, mid.x, mid.y); g.stroke();
+        current.mid = mid; current.last = p; current.points++;
+      }
     } else if (current.tool === 'line' || current.tool === 'rect' || current.tool === 'ellipse') {
       g.clearRect(0, 0, stroke.width, stroke.height);
       strokeStyle(g);
@@ -228,6 +285,13 @@ function extend(e: PointerEvent): void {
         if (filled.value) g.fill(); else g.stroke();
       }
       current.last = p;
+    } else if (current.tool === 'select') {
+      sel.value = boxBetween(current.start, p);
+    } else if (current.tool === 'move' && current.move) {
+      const m = current.move;
+      m.dx = Math.round(p.x - current.start.x); m.dy = Math.round(p.y - current.start.y);
+      g.clearRect(0, 0, stroke.width, stroke.height);
+      g.drawImage(m.floating, m.origin.x + m.dx, m.origin.y + m.dy);
     }
   }
   requestRender();
@@ -235,8 +299,9 @@ function extend(e: PointerEvent): void {
 function finish(): void {
   if (!current) return;
   const s = current; current = null;
+  if (s.tool === 'select') { if (!sel.value || sel.value.w < 2 || sel.value.h < 2) sel.value = null; requestRender(); return; }
   const c = canvasOf(s.layerId);
-  if (s.tool === 'brush' || s.tool === 'eraser') {
+  if ((s.tool === 'brush' || s.tool === 'eraser') && !s.stamped) {
     const g = stroke.getContext('2d')!;
     strokeStyle(g); if (s.erase) g.strokeStyle = '#000';
     g.beginPath(); g.moveTo(s.mid.x, s.mid.y); g.lineTo(s.last.x, s.last.y); g.stroke();
@@ -248,8 +313,76 @@ function finish(): void {
   g.drawImage(stroke, 0, 0);
   g.restore();
   stroke.getContext('2d')!.clearRect(0, 0, stroke.width, stroke.height);
-  pushPixels(s.layerId, s.before, s.erase ? 'Borracha' : tool.value === 'brush' ? 'Pincel' : 'Forma');
+  if (s.move) {
+    if (s.move.dx === 0 && s.move.dy === 0) { requestRender(); return; } // clique sem arrastar: nada mudou
+    if (sel.value) sel.value = { ...sel.value, x: s.move.origin.x + s.move.dx, y: s.move.origin.y + s.move.dy };
+  }
+  pushPixels(s.layerId, s.before, s.move ? 'Mover seleção' : s.erase ? 'Borracha' : s.tool === 'brush' ? 'Pincel' : 'Forma');
   markDirty(s.layerId);
+}
+/** Começa a mover o conteúdo da seleção: levanta os pixels da camada e os arrasta até soltar. */
+function beginMove(e: PointerEvent): void {
+  const layer = writable(); const r = sel.value;
+  if (!layer || !r) return;
+  const c = canvasOf(layer.id);
+  const floating = makeCanvas(r.w, r.h);
+  floating.getContext('2d')!.drawImage(c, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
+  const before = copyOf(c);
+  c.getContext('2d')!.clearRect(r.x, r.y, r.w, r.h);
+  sizeStroke();
+  const g = stroke.getContext('2d')!;
+  g.clearRect(0, 0, stroke.width, stroke.height);
+  g.drawImage(floating, r.x, r.y);
+  current = newStroke('move', layer.id, before, pointOf(e));
+  current.move = { floating, origin: { x: r.x, y: r.y }, dx: 0, dy: 0 };
+  requestRender();
+}
+function placeText(p: Pt): void {
+  const text = textValue.value.replace(/\r/g, '').slice(0, 500);
+  if (!text.trim()) { note('Digite o texto no campo “Texto” e depois clique na tela para colocá-lo.'); return; }
+  const layer = writable(); if (!layer) return;
+  const c = canvasOf(layer.id); const before = copyOf(c); const g = c.getContext('2d')!;
+  g.save();
+  g.globalAlpha = opacity.value / 100; g.fillStyle = color.value; g.textBaseline = 'top';
+  g.font = (bold.value ? '700 ' : '400 ') + fontSize.value + 'px ' + fontFamily.value;
+  text.split('\n').forEach((line, i) => g.fillText(line, p.x, p.y + i * fontSize.value * 1.25));
+  g.restore();
+  pushPixels(layer.id, before, 'Texto'); markDirty(layer.id);
+  note('Texto aplicado na camada “' + layer.name + '”. Ele vira pixels: para mudar, desfaça (Ctrl+Z) e escreva de novo.');
+}
+function eraseRegion(id: string, r: Box, label: string): void {
+  const c = canvasOf(id); const before = copyOf(c);
+  c.getContext('2d')!.clearRect(r.x, r.y, r.w, r.h);
+  pushPixels(id, before, label); markDirty(id);
+}
+function selectAll(): void { sel.value = { x: 0, y: 0, w: state.value.width, h: state.value.height }; tool.value = 'select'; }
+function copySel(cut: boolean): void {
+  const r = sel.value;
+  if (!r) { note('Faça uma seleção com a ferramenta Selecionar (S) primeiro.'); return; }
+  const layer = cut ? writable() : active.value;
+  if (!layer) return;
+  const out = makeCanvas(r.w, r.h);
+  out.getContext('2d')!.drawImage(canvasOf(layer.id), r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
+  clip = out; clipOrigin = { x: r.x, y: r.y }; hasClip.value = true;
+  // também tenta a área de transferência do sistema; se o navegador negar, a cópia interna continua valendo
+  out.toBlob((b) => {
+    if (b && typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) void navigator.clipboard.write([new ClipboardItem({ 'image/png': b })]).catch(() => undefined);
+  }, 'image/png');
+  if (cut) eraseRegion(layer.id, r, 'Recortar');
+  note(cut ? 'Seleção recortada.' : 'Seleção copiada.');
+}
+function deleteSel(): void {
+  const r = sel.value;
+  if (!r) { note('Faça uma seleção com a ferramenta Selecionar (S) primeiro.'); return; }
+  const layer = writable(); if (!layer) return;
+  eraseRegion(layer.id, r, 'Apagar seleção');
+  note('Seleção apagada.');
+}
+function pasteClip(): void {
+  if (!clip) { note('Nada foi copiado ainda. Selecione uma região e use Copiar.'); return; }
+  const temp = makeCanvas();
+  temp.getContext('2d')!.drawImage(clip, clipOrigin.x, clipOrigin.y);
+  if (addLayer('Colagem', temp)) { sel.value = { x: clipOrigin.x, y: clipOrigin.y, w: clip.width, h: clip.height }; tool.value = 'select'; note('Colado como nova camada.'); }
 }
 function pushPixels(id: string, before: HTMLCanvasElement, label: string): void {
   let after: HTMLCanvasElement | null = null;
@@ -268,8 +401,7 @@ function compositeData(): ImageData {
   return c.getContext('2d')!.getImageData(0, 0, c.width, c.height);
 }
 function bucket(p: Pt): void {
-  const layer = active.value; if (!layer) return;
-  if (!layer.visible) { note('A camada “' + layer.name + '” está oculta. Mostre-a para pintar nela.'); return; }
+  const layer = writable(); if (!layer) return;
   const c = canvasOf(layer.id);
   const w = c.width, h = c.height;
   const src = sampleAll.value ? compositeData() : c.getContext('2d')!.getImageData(0, 0, w, h);
@@ -307,6 +439,14 @@ function onDown(e: PointerEvent): void {
   if (t === 'hand') { const v = viewportEl.value!; pan = { x: e.clientX, y: e.clientY, left: v.scrollLeft, top: v.scrollTop }; return; }
   if (t === 'picker') { pick(pointOf(e)); return; }
   if (t === 'bucket') { bucket(pointOf(e)); return; }
+  if (t === 'text') { placeText(pointOf(e)); return; }
+  if (t === 'select') {
+    const p = pointOf(e); const r = sel.value;
+    if (r && p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h) { beginMove(e); return; }
+    sel.value = null;
+    current = newStroke('select', '', makeCanvas(1, 1), p);
+    return;
+  }
   begin(e);
 }
 function onMove(e: PointerEvent): void {
@@ -332,7 +472,7 @@ function entryFor(layer: PaintLayer, index: number, canvas: HTMLCanvasElement): 
 }
 function addLayer(name?: string, pixels?: HTMLCanvasElement): PaintLayer | null {
   if (state.value.layers.length >= MAX_LAYERS) { note('Limite de ' + MAX_LAYERS + ' camadas.'); return null; }
-  const layer: PaintLayer = { id: layerId(), name: (name ?? 'Camada ' + (state.value.layers.length + 1)).slice(0, 60), visible: true, opacity: 1, blobId: '' };
+  const layer: PaintLayer = { id: layerId(), name: (name ?? 'Camada ' + (state.value.layers.length + 1)).slice(0, 60), visible: true, locked: false, opacity: 1, blobId: '' };
   const at = state.value.layers.findIndex((l) => l.id === state.value.activeId) + 1 || state.value.layers.length;
   const c = makeCanvas();
   if (pixels) c.getContext('2d')!.drawImage(pixels, 0, 0);
@@ -374,7 +514,7 @@ function moveLayer(id: string, delta: -1 | 1): void {
   refreshHistory(); requestRender();
 }
 function clearLayer(): void {
-  const layer = active.value; if (!layer) return;
+  const layer = writable(); if (!layer) return;
   const c = canvasOf(layer.id);
   const before = copyOf(c);
   c.getContext('2d')!.clearRect(0, 0, c.width, c.height);
@@ -386,6 +526,7 @@ function mergeDown(): void {
   const list = state.value.layers; const i = list.findIndex((l) => l.id === state.value.activeId);
   if (i <= 0) { note('Não há camada abaixo para mesclar.'); return; }
   const top = list[i]!, below = list[i - 1]!;
+  if (top.locked || below.locked) { note('Destrave as duas camadas para mesclar.'); return; }
   const topC = canvasOf(top.id), belowC = canvasOf(below.id);
   const beforeBelow = copyOf(belowC);
   const g = belowC.getContext('2d')!;
@@ -415,7 +556,7 @@ function resizeCanvas(w: number, h: number): void {
   const snaps = new Map<string, HTMLCanvasElement>();
   for (const l of state.value.layers) snaps.set(l.id, copyOf(canvasOf(l.id)));
   const apply = (nw: number, nh: number, source: Map<string, HTMLCanvasElement>, scaled: boolean): void => {
-    state.value.width = nw; state.value.height = nh;
+    state.value.width = nw; state.value.height = nh; sel.value = null;
     for (const l of state.value.layers) {
       const src = source.get(l.id); if (!src) continue;
       const c = canvasOf(l.id); c.width = nw; c.height = nh;
@@ -473,7 +614,10 @@ function isTextTarget(target: EventTarget | null): boolean {
 function onPaste(event: ClipboardEvent): void {
   if (event.defaultPrevented || isTextTarget(event.target)) return;
   const files = Array.from(event.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'));
-  if (!files.length) return;
+  if (!files.length) {
+    if (hasClip.value) { event.preventDefault(); pasteClip(); } // sem imagem do sistema: cola o que foi copiado aqui dentro
+    return;
+  }
   event.preventDefault();
   for (const f of files) void importBlob(f, f.name && f.name !== 'image.png' ? f.name : 'Imagem colada');
 }
@@ -494,6 +638,10 @@ function onKey(event: KeyboardEvent): void {
     if (k === 'y' || event.shiftKey) redo(); else undo();
     return;
   }
+  if (mod && k === 'a') { event.preventDefault(); selectAll(); return; }
+  if (mod && (k === 'c' || k === 'x') && sel.value) { event.preventDefault(); copySel(k === 'x'); return; }
+  if (!mod && !event.altKey && (event.key === 'Delete' || event.key === 'Backspace') && sel.value) { event.preventDefault(); deleteSel(); return; }
+  if (event.key === 'Escape' && sel.value) { sel.value = null; return; }
   if (mod || event.altKey) return;
   if (k === '[') { size.value = Math.max(1, size.value - (size.value > 20 ? 5 : 1)); return; }
   if (k === ']') { size.value = Math.min(200, size.value + (size.value >= 20 ? 5 : 1)); return; }
@@ -550,6 +698,27 @@ void nextTick;
           <label class="ed-field"><span class="ed-label">Tamanho ({{ size }} px)</span><input v-model.number="size" type="range" min="1" max="200" class="range" data-testid="brush-size" /></label>
           <label class="ed-field"><span class="ed-label">Opacidade ({{ opacity }}%)</span><input v-model.number="opacity" type="range" min="1" max="100" class="range" data-testid="brush-opacity" /></label>
         </div>
+        <div v-if="tool === 'brush' || tool === 'eraser'" class="ed-row">
+          <label class="ed-field"><span class="ed-label">Dureza ({{ hardness }}%)</span><input v-model.number="hardness" type="range" min="0" max="100" class="range" data-testid="brush-hardness" /></label>
+        </div>
+        <label class="check"><input v-model="pixelMode" type="checkbox" data-testid="pixel-mode" /> Modo pixel art (traço sem suavização e zoom nítido)</label>
+        <div v-if="tool === 'text'" class="ed-group" data-testid="text-options">
+          <label class="ed-field"><span class="ed-label">Texto</span><textarea v-model="textValue" class="inp" rows="3" maxlength="500" placeholder="Digite e clique na tela" data-testid="paint-text"></textarea></label>
+          <div class="ed-row">
+            <label class="ed-field"><span class="ed-label">Fonte</span>
+              <select v-model="fontFamily" class="inp" data-testid="font-family"><option value="sans-serif">Sem serifa</option><option value="serif">Com serifa</option><option value="monospace">Monoespaçada</option></select></label>
+            <label class="ed-field"><span class="ed-label">Tamanho ({{ fontSize }} px)</span><input v-model.number="fontSize" type="range" min="8" max="400" class="range" data-testid="font-size" /></label>
+            <label class="check"><input v-model="bold" type="checkbox" data-testid="font-bold" /> Negrito</label>
+          </div>
+        </div>
+        <div v-if="tool === 'select'" class="ed-row" role="group" aria-label="Ações da seleção">
+          <button type="button" class="btn" data-testid="sel-all" @click="selectAll">Selecionar tudo</button>
+          <button type="button" class="btn" :disabled="!sel" data-testid="sel-copy" @click="copySel(false)">Copiar</button>
+          <button type="button" class="btn" :disabled="!sel" data-testid="sel-cut" @click="copySel(true)">Recortar</button>
+          <button type="button" class="btn" :disabled="!hasClip" data-testid="sel-paste" @click="pasteClip">Colar como nova camada</button>
+          <button type="button" class="btn" :disabled="!sel" data-testid="sel-delete" @click="deleteSel">Apagar seleção</button>
+          <button type="button" class="btn" :disabled="!sel" data-testid="sel-clear" @click="sel = null">Desmarcar</button>
+        </div>
         <div v-if="tool === 'bucket'" class="ed-row">
           <label class="ed-field"><span class="ed-label">Tolerância ({{ tolerance }})</span><input v-model.number="tolerance" type="range" min="0" max="128" class="range" data-testid="tolerance" /></label>
           <label class="check"><input v-model="sampleAll" type="checkbox" data-testid="sample-all" /> Considerar todas as camadas</label>
@@ -559,7 +728,7 @@ void nextTick;
           <button type="button" class="btn" :disabled="!canUndo" data-testid="undo-paint" title="Ctrl+Z" @click="undo">Desfazer</button>
           <button type="button" class="btn" :disabled="!canRedo" data-testid="redo-paint" title="Ctrl+Y" @click="redo">Refazer</button>
         </div>
-        <p class="ed-hint">Atalhos: B pincel · E borracha · G balde · L linha · R retângulo · O elipse · I conta-gotas · H mão · [ e ] mudam o tamanho. Com Shift, linhas ficam retas em 45° e formas viram quadrado ou círculo.</p>
+        <p class="ed-hint">Atalhos: B pincel · E borracha · G balde · L linha · R retângulo · O elipse · S selecionar · T texto · I conta-gotas · H mão · [ e ] mudam o tamanho. Com Shift, linhas ficam retas em 45° e formas viram quadrado ou círculo. Com a caneta, a pressão muda a espessura. Para mover o que está selecionado, arraste de dentro da seleção.</p>
       </div>
       <div v-else-if="now === 'camadas'" class="ed-group">
         <div class="ed-row">
@@ -569,8 +738,9 @@ void nextTick;
         </div>
         <ol class="layers" data-testid="paint-layers" aria-label="Camadas, de cima para baixo">
           <li v-for="l in topFirst" :key="l.id" :class="{ on: l.id === state.activeId }" :data-layer="l.name">
-            <button type="button" class="pick" :aria-pressed="l.id === state.activeId" @click="selectLayer(l.id)">{{ l.name }}</button>
+            <button type="button" class="pick" :aria-pressed="l.id === state.activeId" @click="selectLayer(l.id)">{{ l.name }}<span v-if="l.locked" class="sr-only"> (travada)</span></button>
             <button type="button" class="ib" :aria-label="(l.visible ? 'Ocultar ' : 'Mostrar ') + l.name" :aria-pressed="!l.visible" @click="l.visible = !l.visible"><NavIcon :name="l.visible ? 'eye' : 'eye-off'" /></button>
+            <button type="button" class="ib" :aria-label="(l.locked ? 'Destravar ' : 'Travar ') + l.name" :aria-pressed="l.locked" :data-testid="'lock-' + l.name" @click="l.locked = !l.locked"><NavIcon :name="l.locked ? 'lock' : 'unlock'" /></button>
             <button type="button" class="ib" :aria-label="'Subir ' + l.name" @click="moveLayer(l.id, 1)"><NavIcon name="arrow-up" /></button>
             <button type="button" class="ib" :aria-label="'Descer ' + l.name" @click="moveLayer(l.id, -1)"><NavIcon name="arrow-down" /></button>
             <button type="button" class="ib" :aria-label="'Duplicar ' + l.name" @click="duplicateLayer(l.id)"><NavIcon name="duplicate" /></button>
@@ -606,7 +776,8 @@ void nextTick;
     <div class="paint-stage" @dragover.prevent @drop.prevent="onDrop">
       <div ref="viewportEl" class="viewport" role="region" aria-label="Área de desenho" data-testid="paint-viewport">
         <div class="board" :class="{ checker: state.background === 'transparent' }" :style="{ width: state.width * scale + 'px', height: state.height * scale + 'px' }">
-          <canvas ref="displayEl" class="cv" :class="{ crisp: scale > 1, grab: tool === 'hand', pick: tool === 'picker' }" :style="{ width: state.width * scale + 'px', height: state.height * scale + 'px' }" role="img"
+          <div v-if="sel" class="selbox" data-testid="selection" :data-box="sel.x + ',' + sel.y + ',' + sel.w + ',' + sel.h" :style="{ left: sel.x * scale + 'px', top: sel.y * scale + 'px', width: sel.w * scale + 'px', height: sel.h * scale + 'px' }"></div>
+          <canvas ref="displayEl" class="cv" :class="{ crisp: scale > 1 || pixelMode, grab: tool === 'hand', pick: tool === 'picker', sel: tool === 'select' || tool === 'text' }" :style="{ width: state.width * scale + 'px', height: state.height * scale + 'px' }" role="img"
             :aria-label="'Desenho ' + state.width + ' × ' + state.height + ' com ' + state.layers.length + ' camadas'" data-testid="paint-canvas"
             @pointerdown="onDown" @pointermove="onMove" @pointerup="onUp" @pointercancel="onUp"></canvas>
         </div>
@@ -635,9 +806,9 @@ void nextTick;
 @media (pointer: coarse) { .sw { width: 44px; height: 44px; min-width: 44px; } }
 .presets { display: flex; flex-wrap: wrap; gap: 6px; flex-basis: 100%; }
 .layers { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-.layers li { display: flex; align-items: center; gap: 2px; border: 1px solid var(--border); border-radius: 10px; padding: 2px; background: var(--surface); }
+.layers li { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; border: 1px solid var(--border); border-radius: 10px; padding: 2px; background: var(--surface); }
 .layers li.on { border-color: var(--app); box-shadow: inset 0 0 0 1px var(--app); }
-.pick { flex: 1; min-width: 0; min-height: 44px; text-align: left; border: 0; background: transparent; padding: 0 8px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick { flex: 1 1 100%; min-width: 0; min-height: 44px; text-align: left; border: 0; background: transparent; padding: 0 8px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .paint-stage { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--raised); }
 .viewport { flex: 1; min-height: 0; overflow: auto; display: grid; place-items: center; padding: 16px; }
 .board { position: relative; flex: none; box-shadow: 0 10px 30px rgb(0 0 0 / 22%); background: #fff; }
@@ -646,6 +817,8 @@ void nextTick;
 .cv.crisp { image-rendering: pixelated; }
 .cv.grab { cursor: grab; }
 .cv.pick { cursor: copy; }
+.cv.sel { cursor: cell; }
+.selbox { position: absolute; z-index: 2; pointer-events: none; border: 1px dashed #000; box-shadow: 0 0 0 1px #fff; background: color-mix(in srgb, #4c8df6 12%, transparent); }
 .zoombar { flex: none; display: flex; align-items: center; gap: 6px; padding: 4px 12px; background: var(--surface); border-top: 1px solid var(--border); flex-wrap: wrap; }
 .z { min-width: 52px; text-align: center; font-weight: 700; font-size: 13px; }
 .small { min-height: 36px; padding: 4px 10px; font-size: 13px; }

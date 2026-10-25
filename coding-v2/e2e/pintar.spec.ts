@@ -210,3 +210,111 @@ test.describe('Pintar', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 });
+
+/** Quantos pixels da tela não são brancos. */
+const inkCount = (page: Page) => canvas(page).evaluate((c: HTMLCanvasElement) => {
+  const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+  let n = 0;
+  for (let i = 0; i < d.length; i += 4) if (d[i + 3]! > 0 && (d[i]! < 240 || d[i + 1]! < 240 || d[i + 2]! < 240)) n++;
+  return n;
+});
+
+test.describe('Pintar · ferramentas avançadas', () => {
+  test('camada travada não recebe pintura e destravar libera', async ({ page }) => {
+    await page.goto('/apps/pintar/?modelo=quadrado');
+    await tab(page, 'Camadas').click();
+    await page.getByRole('button', { name: 'Travar Camada 1' }).click();
+    await expect(page.getByRole('button', { name: 'Destravar Camada 1' })).toHaveAttribute('aria-pressed', 'true');
+    await tab(page, 'Ferramentas').click();
+    await pickColor(page, RED);
+    await page.getByTestId('brush-size').fill('80');
+    await drag(page, [0.2, 0.5], [0.8, 0.5]);
+    await expect(page.getByTestId('paint-dims')).toContainText('travada');
+    expect(isWhite(await pixel(page, 0.5, 0.5))).toBe(true);
+    await tab(page, 'Camadas').click();
+    await page.getByRole('button', { name: 'Destravar Camada 1' }).click();
+    await tab(page, 'Ferramentas').click();
+    await drag(page, [0.2, 0.5], [0.8, 0.5]);
+    await expect.poll(async () => isRed(await pixel(page, 0.5, 0.5))).toBe(true);
+  });
+
+  test('texto vira pixels na camada e desfaz', async ({ page }) => {
+    await page.goto('/apps/pintar/?modelo=quadrado');
+    await page.getByTestId('tool-text').click();
+    await click(page, [0.2, 0.3]);
+    await expect(page.getByTestId('paint-dims')).toContainText('Digite o texto');
+    expect(await inkCount(page)).toBe(0);
+    await pickColor(page, RED);
+    await page.getByTestId('paint-text').fill('MMMM');
+    await page.getByTestId('font-size').fill('200');
+    await page.getByTestId('font-bold').check();
+    await click(page, [0.1, 0.3]);
+    await expect.poll(() => inkCount(page)).toBeGreaterThan(500);
+    await page.keyboard.press('Control+z');
+    await expect.poll(() => inkCount(page)).toBe(0);
+  });
+
+  test('selecionar, mover, copiar/colar como camada, apagar e desfazer', async ({ page }) => {
+    await page.goto('/apps/pintar/?modelo=quadrado');
+    await pickColor(page, RED);
+    await page.getByTestId('tool-rect').click();
+    await page.getByTestId('shape-filled').check();
+    await drag(page, [0.2, 0.2], [0.4, 0.4]);
+    await expect.poll(async () => isRed(await pixel(page, 0.3, 0.3))).toBe(true);
+    await page.getByTestId('tool-select').click();
+    await drag(page, [0.15, 0.15], [0.45, 0.45]);
+    await expect(page.getByTestId('selection')).toBeVisible();
+    // mover a seleção para a direita
+    await drag(page, [0.3, 0.3], [0.6, 0.3]);
+    await expect.poll(async () => isRed(await pixel(page, 0.6, 0.3))).toBe(true);
+    expect(isWhite(await pixel(page, 0.3, 0.3))).toBe(true);
+    await page.keyboard.press('Control+z');
+    await expect.poll(async () => isRed(await pixel(page, 0.3, 0.3))).toBe(true);
+    expect(isWhite(await pixel(page, 0.6, 0.3))).toBe(true);
+    // copiar e colar cria uma camada nova (a seleção fica onde estava depois do desfazer: marca de novo a região vermelha)
+    await drag(page, [0.15, 0.15], [0.45, 0.45]);
+    await page.getByTestId('sel-copy').click();
+    await page.getByTestId('sel-paste').click();
+    await tab(page, 'Camadas').click();
+    await expect(layerRows(page)).toHaveCount(2);
+    await tab(page, 'Ferramentas').click();
+    // apagar a seleção na camada ativa (a colada); a original continua
+    await page.getByTestId('sel-delete').click();
+    await expect.poll(async () => isRed(await pixel(page, 0.3, 0.3))).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('selection')).toHaveCount(0);
+  });
+
+  test('dureza: pincel macio tem borda translúcida e o duro é sólido até a borda', async ({ page }) => {
+    await page.goto('/apps/pintar/?modelo=quadrado');
+    await pickColor(page, RED);
+    await page.getByTestId('brush-size').fill('200');
+    await page.getByTestId('brush-hardness').fill('0');
+    await click(page, [0.3, 0.5]);
+    // 200 px de diâmetro numa tela de 1080: raio ≈ 0,0926 da largura; 80% do raio ≈ 0,074
+    await expect.poll(async () => isRed(await pixel(page, 0.3, 0.5))).toBe(true);
+    const soft = await pixel(page, 0.3 + 0.074, 0.5);
+    expect(soft[1]!).toBeGreaterThan(120); // mistura com o branco do fundo
+    await page.getByTestId('brush-hardness').fill('100');
+    await click(page, [0.7, 0.5]);
+    await expect.poll(async () => isRed(await pixel(page, 0.7 + 0.074, 0.5))).toBe(true);
+  });
+
+  test('modo pixel art: traço sem cores intermediárias em 100%', async ({ page }) => {
+    await page.goto('/apps/pintar/?modelo=branco');
+    await page.getByTestId('pixel-mode').check();
+    await pickColor(page, RED);
+    await page.getByTestId('brush-size').fill('9');
+    await drag(page, [0.2, 0.2], [0.7, 0.8]);
+    await expect.poll(() => inkCount(page)).toBeGreaterThan(50);
+    // em 100% a tela mostra os pixels da camada 1 para 1
+    await page.getByTestId('zoom-100').click();
+    await expect.poll(() => canvas(page).evaluate((c: HTMLCanvasElement) => {
+      const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+      const seen = new Set<number>();
+      for (let i = 0; i < d.length; i += 4) { seen.add((d[i]! << 16) | (d[i + 1]! << 8) | d[i + 2]!); if (seen.size > 4) break; }
+      return c.width === 1280 ? seen.size : -1;
+    })).toBe(2);
+  });
+});
+});

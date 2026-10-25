@@ -133,3 +133,11 @@ describe('Pintar · formas e desfazer', () => {
     expect(capped.canUndo).toBe(false);
   });
 });
+
+describe('Pintar · camadas travadas', () => {
+  it('lê o estado de trava e assume destravada quando falta', () => {
+    const s = normalizePaint({ layers: [{ id: 'a', name: 'A', locked: true }, { id: 'b', name: 'B' }, { id: 'c', name: 'C', locked: 'sim' }] });
+    expect(s.layers.map((l) => l.locked)).toEqual([true, false, false]);
+    expect(blankPaint().layers[0]!.locked).toBe(false);
+  });
+});

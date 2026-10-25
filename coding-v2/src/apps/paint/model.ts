@@ -1,5 +1,5 @@
 /** Pintar: desenho em camadas. Os pixels de cada camada ficam em arquivos PNG na Biblioteca; aqui só os metadados. */
-export interface PaintLayer { id: string; name: string; visible: boolean; opacity: number; blobId: string }
+export interface PaintLayer { id: string; name: string; visible: boolean; locked: boolean; opacity: number; blobId: string }
 export interface PaintState { name: string; width: number; height: number; background: string; layers: PaintLayer[]; activeId: string }
 export const MIN_SIDE = 16, MAX_SIDE = 4096, MAX_LAYERS = 20;
 export const layerId = (): string => 'p' + Math.random().toString(36).slice(2, 10);
@@ -19,12 +19,12 @@ export function normalizePaint(raw: unknown): PaintState {
       ids.add(id);
       layers.push({
         id, name: typeof o.name === 'string' && o.name.trim() ? o.name.slice(0, 60) : 'Camada ' + (layers.length + 1),
-        visible: o.visible !== false, opacity: num(o.opacity, 0, 1, 1),
+        visible: o.visible !== false, locked: o.locked === true, opacity: num(o.opacity, 0, 1, 1),
         blobId: typeof o.blobId === 'string' ? o.blobId.slice(0, 80) : ''
       });
     }
   }
-  if (!layers.length) layers.push({ id: layerId(), name: 'Camada 1', visible: true, opacity: 1, blobId: '' });
+  if (!layers.length) layers.push({ id: layerId(), name: 'Camada 1', visible: true, locked: false, opacity: 1, blobId: '' });
   const bg = typeof s.background === 'string' && (s.background === 'transparent' || /^#[0-9a-f]{6}$/i.test(s.background)) ? s.background.toLowerCase() : '#ffffff';
   const activeId = typeof s.activeId === 'string' && ids.has(s.activeId) ? s.activeId : layers[layers.length - 1]!.id;
   return {
@@ -35,7 +35,7 @@ export function normalizePaint(raw: unknown): PaintState {
 }
 export function blankPaint(width = 1280, height = 720, background = '#ffffff', name = 'Desenho'): PaintState {
   const id = layerId();
-  return { name, width, height, background, layers: [{ id, name: 'Camada 1', visible: true, opacity: 1, blobId: '' }], activeId: id };
+  return { name, width, height, background, layers: [{ id, name: 'Camada 1', visible: true, locked: false, opacity: 1, blobId: '' }], activeId: id };
 }
 export const hexToRgba = (hex: string, alpha = 255): [number, number, number, number] => {
   const m = /^#([0-9a-f]{6})$/i.exec(hex);
