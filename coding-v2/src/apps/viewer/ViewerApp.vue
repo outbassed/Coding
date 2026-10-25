@@ -107,6 +107,10 @@ function step(delta: number): void {
   state.value.activeId = state.value.files[(((position.value < 0 ? 0 : position.value) + delta) % n + n) % n]!.id;
 }
 const canFullscreen = typeof document !== 'undefined' && document.fullscreenEnabled === true;
+const fullscreenOn = ref(false);
+function onFullscreenChange(): void { fullscreenOn.value = !!document.fullscreenElement && document.fullscreenElement === stage.value; }
+onMounted(() => document.addEventListener('fullscreenchange', onFullscreenChange));
+onBeforeUnmount(() => document.removeEventListener('fullscreenchange', onFullscreenChange));
 async function toggleFullscreen(): Promise<void> {
   const el = stage.value; if (!el) return;
   try { if (document.fullscreenElement) await document.exitFullscreen(); else await el.requestFullscreen(); }
@@ -457,6 +461,11 @@ const title = computed(() => current.value ? current.value.name : '');
       </div>
       <p v-if="problem" class="ed-error err" role="alert" data-testid="viewer-error">{{ problem }}</p>
       <div ref="stage" class="stage" :class="'bd-' + backdrop" data-testid="viewer-stage">
+        <div v-if="fullscreenOn" class="fsbar" role="group" aria-label="Controles da tela cheia">
+          <button v-if="state.files.length > 1" type="button" class="btn" data-testid="fs-prev" @click="step(-1)">‹ Anterior</button>
+          <button v-if="state.files.length > 1" type="button" class="btn" data-testid="fs-next" @click="step(1)">Próximo ›</button>
+          <button type="button" class="btn btn-app" data-testid="viewer-exit-fullscreen" @click="toggleFullscreen">Sair da tela cheia</button>
+        </div>
         <div v-if="!current" class="empty" data-testid="viewer-empty">
           <p><strong>Visualizador</strong></p>
           <p>Abra imagens, SVG, vídeos, áudios, modelos 3D (STL, OBJ, GLB), PDFs e arquivos de texto. Tudo é aberto neste aparelho, nada é enviado para a internet.</p>
@@ -502,6 +511,7 @@ const title = computed(() => current.value ? current.value.name : '');
 .props dt { color: var(--muted); }
 .props dd { margin: 0; overflow-wrap: anywhere; }
 .stage:fullscreen { background: var(--raised); }
+.fsbar { position: fixed; top: 10px; right: 10px; z-index: 5; display: flex; gap: 6px; padding: 6px; border-radius: 12px; background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--border); }
 .viewer { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--raised); }
 .bar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 8px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .name { overflow-wrap: anywhere; }

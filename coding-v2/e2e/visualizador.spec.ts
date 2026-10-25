@@ -196,7 +196,9 @@ test.describe('Visualizador', () => {
 
     await page.getByTestId('viewer-fullscreen').click();
     await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true);
-    await page.getByTestId('viewer-fullscreen').click();
+    await expect(page.getByTestId('viewer-exit-fullscreen')).toBeVisible();
+    await page.getByTestId('fs-next').click(); // dá para navegar sem sair da tela cheia
+    await page.getByTestId('viewer-exit-fullscreen').click();
     await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(false);
   });
 
