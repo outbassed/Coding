@@ -224,7 +224,7 @@ test.describe('Editor PDF · projeto em branco', () => {
     await page.getByTestId('blank-count').fill('2');
     await page.getByTestId('blank-create').click();
     await expect(page.getByTestId('page-number')).toHaveText('1 / 2');
-    await expect(page.getByTestId('doc-title')).toHaveText('Ata da reunião');
+    await expect(page.getByTestId('doc-name')).toHaveValue('Ata da reunião');
     // a página é realmente branca e tem proporção A4
     const px = await page.locator('[data-testid="pdf-page"] canvas').evaluate((c) => { const cv = c as HTMLCanvasElement; const d = cv.getContext('2d')!.getImageData(5, 5, 1, 1).data; return { rgba: [d[0], d[1], d[2], d[3]], ratio: cv.height / cv.width }; });
     expect(px.rgba).toEqual([255, 255, 255, 255]);

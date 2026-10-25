@@ -7,7 +7,6 @@ const apps = [
   { id: 'images', url: '/apps/imagens/' },
   { id: 'pdf', url: '/apps/pdf/' },
   { id: 'codes', url: '/apps/qr/' },
-  { id: url: '/apps/planilha-etiquetas/' },
   { id: 'draw', url: '/apps/sorteio/' },
   { id: 'split', url: '/apps/racha-conta/' }
 ];
@@ -30,10 +29,11 @@ for (const tool of apps) {
 test('Paletas dos ícones seguem as cores de cada aplicativo', async ({ request }) => {
   const images = await (await request.get('/legacy-icons/images.svg')).text();
   const sheets = await (await request.get('/legacy-icons/sheet.svg')).text();
-  expect(images).toContain('#ff8fc8');
-  expect(images).toContain('#d1308f');
-  expect(sheets).toContain('#4fe0d6');
-  expect(sheets).toContain('#0b8fb8');
+  // Imagens volta ao azul original; o ícone legado de Planilha→Etiquetas (app removido) mantém o rosa original.
+  expect(images).toContain('#4fe0d6');
+  expect(images).toContain('#0b8fb8');
+  expect(sheets).toContain('#ff8fc8');
+  expect(sheets).toContain('#d1308f');
 });
 
 test('PC: Etiquetas e Texto redimensionam, persistem e restauram a largura padrão', async ({ page }) => {
@@ -111,4 +111,35 @@ test('Atalho do QR cria um novo código, não abre ações de outros apps', asyn
   await page.locator('[data-testid="editor-stage"]').focus();
   await page.keyboard.press('Alt+Shift+N');
   await expect(select.locator('option')).toHaveCount(before + 1);
+});
+
+test.describe('Desativar em outra aba, ao vivo', () => {
+  test('o editor aberto mostra o aviso sem perder o que foi digitado e volta ao reativar', async ({ context }) => {
+    const launcher = await context.newPage();
+    await launcher.goto('/launcher/#/meus-apps');
+    const editor = await context.newPage();
+    await editor.goto('/apps/sorteio/');
+    await expect(editor.locator('#app')).not.toBeEmpty();
+    await editor.getByTestId('save-status').waitFor();
+    // escreve algo não salvo no editor (o nome do documento)
+    const title = editor.getByTestId('doc-name');
+    await title.click();
+    await title.fill('Rascunho que não pode se perder');
+    // desativa o app na aba do Launcher
+    await launcher.locator('article.card[data-tool="draw"]').getByRole('button', { name: 'Desativar Sorteio no Launcher' }).click();
+    await launcher.locator('dialog button', { hasText: 'Desativar atalho' }).click();
+    const alert = editor.getByTestId('app-live-off');
+    await expect(alert).toBeVisible();
+    await expect(alert).toContainText('Aplicativo desativado');
+    await expect(editor.getByTestId('live-reactivate')).toBeFocused();
+    // o editor continua montado, com o texto digitado
+    await expect(title).toHaveValue('Rascunho que não pode se perder');
+    // reativa pelo próprio aviso: some sem recarregar e o texto continua lá
+    await editor.getByTestId('live-reactivate').click();
+    await expect(alert).toHaveCount(0);
+    await expect(title).toHaveValue('Rascunho que não pode se perder');
+    // reativar em uma aba e desativar de novo na outra também funciona; mudança sem relação não dispara aviso
+    await launcher.evaluate(() => localStorage.setItem('chave-qualquer', '1'));
+    await expect(editor.getByTestId('app-live-off')).toHaveCount(0);
+  });
 });

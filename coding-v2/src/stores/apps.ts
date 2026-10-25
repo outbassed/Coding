@@ -49,7 +49,7 @@ export const useAppsStore = defineStore('apps', () => {
   }
   if (typeof window !== 'undefined') {
     window.addEventListener('storage', (event) => {
-      if (event.key === APPS_KEY) enabled.value = load();
+      if (event.key === APPS_KEY || event.key === null) enabled.value = load();
     });
   }
   return { enabled, activeTools, isEnabled, toggle };

@@ -3,7 +3,7 @@ import { installContextMenu } from './shared/contextMenu';
 import './shared/contextMenu.css';
 import { createApp, type Component } from 'vue';
 import { createPinia } from 'pinia';
-import { allowApp } from './shared/appAccess';
+import { allowApp, watchAppAccess } from './shared/appAccess';
 import { isToolId } from './shared/catalog';
 import './shared/appAccess.css';
 import './styles/tokens.css';
@@ -25,7 +25,7 @@ if (root) {
   if (!load) root.textContent = 'Este app não existe. Volte ao Launcher em /launcher/.';
   else if (isToolId(id)) {
     const pinia = createPinia();
-    if (allowApp(root, id, pinia)) load().then((m) => { createApp(m.default).use(pinia).mount(root); installContextMenu(id); }).catch(() => {
+    if (allowApp(root, id, pinia)) load().then((m) => { createApp(m.default).use(pinia).mount(root); installContextMenu(id); watchAppAccess(root, id, pinia); }).catch(() => {
     root.innerHTML = '<p style="padding:24px;font:16px system-ui">Não foi possível carregar o app. Verifique a conexão e recarregue a página. <a href="/launcher/">Voltar ao Launcher</a></p>';
     });
   }
