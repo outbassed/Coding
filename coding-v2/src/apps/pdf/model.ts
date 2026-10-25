@@ -1,10 +1,33 @@
 export type Rotation = 0 | 90 | 180 | 270;
 export interface PdfSource { id: string; name: string; pages: number }
-export interface PdfPage { id: string; src: string; index: number; rotate: Rotation }
+/** Tamanho (em pontos, antes de girar) de uma página em branco criada no próprio editor. */
+export interface BlankSize { w: number; h: number }
+/** `blank` presente = página em branco (sem arquivo de origem; `src` fica vazio). */
+export interface PdfPage { id: string; src: string; index: number; rotate: Rotation; blank?: BlankSize }
 export type AnnotationKind = 'text' | 'rect' | 'highlight';
 /** Posição em frações (0..1) da página como ela aparece (já girada), origem no canto superior esquerdo. */
 export interface Annotation { id: string; page: string; kind: AnnotationKind; x: number; y: number; w: number; h: number; text: string; size: number; color: string }
 export interface PdfState { name: string; sources: PdfSource[]; pages: PdfPage[]; annotations: Annotation[] }
+export const BLANK_MIN_PT = 72, BLANK_MAX_PT = 3000, MAX_NEW_PAGES = 100;
+export type PageFormat = 'a4' | 'a3' | 'letter' | 'custom';
+export const PAGE_FORMATS: { id: PageFormat; label: string; w: number; h: number }[] = [
+  { id: 'a4', label: 'A4 (210 × 297 mm)', w: 595.28, h: 841.89 },
+  { id: 'a3', label: 'A3 (297 × 420 mm)', w: 841.89, h: 1190.55 },
+  { id: 'letter', label: 'Carta (216 × 279 mm)', w: 612, h: 792 },
+  { id: 'custom', label: 'Personalizado (mm)', w: 595.28, h: 841.89 }
+];
+export const mmToPt = (mm: number): number => (mm * 72) / 25.4;
+/** Tamanho em pontos para um formato e orientação; personalizado usa milímetros (limitados). Nunca devolve valor inválido. */
+export function blankSize(format: PageFormat, orientation: 'portrait' | 'landscape', customMm?: { w: number; h: number }): BlankSize {
+  const base = PAGE_FORMATS.find((f) => f.id === format) ?? PAGE_FORMATS[0]!;
+  let w = base.w, h = base.h;
+  if (format === 'custom' && customMm) {
+    w = Math.min(BLANK_MAX_PT, Math.max(BLANK_MIN_PT, mmToPt(Number(customMm.w) || 210)));
+    h = Math.min(BLANK_MAX_PT, Math.max(BLANK_MIN_PT, mmToPt(Number(customMm.h) || 297)));
+  }
+  const short = Math.min(w, h), long = Math.max(w, h);
+  return orientation === 'landscape' ? { w: long, h: short } : { w: short, h: long };
+}
 export const MAX_SOURCES = 20, MAX_PAGES = 500, MAX_ANNOTATIONS = 1000, MAX_PDF_BYTES = 60 * 1024 * 1024;
 export const pid = (): string => 'p' + Math.random().toString(36).slice(2, 9);
 const num = (v: unknown, min: number, max: number, d: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : d; };
@@ -20,6 +43,15 @@ export function normalizePdf(raw: unknown): PdfState {
   const pages: PdfPage[] = [];
   const pageIds = new Set<string>();
   for (const p of Array.isArray(s.pages) ? s.pages.slice(0, MAX_PAGES) : []) {
+    if (p && typeof p === 'object' && p.blank && typeof p.blank === 'object') {
+      const w = Number(p.blank.w), h = Number(p.blank.h);
+      if (!Number.isFinite(w) || !Number.isFinite(h)) continue;
+      let id = typeof p.id === 'string' && p.id ? p.id.slice(0, 40) : pid();
+      if (pageIds.has(id)) id = pid();
+      pageIds.add(id);
+      pages.push({ id, src: '', index: 0, rotate: ROT.includes(p.rotate as Rotation) ? (p.rotate as Rotation) : 0, blank: { w: num(w, BLANK_MIN_PT, BLANK_MAX_PT, 595.28), h: num(h, BLANK_MIN_PT, BLANK_MAX_PT, 841.89) } });
+      continue;
+    }
     const src = p && typeof p.src === 'string' ? known.get(p.src) : undefined;
     if (!src) continue;
     const index = Math.round(num(p.index, 0, src.pages - 1, 0));

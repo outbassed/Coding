@@ -6,10 +6,11 @@ import { useDocument } from '../../editors/useDocument';
 import { downloadBlob, safeFileName } from '../../shared/files/download';
 import { writeZip } from '../../shared/files/zip';
 import type { LegacyImage } from '../../storage/documents';
-import { buildPdf, forgetDoc, inspectPdf, renderPage, viewDoc } from './engine';
+import { buildPdf, forgetDoc, inspectPdf, renderBlank, renderPage, viewDoc } from './engine';
+import ModalDialog from '../../components/library/ModalDialog.vue';
 import { samplePdf } from './sample';
 import PdfThumb from './PdfThumb.vue';
-import { MAX_ANNOTATIONS, MAX_PAGES, MAX_PDF_BYTES, MAX_SOURCES, parseRanges, pid, type Annotation, type AnnotationKind, type PdfPage, type Rotation } from './model';
+import { MAX_ANNOTATIONS, MAX_NEW_PAGES, MAX_PAGES, MAX_PDF_BYTES, MAX_SOURCES, PAGE_FORMATS, blankSize, parseRanges, pid, type Annotation, type AnnotationKind, type BlankSize, type PageFormat, type PdfPage, type Rotation } from './model';
 import { pdfKind, pdfTemplates } from './kind';
 
 const doc = useDocument({
@@ -65,6 +66,40 @@ async function useSample(): Promise<void> {
   busy.value = true;
   try { await addPdfBytes(await samplePdf(), 'exemplo.pdf'); } catch (e) { fail((e as Error).message); } finally { busy.value = false; }
 }
+// ---- páginas em branco ----
+const blankOpen = ref(false);
+const blankFormat = ref<PageFormat>('a4');
+const blankOrientation = ref<'portrait' | 'landscape'>('portrait');
+const blankCount = ref(1);
+const blankName = ref('Documento em branco');
+const blankW = ref(210);
+const blankH = ref(297);
+const blankFresh = computed(() => state.value.pages.length === 0);
+function openBlank(): void {
+  blankName.value = blankFresh.value ? 'Documento em branco' : state.value.name;
+  blankOpen.value = true;
+}
+function createBlank(): void {
+  const count = Math.min(MAX_NEW_PAGES, Math.max(1, Math.round(Number(blankCount.value)) || 1));
+  if (state.value.pages.length + count > MAX_PAGES) { fail('O projeto passaria de ' + MAX_PAGES + ' páginas.'); return; }
+  const size = blankSize(blankFormat.value, blankOrientation.value, { w: blankW.value, h: blankH.value });
+  const first = state.value.pages.length;
+  for (let i = 0; i < count; i++) state.value.pages.push({ id: pid(), src: '', index: 0, rotate: 0, blank: { ...size } });
+  if (first === 0) state.value.name = blankName.value.trim().slice(0, 200) || 'Documento em branco';
+  current.value = first;
+  blankOpen.value = false;
+  note(count + (count === 1 ? ' página em branco criada.' : ' páginas em branco criadas.'));
+}
+/** Nova página em branco logo depois da atual, com o mesmo tamanho dela. */
+function insertBlankAfter(): void {
+  if (!page.value) return;
+  if (state.value.pages.length >= MAX_PAGES) { fail('Limite de ' + MAX_PAGES + ' páginas.'); return; }
+  const p = page.value;
+  const size: BlankSize = p.blank ? { ...p.blank } : (p.rotate % 180 ? { w: pageBox.value.h, h: pageBox.value.w } : { w: pageBox.value.w, h: pageBox.value.h });
+  state.value.pages.splice(current.value + 1, 0, { id: pid(), src: '', index: 0, rotate: 0, blank: size });
+  current.value += 1;
+  note('Página em branco inserida depois da página ' + current.value + '.');
+}
 // ---- página atual ----
 const canvas = ref<HTMLCanvasElement | null>(null);
 const viewEl = ref<HTMLElement | null>(null);
@@ -76,9 +111,10 @@ async function drawCurrent(): Promise<void> {
   const p = page.value, c = canvas.value; if (!p || !c) return;
   const my = ++token;
   try {
+    const width = Math.max(200, Math.min(1400, (viewW.value - 32) * zoom.value));
+    if (p.blank) { pageBox.value = renderBlank(p.blank, p.rotate, c, width); return; }
     const d = await viewDoc(p.src, () => bytesOf(p.src));
     if (my !== token) return;
-    const width = Math.max(200, Math.min(1400, (viewW.value - 32) * zoom.value));
     pageBox.value = await renderPage(d, p.index, p.rotate, c, width);
   } catch (e) { if (my === token) fail((e as Error).message); }
 }
@@ -196,8 +232,10 @@ function sourceName(src: string): string { return state.value.sources.find((s) =
       <div v-if="currentTab === 'paginas'" class="ed-row">
         <button type="button" class="btn btn-app" :disabled="busy" data-testid="open-pdf" @click="fileInput?.click()">{{ state.pages.length ? 'Juntar outro PDF' : 'Abrir PDF' }}</button>
         <input ref="fileInput" type="file" class="sr-only" accept="application/pdf,.pdf" multiple aria-label="Escolher arquivos PDF" data-testid="pdf-input" @change="onFiles" />
+        <button type="button" class="btn" :disabled="busy" data-testid="create-blank" @click="openBlank">{{ state.pages.length ? 'Adicionar páginas em branco' : 'Criar em branco' }}</button>
         <button v-if="!state.pages.length" type="button" class="btn" :disabled="busy" data-testid="sample-pdf" @click="useSample">Usar PDF de exemplo</button>
         <template v-if="state.pages.length">
+          <button type="button" class="btn" data-testid="insert-blank" @click="insertBlankAfter">Inserir página em branco depois desta</button>
           <button type="button" class="btn" :disabled="current === 0" data-testid="move-up" @click="movePage(-1)">Mover para antes</button>
           <button type="button" class="btn" :disabled="current >= state.pages.length - 1" data-testid="move-down" @click="movePage(1)">Mover para depois</button>
           <button type="button" class="btn" @click="rotate(-90)">Girar ⟲</button>
@@ -240,7 +278,7 @@ function sourceName(src: string): string { return state.value.sources.find((s) =
       <ol class="thumbs" data-testid="thumbs">
         <li v-for="(p, i) in state.pages" :key="p.id" :class="{ cur: i === current }">
           <button type="button" class="thumb-btn" :aria-current="i === current ? 'page' : undefined" :aria-label="'Página ' + (i + 1) + ' (' + sourceName(p.src) + ', original ' + (p.index + 1) + ')'" @click="current = i">
-            <PdfThumb :src="p.src" :index="p.index" :rotate="p.rotate" :bytes="bytesOf" :width="88" />
+            <PdfThumb :src="p.src" :index="p.index" :rotate="p.rotate" :blank="p.blank" :bytes="bytesOf" :width="88" />
             <span class="num">{{ i + 1 }}</span>
           </button>
           <label class="mark"><input type="checkbox" :checked="checked.has(p.id)" :aria-label="'Marcar página ' + (i + 1)" @change="toggle(p.id, ($event.target as HTMLInputElement).checked)" /></label>
@@ -252,8 +290,8 @@ function sourceName(src: string): string { return state.value.sources.find((s) =
       <div ref="viewEl" class="view" data-testid="pdf-view">
         <div v-if="!state.pages.length" class="empty">
           <p><strong>Nenhum PDF aberto.</strong></p>
-          <p class="muted">Abra um ou mais arquivos para organizar, juntar, dividir e anotar. O original nunca é alterado.</p>
-          <div class="ed-row center"><button type="button" class="btn btn-app" :disabled="busy" @click="fileInput?.click()">Abrir PDF</button><button type="button" class="btn" :disabled="busy" data-testid="sample-pdf-stage" @click="useSample">Usar PDF de exemplo</button></div>
+          <p class="muted">Crie páginas em branco para escrever e anotar, ou abra arquivos para organizar, juntar, dividir e anotar. O original nunca é alterado.</p>
+          <div class="ed-row center"><button type="button" class="btn btn-app" :disabled="busy" data-testid="create-blank-stage" @click="openBlank">Criar em branco</button><button type="button" class="btn" :disabled="busy" @click="fileInput?.click()">Abrir PDF</button><button type="button" class="btn" :disabled="busy" data-testid="sample-pdf-stage" @click="useSample">Usar PDF de exemplo</button></div>
         </div>
         <div v-else class="page" :style="pageCss" data-testid="pdf-page">
           <canvas ref="canvas" aria-hidden="true"></canvas>
@@ -275,11 +313,36 @@ function sourceName(src: string): string { return state.value.sources.find((s) =
         <span class="msg" :class="{ bad: problem }" role="status" data-testid="pdf-message">{{ problem || info }}</span>
       </div>
     </div>
+    <ModalDialog :open="blankOpen" label="Criar páginas em branco" @close="blankOpen = false">
+      <form class="blank-form" data-testid="blank-dialog" @submit.prevent="createBlank">
+        <h2>{{ blankFresh ? 'Novo documento em branco' : 'Adicionar páginas em branco' }}</h2>
+        <label v-if="blankFresh" class="bf"><span>Nome do arquivo</span><input v-model="blankName" class="inp" maxlength="200" data-testid="blank-name" data-autofocus /></label>
+        <label class="bf"><span>Formato</span>
+          <select v-model="blankFormat" class="inp" data-testid="blank-format"><option v-for="f in PAGE_FORMATS" :key="f.id" :value="f.id">{{ f.label }}</option></select>
+        </label>
+        <div v-if="blankFormat === 'custom'" class="bf-row">
+          <label class="bf"><span>Largura (mm)</span><input v-model.number="blankW" class="inp" type="number" min="25" max="1000" data-testid="blank-w" /></label>
+          <label class="bf"><span>Altura (mm)</span><input v-model.number="blankH" class="inp" type="number" min="25" max="1000" data-testid="blank-h" /></label>
+        </div>
+        <fieldset class="bf"><legend>Orientação</legend>
+          <label class="radio"><input v-model="blankOrientation" type="radio" value="portrait" data-testid="blank-portrait" /> Retrato</label>
+          <label class="radio"><input v-model="blankOrientation" type="radio" value="landscape" data-testid="blank-landscape" /> Paisagem</label>
+        </fieldset>
+        <label class="bf"><span>Quantidade de páginas (1 a {{ MAX_NEW_PAGES }})</span><input v-model.number="blankCount" class="inp inp-num" type="number" min="1" :max="MAX_NEW_PAGES" data-testid="blank-count" /></label>
+        <div class="ed-row"><button type="submit" class="btn btn-app" data-testid="blank-create">Criar</button><button type="button" class="btn" @click="blankOpen = false">Cancelar</button></div>
+      </form>
+    </ModalDialog>
   </EditorShell>
 </template>
 
 <style scoped>
 .wide { flex-basis: 100%; }
+.blank-form { display: grid; gap: 12px; }
+.blank-form h2 { font-size: 18px; margin: 0; }
+.bf { display: grid; gap: 4px; border: 0; padding: 0; margin: 0; min-width: 0; }
+.bf > span, .bf legend { font-size: 13px; font-weight: 700; padding: 0; }
+.bf-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.radio { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: 16px; }
 .grow { flex: 1 1 260px; }
 .color { width: 64px; padding: 4px; }
 .small { min-height: 36px; padding: 4px 10px; font-size: 13px; }

@@ -1,4 +1,4 @@
-import { hexToRgb, toPdfSpace, winAnsi, type Annotation, type PdfPage } from './model';
+import { hexToRgb, toPdfSpace, winAnsi, type Annotation, type BlankSize, type PdfPage } from './model';
 
 /* Bibliotecas do Coding 1.0 (pdf-lib e pdf.js), carregadas sob demanda a partir de /vendor/. */
 interface PdfLibGlobal {
@@ -8,7 +8,7 @@ interface PdfLibGlobal {
   rgb(r: number, g: number, b: number): unknown;
 }
 interface PdfLibPage { getSize(): { width: number; height: number }; getRotation(): { angle: number }; setRotation(r: unknown): void; drawText(t: string, o: Record<string, unknown>): void; drawRectangle(o: Record<string, unknown>): void }
-interface PdfLibDoc { getPageCount(): number; copyPages(src: PdfLibDoc, idx: number[]): Promise<PdfLibPage[]>; addPage(p: PdfLibPage): PdfLibPage; embedFont(name: string): Promise<{ widthOfTextAtSize(t: string, s: number): number }>; save(o?: Record<string, unknown>): Promise<Uint8Array>; setTitle(t: string): void; setProducer(t: string): void; setCreator(t: string): void; isEncrypted?: boolean }
+interface PdfLibDoc { getPageCount(): number; copyPages(src: PdfLibDoc, idx: number[]): Promise<PdfLibPage[]>; addPage(p?: PdfLibPage | [number, number]): PdfLibPage; embedFont(name: string): Promise<{ widthOfTextAtSize(t: string, s: number): number }>; save(o?: Record<string, unknown>): Promise<Uint8Array>; setTitle(t: string): void; setProducer(t: string): void; setCreator(t: string): void; isEncrypted?: boolean }
 interface PdfJsDoc { numPages: number; getPage(n: number): Promise<PdfJsPage>; destroy(): Promise<void> }
 interface PdfJsPage { rotate: number; getViewport(o: { scale: number; rotation?: number }): { width: number; height: number }; render(o: { canvasContext: CanvasRenderingContext2D; viewport: unknown }): { promise: Promise<void>; cancel(): void } }
 interface PdfJsGlobal { getDocument(o: Record<string, unknown>): { promise: Promise<PdfJsDoc> }; GlobalWorkerOptions: { workerSrc: string } }
@@ -70,6 +70,16 @@ export function viewDoc(id: string, bytes: () => Promise<Uint8Array>): Promise<P
 }
 export function forgetDoc(id: string): void { const p = views.get(id); views.delete(id); void p?.then((d) => d.destroy()).catch(() => undefined); }
 /** Desenha a página num canvas, já com a rotação pedida. Devolve o tamanho em pontos da página exibida. */
+/** Página em branco: desenha uma folha branca no tamanho pedido (já girada). Devolve o tamanho exibido em pontos. */
+export function renderBlank(blank: BlankSize, extra: number, canvas: HTMLCanvasElement, cssWidth: number): { w: number; h: number } {
+  const turned = extra % 180 !== 0;
+  const w = turned ? blank.h : blank.w, h = turned ? blank.w : blank.h;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.max(1, Math.floor(cssWidth * dpr)); canvas.height = Math.max(1, Math.floor((cssWidth * h * dpr) / w));
+  canvas.style.width = cssWidth + 'px'; canvas.style.height = (cssWidth * h) / w + 'px';
+  const ctx = canvas.getContext('2d'); if (ctx) { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+  return { w, h };
+}
 export async function renderPage(doc: PdfJsDoc, index: number, extra: number, canvas: HTMLCanvasElement, cssWidth: number): Promise<{ w: number; h: number }> {
   const page = await doc.getPage(index + 1);
   const rotation = (page.rotate + extra) % 360;
@@ -92,13 +102,17 @@ export async function buildPdf(pages: readonly PdfPage[], annotations: readonly 
   const docs = new Map<string, PdfLibDoc>();
   const font = await out.embedFont(L.StandardFonts.Helvetica!);
   for (const p of pages) {
-    let src = docs.get(p.src);
-    if (!src) {
-      try { src = await L.PDFDocument.load((await bytesOf(p.src)).slice(), { ignoreEncryption: false, updateMetadata: false }); } catch (e) { throw explain(e); }
-      docs.set(p.src, src);
+    let page: PdfLibPage;
+    if (p.blank) page = out.addPage([p.blank.w, p.blank.h]);
+    else {
+      let src = docs.get(p.src);
+      if (!src) {
+        try { src = await L.PDFDocument.load((await bytesOf(p.src)).slice(), { ignoreEncryption: false, updateMetadata: false }); } catch (e) { throw explain(e); }
+        docs.set(p.src, src);
+      }
+      const [copied] = await out.copyPages(src, [p.index]);
+      page = out.addPage(copied!);
     }
-    const [copied] = await out.copyPages(src, [p.index]);
-    const page = out.addPage(copied!);
     const total = (page.getRotation().angle + p.rotate) % 360;
     page.setRotation(L.degrees(total));
     const { width: W, height: H } = page.getSize();

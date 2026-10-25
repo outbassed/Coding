@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { normalizePdf, parseRanges, toPdfSpace, winAnsi } from './model';
+import { blankSize, normalizePdf, parseRanges, toPdfSpace, winAnsi } from './model';
+import { pdfTemplates } from './kind';
 
 describe('Editor PDF', () => {
   it('converte coordenadas da página girada para o espaço do PDF', () => {
@@ -21,5 +22,34 @@ describe('Editor PDF', () => {
     expect(s.pages).toEqual([{ id: 'p1', src: 'a', index: 1, rotate: 0 }]);
     expect(s.sources.map((x) => x.id)).toEqual(['a']);
     expect(s.annotations).toHaveLength(1);
+  });
+  it('páginas em branco: tamanhos, orientação e limites', () => {
+    expect(blankSize('a4', 'portrait')).toEqual({ w: 595.28, h: 841.89 });
+    expect(blankSize('a4', 'landscape')).toEqual({ w: 841.89, h: 595.28 });
+    expect(blankSize('letter', 'portrait')).toEqual({ w: 612, h: 792 });
+    expect(blankSize('a3', 'landscape').w).toBeCloseTo(1190.55, 1);
+    const custom = blankSize('custom', 'portrait', { w: 100, h: 200 });
+    expect(custom.w).toBeCloseTo(283.46, 1);
+    expect(custom.h).toBeCloseTo(566.93, 1);
+    expect(blankSize('custom', 'portrait', { w: 1, h: 99999 })).toEqual({ w: 72, h: 3000 });
+  });
+  it('projeto só com páginas em branco é válido e reabre igual (sem arquivos de origem)', () => {
+    const raw = { name: 'Brancos', sources: [], pages: [{ id: 'b1', src: '', index: 0, rotate: 90, blank: { w: 841.89, h: 595.28 } }, { id: 'b2', src: '', index: 0, rotate: 0, blank: { w: 612, h: 792 } }], annotations: [{ id: 'a1', page: 'b1', kind: 'text', x: 0.2, y: 0.3, text: 'Olá' }, { id: 'a2', page: 'zz', kind: 'text' }] };
+    const s = normalizePdf(raw);
+    expect(s.pages).toHaveLength(2);
+    expect(s.pages[0]).toEqual({ id: 'b1', src: '', index: 0, rotate: 90, blank: { w: 841.89, h: 595.28 } });
+    expect(s.annotations.map((a) => a.id)).toEqual(['a1']);
+    expect(normalizePdf(JSON.parse(JSON.stringify(s)))).toEqual(s);
+  });
+  it('páginas em branco inválidas são limitadas ou descartadas', () => {
+    const s = normalizePdf({ pages: [{ id: 'x', blank: { w: 'abc', h: 10 } }, { id: 'y', blank: { w: 1, h: 99999 } }] });
+    expect(s.pages).toHaveLength(1);
+    expect(s.pages[0]!.blank).toEqual({ w: 72, h: 3000 });
+  });
+  it('modelos em branco geram páginas A4 retrato e paisagem', () => {
+    const a = pdfTemplates.find((t) => t.id === 'branco-a4')!.create();
+    const b = pdfTemplates.find((t) => t.id === 'branco-a4-paisagem')!.create();
+    expect(a.pages[0]!.blank!.h).toBeGreaterThan(a.pages[0]!.blank!.w);
+    expect(b.pages[0]!.blank!.w).toBeGreaterThan(b.pages[0]!.blank!.h);
   });
 });

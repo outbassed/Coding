@@ -205,6 +205,97 @@ test.describe('Editor PDF', () => {
   });
 });
 
+/** Lê, no navegador, o tamanho de cada página e os textos do PDF baixado (usa o mesmo pdf-lib do app). */
+async function inspectPdfBytes(page: Page, bytes: Buffer): Promise<{ sizes: number[][]; rotations: number[] }> {
+  return page.evaluate(async (b64) => {
+    const bin = atob(b64); const u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    const L = (window as unknown as { PDFLib: { PDFDocument: { load(b: Uint8Array): Promise<{ getPages(): { getSize(): { width: number; height: number }; getRotation(): { angle: number } }[] }> } } }).PDFLib;
+    const d = await L.PDFDocument.load(u8);
+    return { sizes: d.getPages().map((p) => [Math.round(p.getSize().width), Math.round(p.getSize().height)]), rotations: d.getPages().map((p) => p.getRotation().angle) };
+  }, bytes.toString('base64'));
+}
+
+test.describe('Editor PDF · projeto em branco', () => {
+  test('A4 retrato: criar, ver página branca, anotar, salvar, reabrir e exportar PDF válido', async ({ page }) => {
+    await page.goto('/apps/pdf/');
+    await page.getByTestId('create-blank-stage').click();
+    await expect(page.getByTestId('blank-dialog')).toBeVisible();
+    await page.getByTestId('blank-name').fill('Ata da reunião');
+    await page.getByTestId('blank-count').fill('2');
+    await page.getByTestId('blank-create').click();
+    await expect(page.getByTestId('page-number')).toHaveText('1 / 2');
+    await expect(page.getByTestId('doc-title')).toHaveText('Ata da reunião');
+    // a página é realmente branca e tem proporção A4
+    const px = await page.locator('[data-testid="pdf-page"] canvas').evaluate((c) => { const cv = c as HTMLCanvasElement; const d = cv.getContext('2d')!.getImageData(5, 5, 1, 1).data; return { rgba: [d[0], d[1], d[2], d[3]], ratio: cv.height / cv.width }; });
+    expect(px.rgba).toEqual([255, 255, 255, 255]);
+    expect(px.ratio).toBeCloseTo(1.414, 2);
+    await expect(page.getByTestId('thumbs').locator('li')).toHaveCount(2);
+    await tab(page, 'Anotar').click();
+    await page.getByTestId('add-note-text').click();
+    await page.getByTestId('note-text').fill('Presentes: Ana e Bia');
+    await expect(page.getByTestId('ann-text')).toContainText('Presentes');
+    await saved(page);
+    await page.reload();
+    await expect(page.getByTestId('page-number')).toHaveText('1 / 2');
+    await expect(page.getByTestId('ann-text')).toContainText('Presentes');
+    await tab(page, 'Arquivo').click();
+    const [pdf] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-pdf').click()]);
+    const bytes = await bytesOf(pdf);
+    expect(bytes.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+    const info = await inspectPdfBytes(page, bytes);
+    expect(info.sizes).toEqual([[595, 842], [595, 842]]);
+  });
+
+  test('paisagem, A3 e Carta; girar, duplicar e misturar com PDF importado', async ({ page }) => {
+    await page.goto('/apps/pdf/');
+    await page.getByTestId('create-blank-stage').click();
+    await page.getByTestId('blank-format').selectOption('a3');
+    await page.getByTestId('blank-landscape').check();
+    await page.getByTestId('blank-create').click();
+    await expect(page.getByTestId('page-number')).toHaveText('1 / 1');
+    const ratio = await page.locator('[data-testid="pdf-page"] canvas').evaluate((c) => (c as HTMLCanvasElement).width / (c as HTMLCanvasElement).height);
+    expect(ratio).toBeCloseTo(1.414, 2);
+    await page.getByTestId('create-blank').click();
+    await page.getByTestId('blank-format').selectOption('letter');
+    await page.getByTestId('blank-create').click();
+    await expect(page.getByTestId('page-number')).toHaveText('2 / 2');
+    // PDF de verdade (2 páginas de 300 × 400) criado no navegador com o mesmo pdf-lib do app
+    await page.addScriptTag({ url: '/vendor/pdf-lib.min.js' });
+    const b64 = await page.evaluate(async () => {
+      const L = (window as unknown as { PDFLib: { PDFDocument: { create(): Promise<{ addPage(s: [number, number]): unknown; save(): Promise<Uint8Array> }> } } }).PDFLib;
+      const d = await L.PDFDocument.create(); d.addPage([300, 400]); d.addPage([300, 400]);
+      const bytes = await d.save(); let bin = ''; for (const b of bytes) bin += String.fromCharCode(b); return btoa(bin);
+    });
+    await page.getByTestId('pdf-input').setInputFiles({ name: 'amostra.pdf', mimeType: 'application/pdf', buffer: Buffer.from(b64, 'base64') });
+    await expect(page.getByTestId('page-number')).toHaveText('3 / 4');
+    await page.getByTestId('rotate-page').click();
+    await page.getByTestId('duplicate-page').click();
+    await expect(page.getByTestId('page-number')).toHaveText('3 / 5');
+    await page.getByTestId('insert-blank').click();
+    await expect(page.getByTestId('page-number')).toHaveText('4 / 6');
+    await tab(page, 'Arquivo').click();
+    const [pdf] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-pdf').click()]);
+    const info = await inspectPdfBytes(page, await bytesOf(pdf));
+    expect(info.sizes).toEqual([[1191, 842], [612, 792], [300, 400], [300, 400], [300, 400], [300, 400]]);
+    expect(info.rotations).toEqual([0, 0, 90, 0, 90, 0]);
+  });
+
+  test('modelo A4 em branco abre pela URL e o modelo paisagem também', async ({ page }) => {
+    await page.goto('/apps/pdf/?modelo=branco-a4-paisagem');
+    await expect(page.getByTestId('page-number')).toHaveText('1 / 1');
+    const ratio = await page.locator('[data-testid="pdf-page"] canvas').evaluate((c) => (c as HTMLCanvasElement).width / (c as HTMLCanvasElement).height);
+    expect(ratio).toBeGreaterThan(1.3);
+  });
+
+  test('quantidade de páginas é limitada', async ({ page }) => {
+    await page.goto('/apps/pdf/');
+    await page.getByTestId('create-blank-stage').click();
+    await page.getByTestId('blank-count').fill('9999');
+    await page.getByTestId('blank-create').click();
+    await expect(page.getByTestId('page-number')).toHaveText('1 / 100');
+  });
+});
+
 test.describe('Etiquetas · novidades', () => {
   test('modelo novo, layout pronto e importação CSV com colunas', async ({ page }) => {
     await page.goto('/apps/etiquetas/?modelo=prateleira');
