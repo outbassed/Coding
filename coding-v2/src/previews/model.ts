@@ -9,6 +9,8 @@ import { cleanNames, normalizeDraw } from '../apps/draw/model';
 import { normalizeImages } from '../apps/images/model';
 import { normalizePdf } from '../apps/pdf/model';
 import { normalizeSheetLabels } from '../apps/sheet-labels/model';
+import { normalizeCalc as normalizeCalculator, preview as calculatorLive } from '../apps/calculator/model';
+import { formatNumber } from '../apps/calculator/format';
 
 /** Limites do que entra no cache: só o que cabe na primeira folha/tela precisa ser guardado. */
 export const MAX_PREVIEW_BLOCKS = 60;
@@ -82,7 +84,7 @@ export function textPreview(raw: unknown): Preview {
   return { kind: 'text', html: sanitizeTextHtml(out.body.innerHTML) };
 }
 
-const PREVIEW_TYPES = ['labels', 'texts', 'calc', 'sheet', 'codes', 'split', 'draw', 'images', 'pdf'] as const;
+const PREVIEW_TYPES = ['labels', 'texts', 'calc', 'sheet', 'codes', 'split', 'draw', 'images', 'pdf', 'calculator'] as const;
 export type PreviewType = typeof PREVIEW_TYPES[number];
 export function previewable(type: unknown): type is PreviewType { return typeof type === 'string' && (PREVIEW_TYPES as readonly string[]).includes(type); }
 const obj = (raw: unknown): Record<string, unknown> => (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {});
@@ -146,6 +148,16 @@ export function imagesPreview(raw: unknown): Preview {
   for (const l of [...s.layers].reverse().slice(0, 8)) lines.push([{ image: 'Imagem', text: 'Texto', rect: 'Retângulo', ellipse: 'Elipse' }[l.kind], (l.kind === 'text' ? (l.text ?? '').split('\n')[0] : l.name).slice(0, 30)]);
   return { kind: 'summary', title: s.name || 'Imagem', lines };
 }
+export function calculatorPreview(raw: unknown): Preview {
+  need(raw, 'history');
+  const s = normalizeCalculator(raw);
+  const lines: [string, string][] = [['Modo', s.mode === 'pro' ? 'Pro' : 'Básico']];
+  const live = calculatorLive(s);
+  if (s.expr.trim()) lines.push([s.expr.slice(0, 30), live && live.ok ? formatNumber(live.value, s.decimals) : '…']);
+  for (const h of s.history.slice(-6).reverse()) lines.push([h.expr.slice(0, 30), h.text.slice(0, 24)]);
+  if (s.vars.length) lines.push(['Variáveis', String(s.vars.length)]);
+  return { kind: 'summary', title: s.name || 'Calculadora', lines };
+}
 export function pdfPreview(raw: unknown): Preview {
   need(raw, 'pages');
   const s = normalizePdf(raw);
@@ -165,6 +177,7 @@ export function buildPreview(type: string | undefined, state: unknown): Preview 
     case 'draw': return drawPreview(state);
     case 'images': return imagesPreview(state);
     case 'pdf': return pdfPreview(state);
+    case 'calculator': return calculatorPreview(state);
     default: throw new Error('Tipo sem prévia');
   }
 }

@@ -46,6 +46,7 @@ test.describe('Instalação offline por app (build real, sem rede simulada por m
     // Nada é registrado antes do clique.
     expect(await page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).length)).toBe(0);
     expect(await page.evaluate(async () => await caches.has('coding-v2-offline-files'))).toBe(false);
+    expect(await page.evaluate(async () => (await indexedDB.databases()).map((d) => d.name))).not.toContain('coding-v2-offline');
     await expect(state(page, 'pdf')).toHaveAttribute('data-state', 'not-installed');
     await expect(page.getByTestId('offline-size-pdf')).toContainText(/Download: \d/);
     await expect(page.getByTestId('offline-size-pdf')).toContainText('Núcleo do Launcher');

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
-const APP_PAGES = ['apps/etiquetas/index.html', 'apps/texto/index.html', 'apps/planilhas/index.html', 'apps/imagens/index.html', 'apps/pdf/index.html', 'apps/qr/index.html', 'apps/sorteio/index.html', 'apps/racha-conta/index.html'];
+const APP_PAGES = ['apps/etiquetas/index.html', 'apps/texto/index.html', 'apps/planilhas/index.html', 'apps/imagens/index.html', 'apps/pdf/index.html', 'apps/qr/index.html', 'apps/sorteio/index.html', 'apps/racha-conta/index.html', 'apps/calculadora/index.html'];
 /** Página estática que explica que Planilha → Etiquetas foi incorporado a Etiquetas (sem app nem script de módulo). */
 const REMOVED_APP_PAGE = 'apps/planilha-etiquetas/index.html';
 const expected = [
@@ -12,8 +12,8 @@ const expected = [
 for (const path of expected) assert.ok(existsSync(path), 'Falta arquivo: ' + path);
 
 const c = readFileSync('src/shared/catalog.ts', 'utf8');
-for (const id of ['labels', 'texts', 'calc', 'images', 'pdf', 'codes', 'draw', 'split']) assert.ok(c.includes("id: '" + id + "'"), 'Ferramenta ausente: ' + id);
-assert.equal((c.match(/status: 'preview'/g) ?? []).length, 8, 'Os oito apps devem existir no Coding 2.0.');
+for (const id of ['labels', 'texts', 'calc', 'images', 'pdf', 'codes', 'draw', 'split', 'calculator']) assert.ok(c.includes("id: '" + id + "'"), 'Ferramenta ausente: ' + id);
+assert.equal((c.match(/status: 'preview'/g) ?? []).length, 9, 'Os nove apps devem existir no Coding 2.0.');
 
 const config = readFileSync('vite.config.ts', 'utf8');
 for (const name of ['launcher/index.html', ...APP_PAGES, REMOVED_APP_PAGE]) assert.ok(config.includes(name), 'vite.config sem entrada ' + name);
@@ -36,4 +36,4 @@ assert.ok(pwa.includes('VITE_CODING_PREVIEW_PWA') && pwa.includes('codingtxt.ver
 const sources = ['src/stores/apps.ts', 'src/stores/settings.ts', 'src/EditorApp.vue', 'src/main-editor.ts', 'src/main-launcher.ts', 'src/entries/boot.ts', 'src/editors/docs.ts', 'src/editors/useDocument.ts'];
 for (const file of sources) assert.ok(!/indexedDB\.open|coding-db/.test(readFileSync(file, 'utf8')), 'Acesso ao coding-db proibido em ' + file);
 
-console.log('Estrutura Coding 2.0 verificada: oito apps com página própria, tema sem piscada, PWA opcional e protegida, sem acesso ao coding-db.');
+console.log('Estrutura Coding 2.0 verificada: todos os apps com página própria, tema sem piscada, PWA opcional e protegida, sem acesso ao coding-db.');

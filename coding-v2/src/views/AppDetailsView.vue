@@ -51,7 +51,7 @@ const tone = (state: LevelState): PillTone => state === 'on' ? 'on' : state === 
     <div class="cta" :style="{ '--app': tool.color }">
       <a v-if="tool.status === 'preview' && enabled && tool.path" :href="tool.path" class="btn btn-primary">Abrir editor</a>
       <ActivateButton v-else-if="tool.status === 'preview'" :tool="tool" :enabled="enabled" />
-      <a v-else :href="legacyLink(tool.legacyHash)" class="btn btn-primary">Abrir no Coding atual ↗</a>
+      <a v-else-if="tool.legacyHash" :href="legacyLink(tool.legacyHash)" class="btn btn-primary">Abrir no Coding atual ↗</a>
     </div>
 
     <RecentDocs v-if="tool.ready.length" :tool-id="tool.id" />
@@ -67,7 +67,7 @@ const tone = (state: LevelState): PillTone => state === 'on' ? 'on' : state === 
         <ul class="plan"><li v-for="item in tool.planned" :key="item">{{ item }}</li></ul>
       </details>
       <p v-if="tool.status === 'preview' && !tool.ready.length" class="muted">Ainda é uma demonstração, sem edição ou salvamento.</p>
-      <a v-if="tool.status === 'preview'" :href="legacyLink(tool.legacyHash)" class="original">Usar no Coding atual ↗</a>
+      <a v-if="tool.status === 'preview' && tool.legacyHash" :href="legacyLink(tool.legacyHash)" class="original">Usar no Coding atual ↗</a>
     </section>
 
     <details class="technical">
@@ -85,7 +85,7 @@ const tone = (state: LevelState): PillTone => state === 'on' ? 'on' : state === 
   </template>
   <template v-else>
     <PageHeader title="Aplicativo não encontrado" />
-    <EmptyState title="Não existe um app com esse endereço." text="Confira o catálogo para ver os oito aplicativos.">
+    <EmptyState title="Não existe um app com esse endereço." text="Confira o catálogo para ver todos os aplicativos.">
       <RouterLink :to="{ name: 'catalog' }" class="btn btn-primary">Ver catálogo</RouterLink>
     </EmptyState>
   </template>

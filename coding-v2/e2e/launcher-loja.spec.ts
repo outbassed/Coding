@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { APP_COUNT } from './helpers';
 import AxeBuilder from '@axe-core/playwright';
 
 async function axeClean(page: Page): Promise<void> {
@@ -46,7 +47,7 @@ test.describe('Launcher · loja no computador', () => {
 
   test('Catálogo: categorias, busca, filtros, limpar e detalhes', async ({ page }) => {
     await page.goto('/launcher/#/catalogo');
-    await expect(page.locator('article.card')).toHaveCount(8);
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
     await page.getByTestId('category-button').click();
     await page.getByRole('option', { name: 'Etiquetas e códigos' }).click();
     await expect(page.getByTestId('category-button')).toContainText('Etiquetas e códigos');
@@ -55,11 +56,11 @@ test.describe('Launcher · loja no computador', () => {
     await page.getByRole('button', { name: 'Não ativados', exact: true }).click();
     await expect(page.locator('article.card')).toHaveCount(0);
     await page.getByTestId('clear-filters').click();
-    await expect(page.locator('article.card')).toHaveCount(8);
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
     await page.getByRole('searchbox', { name: 'Buscar no catálogo' }).fill('zzzz');
     await expect(page.getByText('Nada encontrado.')).toBeVisible();
     await page.getByRole('button', { name: 'Limpar busca e filtros' }).first().click();
-    await expect(page.locator('article.card')).toHaveCount(8);
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
     await page.locator('article.card[data-tool="labels"]').getByRole('link', { name: 'Etiquetas', exact: true }).click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Etiquetas');
     await expect(page.getByTestId('ready-list')).toContainText('Colar lista de itens');

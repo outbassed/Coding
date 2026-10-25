@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { APP_COUNT } from './helpers';
 
 /* Regressão: no Ajustes, os logos por app nunca podem passar de 40 px nem ser cortados ou estourar a largura. */
 for (const width of [1280, 768, 390, 320]) {
@@ -6,8 +7,8 @@ for (const width of [1280, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/launcher/#/ajustes');
     const items = page.getByTestId('doc-counts').locator('li');
-    await expect(items).toHaveCount(8);
-    for (let i = 0; i < 8; i++) {
+    await expect(items).toHaveCount(APP_COUNT);
+    for (let i = 0; i < APP_COUNT; i++) {
       const li = items.nth(i);
       const icon = (await li.getByTestId('app-icon').boundingBox())!;
       const box = (await li.boundingBox())!;

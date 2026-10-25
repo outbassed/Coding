@@ -1,4 +1,4 @@
-export type ToolId = 'labels' | 'texts' | 'calc' | 'images' | 'pdf' | 'codes' | 'draw' | 'split';
+export type ToolId = 'labels' | 'texts' | 'calc' | 'images' | 'pdf' | 'codes' | 'draw' | 'split' | 'calculator';
 
 /**
  * preview: o app existe no Coding 2.0 (Prévia). Com `ready` preenchido, o editor é funcional.
@@ -29,8 +29,8 @@ export interface CodingTool {
   /** Variante para TEXTO no tema escuro. */
   textDark: string;
   path: string | null;
-  /** Rota equivalente na versão estável (hash). */
-  legacyHash: string;
+  /** Rota equivalente na versão estável (hash); nulo para apps que só existem no 2.0. */
+  legacyHash: string | null;
   status: ToolStatus;
   initiallyActive: boolean;
   /** O que o app deverá oferecer; é planejamento, não funcionalidade entregue. */
@@ -47,6 +47,7 @@ const READY_pdf = ['Abrir PDFs e ver miniaturas das páginas', 'Juntar, dividir 
 const READY_codes = ['QR code, Code 128, EAN-13, EAN-8, UPC-A e Code 39', 'Validação com dígito verificador', 'Tamanho, cores, margem e legenda', 'Baixar PNG e SVG', 'Folha A4 para imprimir'] as const;
 const READY_draw = ['Roleta animada (respeita “reduzir movimento”)', 'Números, dados e equipes', 'Não repetir quem já foi sorteado', 'Histórico salvo no documento', 'Modelos prontos para editar'] as const;
 const READY_split = ['Pessoas e despesas', 'Divisão igual, por porcentagem ou por valores', 'Saldos e acertos sugeridos', 'Cálculos em centavos inteiros', 'Exportar CSV e TXT; imprimir'] as const;
+const READY_calculator = ['Modo Básico (teclado, memória e porcentagem) e modo Pro (funções científicas)', 'Leitor de expressões próprio e seguro: nada é executado como código', 'Graus ou radianos, casas decimais e variáveis com nome', 'Histórico salvo com reuso da conta ou do resultado', 'Copiar resultado e exportar o histórico'] as const;
 
 export const tools: readonly CodingTool[] = [
   { id: 'labels', category: 'labels', ready: READY_labels, name: 'Etiquetas', description: 'Folhas A4, códigos e descrições', color: '#F28B30', textLight: '#A05C20', textDark: '#F28B30', path: '/apps/etiquetas/', legacyHash: '#/etiquetas', status: 'preview', initiallyActive: true, planned: ['Etiquetas com tamanhos de papel adesivo prontos (Pimaco)'] },
@@ -56,7 +57,8 @@ export const tools: readonly CodingTool[] = [
   { id: 'pdf', category: 'media', ready: READY_pdf, name: 'Editor PDF', description: 'Organização e anotações em PDF', color: '#E75358', textLight: '#BD4448', textDark: '#E75358', path: '/apps/pdf/', legacyHash: '#/pdf', status: 'preview', initiallyActive: true, planned: ['Assinatura desenhada', 'Preencher formulários de PDF'] },
   { id: 'codes', category: 'labels', ready: READY_codes, name: 'QR / Barras', description: 'QR codes e códigos de barras', color: '#976DF7', textLight: '#7C59CB', textDark: '#976DF7', path: '/apps/qr/', legacyHash: '#/qr', status: 'preview', initiallyActive: true, planned: ['Data Matrix e PDF417', 'Gerar em lote a partir de planilha'] },
   { id: 'draw', category: 'fun', ready: READY_draw, name: 'Sorteio', description: 'Roleta, equipes, dados e números', color: '#F5B820', textLight: '#896712', textDark: '#F5B820', path: '/apps/sorteio/', legacyHash: '#/sorteio', status: 'preview', initiallyActive: true, planned: ['Sorteio com pesos', 'Exportar o resultado como imagem'] },
-  { id: 'split', category: 'data', ready: READY_split, name: 'Racha-conta', description: 'Divisão de despesas e resumos', color: '#84CC16', textLight: '#4F7A0D', textDark: '#84CC16', path: '/apps/racha-conta/', legacyHash: '#/racha', status: 'preview', initiallyActive: true, planned: ['Várias moedas', 'Compartilhar o resumo por link'] }
+  { id: 'split', category: 'data', ready: READY_split, name: 'Racha-conta', description: 'Divisão de despesas e resumos', color: '#84CC16', textLight: '#4F7A0D', textDark: '#84CC16', path: '/apps/racha-conta/', legacyHash: '#/racha', status: 'preview', initiallyActive: true, planned: ['Várias moedas', 'Compartilhar o resumo por link'] },
+  { id: 'calculator', category: 'fun', ready: READY_calculator, name: 'Calculadora', description: 'Básica e Pro, com histórico', color: '#7C8BFF', textLight: '#4351C8', textDark: '#7C8BFF', path: '/apps/calculadora/', legacyHash: null, status: 'preview', initiallyActive: true, planned: ['Conversão de unidades', 'Calculadora financeira e de datas'] }
 ] as const;
 
 export const isToolId = (value: unknown): value is ToolId => typeof value === 'string' && tools.some((tool) => tool.id === value);

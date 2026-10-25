@@ -55,7 +55,7 @@ const perApp = computed(() => tools.map((t) => ({ tool: t, count: (copies.value 
     <h2 id="docs-h">Documentos e armazenamento</h2>
     <p class="muted">Os documentos do Coding 2.0 ficam neste navegador, em um banco próprio, separado do Coding atual (que nunca é alterado).</p>
     <ul v-if="copies" class="counts" data-testid="doc-counts">
-      <li v-for="row in perApp" :key="row.tool.id"><AppIcon :id="row.tool.id" size="sm" /><span>{{ row.tool.name }}</span><strong>{{ row.count }}</strong></li>
+      <li v-for="row in perApp" :key="row.tool.id"><AppIcon :id="row.tool.id" size="sm" /><span class="nm">{{ row.tool.name }}</span><strong>{{ row.count }}</strong></li>
     </ul>
     <p v-else class="muted">Não foi possível contar os documentos agora.</p>
     <StoragePanel :refresh-key="0" @announce="announce" />
@@ -85,7 +85,7 @@ h3 { font-size: 14px; margin: 16px 0 8px; }
 .opt[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--surface)); box-shadow: inset 0 -3px var(--accent); }
 .counts { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 6px; }
 .counts li { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
-.counts span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.counts .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .counts strong { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
 .muted a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 </style>

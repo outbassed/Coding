@@ -3,19 +3,22 @@ import { INK, tools } from './catalog';
 import { contrast } from '../test/color';
 
 describe('catálogo', () => {
-  it('tem oito ferramentas com ids únicos', () => {
-    expect(tools).toHaveLength(8);
-    expect(new Set(tools.map((tool) => tool.id)).size).toBe(8);
+  it('tem ferramentas com ids únicos', () => {
+    expect(tools).toHaveLength(9);
+    expect(new Set(tools.map((tool) => tool.id)).size).toBe(tools.length);
   });
-  it('os oito apps existem no 2.0, abrem por endereço próprio e listam o que já funciona', () => {
+  it('os apps existem no 2.0, abrem por endereço próprio e listam o que já funciona', () => {
     expect(tools.every((tool) => tool.status === 'preview' && tool.initiallyActive)).toBe(true);
     const paths = tools.map((tool) => tool.path);
     expect(paths.every((path) => typeof path === 'string' && /^\/apps\/[a-z-]+\/$/.test(path))).toBe(true);
-    expect(new Set(paths).size).toBe(8);
+    expect(new Set(paths).size).toBe(tools.length);
     expect(tools.every((tool) => tool.ready.length >= 3)).toBe(true);
   });
-  it('rotas da versão estável são únicas', () => {
-    expect(new Set(tools.map((tool) => tool.legacyHash)).size).toBe(8);
+  it('rotas da versão estável são únicas; apps novos não têm rota antiga', () => {
+    const hashes = tools.map((tool) => tool.legacyHash).filter((hash): hash is string => hash !== null);
+    expect(new Set(hashes).size).toBe(hashes.length);
+    expect(hashes).toHaveLength(8);
+    expect(tools.find((tool) => tool.id === 'calculator')?.legacyHash).toBeNull();
   });
 });
 

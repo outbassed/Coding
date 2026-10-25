@@ -46,6 +46,11 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
     { label: 'Nova despesa', selector: '[data-testid="add-expense"]', tab: 'Despesas', shortcut: 'Alt+Shift+N' },
     { label: 'Adicionar pessoa', selector: '[data-testid="add-person"]', tab: 'Pessoas' },
     { label: 'Exportar CSV', selector: '[data-testid="export-csv"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' }
+  ],
+  calculator: [
+    { label: 'Limpar entrada', selector: '[data-testid="key-clear"]', shortcut: 'Esc' },
+    { label: 'Copiar resultado', selector: '[data-testid="copy-result"]' },
+    { label: 'Exportar histórico', selector: '[data-testid="export-history"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' }
   ]
 };
 

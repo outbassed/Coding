@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { APP_COUNT } from './helpers';
 
 const catalogBox = (page: Page) => page.getByRole('searchbox', { name: 'Buscar no catálogo' });
 const myBox = (page: Page) => page.getByRole('searchbox', { name: 'Buscar nos meus apps' });
@@ -17,7 +18,7 @@ test.describe('Busca por tela do Launcher', () => {
     await page.keyboard.press('Escape');
     await expect(catalogBox(page)).toHaveValue('');
     await expect(catalogBox(page)).toBeFocused();
-    await expect(page.locator('article.card')).toHaveCount(8);
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
   });
 
   test('Meus apps tem busca própria e não mistura com o Catálogo', async ({ page }) => {
@@ -28,7 +29,7 @@ test.describe('Busca por tela do Launcher', () => {
     await expect(page.locator('article.card')).toHaveCount(1);
     await page.goto('/launcher/#/catalogo');
     await expect(catalogBox(page)).toHaveValue('');
-    await expect(page.locator('article.card')).toHaveCount(8);
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
     await catalogBox(page).fill('sorteio');
     await page.goto('/launcher/#/meus-apps');
     await expect(myBox(page)).toHaveValue('planilhas');
@@ -72,7 +73,7 @@ test.describe('Busca por tela do Launcher', () => {
     await page.reload();
     await expect(catalogBox(page)).toHaveValue('zzzz');
     await page.getByRole('button', { name: 'Limpar busca e filtros' }).first().click();
-    await expect(page.locator('article.card')).toHaveCount(8);
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
   });
 
   test('celular: digitar mantém o foco e a busca ignora acentos e maiúsculas', async ({ page }) => {
@@ -114,7 +115,7 @@ test.describe('Lista suspensa de categorias', () => {
     await expect(list).toBeHidden();
     await button.click();
     await page.getByRole('option', { name: 'Todas' }).click();
-    await expect(page.locator('article.card')).toHaveCount(8);
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
   });
 
   test('filtros combinam em E e persistem ao sair e voltar', async ({ page }) => {
@@ -131,7 +132,7 @@ test.describe('Lista suspensa de categorias', () => {
     await expect(catalogBox(page)).toHaveValue('racha');
     await expect(page.getByRole('button', { name: 'Ativados', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await page.getByTestId('clear-filters').click();
-    await expect(page.locator('article.card')).toHaveCount(8);
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
   });
 
   test('funciona no celular', async ({ page }) => {

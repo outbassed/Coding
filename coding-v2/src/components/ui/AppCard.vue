@@ -39,7 +39,7 @@ const pill = computed(() => props.tool.status !== 'preview'
         <a v-if="enabled && tool.path" :href="tool.path" class="btn btn-app" :aria-label="'Abrir ' + (avail === 'functional' ? 'o editor de ' : 'prévia de ') + tool.name">{{ avail === 'functional' ? 'Abrir' : 'Abrir prévia' }}</a>
         <ActivateButton :tool="tool" :enabled="enabled" />
       </template>
-      <a v-else class="btn btn-ghost" :href="legacyLink(tool.legacyHash)" :aria-label="'Abrir ' + tool.name + ' no Coding atual'">Abrir no Coding atual ↗</a>
+      <a v-else-if="tool.legacyHash" class="btn btn-ghost" :href="legacyLink(tool.legacyHash)" :aria-label="'Abrir ' + tool.name + ' no Coding atual'">Abrir no Coding atual ↗</a>
     </div>
   </article>
 </template>
