@@ -68,6 +68,7 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
     { label: 'Exportar diferenças', selector: '[data-testid="export-diff"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' }
   ],
   code: [
+    { label: 'Novo arquivo', selector: '[data-testid="new-file"]', tab: 'Explorador', shortcut: 'Alt+Shift+N' },
     { label: 'Executar', selector: '[data-testid="run-code"]', tab: 'Executar', shortcut: 'Ctrl+Enter' },
     { label: 'Baixar ZIP do projeto', selector: '[data-testid="download-zip"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
     { label: 'Baixar página única', selector: '[data-testid="download-html"]', tab: 'Arquivo' }

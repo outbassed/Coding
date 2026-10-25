@@ -17,7 +17,7 @@ import { compareText } from '../apps/compare/diff';
 import { normalizeViewer } from '../apps/viewer/model';
 import { KIND_LABELS } from '../apps/viewer/kinds';
 import { normalizePaint } from '../apps/paint/model';
-import { normalizeCode, totalChars as codeChars } from '../apps/code/model';
+import { entryPage, normalizeCode, totalChars as codeChars } from '../apps/code/model';
 import { normalizeZip, totalSize as zipTotal } from '../apps/zip/model';
 import { formatBytes } from '../shared/bytes';
 
@@ -196,10 +196,15 @@ export function comparePreview(raw: unknown): Preview {
 }
 export function codePreview(raw: unknown): Preview {
   const o = obj(raw);
-  if (typeof o.html !== 'string' && typeof o.css !== 'string' && typeof o.js !== 'string') throw new Error('Formato sem prévia');
+  if (!Array.isArray(o.files) && typeof o.html !== 'string' && typeof o.css !== 'string' && typeof o.js !== 'string') throw new Error('Formato sem prévia');
   const s = normalizeCode(raw);
-  const lines: [string, string][] = [['HTML', s.html.split('\n').length + ' linhas'], ['CSS', s.css.split('\n').length + ' linhas'], ['JavaScript', s.js.split('\n').length + ' linhas'], ['Tamanho', codeChars(s).toLocaleString('pt-BR') + ' caracteres']];
-  const title = /<title[^>]*>([^<]{1,60})<\/title>/i.exec(s.html)?.[1]?.trim();
+  const lines: [string, string][] = [['Arquivos', String(s.files.length + s.assets.length)]];
+  if (s.assets.length) lines.push(['Imagens e recursos', String(s.assets.length)]);
+  for (const f of s.files.slice(0, 5)) lines.push([f.path.slice(0, 30), f.text.split('\n').length + ' linhas']);
+  if (s.files.length > 5) lines.push(['Outros arquivos de texto', String(s.files.length - 5)]);
+  lines.push(['Tamanho', codeChars(s).toLocaleString('pt-BR') + ' caracteres']);
+  const page = entryPage(s);
+  const title = page ? /<title[^>]*>([^<]{1,60})<\/title>/i.exec(s.files.find((f) => f.path === page)?.text ?? '')?.[1]?.trim() : undefined;
   if (title) lines.unshift(['Título da página', title]);
   return { kind: 'summary', title: s.name || 'Projeto de código', lines };
 }

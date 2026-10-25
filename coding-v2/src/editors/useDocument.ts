@@ -20,6 +20,8 @@ export interface UseDocumentOptions<S> {
   delay?: number;
   /** Filtra os arquivos gravados (ex.: só imagens ainda usadas). Na memória ficam todos, para o desfazer funcionar. */
   imagesFor?: (state: S, images: LegacyImage[]) => LegacyImage[];
+  /** O que conta como alteração para o desfazer: mudar só o que fica de fora (ex.: aba aberta) não cria passo. */
+  historyView?: (state: S) => unknown;
 }
 
 /**
@@ -43,7 +45,7 @@ export function useDocument<S>(options: UseDocumentOptions<S>) {
   const loadError = ref('');
   const loading = ref(Boolean(docId));
   const note = ref('');
-  const history = new StateHistory<S>(state.value);
+  const history = new StateHistory<S>(state.value, 100, 800, 20_000_000, options.historyView);
   const historyTick = ref(0);
   const canUndo = computed(() => { void historyTick.value; return history.canUndo; });
   const canRedo = computed(() => { void historyTick.value; return history.canRedo; });
