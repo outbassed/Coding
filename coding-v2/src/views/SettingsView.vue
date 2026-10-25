@@ -115,8 +115,9 @@ h3 { font-size: 14px; margin: 16px 0 8px; }
 .opts { display: flex; flex-wrap: wrap; gap: 8px; }
 .opt { min-height: 44px; padding: 0 18px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); font-weight: 650; }
 .opt[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--surface)); box-shadow: inset 0 -3px var(--accent); }
-.counts { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
-.counts li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
-.counts span { flex: 1; min-width: 0; }
+.counts { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 6px; }
+.counts li { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
+.counts span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.counts strong { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
 .muted a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 </style>

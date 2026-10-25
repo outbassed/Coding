@@ -615,7 +615,7 @@ onBeforeUnmount(() => {
   <div ref="root" class="text-app" :style="{ '--app': tool.color }">
     <a class="skip-link" href="#text-body">Pular para o documento</a>
     <header class="top">
-      <a class="back" :href="LAUNCHER_PATH + '#/documentos'" aria-label="Voltar à biblioteca">← <span class="back-label">Documentos</span></a>
+      <a class="back" :href="LAUNCHER_PATH + '#/'" aria-label="Voltar ao início" data-testid="back-home">← <span class="back-label">Início</span></a>
       <AppIcon id="texts" size="sm" />
       <div class="title">
         <h1>Texto</h1>

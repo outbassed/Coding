@@ -1,5 +1,6 @@
 import type { CopySummary, Source } from '../storage/documents';
 import { findTool, type ToolId } from '../shared/catalog';
+import { formatBytes } from '../shared/bytes';
 
 /** Tipos gravados pelo Coding atual → ferramentas do catálogo 2.0. */
 const TYPE_TO_TOOL: Record<string, ToolId> = {
@@ -129,11 +130,7 @@ export const activeFilterCount = (filters: LibraryFilters): number =>
 const dateFormat = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'short' });
 export const formatDate = (timestamp: number): string => (Number.isFinite(timestamp) ? dateFormat.format(new Date(timestamp)) : 'data desconhecida');
 export const imagesText = (count: number): string => (count === 1 ? '1 imagem' : count + ' imagens');
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1).replace('.', ',') + ' MB';
-}
+export { formatBytes };
 /** Tamanho das imagens; cópias antigas podem não ter o total registrado. */
 export const imagesSizeText = (count: number, bytes: number | null): string =>
   count === 0 ? 'sem imagens' : bytes === null ? 'tamanho não registrado' : formatBytes(bytes);

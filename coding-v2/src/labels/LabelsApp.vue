@@ -153,7 +153,7 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
   <div class="ed" :style="{ '--app': tool.color, '--app-cx-l': tool.textLight, '--app-cx-d': tool.textDark }" data-app="labels" :data-layout="roomy ? (wide ? 'wide' : 'tablet') : 'phone'">
     <a class="skip-link" href="#folha" @click.prevent="focusCanvas">Pular para a folha</a>
     <header class="bar">
-      <a class="back" :href="LAUNCHER_PATH + '#/documentos'" aria-label="Voltar à biblioteca"><NavIcon name="back" /><span class="t">Biblioteca</span></a>
+      <a class="back" :href="LAUNCHER_PATH + '#/'" aria-label="Voltar ao início" data-testid="back-home"><NavIcon name="back" /><span class="t">Início</span></a>
       <AppIcon id="labels" size="sm" class="appicon" />
       <div class="titles">
         <h1 class="name">Etiquetas</h1>

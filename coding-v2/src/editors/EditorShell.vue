@@ -74,7 +74,7 @@ const { width: sideWidth, dragging: draggingSide, start: resizeStart, move: resi
     :style="{ '--app': tool.color, '--app-cx-l': tool.textLight, '--app-cx-d': tool.textDark, '--es-sidebar-width': sideWidth + 'px' }">
     <a class="skip-link" href="#es-stage" @click.prevent="focusStage">Pular para o documento</a>
     <header class="es-head">
-      <a class="es-back" :href="LAUNCHER_PATH + '#/documentos'" aria-label="Voltar à biblioteca"><NavIcon name="back" /><span class="es-back-t">Biblioteca</span></a>
+      <a class="es-back" :href="LAUNCHER_PATH + '#/'" aria-label="Voltar ao início" data-testid="back-home"><NavIcon name="back" /><span class="es-back-t">Início</span></a>
       <AppIcon :id="app" size="sm" class="es-icon" />
       <div class="es-titles">
         <h1 class="es-app">{{ tool.name }}</h1>

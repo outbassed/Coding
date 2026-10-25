@@ -110,20 +110,20 @@ test.describe('comportamento', () => {
     expect(bg).toBe('rgb(15, 19, 25)');
   });
 
-  test('editor de Texto: conteúdo editável, ferramentas reais e retorno à biblioteca', async ({ page }) => {
+  test('editor de Texto: conteúdo editável, ferramentas reais e retorno ao início', async ({ page }) => {
     await page.goto('/apps/texto/');
     await expect(page.getByText('Prévia ilustrativa')).toHaveCount(0);
     await expect(page.getByTestId('text-editor')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Negrito' })).toBeEnabled();
-    await page.getByRole('link', { name: 'Voltar à biblioteca' }).click();
-    await expect(page).toHaveURL(/\/launcher\/#\/documentos$/);
+    await page.getByRole('link', { name: 'Voltar ao início' }).click();
+    await expect(page).toHaveURL(/\/launcher\/#\/$/);
   });
 
-  test('editor de Etiquetas é funcional (sem aviso de prévia) e Voltar leva à biblioteca', async ({ page }) => {
+  test('editor de Etiquetas é funcional (sem aviso de prévia) e Voltar leva ao início', async ({ page }) => {
     await page.goto('/apps/etiquetas/');
     await expect(page.getByText('Prévia ilustrativa')).toHaveCount(0);
-    await page.getByRole('link', { name: 'Voltar à biblioteca' }).click();
-    await expect(page).toHaveURL(/\/launcher\/#\/documentos$/);
+    await page.getByRole('link', { name: 'Voltar ao início' }).click();
+    await expect(page).toHaveURL(/\/launcher\/#\/$/);
   });
 
   test('não instala PWA automaticamente; preparo exige clique explícito', async ({ page }) => {

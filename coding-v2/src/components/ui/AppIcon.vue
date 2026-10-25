@@ -19,10 +19,11 @@ const src = computed(() => '/legacy-icons/' + originalNames[props.id] + '.svg');
 </template>
 
 <style scoped>
-.app-icon { display: inline-grid; place-items: center; flex: 0 0 auto; border-radius: 25%; overflow: hidden; }
-.app-icon img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.s-sm { width: 32px; height: 32px; }
-.s-md { width: 44px; height: 44px; }
-.s-lg { width: 56px; height: 56px; }
-.s-xl { width: 80px; height: 80px; }
+/* Caixa de tamanho fixo e trilhas minmax(0,1fr): o SVG nunca define o tamanho da caixa (evita ícone gigante ou cortado). */
+.app-icon { display: inline-grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); place-items: center; flex: 0 0 auto; box-sizing: border-box; border-radius: 25%; overflow: hidden; }
+.app-icon img { display: block; width: 100%; height: 100%; max-width: none; object-fit: contain; }
+.s-sm { width: 32px; height: 32px; min-width: 32px; }
+.s-md { width: 44px; height: 44px; min-width: 44px; }
+.s-lg { width: 56px; height: 56px; min-width: 56px; }
+.s-xl { width: 80px; height: 80px; min-width: 80px; }
 </style>
