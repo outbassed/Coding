@@ -5,7 +5,7 @@ import { escapeXml } from '../shared/files/xml';
 export interface DRun { text: string; b?: boolean; i?: boolean; u?: boolean; s?: boolean; font?: string; sizePx?: number; color?: string; bg?: string; br?: boolean; href?: string }
 export interface DImage { data: Uint8Array; ext: 'png' | 'jpeg'; widthPx: number; heightPx: number; percent: number }
 export type DInline = DRun | { image: DImage };
-export interface DPara { kind: 'p'; style: 'Normal' | 'Heading1' | 'Heading2' | 'Heading3' | 'Quote'; align?: 'left' | 'center' | 'right' | 'justify'; runs: DInline[]; list?: { type: 'ul' | 'ol'; id: number }; pageBreakBefore?: boolean }
+export interface DPara { kind: 'p'; style: 'Normal' | 'Heading1' | 'Heading2' | 'Heading3' | 'Quote'; align?: 'left' | 'center' | 'right' | 'justify'; runs: DInline[]; list?: { type: 'ul' | 'ol'; id: number }; pageBreakBefore?: boolean; lineHeight?: number }
 export interface DTable { kind: 'table'; rows: { header: boolean; cells: DPara[][] }[] }
 export type DBlock = DPara | DTable;
 
@@ -42,6 +42,7 @@ function paraXml(p: DPara, ctx: Ctx, numIds: Map<number, number>): string {
   if (p.style !== 'Normal') props.push(`<w:pStyle w:val="${p.style}"/>`);
   if (p.pageBreakBefore) props.push('<w:pageBreakBefore/>');
   if (p.list) props.push(`<w:numPr><w:ilvl w:val="0"/><w:numId w:val="${numIds.get(p.list.id) ?? 1}"/></w:numPr>`);
+  if (p.lineHeight) props.push(`<w:spacing w:line="${Math.round(p.lineHeight * 240)}" w:lineRule="auto"/>`);
   if (p.align) props.push(`<w:jc w:val="${p.align === 'justify' ? 'both' : p.align}"/>`);
   const pPr = props.length ? '<w:pPr>' + props.join('') + '</w:pPr>' : '';
   const runs = p.runs.map((r) => {

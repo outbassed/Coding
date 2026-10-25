@@ -67,6 +67,14 @@ export function linkFromInput(value: string): string | null {
   if (/^[^\s@/]+@[^\s@/]+\.[^\s@/]+$/.test(v)) return cleanHref('mailto:' + v);
   return cleanHref('https://' + v);
 }
+/** Espaçamentos entre linhas oferecidos no editor (unitless, como no CSS). */
+export const TEXT_LINE_HEIGHTS = [1, 1.15, 1.5, 2] as const;
+export function cleanLineHeight(value: string): number | null {
+  const n = Number(value.trim());
+  if (!Number.isFinite(n)) return null;
+  const r = Math.round(n * 100) / 100;
+  return (TEXT_LINE_HEIGHTS as readonly number[]).includes(r) ? r : null;
+}
 const styleTags = new Set(['P', 'H1', 'H2', 'H3', 'SPAN', 'LI', 'BLOCKQUOTE', 'TD', 'TH']);
 const IMAGE_ALIGNS = new Set(['left', 'center', 'right']);
 
@@ -121,6 +129,8 @@ export function sanitizeTextHtml(source: string): string {
       if (color) t.style.color = color;
       const back = css?.backgroundColor ? cleanColor(css.backgroundColor) : null;
       if (back) t.style.backgroundColor = back;
+      const lineHeight = tag !== 'SPAN' && css?.lineHeight ? cleanLineHeight(css.lineHeight) : null;
+      if (lineHeight) t.style.lineHeight = String(lineHeight);
       if (t.getAttribute('style') === '') t.removeAttribute('style');
     }
     for (const child of [...el.childNodes]) clean(child, target);

@@ -10,7 +10,7 @@ import ProjectTabs from '../editors/ProjectTabs.vue';
 import { newProjectUrl, useProjectTabs } from '../editors/projectTabs';
 import { forgetDocument, restoreTarget } from '../workspace/prefs';
 import { friendlyError } from '../library/errors';
-import { MAX_IMAGE_BYTES, MIN_IMAGE_PERCENT, TEXT_FONTS, TEXT_SIZES, cleanFont, cleanHref, initialTextState, linkFromInput, normalizedTextState, sanitizeTextHtml, type TextState } from './model';
+import { MAX_IMAGE_BYTES, MIN_IMAGE_PERCENT, TEXT_FONTS, TEXT_SIZES, TEXT_LINE_HEIGHTS, cleanFont, cleanHref, initialTextState, linkFromInput, normalizedTextState, sanitizeTextHtml, type TextState } from './model';
 import { TextHistory } from './history';
 import { readOffsets, writeOffsets } from './selection';
 import { useVisualViewport } from '../composables/useVisualViewport';
@@ -118,7 +118,7 @@ const canUndo = computed(() => { void historyTick.value; return editHistory.canU
 const canRedo = computed(() => { void historyTick.value; return editHistory.canRedo; });
 
 // --- estado de formatação sob o cursor ---
-const format = reactive({ bold: false, italic: false, underline: false, block: 'p', font: 'Georgia', size: 16, align: 'left', list: '' });
+const format = reactive({ bold: false, italic: false, underline: false, block: 'p', font: 'Georgia', size: 16, align: 'left', list: '', line: '' });
 const blockOptions = [
   { value: 'p', label: 'Parágrafo' }, { value: 'h1', label: 'Título 1' }, { value: 'h2', label: 'Título 2' },
   { value: 'h3', label: 'Título 3' }, { value: 'blockquote', label: 'Citação' }
@@ -337,6 +337,7 @@ function updateFormat(): void {
   const a = css.textAlign;
   format.align = a === 'center' || a === 'right' || a === 'justify' ? a : 'left';
   format.list = el.closest('ul') ? 'ul' : el.closest('ol') ? 'ol' : '';
+  format.line = (el.closest('p,h1,h2,h3,li,blockquote,td,th') as HTMLElement | null)?.style.lineHeight ?? '';
 }
 function restoreSelection(): void {
   editor.value?.focus();
@@ -356,6 +357,26 @@ function command(name: string, value?: string, css = false): boolean {
   capture('');
   storeSelection();
   return ok;
+}
+const LINE_BLOCKS = 'p,h1,h2,h3,li,blockquote,td,th';
+/** Espaçamento entre linhas dos parágrafos tocados pela seleção (vazio = padrão do documento). */
+function setLineHeight(event: Event): void {
+  const value = (event.target as HTMLSelectElement).value;
+  const host = editor.value; if (!host) return;
+  restoreSelection();
+  const sel = window.getSelection();
+  if (!sel?.rangeCount || !host.contains(sel.anchorNode)) return;
+  const range = sel.getRangeAt(0);
+  const touched = Array.from(host.querySelectorAll<HTMLElement>(LINE_BLOCKS)).filter((el) => range.intersectsNode(el) && !el.querySelector(LINE_BLOCKS));
+  if (!touched.length) { const own = (sel.anchorNode instanceof Element ? sel.anchorNode : sel.anchorNode?.parentElement)?.closest<HTMLElement>(LINE_BLOCKS); if (own) touched.push(own); }
+  if (!touched.length) { message('Coloque o cursor em um parágrafo.'); return; }
+  for (const el of touched) {
+    if (value) el.style.lineHeight = value; else el.style.removeProperty('line-height');
+    if (!el.getAttribute('style')) el.removeAttribute('style');
+  }
+  capture('');
+  storeSelection();
+  message(value ? 'Espaçamento entre linhas: ' + value.replace('.', ',') + '.' : 'Espaçamento entre linhas padrão.');
 }
 function setBlock(event: Event): void { command('formatBlock', (event.target as HTMLSelectElement).value); }
 function setFont(event: Event): void { command('fontName', (event.target as HTMLSelectElement).value, true); }
@@ -427,12 +448,15 @@ function removeLink(): void {
   restoreSelection();
   const existing = currentLink();
   if (existing && window.getSelection()?.isCollapsed) {
-    const range = document.createRange();
-    range.selectNodeContents(existing);
-    window.getSelection()?.removeAllRanges();
-    window.getSelection()?.addRange(range);
-  }
-  command('unlink');
+    // cursor dentro do link: desfaz o link inteiro, mantendo o texto
+    const parent = existing.parentNode;
+    if (parent) {
+      while (existing.firstChild) parent.insertBefore(existing.firstChild, existing);
+      existing.remove();
+      parent.normalize();
+      capture('');
+    }
+  } else command('unlink');
   linkOpen.value = false;
   refreshLinkState();
   message('Link removido; o texto continua no documento.');
@@ -839,6 +863,10 @@ onBeforeUnmount(() => {
             <button type="button" class="tool" :aria-pressed="format.align === 'center'" aria-label="Centralizar" @mousedown.prevent @click="command('justifyCenter')">≡</button>
             <button type="button" class="tool" :aria-pressed="format.align === 'right'" aria-label="Alinhar à direita" @mousedown.prevent @click="command('justifyRight')">⇥</button>
             <button type="button" class="tool" :aria-pressed="format.align === 'justify'" aria-label="Justificar" @mousedown.prevent @click="command('justifyFull')">☰</button>
+            <select class="tool sel" aria-label="Espaçamento entre linhas" data-testid="text-line-height" :value="format.line" @change="setLineHeight">
+              <option value="">Linhas: padrão</option>
+              <option v-for="n in TEXT_LINE_HEIGHTS" :key="n" :value="String(n)">Linhas: {{ String(n).replace('.', ',') }}</option>
+            </select>
             <button type="button" class="tool" :aria-pressed="format.list === 'ul'" aria-label="Lista com marcadores" @mousedown.prevent @click="command('insertUnorderedList')">• Lista</button>
             <button type="button" class="tool" :aria-pressed="format.list === 'ol'" aria-label="Lista numerada" @mousedown.prevent @click="command('insertOrderedList')">1. Lista</button>
           </div>

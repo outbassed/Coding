@@ -138,11 +138,38 @@ test.describe('Texto · links e estrutura', () => {
     await expect(outline.getByTestId('outline-item')).toHaveCount(1);
   });
 
+  test('espaçamento entre linhas: aplica ao parágrafo, salva e vai para o DOCX', async ({ page }) => {
+    await page.goto(EDITOR);
+    await editor(page).click();
+    await page.keyboard.press('Control+a');
+    await page.keyboard.type('Primeiro parágrafo');
+    await page.getByTestId('text-block').selectOption('p');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('Segundo parágrafo');
+    await page.getByTestId('text-line-height').selectOption('1.5');
+    const second = editor(page).locator('p', { hasText: 'Segundo' });
+    await expect(second).toHaveCSS('line-height', /./);
+    expect(await second.evaluate((el) => (el as HTMLElement).style.lineHeight)).toBe('1.5');
+    expect(await editor(page).locator('p', { hasText: 'Primeiro' }).evaluate((el) => (el as HTMLElement).style.lineHeight)).toBe('');
+    await saved(page);
+    expect(await storedHtml(page)).toContain('line-height: 1.5');
+    await page.reload();
+    expect(await editor(page).locator('p', { hasText: 'Segundo' }).evaluate((el) => (el as HTMLElement).style.lineHeight)).toBe('1.5');
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-docx').click()]);
+    const doc = execFileSync('unzip', ['-p', (await download.path()), 'word/document.xml']).toString('utf8');
+    expect(doc).toContain('<w:spacing w:line="360" w:lineRule="auto"/>');
+    // voltar ao padrão remove o estilo
+    await editor(page).locator('p', { hasText: 'Segundo' }).click();
+    await page.getByTestId('text-line-height').selectOption('');
+    expect(await editor(page).locator('p', { hasText: 'Segundo' }).evaluate((el) => (el as HTMLElement).style.lineHeight)).toBe('');
+  });
+
   test('sem títulos mostra a orientação', async ({ page }) => {
     await page.goto(EDITOR);
     await editor(page).click();
     await page.keyboard.press('Control+a');
     await page.keyboard.type('apenas texto');
+    await page.getByTestId('text-block').selectOption('p');
     await expect(page.getByTestId('text-outline')).toContainText('Use “Título 1”');
     await expect(page.getByTestId('text-outline').getByTestId('outline-item')).toHaveCount(0);
   });

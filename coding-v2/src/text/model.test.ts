@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { cleanColor, cleanFont, cleanHref, linkFromInput, cleanPercent, cleanSize, initialTextState, normalizedTextState, sanitizeTextHtml } from './model';
+import { cleanColor, cleanFont, cleanHref, cleanLineHeight, linkFromInput, cleanPercent, cleanSize, initialTextState, normalizedTextState, sanitizeTextHtml } from './model';
 
 describe('Texto: HTML confiável e modelo inicial', () => {
   beforeEach(() => { document.body.innerHTML = ''; });
@@ -66,6 +66,16 @@ describe('Texto: HTML confiável e modelo inicial', () => {
     expect(html).toContain('dados');
     expect(html).not.toMatch(/javascript:|data:text|onclick|style=/i);
     expect((html.match(/<a /g) ?? []).length).toBe(2);
+  });
+  it('espaçamento entre linhas: só valores da lista e só em blocos', () => {
+    const html = sanitizeTextHtml('<p style="line-height: 1.5">a</p><p style="line-height: 7">b</p><h2 style="line-height:2">c</h2><p><span style="line-height:2">d</span></p><li style="line-height: 1.15">e</li>');
+    expect(html).toContain('<p style="line-height: 1.5;">a</p>');
+    expect(html).toContain('<p>b</p>');
+    expect(html).toContain('<h2 style="line-height: 2;">c</h2>');
+    expect(html).toContain('<span>d</span>');
+    expect(cleanLineHeight('1.150')).toBe(1.15);
+    expect(cleanLineHeight('normal')).toBeNull();
+    expect(cleanLineHeight('20px')).toBeNull();
   });
   it('links: normaliza o que a pessoa digita', () => {
     expect(linkFromInput('exemplo.com')).toBe('https://exemplo.com/');

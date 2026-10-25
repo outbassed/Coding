@@ -22,6 +22,12 @@ describe('DOCX', () => {
     expect(new TextDecoder().decode(files.get('word/_rels/document.xml.rels'))).toContain('media/image1.png');
   });
 
+  it('espaçamento entre linhas vira w:spacing do parágrafo', async () => {
+    const bytes = await buildDocx([{ kind: 'p', style: 'Normal', lineHeight: 1.5, runs: [{ text: 'a' }] }, { kind: 'p', style: 'Normal', runs: [{ text: 'b' }] }], 'Linhas');
+    const doc = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(doc).toContain('<w:spacing w:line="360" w:lineRule="auto"/>');
+    expect((doc.match(/<w:spacing /g) ?? []).length).toBe(1);
+  });
   it('hiperlink de verdade: relação externa, estilo e escape do endereço', async () => {
     const bytes = await buildDocx([
       { kind: 'p', style: 'Normal', runs: [{ text: 'Visite ' }, { text: 'nosso site', href: 'https://exemplo.com/a?x=1&y=2' }, { text: ' e ' }, { text: 'de novo', href: 'https://exemplo.com/a?x=1&y=2' }] }
