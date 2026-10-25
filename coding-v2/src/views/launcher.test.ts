@@ -155,7 +155,9 @@ describe('Launcher · ativação', () => {
     const confirm = wrapper.findAll('dialog button').find((b) => b.text() === 'Desativar atalho');
     await confirm?.trigger('click');
     await flushPromises();
-    expect(wrapper.findAll('article.card')).toHaveLength(8);
+    // Em Meus apps o app desativado sai dos cartões e passa para “Disponíveis para ativar”.
+    expect(wrapper.findAll('article.card')).toHaveLength(7);
+    expect(wrapper.find('[data-testid="available-to-activate"]').text()).toContain('Etiquetas');
     expect(wrapper.find('[data-testid="announcer"]').text()).toContain('Seus documentos não foram removidos');
     wrapper.unmount();
   });
