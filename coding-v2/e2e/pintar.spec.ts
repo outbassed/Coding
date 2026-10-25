@@ -19,7 +19,7 @@ async function pixel(page: Page, fx: number, fy: number): Promise<number[]> {
 }
 const isRed = (p: number[]) => p[0]! > 200 && p[1]! < 60 && p[2]! < 80;
 const isWhite = (p: number[]) => p[0]! > 245 && p[1]! > 245 && p[2]! > 245;
-const isGreen = (p: number[]) => p[1]! > 180 && p[0]! < 60 && p[2]! < 150;
+const isGreen = (p: number[]) => p[1]! > 180 && p[0]! < 60 && p[2]! > 120 && p[2]! < 200;
 async function drag(page: Page, from: [number, number], to: [number, number]): Promise<void> {
   const box = (await canvas(page).boundingBox())!;
   await page.mouse.move(box.x + box.width * from[0], box.y + box.height * from[1]);
