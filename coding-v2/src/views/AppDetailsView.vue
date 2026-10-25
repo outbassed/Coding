@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
 import { availabilityLabel, availabilityOf, categories, findTool } from '../shared/catalog';
-import { levelsFor, type LevelState } from '../shared/levels';
+import { levelsFor, type LevelState, type OfflineInfo } from '../shared/levels';
 import { legacyLink } from '../shared/links';
 import { useAppsStore } from '../stores/apps';
+import { useOfflineStore } from '../stores/offline';
 import PageHeader from '../components/ui/PageHeader.vue';
 import AppIcon from '../components/ui/AppIcon.vue';
 import StatusPill, { type PillTone } from '../components/ui/StatusPill.vue';
@@ -15,12 +16,21 @@ import RecentDocs from '../components/ui/RecentDocs.vue';
 
 const props = defineProps<{ id: string }>();
 const apps = useAppsStore();
+const offline = useOfflineStore();
+onMounted(() => { void offline.init(); });
 const tool = computed(() => findTool(props.id));
 const enabled = computed(() => (tool.value ? apps.isEnabled(tool.value.id) : false));
-const levels = computed(() => (tool.value ? levelsFor(tool.value, enabled.value) : []));
+const offlineInfo = computed<OfflineInfo>(() => {
+  if (!tool.value) return { supported: false };
+  if (!offline.supported) return { supported: false, reason: offline.reason };
+  if (!offline.loaded) return { supported: true };
+  const id = tool.value.id;
+  return { supported: true, state: offline.stateOf(id), bytes: offline.records[id]?.bytes ?? offline.entryOf(id)?.bytes ?? null };
+});
+const levels = computed(() => (tool.value ? levelsFor(tool.value, enabled.value, offlineInfo.value) : []));
 const avail = computed(() => (tool.value ? availabilityOf(tool.value) : 'planned'));
 const categoryName = computed(() => categories.find(c => c.id === tool.value?.category)?.label ?? '');
-const tone = (state: LevelState): PillTone => state === 'on' ? 'on' : state === 'unverified' || state === 'unproven' ? 'warn' : state === 'unavailable' ? 'soon' : 'off';
+const tone = (state: LevelState): PillTone => state === 'on' ? 'on' : state === 'busy' || state === 'unverified' ? 'warn' : state === 'unavailable' ? 'soon' : 'off';
 </script>
 
 <template>
@@ -62,12 +72,13 @@ const tone = (state: LevelState): PillTone => state === 'on' ? 'on' : state === 
 
     <details class="technical">
       <summary>Disponibilidade e instalação</summary>
-      <p class="muted intro">Ativar um atalho não instala o programa nem garante acesso offline.</p>
+      <p class="muted intro">Ativar um atalho não baixa o programa nem garante acesso offline: são três coisas separadas.</p>
       <ul class="levels" aria-label="Estados do aplicativo">
         <li v-for="level in levels" :key="level.key" class="level" :data-level="level.key">
           <div class="lh"><h3>{{ level.title }}</h3><StatusPill :tone="tone(level.state)" :label="level.label" /></div>
           <p class="muted">{{ level.text }}</p>
           <div v-if="level.key === 'activation' && tool.status === 'preview'" class="la"><ActivateButton :tool="tool" :enabled="enabled" /></div>
+          <div v-else-if="level.key === 'offline' && tool.status === 'preview' && offline.supported" class="la"><RouterLink :to="{ name: 'settings' }" class="btn" data-testid="manage-offline">Gerenciar em Ajustes</RouterLink></div>
         </li>
       </ul>
     </details>

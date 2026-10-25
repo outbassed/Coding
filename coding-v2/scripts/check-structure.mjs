@@ -5,7 +5,7 @@ const APP_PAGES = ['apps/etiquetas/index.html', 'apps/texto/index.html', 'apps/p
 /** Página estática que explica que Planilha → Etiquetas foi incorporado a Etiquetas (sem app nem script de módulo). */
 const REMOVED_APP_PAGE = 'apps/planilha-etiquetas/index.html';
 const expected = [
-  'index.html', 'launcher/index.html', ...APP_PAGES, REMOVED_APP_PAGE, 'src/main-apps.ts',
+  'index.html', 'launcher/index.html', ...APP_PAGES, REMOVED_APP_PAGE, 'src/entries/boot.ts',
   'src/main-launcher.ts', 'src/main-editor.ts', 'src/shared/catalog.ts', 'src/router/index.ts',
   'src/styles/tokens.css', 'src/styles/base.css', 'package-lock.json'
 ];
@@ -26,14 +26,14 @@ for (const page of ['launcher/index.html', ...APP_PAGES]) {
 }
 
 // Offline é opt-in e depende de um build isolado; nunca se registra automaticamente.
-for (const file of ['public/manifest.webmanifest', 'src/pwa.ts', 'scripts/generate-sw.mjs']) {
+for (const file of ['public/manifest.webmanifest', 'src/pwa.ts', 'public/sw.js', 'scripts/generate-offline-manifest.mjs', 'src/offline/engine.ts']) {
   assert.ok(existsSync(file), 'Falta infraestrutura opcional de PWA: ' + file);
 }
 const pwa = readFileSync('src/pwa.ts', 'utf8');
 assert.ok(pwa.includes('VITE_CODING_PREVIEW_PWA') && pwa.includes('codingtxt.vercel.app'), 'A PWA deve exigir opt-in e proteger produção.');
 
 // O banco legado nunca é aberto por esta base.
-const sources = ['src/stores/apps.ts', 'src/stores/settings.ts', 'src/EditorApp.vue', 'src/main-editor.ts', 'src/main-launcher.ts', 'src/main-apps.ts', 'src/editors/docs.ts', 'src/editors/useDocument.ts'];
+const sources = ['src/stores/apps.ts', 'src/stores/settings.ts', 'src/EditorApp.vue', 'src/main-editor.ts', 'src/main-launcher.ts', 'src/entries/boot.ts', 'src/editors/docs.ts', 'src/editors/useDocument.ts'];
 for (const file of sources) assert.ok(!/indexedDB\.open|coding-db/.test(readFileSync(file, 'utf8')), 'Acesso ao coding-db proibido em ' + file);
 
 console.log('Estrutura Coding 2.0 verificada: oito apps com página própria, tema sem piscada, PWA opcional e protegida, sem acesso ao coding-db.');

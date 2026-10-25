@@ -40,8 +40,8 @@ describe('Launcher · telas', () => {
     const levels = wrapper.findAll('li.level');
     expect(levels.map((l) => l.attributes('data-level'))).toEqual(['activation', 'offline', 'install']);
     expect(levels[0]?.text()).toContain('Ativado');
-    expect(levels[1]?.text()).toContain('Não verificado');
-    expect(levels[2]?.text()).toContain('Não comprovado');
+    expect(levels[1]?.text()).not.toContain('Instalado offline');
+    expect(levels[2]?.text()).toContain('Opcional');
     expect(wrapper.text()).not.toMatch(/disponível offline\s*(✓|ativo)/i);
     wrapper.unmount();
   });

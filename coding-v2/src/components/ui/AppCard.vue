@@ -7,9 +7,12 @@ import AppIcon from './AppIcon.vue';
 import StatusPill from './StatusPill.vue';
 import ActivateButton from './ActivateButton.vue';
 import { useFavoritesStore } from '../../stores/favorites';
+import { useOfflineStore } from '../../stores/offline';
 
 const props = defineProps<{ tool: CodingTool; enabled: boolean }>();
 const favorites = useFavoritesStore();
+const offline = useOfflineStore();
+const offlineReady = computed(() => props.tool.status === 'preview' && offline.supported && ['installed', 'update-available'].includes(offline.stateOf(props.tool.id)));
 const fav = computed(() => favorites.isFavorite(props.tool.id));
 const avail = computed(() => availabilityOf(props.tool));
 const category = computed(() => categories.find((c) => c.id === props.tool.category)?.label ?? '');
@@ -26,6 +29,7 @@ const pill = computed(() => props.tool.status !== 'preview'
     <div class="top">
       <AppIcon :id="tool.id" size="lg" />
       <StatusPill :tone="pill.tone" :label="pill.label" />
+      <span v-if="offlineReady" class="off-ok" data-testid="card-offline" title="Os arquivos deste app estão guardados neste navegador">Offline</span>
     </div>
     <h3><RouterLink :to="{ name: 'app', params: { id: tool.id } }" class="name">{{ tool.name }}</RouterLink></h3>
     <p class="meta" data-testid="card-meta"><span class="avail" :data-avail="avail">{{ availabilityLabel[avail] }}</span><span class="dot" aria-hidden="true">·</span><span>{{ category }}</span></p>
@@ -47,6 +51,7 @@ const pill = computed(() => props.tool.status !== 'preview'
 .star[aria-pressed="true"] { color:var(--app); }
 .star:hover { color:var(--text); }
 .top { display:grid; justify-items:center; gap:7px; margin-bottom:1px; }
+.off-ok { font-size:11px; font-weight:700; color:var(--ok); }
 .top :deep(.app-icon) { width:78px; height:78px; }
 h3 { font-size:15px; line-height:1.25; margin:0; max-width:100%; font-weight:760; overflow-wrap:anywhere; }
 .name { text-decoration:none; }

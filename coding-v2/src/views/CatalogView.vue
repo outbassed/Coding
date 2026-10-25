@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { availabilityOf, tools } from '../shared/catalog';
 import { useAppsStore } from '../stores/apps';
+import { useOfflineStore } from '../stores/offline';
 import { matchesQuery, usePageStateStore, type CatalogState } from '../stores/pageState';
 import PageHeader from '../components/ui/PageHeader.vue';
 import AppGrid from '../components/ui/AppGrid.vue';
@@ -12,6 +13,10 @@ import CategoryMenu from '../components/ui/CategoryMenu.vue';
 
 const apps = useAppsStore();
 const page = usePageStateStore();
+const offline = useOfflineStore();
+onMounted(() => { void offline.init(); });
+const offlineFilters = [{ id: 'any' as const, label: 'Qualquer acesso' }, { id: 'yes' as const, label: 'Instalados offline' }, { id: 'no' as const, label: 'Não instalados offline' }];
+const showOffline = computed(() => offline.supported && (offline.loaded || page.offline !== 'any'));
 const counts = computed(() => ({
   functional: tools.filter((t) => availabilityOf(t) === 'functional').length,
   planned: tools.filter((t) => availabilityOf(t) === 'planned').length
@@ -21,12 +26,14 @@ const filters = computed<{ id: CatalogState; label: string }[]>(() => [
   ...(counts.value.planned > 0 ? [{ id: 'soon' as const, label: 'Em breve' }] : [])
 ]);
 const query = computed(() => page.catalogQuery.trim());
-const filtering = computed(() => query.value !== '' || page.category !== 'all' || page.state !== 'all');
+const filtering = computed(() => query.value !== '' || page.category !== 'all' || page.state !== 'all' || page.offline !== 'any');
 
 /** Busca, categoria e situação se combinam (E lógico). */
 const visible = computed(() => tools.filter((tool) => {
   if (page.category !== 'all' && tool.category !== page.category) return false;
   if (!matchesQuery(page.catalogQuery, tool.name, tool.description)) return false;
+  if (page.offline === 'yes' && offline.stateOf(tool.id) === 'not-installed') return false;
+  if (page.offline === 'no' && offline.stateOf(tool.id) !== 'not-installed') return false;
   if (page.state === 'on') return apps.isEnabled(tool.id);
   if (page.state === 'off') return tool.status === 'preview' && !apps.isEnabled(tool.id);
   if (page.state === 'soon') return tool.status !== 'preview';
@@ -43,6 +50,10 @@ const visible = computed(() => tools.filter((tool) => {
   </div>
   <div class="filters" role="group" aria-label="Filtrar por situação">
     <button v-for="item in filters" :key="item.id" type="button" class="f" :aria-pressed="page.state === item.id" @click="page.state = item.id">{{ item.label }}</button>
+  </div>
+
+  <div v-if="showOffline" class="filters" role="group" aria-label="Filtrar por uso offline" data-testid="offline-filters">
+    <button v-for="item in offlineFilters" :key="item.id" type="button" class="f" :aria-pressed="page.offline === item.id" :data-testid="'offline-filter-' + item.id" @click="page.offline = item.id">{{ item.label }}</button>
   </div>
 
   <p class="summary muted" data-testid="catalog-summary">

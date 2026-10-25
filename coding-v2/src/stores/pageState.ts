@@ -8,13 +8,15 @@ import { categories, type CategoryId } from '../shared/catalog';
  */
 export const PAGE_STATE_KEY = 'coding-v2-page-state';
 export type CatalogState = 'all' | 'on' | 'off' | 'soon';
+export type OfflineFilter = 'any' | 'yes' | 'no';
+const OFFLINE_FILTERS: readonly OfflineFilter[] = ['any', 'yes', 'no'];
 const STATES: readonly CatalogState[] = ['all', 'on', 'off', 'soon'];
 const MAX = 80;
 
 export type MyAppsSort = 'catalog' | 'name' | 'favorites';
 const SORTS: readonly MyAppsSort[] = ['catalog', 'name', 'favorites'];
-interface Saved { mySort: MyAppsSort; myApps: string; catalog: string; category: CategoryId | 'all'; state: CatalogState }
-const blank = (): Saved => ({ mySort: 'catalog', myApps: '', catalog: '', category: 'all', state: 'all' });
+interface Saved { mySort: MyAppsSort; myApps: string; catalog: string; category: CategoryId | 'all'; state: CatalogState; offline: OfflineFilter }
+const blank = (): Saved => ({ mySort: 'catalog', myApps: '', catalog: '', category: 'all', state: 'all', offline: 'any' });
 
 export function parseSaved(raw: string | null): Saved {
   const result = blank();
@@ -26,6 +28,7 @@ export function parseSaved(raw: string | null): Saved {
     if (typeof v.catalog === 'string') result.catalog = v.catalog.slice(0, MAX);
     if (v.category === 'all' || categories.some((c) => c.id === v.category)) result.category = v.category as CategoryId | 'all';
     if (STATES.includes(v.state as CatalogState)) result.state = v.state as CatalogState;
+    if (OFFLINE_FILTERS.includes(v.offline as OfflineFilter)) result.offline = v.offline as OfflineFilter;
   } catch { /* conteúdo inválido: começa vazio */ }
   return result;
 }
@@ -38,11 +41,12 @@ export const usePageStateStore = defineStore('page-state', () => {
   const mySort = ref<MyAppsSort>(initial.mySort);
   const category = ref<CategoryId | 'all'>(initial.category);
   const state = ref<CatalogState>(initial.state);
-  watch([myAppsQuery, catalogQuery, category, state, mySort], () => {
-    try { sessionStorage.setItem(PAGE_STATE_KEY, JSON.stringify({ mySort: mySort.value, myApps: myAppsQuery.value, catalog: catalogQuery.value, category: category.value, state: state.value })); } catch { /* armazenamento indisponível */ }
+  const offline = ref<OfflineFilter>(initial.offline);
+  watch([myAppsQuery, catalogQuery, category, state, mySort, offline], () => {
+    try { sessionStorage.setItem(PAGE_STATE_KEY, JSON.stringify({ mySort: mySort.value, myApps: myAppsQuery.value, catalog: catalogQuery.value, category: category.value, state: state.value, offline: offline.value })); } catch { /* armazenamento indisponível */ }
   });
-  function resetCatalog(): void { catalogQuery.value = ''; category.value = 'all'; state.value = 'all'; }
-  return { mySort, myAppsQuery, catalogQuery, category, state, resetCatalog };
+  function resetCatalog(): void { catalogQuery.value = ''; category.value = 'all'; state.value = 'all'; offline.value = 'any'; }
+  return { mySort, myAppsQuery, catalogQuery, category, state, offline, resetCatalog };
 });
 
 /** Comparação sem acento e sem diferença entre maiúsculas e minúsculas. */
