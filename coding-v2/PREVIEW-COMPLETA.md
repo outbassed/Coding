@@ -18,6 +18,7 @@ Todos os apps: modelos editáveis (abrir e experimentar sem enviar arquivo) ✅ 
 - Modelos: carta, relatório, ata, em branco ✅
 - Exportar HTML e TXT ✅ · DOCX ✅ · PDF (folhas A4 em imagem) ✅ · imprimir ☑️
 - Salvamento automático e proteção de conflito ✅ · teclado virtual no celular ✅
+- Links (http, https e mailto; Ctrl+K) ✅ · hiperlink no DOCX ✅ · espaçamento entre linhas ✅ · painel Estrutura com os títulos ✅
 
 ## Planilhas
 - Grade editável com seleção, teclado (setas, Tab, Enter, F2, Delete), barra de fórmulas, copiar/colar ✅/☑️
@@ -40,12 +41,14 @@ Todos os apps: modelos editáveis (abrir e experimentar sem enviar arquivo) ✅ 
 - Juntar PDFs ☑️ · reordenar ☑️ · girar ✅ · duplicar ✅ · remover ☑️
 - Extrair páginas marcadas ou intervalo ☑️ · dividir a cada N páginas (.zip) ☑️
 - Anotações de texto ✅, destaque e retângulo ☑️ · baixar PDF novo ✅ (original nunca alterado)
+- Elipse, linha, desenho livre (assinatura) e imagem (arquivo ou Ctrl+V) como anotações editáveis ✅ · o PDF baixado é conferido desenhando-o de novo ✅ · o texto que já existe no PDF não é editado
 - Erros claros para arquivo inválido ✅ e PDF protegido ☑️
 
 ## QR / Barras
 - QR code (UTF-8), Code 128, EAN-13, EAN-8, UPC-A, Code 39 ✅ (padrões conferidos com implementação de referência)
 - Validação e dígito verificador ✅ · tamanho, cores, margem, legenda, correção do QR ☑️
 - Baixar PNG e SVG ✅ · folha A4 com cópias para imprimir ☑️ · modelos (exemplos, Wi‑Fi, produtos) ☑️
+- Assistente de conteúdo (site, Wi‑Fi, e‑mail, telefone, SMS, contato vCard) ✅ · vários códigos de uma vez ✅ · aparências salvas ✅
 
 ## Planilha → Etiquetas
 - Planilha de exemplo editável ✅ · importar CSV ✅ e XLSX ☑️ · colar dados ☑️
@@ -56,6 +59,7 @@ Todos os apps: modelos editáveis (abrir e experimentar sem enviar arquivo) ✅ 
 - Roleta animada (respeita “reduzir movimento” do aparelho e dos Ajustes) ✅
 - Não repetir quem já saiu e recomeçar ✅ · números (com/sem repetição) ✅ · dados ☑️ · equipes equilibradas ☑️
 - Histórico salvo no documento e exportável ☑️ · modelos ☑️
+- Listas de participantes salvas e reutilizáveis ✅ · histórico: abrir um resultado antigo sem sortear de novo ✅
 
 ## Racha-conta
 - Pessoas e despesas ✅ · divisão igual ✅, por porcentagem ✅, por valores ☑️ (validação de soma ✅)
