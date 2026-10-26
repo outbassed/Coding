@@ -159,4 +159,3 @@ test.describe('Favoritos', () => {
     await expect(page.locator('article.card').first()).toHaveAttribute('data-tool', 'split');
   });
 });
-});
