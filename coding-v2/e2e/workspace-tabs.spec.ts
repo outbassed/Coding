@@ -125,11 +125,11 @@ test.describe('Abas de projeto por app', () => {
     await seed(page, ...named(2));
     const map = await ids(page);
     await openAll(page, map, ['Projeto 01']);
-    await page.goto('/launcher/#/ajustes');
+    await page.goto('/launcher/#/ajustes?aba=projetos');
     await page.getByTestId('startup-new').check();
     await page.goto(EDITOR);
     await expect(page.getByTestId('save-status')).toHaveText('Novo · ainda não salvo');
-    await page.goto('/launcher/#/ajustes');
+    await page.goto('/launcher/#/ajustes?aba=projetos');
     await page.getByTestId('startup-continue').check();
     await page.goto(EDITOR);
     await expect(title(page)).toHaveText('Projeto 01');
@@ -182,7 +182,7 @@ test.describe('Limites de projetos salvos', () => {
 
   test('Ajustes: faixas abaixo da quantidade salva ficam desativadas, com o motivo', async ({ page }) => {
     await seed(page, ...named(40));
-    await page.goto('/launcher/#/ajustes');
+    await page.goto('/launcher/#/ajustes?aba=projetos');
     await expect(page.locator('[data-testid="doc-counts"] li', { hasText: 'Etiquetas' })).toContainText('40');
     await page.getByTestId('limit-manual').check();
     await expect(page.getByTestId('limit-tiers')).toBeVisible();
@@ -197,7 +197,7 @@ test.describe('Limites de projetos salvos', () => {
 
   test('automático eleva o limite efetivo sem apagar nada (70 salvos → 128)', async ({ page }) => {
     await seed(page, ...named(70));
-    await page.goto('/launcher/#/ajustes');
+    await page.goto('/launcher/#/ajustes?aba=projetos');
     const row = page.locator('[data-testid="limit-apps"] li[data-app="labels"]');
     await expect(row).toContainText('70 de 128 salvos');
     await page.goto('/launcher/#/documentos');
@@ -206,7 +206,7 @@ test.describe('Limites de projetos salvos', () => {
 
   test('escolher 64 para um app com 50 salvos vale; cada app tem contagem independente', async ({ page }) => {
     await seed(page, ...named(50));
-    await page.goto('/launcher/#/ajustes');
+    await page.goto('/launcher/#/ajustes?aba=projetos');
     await page.getByTestId('limit-labels').selectOption('64');
     const row = page.locator('[data-testid="limit-apps"] li[data-app="labels"]');
     await expect(row).toContainText('50 de 64 salvos');

@@ -15,19 +15,19 @@ const hasDb = (page: Page) => page.evaluate(async () => (await indexedDB.databas
 test.describe('Launcher · loja no computador', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
-  test('Início: destaque real, meus apps, atalho ao catálogo e nenhum documento inventado', async ({ page }) => {
+  test('Início: acesso rápido com busca, todos os apps e nenhum documento inventado', async ({ page }) => {
     await page.goto('/launcher/');
-    const actions = page.getByTestId('home-actions');
-    for (const name of ['Meus apps', 'Catálogo', 'Documentos']) await expect(actions.getByRole('link', { name })).toBeVisible();
-    await expect(page.getByTestId('stat-docs')).toHaveText('0');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Coding Launcher');
+    await expect(page.getByTestId('home-stats')).toHaveCount(0);
+    await expect(page.getByTestId('home-actions')).toHaveCount(0);
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
     await expect(page.locator('article.card[data-tool="labels"]').getByRole('link', { name: 'Abrir o editor de Etiquetas' })).toHaveAttribute('href', '/apps/etiquetas/');
-    await expect(page.getByRole('heading', { level: 2, name: 'Meus aplicativos' })).toBeVisible();
-    await expect(page.getByRole('heading', { level: 2, name: 'Explorar o catálogo' })).toBeVisible();
-    await expect(page.getByText(APP_COUNT + ' editores disponíveis', { exact: false }).first()).toBeVisible();
     await expect(page.getByTestId('recent-docs')).toHaveCount(0);
     expect(await hasDb(page)).toBe(false); // olhar o Início não cria banco algum
-    await page.getByRole('link', { name: 'Abrir catálogo' }).click();
-    await expect(page).toHaveURL(/#\/catalogo$/);
+    await page.getByRole('searchbox', { name: 'Buscar aplicativos' }).fill('planilha');
+    await expect(page.locator('article.card')).toHaveCount(1);
+    await page.getByRole('searchbox', { name: 'Buscar aplicativos' }).fill('zzzz');
+    await expect(page.getByText('Nenhum aplicativo combina com a busca.')).toBeVisible();
   });
 
   test('Documentos recentes aparecem depois de salvar uma etiqueta e abrem o editor', async ({ page }) => {
@@ -53,8 +53,8 @@ test.describe('Launcher · loja no computador', () => {
     await expect(page.getByTestId('category-button')).toContainText('Etiquetas e códigos');
     await expect(page.locator('article.card')).toHaveCount(2);
     await expect(page.getByRole('button', { name: 'Em breve', exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Não ativados', exact: true }).click();
-    await expect(page.locator('article.card')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Ativados', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Não ativados', exact: true })).toHaveCount(0);
     await page.getByTestId('clear-filters').click();
     await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
     await page.getByRole('searchbox', { name: 'Buscar no catálogo' }).fill('zzzz');
@@ -71,18 +71,15 @@ test.describe('Launcher · loja no computador', () => {
     await expect(page.getByRole('link', { name: 'Abrir editor' })).toHaveAttribute('href', '/apps/planilhas/');
   });
 
-  test('Meus apps: biblioteca com Abrir, desativar e reativar sem apagar nada', async ({ page }) => {
+  test('Meus apps: todos os aplicativos, sem ativar nem desativar', async ({ page }) => {
     await page.goto('/launcher/#/meus-apps');
     const card = page.locator('article.card[data-tool="labels"]');
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
     await expect(card.getByRole('link', { name: 'Abrir o editor de Etiquetas' })).toHaveAttribute('href', '/apps/etiquetas/');
     await expect(card.getByTestId('card-meta')).toContainText('Editor funcional');
-    await expect(card.getByTestId('status-pill')).toHaveText('Ativado');
-    await page.getByRole('button', { name: 'Desativar Etiquetas no Launcher' }).click();
-    await page.getByRole('button', { name: 'Desativar atalho' }).click();
-    const avail = page.getByTestId('available-to-activate');
-    await expect(avail).toContainText('Etiquetas');
-    await avail.getByRole('button', { name: 'Ativar Etiquetas no Launcher' }).click();
-    await expect(page.locator('article.card[data-tool="labels"]')).toBeVisible();
+    await expect(page.getByTestId('status-pill')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Ativar|Desativar/ })).toHaveCount(0);
+    await expect(page.getByTestId('available-to-activate')).toHaveCount(0);
   });
 
   test('grade usa bem monitores largos', async ({ page }) => {

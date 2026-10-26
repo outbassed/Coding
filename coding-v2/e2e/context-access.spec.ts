@@ -19,17 +19,16 @@ const apps = [
 ];
 
 for (const tool of apps) {
-  test('App desativado bloqueia URL direta e permite reativar: ' + tool.id, async ({ page }) => {
+  test('Preferência antiga de ativação não bloqueia o app (sempre disponível): ' + tool.id, async ({ page }) => {
     await page.addInitScript((id: string) => {
       const ids = ['labels','texts','calc','images','pdf','codes','sheet-labels','draw','split','calculator','colors','zip','compare','code','viewer','paint'];
       if (localStorage.getItem('coding-v2-apps') === null) localStorage.setItem('coding-v2-apps', JSON.stringify({ v: 2, known: ids, enabled: ids.filter(item => item !== id) }));
     }, tool.id);
     await page.goto(tool.url);
-    await expect(page.getByTestId('app-disabled')).toBeVisible();
-    await expect(page.getByTestId('editor-stage')).toHaveCount(0);
-    await page.getByTestId('enable-app').click();
-    await expect(page.getByTestId('app-disabled')).toHaveCount(0);
     await expect(page.locator('#app')).not.toBeEmpty();
+    await expect(page.getByTestId('app-disabled')).toHaveCount(0);
+    await expect(page.getByTestId('app-live-off')).toHaveCount(0);
+    await expect(page.getByText('desativado', { exact: false })).toHaveCount(0);
   });
 }
 

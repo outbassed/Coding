@@ -41,7 +41,7 @@ test.describe('Instalação offline por app (build real, sem rede simulada por m
     await importFromLegacy(page, ['Foto de teste']);
     expect((await readCopiesDb(page)).labels).toEqual(['Foto de teste']);
 
-    await page.goto('/launcher/#/ajustes');
+    await page.goto('/launcher/#/ajustes?aba=offline');
     await expect(page.getByTestId('offline-manager')).toBeVisible();
     // Nada é registrado antes do clique.
     expect(await page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).length)).toBe(0);
@@ -84,7 +84,7 @@ test.describe('Instalação offline por app (build real, sem rede simulada por m
     } finally { await context.setOffline(false); }
 
     // Remover o PDF: arquivos do app somem, o Núcleo fica (nada mais depende dele ainda, mas o app removido não), documentos intactos.
-    await page.goto('/launcher/#/ajustes');
+    await page.goto('/launcher/#/ajustes?aba=offline');
     await page.getByTestId('uninstall-pdf').click();
     await expect(page.getByTestId('confirm-pdf')).toContainText('documentos');
     await page.getByTestId('confirm-remove-pdf').click();
@@ -97,7 +97,7 @@ test.describe('Instalação offline por app (build real, sem rede simulada por m
 
   test('apps que compartilham arquivos: remover um não quebra o outro', async ({ page, context }) => {
     test.setTimeout(180_000);
-    await page.goto('/launcher/#/ajustes');
+    await page.goto('/launcher/#/ajustes?aba=offline');
     await page.getByTestId('install-images').click();
     await expect(state(page, 'images')).toHaveAttribute('data-state', 'installed', { timeout: 120_000 });
     await page.getByTestId('install-calc').click();
@@ -115,17 +115,19 @@ test.describe('Instalação offline por app (build real, sem rede simulada por m
     } finally { await context.setOffline(false); }
   });
 
-  test('Detalhes e Catálogo refletem o estado real, e ativar não instala', async ({ page }) => {
-    test.setTimeout(120_000);
+  test('Detalhes e Ajustes → Offline ficam em sincronia, e o Catálogo reflete o estado real', async ({ page }) => {
+    test.setTimeout(150_000);
     await page.goto('/launcher/#/app/draw');
-    await page.getByText('Disponibilidade e instalação').click();
-    await expect(page.locator('li.level[data-level="offline"]')).toContainText('Não instalado');
-    await page.goto('/launcher/#/ajustes');
+    await expect(state(page, 'draw')).toHaveAttribute('data-state', 'not-installed');
+    await expect(page.getByTestId('open-editor')).toBeVisible();
+    // Instalar pelos Detalhes…
     await page.getByTestId('install-draw').click();
     await expect(state(page, 'draw')).toHaveAttribute('data-state', 'installed', { timeout: 120_000 });
-    await page.goto('/launcher/#/app/draw');
-    await page.getByText('Disponibilidade e instalação').click();
-    await expect(page.locator('li.level[data-level="offline"]')).toContainText('Instalado offline');
+    await expect(page.getByTestId('uninstall-draw')).toBeVisible();
+    // …aparece instalado em Ajustes → Offline (mesmo estado, sem recarregar).
+    await page.getByTestId('manage-offline').click();
+    await expect(page).toHaveURL(/#\/ajustes\?aba=offline$/);
+    await expect(state(page, 'draw')).toHaveAttribute('data-state', 'installed');
     await page.goto('/launcher/#/catalogo');
     await page.getByTestId('offline-filter-yes').click();
     await expect(page.locator('article.card h3')).toHaveText(['Sorteio']);
@@ -134,11 +136,30 @@ test.describe('Instalação offline por app (build real, sem rede simulada por m
     await expect(page.locator('article.card').first()).toBeVisible();
   });
 
+  test('desinstalar pelos Detalhes mantém documentos e deixa o app disponível online', async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.goto('/launcher/#/documentos');
+    await seedLegacy(page);
+    await importFromLegacy(page, ['Foto de teste']);
+    await page.goto('/launcher/#/app/labels');
+    await page.getByTestId('install-labels').click();
+    await expect(state(page, 'labels')).toHaveAttribute('data-state', 'installed', { timeout: 120_000 });
+    await page.getByTestId('uninstall-labels').click();
+    await expect(page.getByTestId('confirm-labels')).toContainText('documentos');
+    await page.getByTestId('confirm-remove-labels').click();
+    await expect(state(page, 'labels')).toHaveAttribute('data-state', 'not-installed');
+    // documentos intactos e o editor continua abrindo online
+    expect((await readCopiesDb(page)).labels).toEqual(['Foto de teste']);
+    await page.getByTestId('open-editor').click();
+    await expect(page).toHaveURL(/\/apps\/etiquetas\//);
+    await expect(page.getByLabel('Código do item 1')).toBeVisible();
+  });
+
   test('cancelar uma instalação lenta não deixa nada pela metade', async ({ page }) => {
     test.setTimeout(90_000);
     // Atrasa só os downloads de instalação para dar tempo de cancelar; os arquivos continuam sendo os reais.
     await page.route('**/vendor/pdf.min.js', async (route) => { await new Promise((r) => setTimeout(r, 4000)); await route.continue(); });
-    await page.goto('/launcher/#/ajustes');
+    await page.goto('/launcher/#/ajustes?aba=offline');
     await page.getByTestId('install-pdf').click();
     await expect(page.getByTestId('cancel-pdf')).toBeVisible();
     await expect(page.getByTestId('offline-progress-pdf')).toBeVisible();

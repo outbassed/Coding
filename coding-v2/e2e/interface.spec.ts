@@ -62,7 +62,7 @@ test.describe('comportamento', () => {
     await expect(page).toHaveURL(/#\/catalogo$/);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Catálogo');
     await page.goBack();
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Seu espaço de criação.');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Coding Launcher');
   });
 
   test('recarregar mantém a tela (link direto)', async ({ page }) => {
@@ -78,17 +78,16 @@ test.describe('comportamento', () => {
     await expect(page.locator('#page-title')).toBeFocused();
   });
 
-  test('ativação persiste e desativar pede confirmação', async ({ page }) => {
+  test('sem ativação: os 15 apps aparecem em Meus apps e a preferência antiga é ignorada sem ser apagada', async ({ page }) => {
+    await page.addInitScript(() => {
+      if (!localStorage.getItem('coding-v2-apps')) localStorage.setItem('coding-v2-apps', JSON.stringify({ v: 2, known: ['labels'], enabled: ['labels'] }));
+    });
     await page.goto('/launcher/#/meus-apps');
-    await page.getByRole('button', { name: 'Desativar Texto no Launcher' }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await page.getByRole('button', { name: 'Desativar atalho' }).click();
-    // Em Meus apps só aparecem os ativados: o Texto passa para “Disponíveis para ativar”.
-    await expect(page.locator('article.card')).toHaveCount(APP_COUNT - 1);
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
+    await expect(page.getByRole('button', { name: /Ativar|Desativar/ })).toHaveCount(0);
     await page.reload();
-    await expect(page.locator('article.card')).toHaveCount(APP_COUNT - 1);
-    await expect(page.getByTestId('available-to-activate')).toContainText('Texto');
-    await expect(page.locator('article.card[data-tool="texts"]')).toHaveCount(0);
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
+    expect(await page.evaluate(() => localStorage.getItem('coding-v2-apps'))).toContain('"enabled":["labels"]');
   });
 
   test('a busca do catálogo filtra no lugar, sem trocar de tela', async ({ page }) => {

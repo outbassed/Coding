@@ -7,14 +7,14 @@ describe('catálogo', () => {
     expect(tools).toHaveLength(15);
     expect(new Set(tools.map((tool) => tool.id)).size).toBe(tools.length);
   });
-  it('os apps existem no 2.0, abrem por endereço próprio e listam o que já funciona', () => {
-    expect(tools.every((tool) => tool.status === 'preview' && tool.initiallyActive)).toBe(true);
+  it('os 15 apps têm página própria e listam o que já funciona', () => {
+    expect(tools.every((tool) => tool.status === 'preview')).toBe(true);
     const paths = tools.map((tool) => tool.path);
     expect(paths.every((path) => typeof path === 'string' && /^\/apps\/[a-z-]+\/$/.test(path))).toBe(true);
     expect(new Set(paths).size).toBe(tools.length);
     expect(tools.every((tool) => tool.ready.length >= 3)).toBe(true);
   });
-  it('rotas da versão estável são únicas; apps novos não têm rota antiga', () => {
+  it('rotas de documentos anteriores são únicas; apps mais novos não têm rota antiga', () => {
     const hashes = tools.map((tool) => tool.legacyHash).filter((hash): hash is string => hash !== null);
     expect(new Set(hashes).size).toBe(hashes.length);
     expect(hashes).toHaveLength(8);

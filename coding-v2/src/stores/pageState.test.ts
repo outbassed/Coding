@@ -6,7 +6,6 @@ describe('estado de busca e filtros do Launcher', () => {
     for (const raw of [null, '', '{', '[]', '"x"']) {
       const s = parseSaved(raw);
       expect(s.catalog).toBe('');
-      expect(s.state).toBe('all');
       expect(s.offline).toBe('any');
     }
   });
@@ -14,6 +13,11 @@ describe('estado de busca e filtros do Launcher', () => {
     expect(parseSaved(JSON.stringify({ offline: 'yes' })).offline).toBe('yes');
     expect(parseSaved(JSON.stringify({ offline: 'no' })).offline).toBe('no');
     expect(parseSaved(JSON.stringify({ offline: 'talvez' })).offline).toBe('any');
+  });
+  it('ignora o antigo filtro por situação de ativação (já não existe)', () => {
+    const s = parseSaved(JSON.stringify({ state: 'off', catalog: 'pdf' }));
+    expect(s.catalog).toBe('pdf');
+    expect('state' in s).toBe(false);
   });
   it('limita o tamanho do texto guardado', () => {
     expect(parseSaved(JSON.stringify({ catalog: 'a'.repeat(500) })).catalog).toHaveLength(80);

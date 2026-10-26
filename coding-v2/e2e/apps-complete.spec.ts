@@ -365,8 +365,8 @@ test.describe('Biblioteca com os novos apps', () => {
   });
 });
 
-test.describe('Documentos do Coding 1.0', () => {
-  test('planilha antiga vira documento novo do 2.0 sem mudar a original', async ({ page }) => {
+test.describe('Documentos de backups antigos', () => {
+  test('planilha de backup antigo vira documento novo sem mudar a original', async ({ page }) => {
     await page.goto('/launcher/#/documentos');
     const backup = { schema: 'coding-v2-safe-backup', version: 1, entries: [{ source: 'backup', images: [], doc: { id: 'calc-antiga', type: 'calc', state: { name: 'Contas antigas', rows: 10, cols: 4, cells: { '0,0': { v: '7' }, '1,0': { v: '5' }, '2,0': { v: '=SOMA(A1:A2)', n: 'brl' } } } } }] };
     await page.locator('input[type="file"][accept*=".json"]').setInputFiles({ name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) });

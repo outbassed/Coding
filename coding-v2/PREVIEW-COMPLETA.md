@@ -90,7 +90,7 @@ Todos os apps: modelos editáveis (abrir e experimentar sem enviar arquivo) ✅ 
 - Limite: acima de 2000 diferenças o trecho aparece como trocado por inteiro (aviso na tela); acima de 50 000 linhas não compara.
 
 ## Launcher, Biblioteca e Ajustes
-- Doze apps reais no catálogo, com categorias, busca, filtros, ativação (sem confundir com instalação/offline) ✅
+- Doze apps reais no catálogo, com categorias, busca, filtros, instalação offline por app (todos sempre disponíveis online) ✅
 - Detalhes no estilo loja com recursos prontos ✅ · 3 colunas em 320–430 px ✅
 - Biblioteca: abrir no app certo (documentos criados na v2), renomear, duplicar, excluir, grade/lista, busca, ordenação, paginação, histórico, prévias reais dos tipos de documento ✅
 - Backups JSON e .codingpack ✅ · datas originais preservadas na importação ✅ · miniaturas sem ler Blobs ✅

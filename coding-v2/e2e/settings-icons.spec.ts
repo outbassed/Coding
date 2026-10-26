@@ -5,7 +5,7 @@ import { APP_COUNT } from './helpers';
 for (const width of [1280, 768, 390, 320]) {
   test('Ajustes: contagem por app com ícones contidos @' + width, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto('/launcher/#/ajustes');
+    await page.goto('/launcher/#/ajustes?aba=projetos');
     const items = page.getByTestId('doc-counts').locator('li');
     await expect(items).toHaveCount(APP_COUNT);
     for (let i = 0; i < APP_COUNT; i++) {
