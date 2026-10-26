@@ -66,7 +66,7 @@ function onMenuKey(event: KeyboardEvent): void {
   if (!drawer.value) return;
   if (event.key === 'Escape') { event.preventDefault(); closeDrawer(); return; }
   if (event.key !== 'Tab') return;
-  const items = [...(menu.value?.querySelectorAll<HTMLElement>('a[href]') ?? [])];
+  const items = [...(menu.value?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])') ?? [])];
   const first = items[0], last = items[items.length - 1];
   if (!first || !last) return;
   if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
@@ -99,36 +99,42 @@ onBeforeUnmount(() => { window.removeEventListener('popstate', onPop); media?.re
     </header>
 
     <div v-if="drawer" class="backdrop" data-testid="menu-backdrop" aria-hidden="true" @click="closeDrawer()"></div>
-    <aside id="versoes-menu" ref="menu" class="menu" :class="{ open: drawer }" :role="drawer ? 'dialog' : undefined" :aria-modal="drawer ? 'true' : undefined" aria-label="Menu da Central de Versões" data-testid="versions-menu" @keydown="onMenuKey">
-      <div class="menu-head">
-        <p>Histórico de versões</p>
-        <button type="button" class="close" aria-label="Fechar menu" data-testid="menu-close" @click="closeDrawer()">
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" /></svg>
-        </button>
-      </div>
-      <nav class="scroller" aria-label="Aplicativos">
-        <ul>
-          <li v-for="item in menuItems" :key="item.target">
-            <a :href="item.href" class="link" :aria-current="target === item.target ? 'page' : undefined" :data-testid="'menu-' + item.target" @click="onMenuClick($event, item.target)">
-              <AppIcon v-if="item.tool" :id="item.tool.id" size="sm" />
-              <img v-else class="lmark" src="/legacy-icons/coding.svg" alt="" width="32" height="32" draggable="false" />
-              <span class="lname">{{ item.name }}</span>
-            </a>
-          </li>
-        </ul>
+    <div id="versoes-menu" ref="menu" class="menu" :class="{ open: drawer }" :role="drawer ? 'dialog' : undefined" :aria-modal="drawer ? 'true' : undefined" :aria-label="drawer ? 'Menu da Central de Versões' : undefined" data-testid="versions-menu" @keydown="onMenuKey">
+      <nav class="menu-nav" aria-label="Aplicativos e Launcher">
+        <div class="menu-head">
+          <p>Histórico de versões</p>
+          <button type="button" class="close" aria-label="Fechar menu" data-testid="menu-close" @click="closeDrawer()">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" /></svg>
+          </button>
+        </div>
+        <div class="scroller">
+          <ul>
+            <li v-for="item in menuItems" :key="item.target">
+              <a :href="item.href" class="link" :aria-current="target === item.target ? 'page' : undefined" :data-testid="'menu-' + item.target" @click="onMenuClick($event, item.target)">
+                <AppIcon v-if="item.tool" :id="item.tool.id" size="sm" />
+                <img v-else class="lmark" src="/legacy-icons/coding.svg" alt="" width="32" height="32" draggable="false" />
+                <span class="lname">{{ item.name }}</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+        <div class="foot"><a :href="LAUNCHER_PATH" class="back" data-testid="back-to-launcher">← Voltar ao Launcher</a></div>
       </nav>
-      <div class="foot"><a :href="LAUNCHER_PATH" class="back" data-testid="back-to-launcher">← Voltar ao Launcher</a></div>
-    </aside>
+    </div>
 
     <main id="conteudo" class="main" :inert="drawer" data-testid="versions-main">
       <h1 ref="heading" tabindex="-1" data-testid="versions-title">{{ title }}</h1>
+      <p class="sr-only" role="status" aria-live="polite">{{ announce }}</p>
       <template v-if="target">
         <p class="muted lead">Histórico de versões · mais recentes primeiro</p>
         <ul v-if="page.items.length" class="list" aria-label="Versões" data-testid="version-list">
           <li v-for="r in page.items" :key="r.version + r.build">
             <button type="button" class="row" aria-haspopup="dialog" :data-testid="'version-' + r.version" @click="selected = r">
-              <span class="a"><strong>{{ target === 'launcher' ? LAUNCHER_NAME : title }}</strong> — <span class="ver">{{ r.version }}</span></span>
-              <span class="b"><span class="bld">{{ r.build }}</span> — <span class="dt">{{ formatRelease(r) }}</span></span>
+              <span class="txt">
+                <span class="a"><strong>{{ target === 'launcher' ? LAUNCHER_NAME : title }}</strong> — <span class="ver">{{ r.version }}</span></span>
+                <span class="dash"> — </span>
+                <span class="b"><span class="bld">{{ r.build }}</span> — <span class="dt">{{ formatRelease(r) }}</span></span>
+              </span>
               <svg class="chev" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" /></svg>
             </button>
           </li>
@@ -144,7 +150,6 @@ onBeforeUnmount(() => { window.removeEventListener('popstate', onPop); media?.re
         <p><a :href="historyPath('launcher')" class="btn" @click="onMenuClick($event, 'launcher')">Ver o histórico do Coding Launcher</a></p>
       </div>
     </main>
-    <p class="sr-only" role="status" aria-live="polite">{{ announce }}</p>
     <VersionModal :record="selected" @close="selected = null" />
   </div>
 </template>
@@ -153,8 +158,8 @@ onBeforeUnmount(() => { window.removeEventListener('popstate', onPop); media?.re
 html.scroll-lock { overflow: hidden; }
 </style>
 <style scoped>
-.page { min-height: 100dvh; display: grid; grid-template-rows: auto 1fr; }
-.top { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 10px; min-height: calc(56px + var(--sa-t)); padding: var(--sa-t) max(12px, var(--sa-r)) 0 max(8px, var(--sa-l)); background: var(--surface); border-bottom: 1px solid var(--border); }
+.page { min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
+.top { min-width: 0; position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 10px; min-height: calc(56px + var(--sa-t)); padding: var(--sa-t) max(12px, var(--sa-r)) 0 max(8px, var(--sa-l)); background: var(--surface); border-bottom: 1px solid var(--border); }
 .burger { display: grid; place-items: center; width: 44px; height: 44px; flex: none; border: 1px solid transparent; border-radius: 12px; background: transparent; color: var(--text); }
 .burger:hover { background: var(--panel); border-color: var(--border); }
 .mark { width: 30px; height: 30px; border-radius: 8px; flex: none; }
@@ -164,6 +169,7 @@ html.scroll-lock { overflow: hidden; }
 .menu { position: fixed; z-index: 50; top: 0; bottom: 0; left: 0; width: min(320px, 86vw); display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); padding-top: var(--sa-t); transform: translateX(-100%); visibility: hidden; transition: transform .2s ease, visibility 0s linear .2s; }
 .menu.open { transform: none; visibility: visible; transition: transform .2s ease; }
 @media (prefers-reduced-motion: reduce) { .menu, .menu.open { transition: none; } }
+.menu-nav { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 .menu-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 8px 8px 16px; border-bottom: 1px solid var(--border); }
 .menu-head p { margin: 0; font-weight: 750; }
 .close { display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 12px; background: transparent; color: var(--muted); }
@@ -184,11 +190,12 @@ h1 { margin: 0 0 4px; font-size: 24px; line-height: 1.2; overflow-wrap: anywhere
 .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 10px; row-gap: 2px; width: 100%; min-height: 56px; box-sizing: border-box; padding: 9px 12px; text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; content-visibility: auto; contain-intrinsic-size: auto 62px; }
 .row:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); background: var(--panel); }
-.a, .b { grid-column: 1; min-width: 0; }
+.txt { grid-column: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; row-gap: 1px; }
 .a { font-size: 15px; overflow-wrap: anywhere; }
+.dash { white-space: pre; color: var(--muted); }
 .b { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .bld, .dt { white-space: nowrap; }
-.chev { grid-column: 2; grid-row: 1 / span 2; color: var(--muted); }
+.chev { grid-column: 2; color: var(--muted); }
 .empty { padding: 20px; background: var(--surface); border: 1px dashed var(--border); border-radius: 14px; }
 .empty p { margin: 0 0 6px; }
 .more { margin-top: 12px; }
@@ -201,9 +208,12 @@ h1 { margin: 0 0 4px; font-size: 24px; line-height: 1.2; overflow-wrap: anywhere
   .main { grid-row: 2; grid-column: 2; overflow-y: auto; max-width: none; padding: 28px 40px 40px; }
   .main > * { max-width: 820px; }
 }
+@media (max-width: 399px) { .brand strong, .sep { display: none; } }
 @media (max-width: 599px) {
   h1 { font-size: 21px; }
   .a { font-size: 14.5px; }
   .b { font-size: 12.5px; }
+  .a, .b { flex: 1 0 100%; }
+  .dash { display: none; }
 }
 </style>

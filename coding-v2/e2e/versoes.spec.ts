@@ -111,7 +111,7 @@ test.describe('Central de Versões · desktop', () => {
     const [last, backBox] = await Promise.all([page.getByTestId('menu-viewer').boundingBox(), back.boundingBox()]);
     expect(backBox!.y).toBeGreaterThan(last!.y);
     await back.click();
-    await expect(page).toHaveURL(/\/launcher\/$/);
+    await expect(page).toHaveURL(/\/launcher\/(#\/)?$/);
   });
 
   test('a seção selecionada fica indicada e a lista abre o modal', async ({ page }) => {
@@ -143,10 +143,10 @@ test.describe('Central de Versões · modal', () => {
     expect(await page.evaluate(() => document.documentElement.classList.contains('scroll-lock'))).toBe(true);
   });
 
-  test('fecha com o botão, com Esc e clicando fora, devolve o foco e mantém a seção', async ({ page }) => {
-    await page.goto('/versoes/texto/');
-    const row = page.getByTestId('version-list').getByRole('button').first();
-    for (const how of ['botão', 'esc', 'fora'] as const) {
+  for (const how of ['botão', 'esc', 'fora'] as const) {
+    test('fecha com ' + how + ', devolve o foco ao item e mantém a seção', async ({ page }) => {
+      await page.goto('/versoes/texto/');
+      const row = page.getByTestId('version-list').getByRole('button').first();
       await row.click();
       await expect(page.getByTestId('version-modal')).toBeVisible();
       await expect(page.getByTestId('modal-close')).toBeFocused();
@@ -158,8 +158,11 @@ test.describe('Central de Versões · modal', () => {
       expect(await page.evaluate(() => document.documentElement.classList.contains('scroll-lock'))).toBe(false);
       expect(new URL(page.url()).pathname).toBe('/versoes/texto/');
       await expect(page.getByTestId('menu-texts')).toHaveAttribute('aria-current', 'page');
-    }
-  });
+      // pode abrir de novo
+      await row.click();
+      await expect(page.getByTestId('version-modal')).toBeVisible();
+    });
+  }
 
   test('conteúdo longo rola dentro do modal e o modal cabe na tela', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 480 });
@@ -220,7 +223,7 @@ test.describe('Central de Versões · celular', () => {
 
     await burger.click();
     await page.getByTestId('back-to-launcher').click();
-    await expect(page).toHaveURL(/\/launcher\/$/);
+    await expect(page).toHaveURL(/\/launcher\/(#\/)?$/);
   });
 
   test('o foco fica preso na gaveta enquanto ela está aberta', async ({ page }) => {
