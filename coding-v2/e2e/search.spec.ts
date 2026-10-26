@@ -146,15 +146,17 @@ test.describe('Lista suspensa de categorias', () => {
 });
 
 test.describe('Favoritos', () => {
-  test('favoritar aparece no Início e ordena Meus apps', async ({ page }) => {
+  test('favoritar leva o app ao começo do Início e ordena Meus apps', async ({ page }) => {
     await page.goto('/launcher/');
-    await expect(page.getByTestId('favorites')).toHaveCount(0);
+    await expect(page.locator('article.card').first()).not.toHaveAttribute('data-tool', 'split');
     await page.locator('article.card[data-tool="split"]').getByTestId('favorite').click();
-    await expect(page.getByTestId('favorites').locator('article.card')).toHaveCount(1);
+    await expect(page.locator('article.card').first()).toHaveAttribute('data-tool', 'split');
     await page.reload();
-    await expect(page.getByTestId('favorites').locator('article.card[data-tool="split"]')).toBeVisible();
+    await expect(page.locator('article.card').first()).toHaveAttribute('data-tool', 'split');
+    await expect(page.locator('article.card[data-tool="split"]').getByTestId('favorite')).toHaveAttribute('aria-pressed', 'true');
     await page.goto('/launcher/#/meus-apps');
     await page.getByTestId('myapps-sort').selectOption('favorites');
     await expect(page.locator('article.card').first()).toHaveAttribute('data-tool', 'split');
   });
+});
 });

@@ -496,7 +496,7 @@ const toolName = (id: ToolId): string => getTool(id).name;
       <button type="button" class="btn" :disabled="busy || !copies.length" @click="exportAll()">Exportar backup das cópias</button>
       <button type="button" class="btn" :disabled="busy || !copies.length" data-testid="export-codingpack" @click="exportAll('binary')">Baixar .codingpack</button>
       <button type="button" class="btn" :disabled="busy" @click="importInput?.click()">Importar backup</button>
-      <input ref="importInput" type="file" accept=".json,.codingpack,.zip,application/json,application/zip,application/octet-stream" class="visually-hidden" aria-label="Escolher backup ZIP, JSON ou CODINGPACK " @change="importFile" />
+      <input ref="importInput" type="file" accept=".json,.codingpack,.zip,application/json,application/zip,application/octet-stream" class="visually-hidden" aria-label="Escolher backup ZIP, JSON ou CODINGPACK" @change="importFile" />
     </div>
     <div class="row zip-row" data-testid="zip-backup">
       <label for="zip-scope" class="small">Backup em ZIP de</label>

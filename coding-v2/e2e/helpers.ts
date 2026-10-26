@@ -65,7 +65,7 @@ export async function readCopiesDb(page: Page): Promise<{ labels: string[]; revi
 /** Fluxo completo do assistente: examinar, selecionar pelos nomes e confirmar. */
 export async function importFromLegacy(page: Page, names: string[]): Promise<void> {
   await page.getByTestId('open-import').click();
-  await page.getByRole('button', { name: 'Examinar documentos antigos' }).click();
+  await page.getByRole('button', { name: 'Examinar documentos anteriores' }).click();
   for (const name of names) await page.getByRole('checkbox', { name: name }).check();
   await page.getByRole('button', { name: /^Continuar/ }).click();
   await page.getByTestId('confirm-import').click();

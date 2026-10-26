@@ -154,7 +154,7 @@ test.describe('Etiquetas · biblioteca e documentos existentes', () => {
     await page.goto(LIBRARY);
     const card = page.locator('[data-copy-card]', { hasText: 'Prateleira A' });
     await expect(card).toContainText('Etiquetas');
-    await expect(card).toContainText('Criado na v2');
+    await expect(card).toContainText('Criado no Coding');
     await card.click();
     await page.getByRole('link', { name: /Abrir cópia de Prateleira A/ }).click();
     await expect(page).toHaveURL(/\/apps\/etiquetas\/\?doc=/);
