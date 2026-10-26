@@ -33,7 +33,7 @@ const pwa = readFileSync('src/pwa.ts', 'utf8');
 assert.ok(pwa.includes('VITE_CODING_PREVIEW_PWA') && pwa.includes('codingtxt.vercel.app'), 'A PWA deve exigir opt-in e proteger produção.');
 
 // O banco legado nunca é aberto por esta base.
-const sources = ['src/stores/apps.ts', 'src/stores/settings.ts', 'src/EditorApp.vue', 'src/main-editor.ts', 'src/main-launcher.ts', 'src/entries/boot.ts', 'src/editors/docs.ts', 'src/editors/useDocument.ts'];
+const sources = ['src/stores/settings.ts', 'src/EditorApp.vue', 'src/main-editor.ts', 'src/main-launcher.ts', 'src/entries/boot.ts', 'src/editors/docs.ts', 'src/editors/useDocument.ts'];
 for (const file of sources) assert.ok(!/indexedDB\.open|coding-db/.test(readFileSync(file, 'utf8')), 'Acesso ao coding-db proibido em ' + file);
 
 console.log('Estrutura Coding 2.0 verificada: todos os apps com página própria, tema sem piscada, PWA opcional e protegida, sem acesso ao coding-db.');

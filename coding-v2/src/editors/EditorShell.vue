@@ -46,7 +46,7 @@ const SIDE = '__side';
 const allTabs = computed<ShellTab[]>(() => (!wide.value && props.sideLabel && !!props.sideLabel ? [...props.tabs, { id: SIDE, label: props.sideLabel }] : props.tabs));
 const currentTitle = computed(() => allTabs.value.find((t) => t.id === tab.value)?.label ?? 'Ferramentas');
 watch(wide, (isWide) => { if (isWide && tab.value === SIDE) tab.value = props.tabs[0]?.id ?? ''; panelOpen.value = true; });
-document.title = tool.name + ' · Coding 2.0';
+document.title = tool.name + ' · Coding';
 
 function pick(id: string): void {
   if (!wide.value && tab.value === id) { panelOpen.value = !panelOpen.value; return; }

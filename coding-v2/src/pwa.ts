@@ -14,8 +14,8 @@ export type OfflineSupport = { ok: true } | { ok: false; reason: string };
 export function offlineSupport(): OfflineSupport {
   if (typeof window === 'undefined' || typeof location === 'undefined') return { ok: false, reason: 'A instalação offline não está disponível fora do navegador.' };
   const host = location.hostname;
-  if (productionHosts.has(host)) return { ok: false, reason: 'Este endereço pertence ao Coding atual. A instalação offline do 2.0 fica desligada aqui para não interferir nele.' };
-  if (!previewPwaEnabled && !isPreviewHost(host)) return { ok: false, reason: 'A instalação offline só está ativa no Preview isolado do Coding 2.0.' };
+  if (productionHosts.has(host)) return { ok: false, reason: 'Este endereço é o do site já publicado. A instalação offline fica desligada aqui para não interferir nele.' };
+  if (!previewPwaEnabled && !isPreviewHost(host)) return { ok: false, reason: 'A instalação offline só está disponível em ambientes de teste isolados (endereços *.pages.dev ou localhost) e em builds autorizados.' };
   if (!(location.protocol === 'https:' || isLocalHost(host))) return { ok: false, reason: 'A instalação offline exige uma conexão segura (HTTPS).' };
   if (!('serviceWorker' in navigator) || !('caches' in window)) return { ok: false, reason: 'Este navegador não oferece service worker e armazenamento de cache (isso é comum em modo privado ou em navegadores antigos).' };
   if (typeof indexedDB === 'undefined') return { ok: false, reason: 'Este navegador não permite o banco local necessário para registrar o que foi instalado.' };

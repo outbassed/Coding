@@ -54,7 +54,7 @@ export function normalizeCodes(raw: unknown): CodesState {
 }
 export function demoCodes(): CodesState {
   return normalizeCodes({ name: 'Códigos de exemplo', style: defaultStyle(), layout: { cols: 3, gapMm: 6 }, items: [
-    { id: cid(), kind: 'qr', value: 'https://coding-v2-preview.vercel.app/', caption: 'Coding 2.0', copies: 1 },
+    { id: cid(), kind: 'qr', value: 'https://coding-v2-preview.vercel.app/', caption: 'Coding', copies: 1 },
     { id: cid(), kind: 'ean13', value: '789123456789', caption: '', copies: 1 },
     { id: cid(), kind: 'code128', value: 'CX-2026-0042', caption: '', copies: 1 }
   ] });

@@ -4,7 +4,6 @@ import { RouterView, useRoute } from 'vue-router';
 import TopBar from './TopBar.vue';
 import SideNav from './SideNav.vue';
 import BottomNav from './BottomNav.vue';
-import DeactivateDialog from '../ui/DeactivateDialog.vue';
 import { useAnnouncer } from '../../composables/useAnnouncer';
 
 const route = useRoute();
@@ -12,8 +11,8 @@ const { message, say } = useAnnouncer();
 
 function focusMain(): void { document.getElementById('conteudo')?.focus(); }
 
-// Ao trocar de tela: foco no título, aviso para leitores de tela.
-watch(() => route.fullPath, async (_new, old) => {
+// Ao trocar de tela: foco no título, aviso para leitores de tela. Mudar só a busca/aba (?query) não conta.
+watch(() => route.path, async (_new, old) => {
   await nextTick();
   const heading = document.getElementById('page-title');
   if (old !== undefined) heading?.focus();
@@ -32,7 +31,6 @@ watch(() => route.fullPath, async (_new, old) => {
       </main>
     </div>
     <BottomNav />
-    <DeactivateDialog />
     <div class="sr-only" role="status" aria-live="polite" data-testid="announcer">{{ message }}</div>
   </div>
 </template>

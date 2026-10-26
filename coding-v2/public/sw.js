@@ -1,5 +1,5 @@
 /*
- * Service worker do Coding 2.0 Preview (genérico, sem lista de arquivos).
+ * Service worker do Coding (genérico, sem lista de arquivos).
  *
  * Os arquivos offline são baixados PELA PÁGINA, app por app, para o cache `coding-v2-offline-files`
  * (veja src/offline). Este arquivo só decide como responder: o que está no cache vem de lá; o resto vai à rede.
@@ -18,11 +18,11 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-const FALLBACK = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sem conexão · Coding 2.0</title>
+const FALLBACK = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sem conexão · Coding</title>
 <style>body{font:16px/1.5 system-ui,sans-serif;margin:0;padding:32px 20px;background:#fff;color:#141922}@media(prefers-color-scheme:dark){body{background:#171c24;color:#eef1f6}}main{max-width:520px;margin:0 auto}a{color:inherit;font-weight:700}</style></head>
 <body><main><h1>Este aplicativo não está disponível offline</h1>
-<p>Você está sem conexão e este aplicativo não foi instalado para uso offline neste navegador. Isso é diferente de estar desativado no Launcher: seus documentos continuam salvos.</p>
-<p>Conecte-se à internet para abri-lo, ou instale-o antes em <strong>Ajustes → Uso sem internet</strong>.</p>
+<p>Você está sem conexão e este aplicativo não foi instalado para uso offline neste navegador. Seus documentos continuam salvos.</p>
+<p>Conecte-se à internet para abri-lo, ou instale-o antes em <strong>Ajustes → Offline</strong>.</p>
 <p><a href="/launcher/">Abrir o Launcher</a></p></main></body></html>`;
 
 self.addEventListener('fetch', (event) => {

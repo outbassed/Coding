@@ -9,7 +9,7 @@ import { friendlyInstallError } from '../offline/messages';
 export interface Job { kind: 'install' | 'update'; ids: string[]; progress: Progress | null }
 
 /**
- * Instalação offline por app. É um conceito SEPARADO da ativação no Launcher (stores/apps) e da instalação
+ * Instalação offline por app. É um conceito SEPARADO da instalação
  * como aplicativo no aparelho (PWA). Desinstalar aqui nunca toca em documentos, backups ou configurações.
  */
 export const useOfflineStore = defineStore('offline', () => {

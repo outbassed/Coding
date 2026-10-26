@@ -1,9 +1,9 @@
 import { findTool, type ToolId } from './catalog';
 import { LAUNCHER_PATH } from './links';
 
-type AppId = ToolId | 'launcher';
+export type AppId = ToolId | 'launcher';
+export type HelpKey = readonly [description: string, shortcut: string];
 type Action = { label: string; shortcut?: string; selector?: string; tab?: string; run?: () => void; id?: string };
-type HelpKey = readonly [description: string, shortcut: string];
 
 const APP_ACTIONS: Record<ToolId, Action[]> = {
   labels: [
@@ -92,6 +92,20 @@ const NATIVE_KEYS: Partial<Record<ToolId, HelpKey[]>> = {
   calc: [['Editar célula', 'F2'], ['Confirmar', 'Enter'], ['Navegar', 'Setas / Tab'], ['Negrito', 'Ctrl+B'], ['Preencher para baixo', 'Ctrl+D']]
 };
 
+/** Atalhos que o menu de contexto de cada aplicativo mostra em “Atalhos de …”. Ajustes → Atalhos usa a mesma lista. */
+export function shortcutsOf(app: AppId): HelpKey[] {
+  const keys: HelpKey[] = app === 'launcher' ? [['Abrir o menu', 'Shift+F10']] : [...(NATIVE_KEYS[app] ?? [['Salvar projeto', 'Ctrl+S'], ['Desfazer', 'Ctrl+Z'], ['Refazer', 'Ctrl+Shift+Z / Ctrl+Y']])];
+  if (app !== 'launcher') {
+    for (const action of APP_ACTIONS[app]) {
+      if (action.shortcut && !keys.some((k) => k[1] === action.shortcut)) keys.push([action.label, action.shortcut]);
+    }
+  }
+  keys.push(['Abrir menu de contexto', 'Shift+F10']);
+  keys.push(['Mostrar estes atalhos', '?']);
+  keys.push(['Menu original do navegador', 'Shift + botão direito']);
+  return keys;
+}
+
 function isTyping(el: Element): boolean {
   return !!el.closest('input,textarea,select,[contenteditable="true"],[contenteditable=""],[role="textbox"],[role="combobox"]');
 }
@@ -179,18 +193,7 @@ export function installContextMenu(app: AppId): void {
     button.addEventListener('click', () => { close(); runControl(action); });
     menu.append(button);
   }
-  function shortcuts(): HelpKey[] {
-    const keys: HelpKey[] = app === 'launcher' ? [['Abrir o menu', 'Shift+F10']] : [...(NATIVE_KEYS[app] ?? [['Salvar projeto', 'Ctrl+S'], ['Desfazer', 'Ctrl+Z'], ['Refazer', 'Ctrl+Shift+Z / Ctrl+Y']])];
-    if (app !== 'launcher') {
-      for (const action of APP_ACTIONS[app]) {
-        if (action.shortcut && !keys.some((k) => k[1] === action.shortcut)) keys.push([action.label, action.shortcut]);
-      }
-    }
-    keys.push(['Abrir menu de contexto', 'Shift+F10']);
-    keys.push(['Mostrar estes atalhos', '?']);
-    keys.push(['Menu original do navegador', 'Shift + botão direito']);
-    return keys;
-  }
+  function shortcuts(): HelpKey[] { return shortcutsOf(app); }
   function help(): void {
     close();
     const backdrop = document.createElement('div');

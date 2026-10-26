@@ -798,7 +798,7 @@ onBeforeUnmount(() => {
       <AppIcon id="texts" size="sm" />
       <div class="title">
         <h1>Texto</h1>
-        <span class="muted tiny">Editor de documentos · Coding 2.0</span>
+        <span class="muted tiny">Editor de documentos · Coding</span>
       </div>
       <SaveStatus :state="status" />
     </header>

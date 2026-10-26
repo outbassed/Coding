@@ -13,7 +13,6 @@ import { boundsOf, defaultCamera, drawMesh, parseModel, type Bounds, type Camera
 import { sanitizeSvg } from './svg';
 import { viewerKind, viewerTemplates } from './kind';
 import { createDoc } from '../../editors/docs';
-import { useAppsStore } from '../../stores/apps';
 import { codeKind } from '../code/kind';
 import { cleanPath, isTextPath, normalizeCode } from '../code/model';
 
@@ -142,7 +141,6 @@ onMounted(() => window.addEventListener('keydown', onEscape));
 onBeforeUnmount(() => { window.removeEventListener('keydown', onEscape); clearInterval(slideTimer); });
 
 // ---------------------------------------------------------------- abrir em outro app (cópia; o original continua aqui)
-const apps = useAppsStore();
 const codeName = computed(() => (current.value && (current.value.kind === 'text' || current.value.kind === 'svg') ? cleanPath(current.value.name) : null));
 const canOpenInCode = computed(() => !!codeName.value && isTextPath(codeName.value));
 async function openInCode(): Promise<void> {
@@ -442,8 +440,7 @@ const title = computed(() => current.value ? current.value.name : '');
       </div>
       <FileTab v-else :templates="viewerTemplates" @new="doc.newFrom">
         <button type="button" class="btn" :disabled="!current" data-testid="download-original" @click="downloadCurrent">Baixar o arquivo atual</button>
-        <button v-if="canOpenInCode" type="button" class="btn" :disabled="!apps.isEnabled('code')" data-testid="open-in-code" @click="openInCode">Abrir uma cópia no Código</button>
-        <p v-if="canOpenInCode && !apps.isEnabled('code')" class="ed-hint">O app Código está desativado. Ative-o no Launcher para abrir uma cópia nele.</p>
+        <button v-if="canOpenInCode" type="button" class="btn" data-testid="open-in-code" @click="openInCode">Abrir uma cópia no Código</button>
         <template #after><p v-if="message" class="ed-hint" role="status" data-testid="viewer-message">{{ message }}</p></template>
       </FileTab>
     </template>

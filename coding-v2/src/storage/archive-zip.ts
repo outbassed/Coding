@@ -48,12 +48,12 @@ const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 const pad = (n: number, width: number): string => String(n).padStart(width, '0');
 
 const README_TEXT = [
-  'Backup do Coding 2.0 (ZIP)',
+  'Backup do Coding (ZIP)',
   '',
-  'Este arquivo guarda cópias dos seus projetos. Para restaurar, abra a Biblioteca do Coding 2.0 e use “Importar backup”.',
+  'Este arquivo guarda cópias dos seus projetos. Para restaurar, abra a Biblioteca do Coding e use “Importar backup”.',
   '',
   '- manifesto.json: índice com versão, lista de projetos e a impressão digital (SHA-256) de cada arquivo.',
-  '- documentos/: os projetos, em JSON assinado do Coding 2.0.',
+  '- documentos/: os projetos, em JSON assinado do Coding.',
   '- imagens/: os arquivos de imagem originais dos projetos.',
   '',
   'Restaurar nunca substitui projetos existentes: o que já está no aparelho continua como está.',
@@ -110,8 +110,8 @@ function validName(name: string): boolean {
 }
 
 function readManifest(raw: unknown): ZipManifest {
-  if (!isObject(raw) || raw.format !== ZIP_BACKUP_FORMAT) throw new ZipError('Este ZIP não é um backup do Coding 2.0.');
-  if (raw.version !== ZIP_BACKUP_VERSION) throw new ZipError('Versão de backup ZIP não suportada (' + String(raw.version) + '). Atualize o Coding 2.0.');
+  if (!isObject(raw) || raw.format !== ZIP_BACKUP_FORMAT) throw new ZipError('Este ZIP não é um backup do Coding.');
+  if (raw.version !== ZIP_BACKUP_VERSION) throw new ZipError('Versão de backup ZIP não suportada (' + String(raw.version) + '). Atualize o Coding.');
   const { documents, batches, images } = raw;
   if (!Array.isArray(documents) || !Array.isArray(batches) || !Array.isArray(images)) throw new ZipError('O manifesto do backup está incompleto.');
   if (documents.length === 0 || documents.length > MAX_COPIES || raw.total !== documents.length) throw new ZipError('O manifesto informa uma quantidade de projetos inválida.');
@@ -148,7 +148,7 @@ export async function decodeZipBackup(input: Uint8Array): Promise<CopyRecord[]> 
     byName.set(key, entry);
   }
   const manifestEntry = byName.get(MANIFEST);
-  if (!manifestEntry) throw new ZipError('Este ZIP não tem manifesto: não é um backup do Coding 2.0.');
+  if (!manifestEntry) throw new ZipError('Este ZIP não tem manifesto: não é um backup do Coding.');
   if (manifestEntry.size > MAX_MANIFEST) throw new ZipError('O manifesto do backup é grande demais.');
   let manifest: ZipManifest;
   try { manifest = readManifest(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(await extractEntry(input, manifestEntry)))); }

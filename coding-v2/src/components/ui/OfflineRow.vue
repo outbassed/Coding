@@ -7,8 +7,12 @@ import AppIcon from './AppIcon.vue';
 import StatusPill, { type PillTone } from './StatusPill.vue';
 import ModalDialog from '../library/ModalDialog.vue';
 
-/** Uma linha de instalação offline: tamanho real do build, progresso verificado, instalar/cancelar/atualizar/remover. */
-const props = defineProps<{ id: string; compact?: boolean }>();
+/**
+ * Gerenciador offline de UM app: estado real, tamanho, progresso verificado, erro com nova tentativa e as ações
+ * Instalar offline · Atualizar offline · Reparar instalação · Desinstalar offline. É o mesmo componente (e o mesmo estado)
+ * em Ajustes → Offline e na página de Detalhes do app. `bare` esconde ícone e nome (a página de Detalhes já tem os dois).
+ */
+const props = defineProps<{ id: string; compact?: boolean; bare?: boolean }>();
 const emit = defineEmits<{ say: [text: string] }>();
 const offline = useOfflineStore();
 const confirm = ref(false);
@@ -42,36 +46,46 @@ const sizeText = computed(() => {
 async function install(): Promise<void> { emit('say', 'Instalando ' + name.value + ' para uso offline.'); const ok = await offline.install(props.id); emit('say', ok ? name.value + ' instalado para uso offline.' : (offline.errors[props.id] ?? 'Instalação não concluída.')); }
 async function retry(): Promise<void> { const ok = await offline.retry(props.id); emit('say', ok ? name.value + ' instalado para uso offline.' : (offline.errors[props.id] ?? 'Instalação não concluída.')); }
 async function update(): Promise<void> { emit('say', 'Atualizando os apps instalados.'); const ok = await offline.updateAll(); emit('say', ok ? 'Apps atualizados.' : 'Atualização não concluída.'); }
-async function remove(): Promise<void> { confirm.value = false; await offline.uninstall(props.id); emit('say', 'Arquivos offline de ' + name.value + ' removidos. Seus documentos continuam salvos.'); }
+async function remove(): Promise<void> { confirm.value = false; await offline.uninstall(props.id); emit('say', name.value + ' desinstalado do uso offline. Seus documentos continuam salvos e o app segue disponível online.'); }
+const installedAt = computed(() => {
+  const at = record.value?.installedAt;
+  if (!at) return '';
+  const d = new Date(at);
+  return d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR');
+});
 </script>
 
 <template>
   <li class="row" :class="{ compact }" :data-testid="'offline-' + id" :data-state="state">
-    <AppIcon v-if="tool" :id="tool.id as ToolId" size="md" />
-    <span v-else class="core-ico" aria-hidden="true">⚙</span>
+    <template v-if="!bare">
+      <AppIcon v-if="tool" :id="tool.id as ToolId" size="md" />
+      <span v-else class="core-ico" aria-hidden="true">⚙</span>
+    </template>
     <div class="main">
-      <div class="head"><strong>{{ name }}</strong><StatusPill :tone="pill.tone" :label="pill.label" /></div>
+      <div class="head"><strong v-if="!bare">{{ name }}</strong><StatusPill :tone="pill.tone" :label="pill.label"/></div>
       <p class="muted size" :data-testid="'offline-size-' + id">{{ sizeText }}</p>
       <template v-if="progress">
         <progress class="bar" :max="Math.max(1, progress.bytesTotal)" :value="progress.bytesDone" :aria-label="'Progresso da instalação de ' + name" :data-testid="'offline-progress-' + id"></progress>
         <p class="muted small" role="status">{{ formatBytes(progress.bytesDone) }} de {{ formatBytes(progress.bytesTotal) }} · {{ percent }}% · {{ progress.filesDone }} de {{ progress.filesTotal }} arquivos</p>
       </template>
+      <p v-if="record && !progress" class="muted small" :data-testid="'offline-info-' + id">Instalado em {{ installedAt }}. Vale só para este navegador e este aparelho.</p>
+      <p v-if="state === 'update-available'" class="muted small" :data-testid="'offline-update-hint-' + id">Há uma versão mais nova. Enquanto você não atualizar, a versão instalada continua funcionando offline. A atualização vale para todos os apps instalados, porque eles compartilham arquivos.</p>
       <p v-if="offline.errors[id]" class="err" role="alert" :data-testid="'offline-error-' + id">{{ offline.errors[id] }}</p>
-      <p v-else-if="(offline.damaged[id]?.length ?? 0) > 0" class="err" role="alert">O navegador apagou {{ offline.damaged[id]!.length }} arquivo(s) deste app. Use “Reparar” para baixar de novo o que falta.</p>
+      <p v-else-if="(offline.damaged[id]?.length ?? 0) > 0" class="err" role="alert" :data-testid="'offline-damaged-' + id">O navegador apagou {{ offline.damaged[id]!.length }} arquivo(s) deste app. Use “Reparar instalação” para baixar de novo só o que falta.</p>
     </div>
     <div class="acts">
       <button v-if="state === 'not-installed'" type="button" class="btn btn-primary" :disabled="busyElsewhere || !offline.manifest" :data-testid="'install-' + id" :aria-label="'Instalar ' + name + ' para uso offline'" @click="install">Instalar offline</button>
       <button v-else-if="state === 'installing' || state === 'updating'" type="button" class="btn" :data-testid="'cancel-' + id" :aria-label="'Cancelar a instalação de ' + name" @click="offline.cancel()">Cancelar</button>
-      <button v-else-if="state === 'failed'" type="button" class="btn btn-primary" :disabled="busyElsewhere" :data-testid="'retry-' + id" @click="retry">{{ record ? 'Reparar' : 'Tentar de novo' }}</button>
-      <button v-else-if="state === 'update-available'" type="button" class="btn btn-primary" :disabled="busyElsewhere" :data-testid="'update-' + id" :aria-label="'Atualizar ' + name" @click="update">Atualizar</button>
-      <button v-if="record && state !== 'installing' && state !== 'updating' && canRemove" type="button" class="btn" :disabled="busyElsewhere" :data-testid="'uninstall-' + id" :aria-label="'Remover os arquivos offline de ' + name" @click="confirm = true">Remover offline</button>
+      <button v-else-if="state === 'failed'" type="button" class="btn btn-primary" :disabled="busyElsewhere" :data-testid="'retry-' + id" @click="retry">{{ record ? 'Reparar instalação' : 'Tentar de novo' }}</button>
+      <button v-else-if="state === 'update-available'" type="button" class="btn btn-primary" :disabled="busyElsewhere" :data-testid="'update-' + id" :aria-label="'Atualizar ' + name + ' offline'" @click="update">Atualizar offline</button>
+      <button v-if="record && state !== 'installing' && state !== 'updating' && canRemove" type="button" class="btn" :disabled="busyElsewhere" :data-testid="'uninstall-' + id" :aria-label="'Desinstalar ' + name + ' do uso offline'" @click="confirm = true">Desinstalar offline</button>
     </div>
-    <ModalDialog :open="confirm" :label="'Remover os arquivos offline de ' + name" @close="confirm = false">
+    <ModalDialog :open="confirm" :label="'Desinstalar ' + name + ' do uso offline'" @close="confirm = false">
       <div class="dlg" :data-testid="'confirm-' + id">
-        <h2>Remover {{ name }} do uso offline?</h2>
+        <h2>Desinstalar {{ name }} do uso offline?</h2>
         <p>Isso apaga só os arquivos do aplicativo guardados neste navegador. O app continua funcionando com internet.</p>
         <p><strong>Seus documentos, modelos, backups e ajustes não são apagados.</strong> Arquivos compartilhados com outros apps instalados são mantidos.</p>
-        <div class="acts"><button type="button" class="btn btn-primary" data-autofocus :data-testid="'confirm-remove-' + id" @click="remove">Remover arquivos offline</button><button type="button" class="btn" @click="confirm = false">Cancelar</button></div>
+        <div class="acts"><button type="button" class="btn btn-primary" data-autofocus :data-testid="'confirm-remove-' + id" @click="remove">Desinstalar offline</button><button type="button" class="btn" @click="confirm = false">Cancelar</button></div>
       </div>
     </ModalDialog>
   </li>
