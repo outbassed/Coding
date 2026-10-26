@@ -152,7 +152,25 @@ test.describe('Central de Versões · modal', () => {
       await expect(page.getByTestId('modal-close')).toBeFocused();
       if (how === 'botão') await page.getByTestId('modal-close').click();
       else if (how === 'esc') await page.keyboard.press('Escape');
-      else await page.mouse.click(8, 8);
+      else {
+        // Diagnóstico: se o clique fora não fechar, o erro mostra o que o navegador realmente atingiu.
+        await page.evaluate(() => {
+          const w = window as unknown as { __clicks: string[] };
+          w.__clicks = [];
+          document.addEventListener('click', (e) => { const t = e.target as HTMLElement; w.__clicks.push(t.tagName + '.' + t.className + '@' + e.clientX + ',' + e.clientY); }, true);
+        });
+        await page.mouse.click(8, 8);
+        await page.waitForTimeout(400);
+        if (await page.getByTestId('version-modal').count()) {
+          const info = await page.evaluate(() => {
+            const d = document.querySelector('dialog.modal');
+            const r = d?.getBoundingClientRect();
+            const hit = document.elementFromPoint(8, 8);
+            return { open: (d as HTMLDialogElement | null)?.open, rect: r && [r.x, r.y, r.width, r.height], hit: hit ? hit.tagName + '.' + hit.className : null, clicks: (window as unknown as { __clicks: string[] }).__clicks, vw: innerWidth, vh: innerHeight };
+          });
+          throw new Error('clique fora não fechou: ' + JSON.stringify(info));
+        }
+      }
       await expect(page.getByTestId('version-modal')).toHaveCount(0);
       await expect(row).toBeFocused();
       expect(await page.evaluate(() => document.documentElement.classList.contains('scroll-lock'))).toBe(false);
