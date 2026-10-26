@@ -20,15 +20,15 @@ export function typeLabel(type: unknown): string {
   return id ? (findTool(id)?.name ?? 'Documento') : 'Tipo desconhecido';
 }
 export const originLabels: Record<Source, string> = {
-  indexeddb: 'Coding atual (IndexedDB)',
-  localStorage: 'Coding atual (localStorage)',
+  indexeddb: 'Importado (banco anterior, IndexedDB)',
+  localStorage: 'Importado (armazenamento anterior, localStorage)',
   backup: 'Backup importado',
-  v2: 'Criado na v2'
+  v2: 'Criado no Coding'
 };
 
 /** Histórico: documentos da v2 anteriores ao contrato de origem usavam 'backup' com prefixo 'v2-labels-'. */
 export const originText = (copy: { source: Source; legacyId: string }): string =>
-  copy.legacyId.startsWith('v2-labels-') ? 'Criado na v2' : originLabels[copy.source];
+  copy.legacyId.startsWith('v2-labels-') ? 'Criado no Coding' : originLabels[copy.source];
 export type SortKey = 'recent' | 'oldest' | 'name-asc' | 'name-desc' | 'type' | 'images';
 export const sortLabels: Record<SortKey, string> = {
   recent: 'Atualização mais recente',

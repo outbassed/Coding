@@ -120,7 +120,7 @@ test.describe('ações do documento', () => {
 
     await page.getByRole('button', { name: 'Excluir cópia de Cópia de Contrato' }).click();
     const dialog = page.getByRole('dialog');
-    await expect(dialog).toContainText('O documento original no Coding antigo não é afetado');
+    await expect(dialog).toContainText('O documento original no armazenamento anterior não é afetado');
     await dialog.getByRole('button', { name: 'Cancelar' }).click();
     await expect(page.getByRole('button', { name: 'Excluir cópia de Cópia de Contrato' })).toBeFocused();
     expect((await readCopiesDb(page)).labels).toHaveLength(2);
@@ -198,7 +198,7 @@ test.describe('acessibilidade e responsividade', () => {
     await expect(rename(page, 'Etiquetas da loja')).toBeFocused();
     await page.getByTestId('open-import').click();
     await axeClean(page);
-    await page.getByRole('button', { name: 'Examinar documentos antigos' }).click();
+    await page.getByRole('button', { name: 'Examinar documentos anteriores' }).click();
     await expect(page.getByTestId('wizard-none')).toBeVisible();
     await axeClean(page);
   });

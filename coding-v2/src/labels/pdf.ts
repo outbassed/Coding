@@ -29,7 +29,7 @@ export function buildPdf(pages: readonly PdfPageImage[], widthMm: number, height
   const pageNum = (i: number): number => 4 + i * 3;
   begin(1); push('<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
   begin(2); push('<< /Type /Pages /Count ' + pages.length + ' /Kids [' + pages.map((_, i) => pageNum(i) + ' 0 R').join(' ') + '] >>\nendobj\n');
-  begin(3); push('<< /Producer (Coding 2.0)' + (title ? ' /Title ' + utf16Hex(title) : '') + ' >>\nendobj\n');
+  begin(3); push('<< /Producer (Coding)' + (title ? ' /Title ' + utf16Hex(title) : '') + ' >>\nendobj\n');
   pages.forEach((page, i) => {
     const n = pageNum(i);
     begin(n);

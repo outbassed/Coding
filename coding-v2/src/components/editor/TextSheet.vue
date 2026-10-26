@@ -2,7 +2,7 @@
   <article class="page" data-testid="text-sheet">
     <h2>Carta de apresentação</h2>
     <p>Este é um modelo visual para conferir a proporção da folha A4 no computador e no celular.</p>
-    <p>O editor de texto de verdade, com formatação e imagens, continua disponível no Coding atual.</p>
+    <p>O editor de texto com formatação e imagens está no aplicativo Texto.</p>
     <p class="line"></p><p class="line short"></p>
   </article>
 </template>

@@ -23,7 +23,7 @@ export function colName(index: number): string {
 const isXlsx = (bytes: Uint8Array): boolean => bytes.length > 4 && bytes[0] === 0x50 && bytes[1] === 0x4b;
 
 export async function readXlsx(bytes: Uint8Array): Promise<XlsxSheet[]> {
-  if (!isXlsx(bytes)) throw new ZipError('Este arquivo não é uma planilha XLSX. Arquivos .xls antigos precisam ser salvos como .xlsx ou .csv.');
+  if (!isXlsx(bytes)) throw new ZipError('Este arquivo não é uma planilha XLSX. Arquivos .xls (formato antigo do Excel) precisam ser salvos como .xlsx ou .csv.');
   const files = await readZip(bytes, (n) => n.startsWith('xl/') || n === '[Content_Types].xml');
   const wbXml = files.get('xl/workbook.xml');
   if (!wbXml) throw new ZipError('A planilha não tem pastas de trabalho (xl/workbook.xml).');

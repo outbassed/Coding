@@ -50,7 +50,7 @@ Todo app aceita `?doc=<id>` (abre um documento salvo) e `?modelo=<id>` (começa 
 - **Documentos** (`src/editors/useDocument.ts` + `docs.ts`): abrir, criar a partir de modelo, salvar automaticamente só depois de uma alteração, desfazer/refazer, Ctrl+S, proteção contra conflito de revisão (nunca sobrescreve em silêncio) e “Salvo” só depois da transação do IndexedDB terminar. Arquivos binários (fotos, PDFs) ficam como Blobs no armazenamento de ativos do documento.
 - **Armazenamento**: banco próprio `coding-v2-documents`. Backups JSON e `.codingpack` preservados. A importação mantém as datas originais quando são plausíveis. Miniaturas da biblioteca leem só o estado do documento, sem ler Blobs (`getCopyState`).
 - **Arquivos sem dependências novas**: ZIP, CSV, XLSX e DOCX próprios (`src/shared/files/`, `src/text/docx.ts`); PDF com `pdf-lib` e `pdf.js` reaproveitados do Coding 1.0 (`public/vendor/`, carregados só no Editor PDF); QR com o gerador do Coding 1.0 (`src/vendor/qrcode-generator.js`).
-- **Ativação de apps**: preferência v2 (`coding-v2-apps`). Apps novos entram ativados; o que a pessoa desativou continua desativado. Ativar não instala nada nem promete uso offline.
+- **Todos os apps sempre disponíveis**: não existe mais ativar/desativar. A preferência antiga (`coding-v2-apps`) é ignorada e **nunca apagada**; favoritos, ordem, buscas, atalhos e recentes continuam como estavam. Veja `LAUNCHER-REFORMULADO.md`.
 
 ## Proteção de dados
 
@@ -70,7 +70,7 @@ VITE_CODING_PREVIEW_PWA=1 npm run build
 npm run preview
 ```
 
-No Launcher, vá a **Ajustes → Uso sem internet**. Cada aplicativo tem a sua linha, com **Instalar offline**, **Cancelar**, **Tentar de novo**, **Atualizar** e **Remover**, e mostra o tamanho real a baixar. Antes do primeiro app, o navegador baixa o **Núcleo do Launcher** (páginas e estilos compartilhados); depois, só o que cada app precisa, incluindo as bibliotecas locais de PDF quando for o caso.
+No Launcher, vá a **Ajustes → Offline** ou à página de **Detalhes** do app (seção “Uso offline”, perto de “Abrir editor”); as duas telas leem o mesmo estado. Cada aplicativo tem **Instalar offline**, **Cancelar**, **Tentar de novo / Reparar instalação**, **Atualizar offline** e **Desinstalar offline**, e mostra o tamanho real a baixar. Antes do primeiro app, o navegador baixa o **Núcleo do Launcher** (páginas e estilos compartilhados); depois, só o que cada app precisa, incluindo as bibliotecas locais de PDF quando for o caso.
 
 - O manifesto `dist/offline-manifest.json` é gerado depois do build, a partir dos arquivos reais de `dist/` (caminho, tamanho e SHA-256 de cada um, com o grafo de dependências de cada app). A página baixa cada arquivo e **só registra o app depois de conferir tamanho e SHA-256**; se um arquivo falhar ou divergir, nada fica pela metade e o app anterior continua como estava.
 - O service worker (`public/sw.js`) é genérico e não tem lista de arquivos: ele só serve do cache `coding-v2-offline-files` o que a página instalou. O registro do que está instalado fica no IndexedDB `coding-v2-offline`, separado dos documentos.
@@ -93,10 +93,10 @@ No Launcher, vá a **Ajustes → Uso sem internet**. Cada aplicativo tem a sua l
 - Apenas commits da branch configurada geram deploys, sem previews de outras branches.
 - O projeto Vercel e o Coding 1.0 não são modificados.
 
-### Menu de contexto, atalhos e apps desativados
+### Menu de contexto e atalhos
 
 - No PC, clique direito abre o menu do aplicativo atual. `Shift+clique direito` preserva o menu do navegador; `Shift+F10` ou a tecla Menu abrem o menu personalizado.
 - No celular, pressione uma região não editável por ~550 ms. Campos, seleção de texto, caixas de diálogo e controles interativos não têm o gesto interceptado.
 - O atalho `?`, fora de campos de edição, apresenta a lista **somente do aplicativo aberto**. `Alt+Shift+N` aciona a ação principal de cada aplicativo e `Alt+Shift+E` executa a exportação quando disponível. Controles desativados não são clicados.
-- Desativar no Launcher impede abrir diretamente a página do app no mesmo navegador; o próprio bloqueio oferece o botão **Ativar aplicativo**. Não há autenticação de servidor: é uma preferência local, não controle de autorização.
+- Nenhum app é bloqueado: todas as páginas abrem online diretamente.
 - No PC, arraste a divisória do painel esquerdo ou ajuste-a com as setas quando focada; dê dois cliques para restaurar. A largura persiste separadamente por app. Nenhuma mudança na estrutura dos painéis mobile/tablet.

@@ -88,7 +88,7 @@ async function readLegacyIdb(notes: string[]): Promise<LegacySnapshot[]> {
   db.onversionchange = () => db.close();
   try {
     if (!db.objectStoreNames.contains('docs') || !db.objectStoreNames.contains('images')) {
-      throw new Error('O banco antigo não possui a estrutura esperada. Nada foi alterado.');
+      throw new Error('O banco anterior não possui a estrutura esperada. Nada foi alterado.');
     }
     const tx = db.transaction(['docs', 'images'], 'readonly');
     const done = committed(tx);
@@ -142,13 +142,13 @@ export async function inspectLegacy(): Promise<LegacyInspection> {
   let snapshots: LegacySnapshot[] = [];
   if (typeof indexedDB === 'undefined') notes.push('Este navegador não disponibiliza IndexedDB.');
   else if (typeof indexedDB.databases !== 'function') {
-    notes.push('Este navegador não permite detectar com segurança se o banco antigo existe. Não foi aberto nem criado.');
+    notes.push('Este navegador não permite detectar com segurança se o banco anterior existe. Não foi aberto nem criado.');
   } else {
     try { snapshots = await readLegacyIdb(notes); }
-    catch (err) { notes.push('Não foi possível ler o IndexedDB antigo: ' + errorText(err)); }
+    catch (err) { notes.push('Não foi possível ler o IndexedDB anterior: ' + errorText(err)); }
   }
   try { snapshots.push(...readLegacyLocalStorage(notes)); }
-  catch (err) { notes.push('Não foi possível ler o localStorage antigo: ' + errorText(err)); }
+  catch (err) { notes.push('Não foi possível ler o localStorage anterior: ' + errorText(err)); }
   const keys = new Set<string>();
   for (const entry of snapshots) {
     const key = entry.doc.id;
@@ -182,7 +182,7 @@ async function openCopies(): Promise<IDBDatabase> {
     const timer = setTimeout(() => {
       if (finished) return;
       finished = true;
-      reject(new Error('Banco v2 bloqueado por outra aba. Feche outras abas e tente de novo.'));
+      reject(new Error('O banco de documentos está bloqueado por outra aba. Feche outras abas e tente de novo.'));
     }, 8000);
     req.onsuccess = () => {
       if (finished) { req.result.close(); return; }
@@ -195,7 +195,7 @@ async function openCopies(): Promise<IDBDatabase> {
       if (finished) return;
       finished = true;
       clearTimeout(timer);
-      reject(req.error ?? new Error('Falha ao abrir IndexedDB v2'));
+      reject(req.error ?? new Error('Falha ao abrir o banco de documentos'));
     };
     req.onblocked = () => { /* Wait up to 8 seconds for old tabs to close. */ };
   });

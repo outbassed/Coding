@@ -1,101 +1,83 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { RouterLink } from 'vue-router';
-import { useSettingsStore, type Motion, type Theme } from '../stores/settings';
-import { useAppsStore } from '../stores/apps';
-import { tools } from '../shared/catalog';
-import { LEGACY_URL } from '../shared/links';
-import { listCopySummaries, type CopySummary } from '../storage/documents';
-import { toolIdForType } from '../library/model';
-import { readView, writeView, type ViewMode } from '../library/view';
+import { computed, nextTick, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import PageHeader from '../components/ui/PageHeader.vue';
-import AppIcon from '../components/ui/AppIcon.vue';
-import StoragePanel from '../components/library/StoragePanel.vue';
 import OfflineManager from '../components/ui/OfflineManager.vue';
-import LimitsPanel from '../components/ui/LimitsPanel.vue';
-import { appKeyForType } from '../workspace/limits';
+import GeneralPanel from '../components/settings/GeneralPanel.vue';
+import AppearancePanel from '../components/settings/AppearancePanel.vue';
+import ProjectsPanel from '../components/settings/ProjectsPanel.vue';
+import ShortcutsPanel from '../components/settings/ShortcutsPanel.vue';
+import AdvancedPanel from '../components/settings/AdvancedPanel.vue';
+import AboutPanel from '../components/settings/AboutPanel.vue';
+import { neighborTab, parseTab, settingsTabs, type SettingsTab } from '../components/settings/tabs';
 
-const settings = useSettingsStore();
-const apps = useAppsStore();
-const themes: { id: Theme; label: string }[] = [{ id: 'auto', label: 'Automático' }, { id: 'light', label: 'Claro' }, { id: 'dark', label: 'Escuro' }];
-const motions: { id: Motion; label: string }[] = [{ id: 'system', label: 'Seguir o aparelho' }, { id: 'reduce', label: 'Reduzir sempre' }];
-const view = ref<ViewMode>(readView());
-function setView(mode: ViewMode): void { view.value = mode; writeView(mode); announce('Biblioteca abrirá em ' + (mode === 'grid' ? 'grade' : 'lista') + '.'); }
+/**
+ * Ajustes em abas: no computador, categorias à esquerda e só a categoria atual à direita; no celular, um seletor
+ * compacto. A aba vai na barra de endereço (`?aba=`), então recarregar ou compartilhar o link volta à mesma categoria.
+ */
+const route = useRoute();
+const router = useRouter();
+const tab = computed<SettingsTab>(() => parseTab(route.query.aba));
 const status = ref('');
 function announce(text: string): void { status.value = ''; requestAnimationFrame(() => { status.value = text; }); }
 
-/** Contagem por app sem criar o banco: só lê se ele já existir. */
-const copies = ref<CopySummary[] | null>(null);
-async function dbExists(): Promise<boolean> {
-  try { if (typeof indexedDB === 'undefined') return false; if (typeof indexedDB.databases !== 'function') return true; return (await indexedDB.databases()).some((d) => d.name === 'coding-v2-documents'); } catch { return false; }
+function select(next: SettingsTab, focusTab = false): void {
+  if (next !== tab.value) void router.replace({ name: 'settings', query: { ...route.query, aba: next } });
+  if (focusTab) void nextTick(() => document.getElementById('settings-tab-' + next)?.focus());
 }
-onMounted(async () => { try { copies.value = (await dbExists()) ? await listCopySummaries() : []; } catch { copies.value = null; } });
-const counts = computed<Record<string, number> | null>(() => {
-  if (!copies.value) return null;
-  const result: Record<string, number> = {};
-  for (const c of copies.value) { const k = appKeyForType(c.type); result[k] = (result[k] ?? 0) + 1; }
-  return result;
-});
-const perApp = computed(() => tools.map((t) => ({ tool: t, count: (copies.value ?? []).filter((c) => toolIdForType(c.type) === t.id).length })));
+function onKey(event: KeyboardEvent): void {
+  const next = neighborTab(tab.value, event.key);
+  if (next) { event.preventDefault(); select(next, true); }
+}
+function onPick(event: Event): void { select(parseTab((event.target as HTMLSelectElement).value)); }
+const current = computed(() => settingsTabs.find((t) => t.id === tab.value)!);
 </script>
 
 <template>
-  <PageHeader eyebrow="Preferências" title="Ajustes" logo="/legacy-icons/tools.svg" />
+  <PageHeader compact eyebrow="Preferências" title="Ajustes" logo="/legacy-icons/tools.svg" />
   <p class="sr-only" role="status" aria-live="polite">{{ status }}</p>
-  <section class="card" aria-labelledby="tema">
-    <h2 id="tema">Aparência</h2>
-    <p class="muted">Automático segue o tema do seu aparelho.</p>
-    <div class="opts" role="group" aria-label="Tema">
-      <button v-for="item in themes" :key="item.id" type="button" class="opt" :aria-pressed="settings.theme === item.id" @click="settings.setTheme(item.id)">{{ item.label }}</button>
+
+  <div class="settings">
+    <div class="side">
+      <div role="tablist" aria-orientation="vertical" aria-label="Categorias de ajustes" class="tabs" data-testid="settings-tabs" @keydown="onKey">
+        <button v-for="t in settingsTabs" :id="'settings-tab-' + t.id" :key="t.id" type="button" role="tab" class="tab" :aria-selected="tab === t.id" :aria-controls="'settings-panel'" :tabindex="tab === t.id ? 0 : -1" :data-testid="'settings-tab-' + t.id" @click="select(t.id)">{{ t.label }}</button>
+      </div>
+      <label class="picker">
+        <span class="sr-only">Categoria de ajustes</span>
+        <select :value="tab" aria-label="Categoria de ajustes" data-testid="settings-picker" @change="onPick">
+          <option v-for="t in settingsTabs" :key="t.id" :value="t.id">{{ t.label }}</option>
+        </select>
+      </label>
     </div>
-    <h3>Animações</h3>
-    <div class="opts" role="group" aria-label="Movimento">
-      <button v-for="item in motions" :key="item.id" type="button" class="opt" :aria-pressed="settings.motion === item.id" data-testid="motion-option" @click="settings.setMotion(item.id); announce('Animações: ' + item.label + '.')">{{ item.label }}</button>
+
+    <div id="settings-panel" class="panel" role="tabpanel" :aria-labelledby="'settings-tab-' + tab" :data-tab="tab" data-testid="settings-panel" tabindex="0">
+      <h2 class="sr-only">{{ current.label }}</h2>
+      <GeneralPanel v-if="tab === 'geral'" />
+      <AppearancePanel v-else-if="tab === 'aparencia'" @announce="announce" />
+      <ProjectsPanel v-else-if="tab === 'projetos'" @announce="announce" />
+      <OfflineManager v-else-if="tab === 'offline'" @announce="announce" />
+      <ShortcutsPanel v-else-if="tab === 'atalhos'" />
+      <AdvancedPanel v-else-if="tab === 'avancado'" @announce="announce" />
+      <AboutPanel v-else />
     </div>
-    <h3>Biblioteca</h3>
-    <div class="opts" role="group" aria-label="Exibição padrão da biblioteca">
-      <button type="button" class="opt" :aria-pressed="view === 'grid'" @click="setView('grid')">Grade</button>
-      <button type="button" class="opt" :aria-pressed="view === 'list'" @click="setView('list')">Lista</button>
-    </div>
-  </section>
-
-  <LimitsPanel :counts="counts" @announce="announce" />
-
-  <section class="card" aria-labelledby="docs-h">
-    <h2 id="docs-h">Documentos e armazenamento</h2>
-    <p class="muted">Os documentos do Coding 2.0 ficam neste navegador, em um banco próprio, separado do Coding atual (que nunca é alterado).</p>
-    <ul v-if="copies" class="counts" data-testid="doc-counts">
-      <li v-for="row in perApp" :key="row.tool.id"><AppIcon :id="row.tool.id" size="sm" /><span class="nm">{{ row.tool.name }}</span><strong>{{ row.count }}</strong></li>
-    </ul>
-    <p v-else class="muted">Não foi possível contar os documentos agora.</p>
-    <StoragePanel :refresh-key="0" @announce="announce" />
-    <p><RouterLink :to="{ name: 'docs' }" class="btn">Backups e importação na Biblioteca</RouterLink></p>
-  </section>
-
-  <section class="card" aria-labelledby="apps-h">
-    <h2 id="apps-h">Aplicativos</h2>
-    <p class="muted">{{ apps.enabled.length }} de {{ tools.length }} ativados no Launcher. Ativar ou desativar só muda os atalhos; nenhum documento é apagado.</p>
-    <RouterLink :to="{ name: 'my-apps' }" class="btn">Gerenciar meus apps</RouterLink>
-  </section>
-
-  <OfflineManager @announce="announce" />
-
-  <section class="card" aria-labelledby="sobre-h">
-    <h2 id="sobre-h">Sobre</h2>
-    <p class="muted">Coding 2.0 · Prévia. O <a :href="LEGACY_URL">Coding atual</a> continua disponível e não é alterado por esta versão.</p>
-  </section>
+  </div>
 </template>
 
 <style scoped>
-.card { max-width: 720px; margin-bottom: 16px; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; }
-h2 { font-size: 18px; }
-h3 { font-size: 14px; margin: 16px 0 8px; }
-.opts { display: flex; flex-wrap: wrap; gap: 8px; }
-.opt { min-height: 44px; padding: 0 18px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); font-weight: 650; }
-.opt[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--surface)); box-shadow: inset 0 -3px var(--accent); }
-.counts { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 6px; }
-.counts li { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
-.counts .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.counts strong { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
-.muted a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.settings { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+.side { min-width: 0; }
+.tabs { display: none; }
+.picker { display: block; }
+.picker select { width: 100%; min-height: 48px; padding: 0 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); font-size: 16px; font-weight: 700; }
+.panel { min-width: 0; }
+.panel:focus-visible { outline-offset: 4px; }
+@media (min-width: 760px) {
+  .settings { grid-template-columns: 200px minmax(0, 1fr); gap: 24px; }
+  .side { position: sticky; top: calc(76px + var(--sa-t)); }
+  .picker { display: none; }
+  .tabs { display: grid; gap: 4px; padding: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; }
+  .tab { min-height: 44px; padding: 0 14px; text-align: left; border: 0; border-radius: 11px; background: transparent; color: var(--muted); font-weight: 700; }
+  .tab:hover { background: var(--panel); color: var(--text); }
+  .tab[aria-selected="true"] { color: var(--text); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); box-shadow: inset 3px 0 var(--accent); }
+}
 </style>

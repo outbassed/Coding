@@ -25,7 +25,7 @@ async function installDevice(): Promise<void> { const r = await promptDeviceInst
 <template>
   <section class="card" aria-labelledby="off-h" data-testid="offline-manager">
     <h2 id="off-h">Uso sem internet</h2>
-    <p class="muted">Cada aplicativo pode ser baixado para este navegador e aberto sem rede. Isso é <strong>diferente de ativar</strong> o app no Launcher (que só mostra ou esconde o atalho) e de instalar o app no aparelho. Os tamanhos abaixo são dos arquivos reais desta versão, no disco; o download pela rede pode usar menos por causa da compressão.</p>
+    <p class="muted">Todos os aplicativos funcionam online. Cada um também pode ser baixado para este navegador e aberto sem rede, o que é diferente de instalar o Coding como aplicativo no aparelho. Os tamanhos abaixo são dos arquivos reais desta versão, no disco; o download pela rede pode usar menos por causa da compressão.</p>
     <p v-if="!offline.supported" class="muted" data-testid="offline-unsupported">{{ offline.reason }}</p>
     <template v-else>
       <p v-if="offline.manifestError" class="muted" role="status" data-testid="offline-manifest-error">{{ offline.manifestError }} <button type="button" class="link" @click="offline.loadManifest()">Tentar de novo</button></p>
@@ -35,8 +35,8 @@ async function installDevice(): Promise<void> { const r = await promptDeviceInst
         <OfflineRow v-for="t in tools" :key="t.id" :id="t.id" @say="emit('announce', $event)" />
       </ul>
       <p v-if="estimate && estimate.usage !== null" class="muted small" data-testid="offline-storage">Uso do navegador (todo o site, aproximado): {{ formatBytes(estimate.usage) }}<template v-if="estimate.quota !== null"> de uma cota estimada de {{ formatBytes(estimate.quota) }}</template>. A cota estimada não é espaço livre garantido.</p>
-      <p class="muted small">Se o navegador limpar os dados do site, os apps instalados aparecem como “Falhou” e podem ser reparados aqui. Seus documentos ficam em outro armazenamento e não são apagados ao remover um app.</p>
-      <p v-if="canInstallDevice" class="dev"><button type="button" class="btn" data-testid="install-device" @click="installDevice">Instalar o Coding 2.0 neste aparelho</button> <span class="muted small">Opcional: o navegador oferece instalar o Launcher como aplicativo. Não substitui a instalação offline de cada app.</span></p>
+      <p class="muted small">Se o navegador limpar os dados do site, os apps instalados aparecem como “Falhou” e podem ser reparados aqui (Reparar instalação). Seus documentos ficam em outro armazenamento e não são apagados ao remover um app.</p>
+      <p v-if="canInstallDevice" class="dev"><button type="button" class="btn" data-testid="install-device" @click="installDevice">Instalar o Coding neste aparelho</button> <span class="muted small">Opcional: o navegador oferece instalar o Launcher como aplicativo. Não substitui a instalação offline de cada app.</span></p>
     </template>
   </section>
 </template>

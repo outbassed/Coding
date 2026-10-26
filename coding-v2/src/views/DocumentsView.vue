@@ -15,7 +15,6 @@ import RenameDialog, { type RenameMode } from '../components/library/RenameDialo
 import ImportWizard from '../components/library/ImportWizard.vue';
 import StoragePanel from '../components/library/StoragePanel.vue';
 import { useMediaQuery } from '../composables/useMediaQuery';
-import { LEGACY_URL } from '../shared/links';
 import { getTool, tools, type ToolId } from '../shared/catalog';
 import {
   listCopySummaries, getCopy, saveCopyRevision, forkCopy, deleteCopy, watchCopies, RevisionConflict, MissingCopy,
@@ -367,7 +366,7 @@ async function confirmDelete(): Promise<void> {
     deleteBase = null;
     selectedId.value = null;
     await refresh();
-    say('Cópia “' + base.label + '” excluída. O documento no Coding antigo não foi afetado.');
+    say('Cópia “' + base.label + '” excluída. O documento original no armazenamento anterior não foi afetado.');
     await nextTick(); listHeading.value?.focus();
   } catch (err) {
     deleteBase = null;
@@ -396,7 +395,7 @@ async function importFile(event: Event): Promise<void> {
     markOwn();
     await refresh();
     saveState.value = 'saved';
-    say(count + ' documento(s) restaurado(s) do backup. Nada foi gravado no banco antigo.');
+    say(count + ' documento(s) restaurado(s) do backup. Nada foi gravado no banco anterior.');
   } catch (err) { saveState.value = 'error'; fail('Importação não concluída. ' + friendlyError(err)); }
   finally { busy.value = false; input.value = ''; }
 }
@@ -421,7 +420,7 @@ const toolName = (id: ToolId): string => getTool(id).name;
       <div class="head-actions">
         <SaveStatus :state="saveState" />
         <a class="btn" data-testid="new-labels" :href="newLabelsHref">Nova etiqueta</a>
-        <button type="button" class="btn btn-primary" data-testid="open-import" :disabled="busy" @click="importOpen = true">Importar do Coding antigo</button>
+        <button type="button" class="btn btn-primary" data-testid="open-import" :disabled="busy" @click="importOpen = true">Importar documentos anteriores</button>
         <button type="button" class="btn" :disabled="busy" @click="manualRefresh">Atualizar biblioteca</button>
       </div>
     </div>
@@ -461,9 +460,9 @@ const toolName = (id: ToolId): string => getTool(id).name;
     <div class="layout" :class="{ split: wide && copies.length > 0 }">
       <div class="listcol">
         <template v-if="!loaded"><p class="muted">Carregando as cópias…</p></template>
-        <EmptyState v-else-if="!loadError && !copies.length" title="Você ainda não tem cópias" text="Importe documentos do Coding antigo (somente leitura) ou restaure um backup do Coding 2.0. As cópias aparecem aqui e podem ser renomeadas, exportadas e duplicadas.">
-          <button type="button" class="btn btn-primary" @click="importOpen = true">Importar do Coding antigo</button>
-          <button type="button" class="btn" :disabled="busy" @click="importInput?.click()">Importar backup do Coding 2.0</button>
+        <EmptyState v-else-if="!loadError && !copies.length" title="Você ainda não tem cópias" text="Importe documentos anteriores deste navegador (somente leitura) ou restaure um backup. As cópias aparecem aqui e podem ser renomeadas, exportadas e duplicadas.">
+          <button type="button" class="btn btn-primary" @click="importOpen = true">Importar documentos anteriores</button>
+          <button type="button" class="btn" :disabled="busy" @click="importInput?.click()">Importar backup</button>
         </EmptyState>
         <EmptyState v-else-if="!loadError && !filtered.length" title="Nenhuma cópia encontrada" text="Nenhuma cópia combina com a busca e os filtros atuais.">
           <button type="button" class="btn btn-primary" @click="clearFilters">Limpar busca e filtros</button>
@@ -496,8 +495,8 @@ const toolName = (id: ToolId): string => getTool(id).name;
     <div class="row">
       <button type="button" class="btn" :disabled="busy || !copies.length" @click="exportAll()">Exportar backup das cópias</button>
       <button type="button" class="btn" :disabled="busy || !copies.length" data-testid="export-codingpack" @click="exportAll('binary')">Baixar .codingpack</button>
-      <button type="button" class="btn" :disabled="busy" @click="importInput?.click()">Importar backup do Coding 2.0</button>
-      <input ref="importInput" type="file" accept=".json,.codingpack,.zip,application/json,application/zip,application/octet-stream" class="visually-hidden" aria-label="Escolher backup ZIP, JSON ou CODINGPACK do Coding 2.0" @change="importFile" />
+      <button type="button" class="btn" :disabled="busy" @click="importInput?.click()">Importar backup</button>
+      <input ref="importInput" type="file" accept=".json,.codingpack,.zip,application/json,application/zip,application/octet-stream" class="visually-hidden" aria-label="Escolher backup ZIP, JSON ou CODINGPACK" @change="importFile" />
     </div>
     <div class="row zip-row" data-testid="zip-backup">
       <label for="zip-scope" class="small">Backup em ZIP de</label>
@@ -509,7 +508,7 @@ const toolName = (id: ToolId): string => getTool(id).name;
     </div>
     <details class="backup-help"><summary>Sobre os formatos e a segurança dos backups</summary><p class="muted small">JSON: até 64 MB por arquivo. O ZIP abre em qualquer programa e traz um manifesto com SHA-256 de cada arquivo (até 1.000 arquivos e 200 MB; exporte um app por vez se passar). O .codingpack suporta imagens binárias verificadas por SHA-256. Importações não substituem documentos existentes e dependem do espaço disponível no navegador.</p></details>
     <StoragePanel :refresh-key="storageKey" @announce="say" />
-    <details class="backup-help"><summary>Compatibilidade com o Coding antigo</summary><p class="muted small">O Coding 1.0 não é alterado. Ferramentas não migradas continuam no <a :href="LEGACY_URL">Coding atual</a>.</p></details>
+    <details class="backup-help"><summary>Compatibilidade com documentos anteriores</summary><p class="muted small">A importação é somente leitura: o banco e o armazenamento originais nunca são alterados.</p></details>
   </section>
 
   <ModalDialog :open="detailOpen && !wide && !!selected" :label="selected ? 'Detalhes de ' + selected.label : 'Detalhes'" variant="sheet" :fallback-focus="cardFallback" backdrop-close @close="closeDetail">
@@ -528,7 +527,7 @@ const toolName = (id: ToolId): string => getTool(id).name;
   />
 
   <ConfirmDialog :open="deleteOpen" :title="'Excluir a cópia “' + deleteLabel + '”?'" confirm-label="Excluir cópia" danger @cancel="cancelDelete" @confirm="confirmDelete">
-    <p>Isto remove somente esta cópia da versão 2.0 e as imagens guardadas nela. O documento original no Coding antigo <strong>não é afetado</strong>. Esta ação não pode ser desfeita; exporte um backup antes se tiver dúvida.</p>
+    <p>Isto remove somente esta cópia e as imagens guardadas nela. O documento original no armazenamento anterior <strong>não é afetado</strong>. Esta ação não pode ser desfeita; exporte um backup antes se tiver dúvida.</p>
   </ConfirmDialog>
 
   <ImportWizard :open="importOpen" :existing="copies" @close="wizardClose" @done="wizardDone" @announce="wizardAnnounce" />

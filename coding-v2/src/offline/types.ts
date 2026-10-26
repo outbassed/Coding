@@ -20,7 +20,7 @@ export interface OfflineManifest {
   apps: Record<string, ManifestEntry>;
 }
 
-/** Estados de instalação offline (independentes de o app estar ativado ou não no Launcher). */
+/** Estados de instalação offline por app. Todo app continua disponível online em qualquer estado. */
 export type InstallState = 'not-installed' | 'installing' | 'installed' | 'update-available' | 'updating' | 'failed';
 
 /** O que ficou instalado de verdade neste navegador (guardado no banco `coding-v2-offline`, separado dos documentos). */

@@ -195,7 +195,7 @@ function onKey(event: KeyboardEvent): void {
 }
 onMounted(() => document.addEventListener('keydown', onKey));
 onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
-document.title = 'Etiquetas · Coding 2.0';
+document.title = 'Etiquetas · Coding';
 const copiesChange = (id: string, value: number): void => editor.setItem(id, { copies: toInt(value, 1, 1, MAX_COPIES) });
 const title = computed(() => state.value.name.trim() || 'Documento sem título');
 </script>

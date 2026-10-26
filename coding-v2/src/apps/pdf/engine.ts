@@ -100,7 +100,7 @@ export async function renderPage(doc: PdfJsDoc, index: number, extra: number, ca
 export async function buildPdf(pages: readonly PdfPage[], annotations: readonly Annotation[], bytesOf: (src: string) => Promise<Uint8Array>, title: string): Promise<Uint8Array> {
   const L = await pdfLib();
   const out = await L.PDFDocument.create();
-  out.setTitle(title); out.setProducer('Coding 2.0'); out.setCreator('Coding 2.0 · Editor PDF');
+  out.setTitle(title); out.setProducer('Coding'); out.setCreator('Coding · Editor PDF');
   const docs = new Map<string, PdfLibDoc>();
   const font = await out.embedFont(L.StandardFonts.Helvetica!);
   const embedded = new Map<string, unknown>();

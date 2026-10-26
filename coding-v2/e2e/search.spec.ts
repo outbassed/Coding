@@ -52,12 +52,11 @@ test.describe('Busca por tela do Launcher', () => {
     await expect(myBox(page)).toHaveValue('texto');
   });
 
-  test('Documentos e Ajustes não têm busca no topo; a busca local de Documentos continua', async ({ page }) => {
-    for (const route of ['/launcher/', '/launcher/#/ajustes']) {
-      await page.goto(route);
-      await expect(page.getByRole('searchbox')).toHaveCount(0);
-      await expect(page.getByRole('searchbox', { name: 'Buscar aplicativos' })).toHaveCount(0);
-    }
+  test('Início tem a busca de aplicativos; Documentos e Ajustes não; a busca local de Documentos continua', async ({ page }) => {
+    await page.goto('/launcher/');
+    await expect(page.getByRole('searchbox', { name: 'Buscar aplicativos' })).toBeVisible();
+    await page.goto('/launcher/#/ajustes');
+    await expect(page.getByRole('searchbox')).toHaveCount(0);
     await page.goto('/launcher/#/documentos');
     await expect(page.getByRole('searchbox', { name: 'Buscar aplicativos' })).toHaveCount(0);
     await expect(page.getByTestId('copy-count')).toBeVisible();
@@ -118,19 +117,17 @@ test.describe('Lista suspensa de categorias', () => {
     await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
   });
 
-  test('filtros combinam em E e persistem ao sair e voltar', async ({ page }) => {
+  test('categoria e busca combinam em E e persistem ao sair e voltar', async ({ page }) => {
     await page.goto('/launcher/#/catalogo');
     await page.getByTestId('category-button').click();
     await page.getByRole('option', { name: 'Planilhas e contas' }).click();
     await expect(page.locator('article.card')).toHaveCount(4); // Planilhas, Racha-conta, Compactador ZIP e Comparador
-    await page.getByRole('button', { name: 'Ativados', exact: true }).click();
     await catalogBox(page).fill('racha');
     await expect(page.locator('article.card')).toHaveCount(1);
     await page.locator('nav a:visible', { hasText: 'Ajustes' }).first().click();
     await page.locator('nav a:visible', { hasText: 'Catálogo' }).first().click();
     await expect(page.getByTestId('category-button')).toContainText('Planilhas e contas');
     await expect(catalogBox(page)).toHaveValue('racha');
-    await expect(page.getByRole('button', { name: 'Ativados', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await page.getByTestId('clear-filters').click();
     await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
   });
@@ -149,13 +146,14 @@ test.describe('Lista suspensa de categorias', () => {
 });
 
 test.describe('Favoritos', () => {
-  test('favoritar aparece no Início e ordena Meus apps', async ({ page }) => {
+  test('favoritar leva o app ao começo do Início e ordena Meus apps', async ({ page }) => {
     await page.goto('/launcher/');
-    await expect(page.getByTestId('favorites')).toHaveCount(0);
+    await expect(page.locator('article.card').first()).not.toHaveAttribute('data-tool', 'split');
     await page.locator('article.card[data-tool="split"]').getByTestId('favorite').click();
-    await expect(page.getByTestId('favorites').locator('article.card')).toHaveCount(1);
+    await expect(page.locator('article.card').first()).toHaveAttribute('data-tool', 'split');
     await page.reload();
-    await expect(page.getByTestId('favorites').locator('article.card[data-tool="split"]')).toBeVisible();
+    await expect(page.locator('article.card').first()).toHaveAttribute('data-tool', 'split');
+    await expect(page.locator('article.card[data-tool="split"]').getByTestId('favorite')).toHaveAttribute('aria-pressed', 'true');
     await page.goto('/launcher/#/meus-apps');
     await page.getByTestId('myapps-sort').selectOption('favorites');
     await expect(page.locator('article.card').first()).toHaveAttribute('data-tool', 'split');

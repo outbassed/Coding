@@ -2,7 +2,7 @@
 import { RouterLink } from 'vue-router';
 import NavIcon from '../ui/NavIcon.vue';
 import { navItems } from './nav';
-import { LEGACY_URL } from '../../shared/links';
+import { VERSIONS_BASE as VERSIONS_PATH } from '../../shared/versions';
 </script>
 
 <template>
@@ -13,9 +13,9 @@ import { LEGACY_URL } from '../../shared/links';
         <span class="label">{{ item.label }}</span>
       </RouterLink>
     </div>
-    <a :href="LEGACY_URL" class="item legacy" title="Abrir o Coding atual">
-      <NavIcon name="external" />
-      <span class="label">Coding atual</span>
+    <a :href="VERSIONS_PATH" class="item versions" title="Central de Versões" data-testid="nav-versions">
+      <NavIcon name="info" />
+      <span class="label">Versões</span>
     </a>
   </nav>
 </template>

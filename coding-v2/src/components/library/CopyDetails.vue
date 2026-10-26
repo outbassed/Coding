@@ -15,7 +15,7 @@ const converter = computed(() => (openHref.value ? null : converterFor(props.cop
 const legacySheet = computed(() => isLegacySheet(props.copy.type));
 const converting = ref(false);
 const convertError = ref('');
-/** Cria um documento NOVO no formato 2.0; a cópia do Coding 1.0 continua como estava. */
+/** Cria um documento NOVO no formato atual; a cópia anterior continua como estava. */
 async function convert(): Promise<void> {
   const c = converter.value; if (!c || converting.value) return;
   converting.value = true; convertError.value = '';
@@ -57,8 +57,8 @@ defineEmits<{ rename: []; export: []; duplicate: []; remove: [] }>();
     <div class="actions">
       <button v-if="legacySheet" type="button" class="btn btn-primary wide" data-copy-action="to-labels" :disabled="converting" :aria-label="'Converter ' + copy.label + ' em um documento de Etiquetas'" @click="convertSheetToLabels">{{ converting ? 'Convertendo…' : 'Converter em Etiquetas' }}</button>
       <p v-if="legacySheet" class="note muted wide">O app Planilha → Etiquetas foi removido: a importação de CSV/XLSX agora fica dentro de Etiquetas. A conversão cria um documento novo; esta cópia continua aqui e pode ser exportada.</p>
-      <button v-if="converter" type="button" class="btn btn-primary wide" data-copy-action="convert" :disabled="converting" :aria-label="'Converter ' + copy.label + ' para o Coding 2.0 e abrir em ' + typeLabel(copy.type)" @click="convert">{{ converting ? 'Convertendo…' : 'Converter e abrir no ' + typeLabel(copy.type) }}</button>
-      <p v-if="converter" class="note muted wide">A conversão cria um documento novo; esta cópia do Coding 1.0 não muda.</p>
+      <button v-if="converter" type="button" class="btn btn-primary wide" data-copy-action="convert" :disabled="converting" :aria-label="'Converter ' + copy.label + ' para o formato atual e abrir em ' + typeLabel(copy.type)" @click="convert">{{ converting ? 'Convertendo…' : 'Converter e abrir no ' + typeLabel(copy.type) }}</button>
+      <p v-if="converter" class="note muted wide">A conversão cria um documento novo; esta cópia não muda.</p>
       <p v-if="convertError" class="wide err" role="alert">{{ convertError }}</p>
       <a v-if="openHref" class="btn btn-primary wide" data-copy-action="open" :href="openHref" :aria-label="'Abrir cópia de ' + copy.label + ' no editor de ' + openEditorName(copy.type)">Abrir no editor</a>
       <button type="button" class="btn" data-copy-action="rename" :aria-label="'Renomear cópia de ' + copy.label" :aria-busy="busy" @click="$emit('rename')">Renomear</button>
@@ -66,7 +66,7 @@ defineEmits<{ rename: []; export: []; duplicate: []; remove: [] }>();
       <button type="button" class="btn" data-copy-action="duplicate" :aria-label="'Criar nova cópia de ' + copy.label" :aria-busy="busy" @click="$emit('duplicate')">Criar cópia</button>
       <button type="button" class="btn danger" data-copy-action="remove" :aria-label="'Excluir cópia de ' + copy.label" :aria-busy="busy" @click="$emit('remove')">Excluir</button>
     </div>
-    <p class="note muted">Excluir remove só esta cópia da v2. O documento no Coding atual não é afetado.</p>
+    <p class="note muted">Excluir remove só esta cópia. O documento original no armazenamento anterior não é afetado.</p>
   </div>
 </template>
 
