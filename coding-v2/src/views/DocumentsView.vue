@@ -15,7 +15,6 @@ import RenameDialog, { type RenameMode } from '../components/library/RenameDialo
 import ImportWizard from '../components/library/ImportWizard.vue';
 import StoragePanel from '../components/library/StoragePanel.vue';
 import { useMediaQuery } from '../composables/useMediaQuery';
-import { LEGACY_URL } from '../shared/links';
 import { getTool, tools, type ToolId } from '../shared/catalog';
 import {
   listCopySummaries, getCopy, saveCopyRevision, forkCopy, deleteCopy, watchCopies, RevisionConflict, MissingCopy,
@@ -23,10 +22,12 @@ import {
 } from '../storage/documents';
 import { importBackupToCopies, decodeBackupEntries } from '../storage/archive';
 import { encodeSafeBackup, encodeBinaryPackage, decodeBinaryPackage, importBinaryPackage } from '../storage/archive-pack';
+import { buildZipBackup, decodeZipBackup, importZipBackup, looksLikeZip } from '../storage/archive-zip';
+import { appKeyForType } from '../workspace/limits';
 import { friendlyError } from '../library/errors';
 import {
   activeFilterCount, applyFilters, defaultFilters, filtersFromQuery, filtersToQuery, originLabels, sortLabels,
-  toolsPresent, type LibraryFilters, type SortKey
+  toolIdForType, toolsPresent, type LibraryFilters, type SortKey
 } from '../library/model';
 import type { Source } from '../storage/documents';
 
@@ -56,7 +57,7 @@ const viewMode = ref<ViewMode>(readView());
 function setView(mode: ViewMode): void { viewMode.value = mode; writeView(mode); say(mode === 'grid' ? 'Exibindo em grade.' : 'Exibindo em lista.'); }
 const toolCounts = computed(() => {
   const counts = new Map<string, number>();
-  for (const copy of copies.value) counts.set(String(copy.type), (counts.get(String(copy.type)) ?? 0) + 1);
+  for (const copy of copies.value) { const key = toolIdForType(copy.type) ?? String(copy.type); counts.set(key, (counts.get(key) ?? 0) + 1); }
   return counts;
 });
 const selectedId = ref<string | null>(null);
@@ -302,6 +303,29 @@ async function exportAll(format: BackupChoice = 'auto'): Promise<void> {
   } catch (err) { fail('Não foi possível exportar. ' + friendlyError(err)); }
   finally { busy.value = false; }
 }
+/** Backup em ZIP: todos os apps ou um só (um ZIP comporta até 1.000 arquivos e 200 MB). */
+const zipScope = ref<'all' | ToolId>('all');
+const zipApps = computed(() => tools.filter((t) => copies.value.some((c) => appKeyForType(c.type) === t.id)));
+async function exportZip(): Promise<void> {
+  if (busy.value || !copies.value.length) return;
+  busy.value = true; error.value = '';
+  try {
+    const pick = copies.value.filter((c) => zipScope.value === 'all' || appKeyForType(c.type) === zipScope.value);
+    if (!pick.length) throw new Error('Não há projetos neste app.');
+    const full: CopyRecord[] = [];
+    for (const summary of pick) {
+      const record = await getCopy(summary.id);
+      if (!record) throw new MissingCopy(); // nunca omite um projeto em silêncio
+      full.push(toRaw(record));
+    }
+    const built = await buildZipBackup(full);
+    // Confere os bytes exatos entregues ao navegador (manifesto, SHA-256 e imagens).
+    if ((await decodeZipBackup(built.bytes)).length !== full.length) throw new Error('Falha na verificação do backup ZIP.');
+    downloadFile(new Blob([built.bytes as BlobPart], { type: 'application/zip' }), 'coding-v2-backup-' + (zipScope.value === 'all' ? 'todos' : zipScope.value) + '-' + new Date().toISOString().slice(0, 10) + '.zip');
+    say('Backup ZIP de ' + full.length + ' projeto(s) e ' + built.images + ' imagem(ns) verificado. Confirme que o arquivo foi salvo no aparelho.');
+  } catch (err) { fail('Não foi possível exportar o ZIP. ' + friendlyError(err)); }
+  finally { busy.value = false; }
+}
 async function duplicate(): Promise<void> {
   const copy = selected.value; if (!copy || busy.value) return;
   busy.value = true; saveState.value = 'saving'; error.value = '';
@@ -342,7 +366,7 @@ async function confirmDelete(): Promise<void> {
     deleteBase = null;
     selectedId.value = null;
     await refresh();
-    say('Cópia “' + base.label + '” excluída. O documento no Coding antigo não foi afetado.');
+    say('Cópia “' + base.label + '” excluída. O documento original no armazenamento anterior não foi afetado.');
     await nextTick(); listHeading.value?.focus();
   } catch (err) {
     deleteBase = null;
@@ -360,15 +384,18 @@ async function importFile(event: Event): Promise<void> {
   const file = input.files?.[0]; if (!file) return;
   busy.value = true; saveState.value = 'saving'; error.value = '';
   try {
-    const isPackage = file.name.toLowerCase().endsWith('.codingpack')
-      || (await file.slice(0, 14).text()) === 'CODING-PACK-1\n';
-    if (!isPackage && file.size > 64 * 1024 * 1024) throw new Error('Backup JSON acima do limite de 64 MB. Use .codingpack.');
+    const isZip = looksLikeZip(new Uint8Array(await file.slice(0, 4).arrayBuffer()));
+    const isPackage = !isZip && (file.name.toLowerCase().endsWith('.codingpack')
+      || (await file.slice(0, 14).text()) === 'CODING-PACK-1\n');
+    if (isZip && file.size > 200 * 1024 * 1024) throw new Error('Backup ZIP acima do limite de 200 MB.');
+    if (!isZip && !isPackage && file.size > 64 * 1024 * 1024) throw new Error('Backup JSON acima do limite de 64 MB. Use .zip ou .codingpack.');
     markOwn();
-    const count = isPackage ? await importBinaryPackage(file) : await importBackupToCopies(await file.text());
+    const count = isZip ? await importZipBackup(new Uint8Array(await file.arrayBuffer()))
+      : isPackage ? await importBinaryPackage(file) : await importBackupToCopies(await file.text());
     markOwn();
     await refresh();
     saveState.value = 'saved';
-    say(count + ' documento(s) restaurado(s) do backup. Nada foi gravado no banco antigo.');
+    say(count + ' documento(s) restaurado(s) do backup. Nada foi gravado no banco anterior.');
   } catch (err) { saveState.value = 'error'; fail('Importação não concluída. ' + friendlyError(err)); }
   finally { busy.value = false; input.value = ''; }
 }
@@ -393,7 +420,7 @@ const toolName = (id: ToolId): string => getTool(id).name;
       <div class="head-actions">
         <SaveStatus :state="saveState" />
         <a class="btn" data-testid="new-labels" :href="newLabelsHref">Nova etiqueta</a>
-        <button type="button" class="btn btn-primary" data-testid="open-import" :disabled="busy" @click="importOpen = true">Importar do Coding antigo</button>
+        <button type="button" class="btn btn-primary" data-testid="open-import" :disabled="busy" @click="importOpen = true">Importar documentos anteriores</button>
         <button type="button" class="btn" :disabled="busy" @click="manualRefresh">Atualizar biblioteca</button>
       </div>
     </div>
@@ -402,8 +429,8 @@ const toolName = (id: ToolId): string => getTool(id).name;
     <nav v-if="copies.length && toolOptions.length" class="app-tabs" aria-label="Documentos por aplicativo" data-testid="document-app-tabs">
       <button type="button" :aria-pressed="filters.tool === 'all'" @click="filters.tool = 'all'">Todos ({{ copies.length }})</button>
       <button v-for="t in toolOptions" :key="t.id" type="button" :aria-pressed="filters.tool === t.id" @click="filters.tool = t.id">
-        <img :src="'/legacy-icons/' + (t.id === 'sheet-labels' ? 'sheet' : t.id) + '.svg'" alt="" width="22" height="22" />
-        {{ t.name }} ({{ toolCounts.get(t.id === 'sheet-labels' ? 'sheet' : t.id) ?? 0 }})
+        <img :src="'/legacy-icons/' + t.id + '.svg'" alt="" width="22" height="22" />
+        {{ t.name }} ({{ toolCounts.get(t.id) ?? 0 }})
       </button>
     </nav>
 
@@ -433,9 +460,9 @@ const toolName = (id: ToolId): string => getTool(id).name;
     <div class="layout" :class="{ split: wide && copies.length > 0 }">
       <div class="listcol">
         <template v-if="!loaded"><p class="muted">Carregando as cópias…</p></template>
-        <EmptyState v-else-if="!loadError && !copies.length" title="Você ainda não tem cópias" text="Importe documentos do Coding antigo (somente leitura) ou restaure um backup do Coding 2.0. As cópias aparecem aqui e podem ser renomeadas, exportadas e duplicadas.">
-          <button type="button" class="btn btn-primary" @click="importOpen = true">Importar do Coding antigo</button>
-          <button type="button" class="btn" :disabled="busy" @click="importInput?.click()">Importar backup do Coding 2.0</button>
+        <EmptyState v-else-if="!loadError && !copies.length" title="Você ainda não tem cópias" text="Importe documentos anteriores deste navegador (somente leitura) ou restaure um backup. As cópias aparecem aqui e podem ser renomeadas, exportadas e duplicadas.">
+          <button type="button" class="btn btn-primary" @click="importOpen = true">Importar documentos anteriores</button>
+          <button type="button" class="btn" :disabled="busy" @click="importInput?.click()">Importar backup</button>
         </EmptyState>
         <EmptyState v-else-if="!loadError && !filtered.length" title="Nenhuma cópia encontrada" text="Nenhuma cópia combina com a busca e os filtros atuais.">
           <button type="button" class="btn btn-primary" @click="clearFilters">Limpar busca e filtros</button>
@@ -468,12 +495,20 @@ const toolName = (id: ToolId): string => getTool(id).name;
     <div class="row">
       <button type="button" class="btn" :disabled="busy || !copies.length" @click="exportAll()">Exportar backup das cópias</button>
       <button type="button" class="btn" :disabled="busy || !copies.length" data-testid="export-codingpack" @click="exportAll('binary')">Baixar .codingpack</button>
-      <button type="button" class="btn" :disabled="busy" @click="importInput?.click()">Importar backup do Coding 2.0</button>
-      <input ref="importInput" type="file" accept=".json,.codingpack,application/json,application/octet-stream" class="visually-hidden" aria-label="Escolher backup JSON ou CODINGPACK do Coding 2.0" @change="importFile" />
+      <button type="button" class="btn" :disabled="busy" @click="importInput?.click()">Importar backup</button>
+      <input ref="importInput" type="file" accept=".json,.codingpack,.zip,application/json,application/zip,application/octet-stream" class="visually-hidden" aria-label="Escolher backup ZIP, JSON ou CODINGPACK" @change="importFile" />
     </div>
-    <details class="backup-help"><summary>Sobre os formatos e a segurança dos backups</summary><p class="muted small">JSON: até 64 MB por arquivo. O .codingpack suporta imagens binárias verificadas por SHA-256. Importações não substituem documentos existentes e dependem do espaço disponível no navegador.</p></details>
+    <div class="row zip-row" data-testid="zip-backup">
+      <label for="zip-scope" class="small">Backup em ZIP de</label>
+      <select id="zip-scope" v-model="zipScope" data-testid="zip-scope">
+        <option value="all">Todos os apps</option>
+        <option v-for="t in zipApps" :key="t.id" :value="t.id">{{ t.name }}</option>
+      </select>
+      <button type="button" class="btn" :disabled="busy || !copies.length" data-testid="export-zip" @click="exportZip()">Baixar backup .zip</button>
+    </div>
+    <details class="backup-help"><summary>Sobre os formatos e a segurança dos backups</summary><p class="muted small">JSON: até 64 MB por arquivo. O ZIP abre em qualquer programa e traz um manifesto com SHA-256 de cada arquivo (até 1.000 arquivos e 200 MB; exporte um app por vez se passar). O .codingpack suporta imagens binárias verificadas por SHA-256. Importações não substituem documentos existentes e dependem do espaço disponível no navegador.</p></details>
     <StoragePanel :refresh-key="storageKey" @announce="say" />
-    <details class="backup-help"><summary>Compatibilidade com o Coding antigo</summary><p class="muted small">O Coding 1.0 não é alterado. Ferramentas não migradas continuam no <a :href="LEGACY_URL">Coding atual</a>.</p></details>
+    <details class="backup-help"><summary>Compatibilidade com documentos anteriores</summary><p class="muted small">A importação é somente leitura: o banco e o armazenamento originais nunca são alterados.</p></details>
   </section>
 
   <ModalDialog :open="detailOpen && !wide && !!selected" :label="selected ? 'Detalhes de ' + selected.label : 'Detalhes'" variant="sheet" :fallback-focus="cardFallback" backdrop-close @close="closeDetail">
@@ -492,7 +527,7 @@ const toolName = (id: ToolId): string => getTool(id).name;
   />
 
   <ConfirmDialog :open="deleteOpen" :title="'Excluir a cópia “' + deleteLabel + '”?'" confirm-label="Excluir cópia" danger @cancel="cancelDelete" @confirm="confirmDelete">
-    <p>Isto remove somente esta cópia da versão 2.0 e as imagens guardadas nela. O documento original no Coding antigo <strong>não é afetado</strong>. Esta ação não pode ser desfeita; exporte um backup antes se tiver dúvida.</p>
+    <p>Isto remove somente esta cópia e as imagens guardadas nela. O documento original no armazenamento anterior <strong>não é afetado</strong>. Esta ação não pode ser desfeita; exporte um backup antes se tiver dúvida.</p>
   </ConfirmDialog>
 
   <ImportWizard :open="importOpen" :existing="copies" @close="wizardClose" @done="wizardDone" @announce="wizardAnnounce" />
@@ -542,6 +577,8 @@ h2:focus { outline: none; }
 .more { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
 .more p { margin: 0; }
 .row { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+.zip-row { align-items: center; }
+.zip-row select { min-height: 44px; max-width: 100%; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); }
 .small { font-size: 12.5px; }
 .sheet-h { font-size: 19px; margin-bottom: 12px; overflow-wrap: anywhere; }
 .sheet-h:focus { outline: none; }

@@ -1,50 +1,53 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { RouterLink } from 'vue-router';
-import { useAppsStore } from '../stores/apps';
+import { useFavoritesStore } from '../stores/favorites';
+import { matchesQuery, usePageStateStore } from '../stores/pageState';
 import PageHeader from '../components/ui/PageHeader.vue';
 import AppGrid from '../components/ui/AppGrid.vue';
 import AppCard from '../components/ui/AppCard.vue';
-import ActivateButton from '../components/ui/ActivateButton.vue';
-import AppIcon from '../components/ui/AppIcon.vue';
-import { tools, isPreviewTool } from '../shared/catalog';
+import PageSearch from '../components/ui/PageSearch.vue';
+import { tools } from '../shared/catalog';
 import EmptyState from '../components/ui/EmptyState.vue';
 
-const apps = useAppsStore();
-const available = computed(() => tools.filter((t) => isPreviewTool(t) && !apps.isEnabled(t.id)));
+const page = usePageStateStore();
+const favorites = useFavoritesStore();
+const query = computed(() => page.myAppsQuery.trim());
+/** Todos os aplicativos, sempre disponíveis; a busca e a ordem são só preferências de exibição. */
+const list = computed(() => {
+  const found = tools.filter((t) => matchesQuery(page.myAppsQuery, t.name, t.description));
+  if (page.mySort === 'name') return [...found].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
+  if (page.mySort === 'favorites') return [...found].sort((a, b) => Number(favorites.isFavorite(b.id)) - Number(favorites.isFavorite(a.id)));
+  return found;
+});
 </script>
 
 <template>
-  <PageHeader eyebrow="Sua área" title="Meus apps" logo="/legacy-icons/my-apps.svg" lead="Seus aplicativos favoritos." />
-  <section aria-labelledby="ativados">
-    <h2 id="ativados" class="sr-only">Aplicativos ativados</h2>
-    <AppGrid v-if="apps.activeTools.length">
-      <AppCard v-for="tool in apps.activeTools" :key="tool.id" :tool="tool" :enabled="true" />
+  <PageHeader compact title="Meus apps" logo="/legacy-icons/my-apps.svg" lead="Todos os aplicativos, com seus favoritos e a ordem que você preferir." />
+  <div class="bar">
+    <PageSearch v-model="page.myAppsQuery" input-id="myapps-search" label="Buscar nos meus apps" placeholder="Buscar nos meus apps…" />
+    <label class="sort"><span class="sr-only">Ordenar meus apps</span>
+      <select v-model="page.mySort" data-testid="myapps-sort">
+        <option value="catalog">Ordem do catálogo</option>
+        <option value="name">Nome (A a Z)</option>
+        <option value="favorites">Favoritos primeiro</option>
+      </select>
+    </label>
+  </div>
+  <p class="sr-only" role="status">{{ list.length }} aplicativos mostrados</p>
+
+  <section aria-labelledby="todos" class="sec">
+    <h2 id="todos" class="sr-only">Aplicativos</h2>
+    <AppGrid v-if="list.length">
+      <AppCard v-for="tool in list" :key="tool.id" :tool="tool" />
     </AppGrid>
-    <EmptyState v-else title="Esta área está vazia." text="Ative uma ferramenta do catálogo para ela aparecer aqui.">
-      <RouterLink :to="{ name: 'catalog' }" class="btn btn-primary">Escolher aplicativo</RouterLink>
+    <EmptyState v-else-if="query" title="Nenhum aplicativo combina com a busca." text="Tente outro termo ou limpe o campo.">
+      <button type="button" class="btn btn-primary" @click="page.myAppsQuery = ''">Limpar busca</button>
     </EmptyState>
   </section>
-  <section v-if="available.length" aria-labelledby="disp" class="avail" data-testid="available-to-activate">
-    <h2 id="disp">Disponíveis para ativar</h2>
-    <p class="muted">Ativar não instala nada no aparelho.</p>
-    <ul class="alist">
-      <li v-for="tool in available" :key="tool.id" class="arow">
-        <AppIcon :id="tool.id" size="md" />
-        <span class="an"><strong>{{ tool.name }}</strong><small class="muted">{{ tool.description }}</small></span>
-        <ActivateButton :tool="tool" :enabled="false" />
-      </li>
-    </ul>
-  </section>
-  <p v-if="apps.activeTools.length" class="after"><RouterLink :to="{ name: 'catalog' }" class="btn btn-ghost">Adicionar aplicativos</RouterLink></p>
 </template>
 
 <style scoped>
-.after { margin-top: 22px; }
-.avail { margin-top: 32px; }
-.avail h2 { font-size: 20px; margin-bottom: 4px; }
-.alist { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
-.arow { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; }
-.an { flex: 1; min-width: 0; display: grid; }
-.arow .btn { min-height: 44px; flex: none; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.sort { flex: 0 0 auto; }
+.sort select { min-height: 44px; padding: 0 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); color: var(--text); font-size: 15px; }
 </style>

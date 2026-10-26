@@ -2,7 +2,7 @@ import { test, expect, type Page, type Download } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 
-/* Fumaça funcional dos nove apps: abrir, editar, salvar, reabrir e exportar de verdade. */
+/* Fumaça funcional dos apps: abrir, editar, salvar, reabrir e exportar de verdade. */
 const saved = (page: Page) => expect(page.getByTestId('save-status')).toHaveText('Salvo neste aparelho', { timeout: 10000 });
 async function axeClean(page: Page, label = ''): Promise<void> {
   const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'best-practice']).analyze();
@@ -131,22 +131,21 @@ test.describe('Planilhas', () => {
   });
 });
 
-test.describe('Planilha → Etiquetas', () => {
-  test('planilha de exemplo vira documento de Etiquetas; importação mostra linhas com problema', async ({ page }) => {
+test.describe('Planilha → Etiquetas (app removido)', () => {
+  test('a página antiga explica a mudança; documentos antigos viram Etiquetas sem apagar o original', async ({ page }) => {
     await page.goto('/apps/planilha-etiquetas/');
-    await tab(page, 'Gerar').click();
-    await expect(page.getByTestId('conversion-summary')).toContainText('5 itens · 13 etiquetas');
-    await page.getByTestId('create-labels').click();
-    await expect(page.getByTestId('created')).toContainText('Estoque da oficina');
-    await page.getByTestId('open-created').click();
+    await expect(page.getByRole('heading', { name: 'Este app foi incorporado a Etiquetas' })).toBeVisible();
+    await page.goto('/launcher/#/documentos');
+    const backup = { schema: 'coding-v2-safe-backup', version: 1, entries: [{ source: 'backup', images: [], doc: { id: 'planilha-antiga', type: 'sheet', state: { name: 'Estoque antigo', rows: [['Código', 'Descrição', 'Qtd'], ['A1', 'Item um', '2'], ['A2', 'Item dois', '1']], header: true, colCode: 0, colDesc: 1, colCopies: 2, defCopies: 1 } } }] };
+    await page.locator('input[type="file"][accept*=".json"]').setInputFiles({ name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) });
+    const card = page.locator('[data-copy-card]', { hasText: 'Estoque antigo' });
+    await expect(card).toContainText('descontinuado');
+    await card.click();
+    await page.getByRole('button', { name: /^Converter Estoque antigo em um documento de Etiquetas/ }).click();
     await expect(page).toHaveURL(/\/apps\/etiquetas\/\?doc=/);
-    await expect(page.getByTestId('doc-title')).toHaveText('Estoque da oficina');
-    await page.goto('/apps/planilha-etiquetas/?modelo=em-branco');
-    await page.getByTestId('table-input').setInputFiles({ name: 'itens.csv', mimeType: 'text/csv', buffer: Buffer.from('SKU;Produto;Qtd\nX1;Item um;2\nX2;Item dois;dez\nX3;Item três;\n') });
-    await expect(page.getByTestId('map-code')).toHaveValue('0');
-    await tab(page, 'Gerar').click();
-    await expect(page.getByTestId('conversion-summary')).toContainText('2 itens · 3 etiquetas');
-    await expect(page.getByTestId('issues')).toContainText('Linha 3');
+    await expect(page.getByTestId('doc-title')).toHaveText('Estoque antigo');
+    await page.goto('/launcher/#/documentos');
+    await expect(page.getByTestId('copy-count')).toContainText('2 cópias');
   });
 });
 
@@ -203,6 +202,97 @@ test.describe('Editor PDF', () => {
     await page.getByTestId('pdf-input').setInputFiles({ name: 'falso.pdf', mimeType: 'application/pdf', buffer: Buffer.from('não sou um pdf') });
     await expect(page.getByTestId('pdf-message')).toContainText('não é um PDF');
     await expect(page.getByTestId('page-number')).toHaveText('1 / 4');
+  });
+});
+
+/** Lê, no navegador, o tamanho de cada página e os textos do PDF baixado (usa o mesmo pdf-lib do app). */
+async function inspectPdfBytes(page: Page, bytes: Buffer): Promise<{ sizes: number[][]; rotations: number[] }> {
+  return page.evaluate(async (b64) => {
+    const bin = atob(b64); const u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    const L = (window as unknown as { PDFLib: { PDFDocument: { load(b: Uint8Array): Promise<{ getPages(): { getSize(): { width: number; height: number }; getRotation(): { angle: number } }[] }> } } }).PDFLib;
+    const d = await L.PDFDocument.load(u8);
+    return { sizes: d.getPages().map((p) => [Math.round(p.getSize().width), Math.round(p.getSize().height)]), rotations: d.getPages().map((p) => p.getRotation().angle) };
+  }, bytes.toString('base64'));
+}
+
+test.describe('Editor PDF · projeto em branco', () => {
+  test('A4 retrato: criar, ver página branca, anotar, salvar, reabrir e exportar PDF válido', async ({ page }) => {
+    await page.goto('/apps/pdf/');
+    await page.getByTestId('create-blank-stage').click();
+    await expect(page.getByTestId('blank-dialog')).toBeVisible();
+    await page.getByTestId('blank-name').fill('Ata da reunião');
+    await page.getByTestId('blank-count').fill('2');
+    await page.getByTestId('blank-create').click();
+    await expect(page.getByTestId('page-number')).toHaveText('1 / 2');
+    await expect(page.getByTestId('doc-name')).toHaveValue('Ata da reunião');
+    // a página é realmente branca e tem proporção A4
+    const px = await page.locator('[data-testid="pdf-page"] canvas').evaluate((c) => { const cv = c as HTMLCanvasElement; const d = cv.getContext('2d')!.getImageData(5, 5, 1, 1).data; return { rgba: [d[0], d[1], d[2], d[3]], ratio: cv.height / cv.width }; });
+    expect(px.rgba).toEqual([255, 255, 255, 255]);
+    expect(px.ratio).toBeCloseTo(1.414, 2);
+    await expect(page.getByTestId('thumbs').locator('li')).toHaveCount(2);
+    await tab(page, 'Anotar').click();
+    await page.getByTestId('add-note-text').click();
+    await page.getByTestId('note-text').fill('Presentes: Ana e Bia');
+    await expect(page.getByTestId('ann-text')).toContainText('Presentes');
+    await saved(page);
+    await page.reload();
+    await expect(page.getByTestId('page-number')).toHaveText('1 / 2');
+    await expect(page.getByTestId('ann-text')).toContainText('Presentes');
+    await tab(page, 'Arquivo').click();
+    const [pdf] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-pdf').click()]);
+    const bytes = await bytesOf(pdf);
+    expect(bytes.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+    const info = await inspectPdfBytes(page, bytes);
+    expect(info.sizes).toEqual([[595, 842], [595, 842]]);
+  });
+
+  test('paisagem, A3 e Carta; girar, duplicar e misturar com PDF importado', async ({ page }) => {
+    await page.goto('/apps/pdf/');
+    await page.getByTestId('create-blank-stage').click();
+    await page.getByTestId('blank-format').selectOption('a3');
+    await page.getByTestId('blank-landscape').check();
+    await page.getByTestId('blank-create').click();
+    await expect(page.getByTestId('page-number')).toHaveText('1 / 1');
+    const ratio = await page.locator('[data-testid="pdf-page"] canvas').evaluate((c) => (c as HTMLCanvasElement).width / (c as HTMLCanvasElement).height);
+    expect(ratio).toBeCloseTo(1.414, 2);
+    await page.getByTestId('create-blank').click();
+    await page.getByTestId('blank-format').selectOption('letter');
+    await page.getByTestId('blank-create').click();
+    await expect(page.getByTestId('page-number')).toHaveText('2 / 2');
+    // PDF de verdade (2 páginas de 300 × 400) criado no navegador com o mesmo pdf-lib do app
+    await page.addScriptTag({ url: '/vendor/pdf-lib.min.js' });
+    const b64 = await page.evaluate(async () => {
+      const L = (window as unknown as { PDFLib: { PDFDocument: { create(): Promise<{ addPage(s: [number, number]): unknown; save(): Promise<Uint8Array> }> } } }).PDFLib;
+      const d = await L.PDFDocument.create(); d.addPage([300, 400]); d.addPage([300, 400]);
+      const bytes = await d.save(); let bin = ''; for (const b of bytes) bin += String.fromCharCode(b); return btoa(bin);
+    });
+    await page.getByTestId('pdf-input').setInputFiles({ name: 'amostra.pdf', mimeType: 'application/pdf', buffer: Buffer.from(b64, 'base64') });
+    await expect(page.getByTestId('page-number')).toHaveText('3 / 4');
+    await page.getByTestId('rotate-page').click();
+    await page.getByTestId('duplicate-page').click();
+    await expect(page.getByTestId('page-number')).toHaveText('3 / 5');
+    await page.getByTestId('insert-blank').click();
+    await expect(page.getByTestId('page-number')).toHaveText('4 / 6');
+    await tab(page, 'Arquivo').click();
+    const [pdf] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-pdf').click()]);
+    const info = await inspectPdfBytes(page, await bytesOf(pdf));
+    expect(info.sizes).toEqual([[1191, 842], [612, 792], [300, 400], [300, 400], [300, 400], [300, 400]]);
+    expect(info.rotations).toEqual([0, 0, 90, 0, 90, 0]);
+  });
+
+  test('modelo A4 em branco abre pela URL e o modelo paisagem também', async ({ page }) => {
+    await page.goto('/apps/pdf/?modelo=branco-a4-paisagem');
+    await expect(page.getByTestId('page-number')).toHaveText('1 / 1');
+    const ratio = await page.locator('[data-testid="pdf-page"] canvas').evaluate((c) => (c as HTMLCanvasElement).width / (c as HTMLCanvasElement).height);
+    expect(ratio).toBeGreaterThan(1.3);
+  });
+
+  test('quantidade de páginas é limitada', async ({ page }) => {
+    await page.goto('/apps/pdf/');
+    await page.getByTestId('create-blank-stage').click();
+    await page.getByTestId('blank-count').fill('9999');
+    await page.getByTestId('blank-create').click();
+    await expect(page.getByTestId('page-number')).toHaveText('1 / 100');
   });
 });
 
@@ -275,8 +365,8 @@ test.describe('Biblioteca com os novos apps', () => {
   });
 });
 
-test.describe('Documentos do Coding 1.0', () => {
-  test('planilha antiga vira documento novo do 2.0 sem mudar a original', async ({ page }) => {
+test.describe('Documentos de backups antigos', () => {
+  test('planilha de backup antigo vira documento novo sem mudar a original', async ({ page }) => {
     await page.goto('/launcher/#/documentos');
     const backup = { schema: 'coding-v2-safe-backup', version: 1, entries: [{ source: 'backup', images: [], doc: { id: 'calc-antiga', type: 'calc', state: { name: 'Contas antigas', rows: 10, cols: 4, cells: { '0,0': { v: '7' }, '1,0': { v: '5' }, '2,0': { v: '=SOMA(A1:A2)', n: 'brl' } } } } }] };
     await page.locator('input[type="file"][accept*=".json"]').setInputFiles({ name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) });
@@ -290,7 +380,7 @@ test.describe('Documentos do Coding 1.0', () => {
 });
 
 test.describe('Casca dos editores · celular e acessibilidade', () => {
-  const apps = ['/apps/planilhas/', '/apps/imagens/', '/apps/pdf/', '/apps/qr/', '/apps/planilha-etiquetas/', '/apps/sorteio/', '/apps/racha-conta/'];
+  const apps = ['/apps/planilhas/', '/apps/imagens/', '/apps/pdf/', '/apps/qr/', '/apps/sorteio/', '/apps/racha-conta/'];
   test('celular (390 px): prévia em cima, ferramentas embaixo, sem rolagem horizontal, sem violações', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     for (const url of apps) {

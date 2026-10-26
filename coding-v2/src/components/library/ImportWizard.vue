@@ -32,7 +32,7 @@ const rows = computed(() => {
   return found.value.map((snapshot, index) => {
     const id = identity(snapshot);
     const repeated = seen.has(id); seen.add(id);
-    const reason = hasCopy(snapshot) ? 'já existe uma cópia' : repeated ? 'identificador repetido no Coding antigo' : '';
+    const reason = hasCopy(snapshot) ? 'já existe uma cópia' : repeated ? 'identificador repetido nos dados anteriores' : '';
     return { snapshot, key: keyOf(snapshot, index), blocked: reason !== '', reason };
   });
 });
@@ -48,13 +48,13 @@ async function focusHeading(): Promise<void> { await nextTick(); heading.value?.
 
 async function examine(): Promise<void> {
   scanning.value = true; error.value = '';
-  emit('announce', 'Examinando o Coding antigo. Nada será alterado.');
+  emit('announce', 'Examinando os documentos anteriores. Nada será alterado.');
   try {
     const result = await inspectLegacy();
     found.value = result.snapshots; notes.value = result.notes;
     selected.value = new Set();
     step.value = 'select';
-    emit('announce', result.snapshots.length + ' documento(s) encontrado(s) no Coding antigo.');
+    emit('announce', result.snapshots.length + ' documento(s) encontrado(s) nos dados anteriores deste navegador.');
     await focusHeading();
   } catch (err) { error.value = friendlyError(err); emit('announce', error.value); }
   finally { scanning.value = false; }
@@ -101,26 +101,26 @@ async function run(): Promise<void> {
 </script>
 
 <template>
-  <ModalDialog :open="open" label="Importar do Coding antigo" variant="sheet" initial-focus="[data-wizard-heading]" @close="!running && emit('close')">
+  <ModalDialog :open="open" label="Importar documentos anteriores" variant="sheet" initial-focus="[data-wizard-heading]" @close="!running && emit('close')">
     <div class="wizard" data-testid="import-wizard">
       <p class="steps" aria-label="Etapas da importação">
         <span v-for="(label, i) in ['Examinar', 'Selecionar', 'Confirmar']" :key="label" class="dot" :class="{ on: stepNumber === i + 1, past: stepNumber > i + 1 }" :aria-current="stepNumber === i + 1 ? 'step' : undefined">{{ i + 1 }}. {{ label }}</span>
       </p>
 
       <section v-if="step === 'examine'" aria-labelledby="w-h1">
-        <h2 id="w-h1" ref="heading" tabindex="-1" data-wizard-heading>Examinar o Coding antigo</h2>
-        <p class="muted">A consulta é somente leitura. O banco antigo (<code>coding-db</code>) e o localStorage antigo nunca são alterados. Em seguida você escolhe quais documentos copiar.</p>
+        <h2 id="w-h1" ref="heading" tabindex="-1" data-wizard-heading>Examinar documentos anteriores</h2>
+        <p class="muted">A consulta é somente leitura. O banco anterior (<code>coding-db</code>) e o localStorage anterior nunca são alterados. Em seguida você escolhe quais documentos copiar.</p>
         <p class="err" role="alert" data-testid="wizard-error">{{ error }}</p>
         <div class="actions">
           <button type="button" class="btn btn-ghost" @click="emit('close')">Cancelar</button>
-          <button type="button" class="btn btn-primary" :disabled="scanning" :aria-busy="scanning" @click="examine">{{ scanning ? 'Examinando…' : 'Examinar documentos antigos' }}</button>
+          <button type="button" class="btn btn-primary" :disabled="scanning" :aria-busy="scanning" @click="examine">{{ scanning ? 'Examinando…' : 'Examinar documentos anteriores' }}</button>
         </div>
       </section>
 
       <section v-else-if="step === 'select'" aria-labelledby="w-h2">
         <h2 id="w-h2" ref="heading" tabindex="-1" data-wizard-heading>Escolha o que copiar</h2>
         <ul v-if="notes.length" class="notes"><li v-for="note in notes" :key="note">{{ note }}</li></ul>
-        <p v-if="!found.length" class="empty" data-testid="wizard-none">Nenhum documento foi encontrado no Coding antigo deste navegador. Abra o Coding atual neste mesmo navegador e tente de novo, ou restaure um backup.</p>
+        <p v-if="!found.length" class="empty" data-testid="wizard-none">Nenhum documento anterior foi encontrado neste navegador. Se eles estão em outro navegador ou aparelho, exporte um backup lá e restaure-o aqui.</p>
         <template v-else>
           <p class="muted">{{ found.length }} documento(s) encontrado(s). Documentos que já têm cópia aparecem indisponíveis para não duplicar.</p>
           <button v-if="selectable.length > 1" type="button" class="btn btn-ghost small" @click="toggleAll">{{ allSelected ? 'Desmarcar todos' : 'Marcar todos os disponíveis' }}</button>
@@ -143,7 +143,7 @@ async function run(): Promise<void> {
 
       <section v-else-if="step === 'confirm'" aria-labelledby="w-h3">
         <h2 id="w-h3" ref="heading" tabindex="-1" data-wizard-heading>Confirmar a criação das cópias</h2>
-        <p>Serão criadas <strong>{{ chosen.length }}</strong> cópia(s) independente(s) na versão 2.0. Os documentos originais <strong>não serão alterados</strong>.</p>
+        <p>Serão criadas <strong>{{ chosen.length }}</strong> cópia(s) independente(s). Os documentos originais <strong>não serão alterados</strong>.</p>
         <ul class="plain"><li v-for="row in chosen" :key="row.key">{{ documentName(row.snapshot.doc) }}</li></ul>
         <p data-testid="import-size">Tamanho das imagens a copiar: <strong>{{ formatBytes(totalBytes) }}</strong>.</p>
         <p v-if="spaceWarning" class="err" role="alert" data-testid="space-warning">{{ spaceWarning }}</p>

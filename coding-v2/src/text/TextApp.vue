@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from 'vue';
 import { getTool } from '../shared/catalog';
 import { LAUNCHER_PATH } from '../shared/links';
 import { useSettingsStore } from '../stores/settings';
 import AppIcon from '../components/ui/AppIcon.vue';
 import SaveStatus, { type SaveState } from '../components/editor/SaveStatus.vue';
-import { RevisionConflict, type CopyRecord } from '../storage/documents';
+import { MissingCopy, RevisionConflict, type CopyRecord } from '../storage/documents';
+import ProjectTabs from '../editors/ProjectTabs.vue';
+import { newProjectUrl, useProjectTabs } from '../editors/projectTabs';
+import { forgetDocument, restoreTarget } from '../workspace/prefs';
 import { friendlyError } from '../library/errors';
-import { MAX_IMAGE_BYTES, MIN_IMAGE_PERCENT, TEXT_FONTS, TEXT_SIZES, cleanFont, initialTextState, normalizedTextState, sanitizeTextHtml, type TextState } from './model';
+import { MAX_IMAGE_BYTES, MIN_IMAGE_PERCENT, TEXT_FONTS, TEXT_SIZES, TEXT_LINE_HEIGHTS, cleanFont, cleanHref, initialTextState, linkFromInput, normalizedTextState, sanitizeTextHtml, type TextState } from './model';
 import { TextHistory } from './history';
 import { readOffsets, writeOffsets } from './selection';
 import { useVisualViewport } from '../composables/useVisualViewport';
@@ -32,6 +35,7 @@ const mobileToolTabs = [
   { id: 'paragrafo', label: 'Parágrafo', group: 'Parágrafo' },
   { id: 'inserir', label: 'Inserir', group: 'Inserir' },
   { id: 'imagem', label: 'Imagem', group: 'Imagem' },
+  { id: 'estrutura', label: 'Estrutura', group: 'Estrutura' },
   { id: 'arquivo', label: 'Arquivo', group: 'Exportar' }
 ];
 const activeMobileTool = ref('formato');
@@ -88,7 +92,12 @@ const editor = ref<HTMLElement | null>(null);
 const stageEl = ref<HTMLElement | null>(null);
 const paperEl = ref<HTMLElement | null>(null);
 const pictureInput = ref<HTMLInputElement | null>(null);
-const state = ref<TextState>((new URLSearchParams(location.search).get('doc') ? null : textTemplate(new URLSearchParams(location.search).get('modelo'))) ?? initialTextState());
+const query = new URLSearchParams(location.search);
+const explicitDoc = query.get('doc');
+// Sem ?doc, ?modelo ou ?novo o app volta ao último projeto aberto (preferência "Continuar de onde parei").
+const restoredDoc = !explicitDoc && !query.has('modelo') && !query.has('novo') ? restoreTarget('texts') : null;
+const docId = explicitDoc ?? restoredDoc;
+const state = ref<TextState>((docId ? null : textTemplate(query.get('modelo'))) ?? initialTextState());
 const status = ref<SaveState>('new');
 const error = ref('');
 const loadError = ref('');
@@ -109,7 +118,7 @@ const canUndo = computed(() => { void historyTick.value; return editHistory.canU
 const canRedo = computed(() => { void historyTick.value; return editHistory.canRedo; });
 
 // --- estado de formatação sob o cursor ---
-const format = reactive({ bold: false, italic: false, underline: false, block: 'p', font: 'Georgia', size: 16, align: 'left', list: '' });
+const format = reactive({ bold: false, italic: false, underline: false, block: 'p', font: 'Georgia', size: 16, align: 'left', list: '', line: '' });
 const blockOptions = [
   { value: 'p', label: 'Parágrafo' }, { value: 'h1', label: 'Título 1' }, { value: 'h2', label: 'Título 2' },
   { value: 'h3', label: 'Título 3' }, { value: 'blockquote', label: 'Citação' }
@@ -121,7 +130,27 @@ const selectedImg = shallowRef<HTMLImageElement | null>(null);
 const frame = ref<{ left: number; top: number; width: number; height: number } | null>(null);
 const imagePercent = ref(100);
 
-const docId = new URLSearchParams(location.search).get('doc');
+let leaving = false;
+const projects = useProjectTabs({
+  type: 'texts',
+  path: location.pathname,
+  currentId: () => documentRecord.value?.id ?? null,
+  canLeave: async () => {
+    await saveNow();
+    if (dirty() || status.value === 'conflict' || status.value === 'error') {
+      if (!confirm('Há alterações que podem não ter sido salvas. Sair deste projeto mesmo assim?')) return false;
+    }
+    leaving = true;
+    return true;
+  },
+  renameCurrent: (name) => { state.value.name = name; onNameChange(); }
+});
+let lastTitle = '';
+function trackProject(record: CopyRecord, first: boolean): void {
+  if (first) { projects.register(record.id, record.label); void projects.refreshCount(); }
+  else if (record.label !== lastTitle) projects.retitle(record.id, record.label);
+  lastTitle = record.label;
+}
 
 let exportNoticeUntil = 0;
 function message(text: string): void {
@@ -188,6 +217,7 @@ function capture(key = 'typing'): void {
   ensureCaretVisible();
   updateFrame();
   countPages();
+  refreshOutline();
 }
 function applySnapshot(snap: { html: string; start: number; end: number }): void {
   const host = editor.value;
@@ -196,6 +226,7 @@ function applySnapshot(snap: { html: string; start: number; end: number }): void
   state.value.html = snap.html;
   clearImage();
   host.focus();
+  refreshOutline();
   try { writeOffsets(host, snap.start, snap.end); } catch { /* cursor fora do texto novo */ }
   storeSelection();
   checkChange();
@@ -239,6 +270,7 @@ async function saveNow(): Promise<void> {
         documentRecord.value = created;
         committed = value;
         if (first) history.replaceState(null, '', location.pathname + '?doc=' + encodeURIComponent(created.id));
+        trackProject(created, first);
         status.value = dirty() ? 'pending' : 'saved';
         if (status.value === 'saved' && Date.now() > exportNoticeUntil) message('Documento salvo neste aparelho.');
       } catch (err) {
@@ -260,6 +292,7 @@ async function resolveConflictCopy(): Promise<void> {
     state.value.name = data.name + ' (cópia)';
     committed = JSON.stringify(normalizedTextState(state.value));
     history.replaceState(null, '', location.pathname + '?doc=' + encodeURIComponent(created.id));
+    trackProject(created, true);
     status.value = 'saved'; error.value = '';
     message('Nova cópia salva. A versão de outra aba permaneceu intacta.');
   } catch (err) { status.value = 'error'; error.value = friendlyError(err); }
@@ -271,6 +304,7 @@ async function reloadSaved(): Promise<void> {
     documentRecord.value = result.record; state.value = result.state;
     if (editor.value) editor.value.innerHTML = result.state.html;
     clearImage();
+    refreshOutline();
     editHistory.reset({ html: editor.value?.innerHTML ?? result.state.html, start: 0, end: 0 }); historyTick.value += 1;
     committed = JSON.stringify(result.state); status.value = 'saved'; error.value = '';
     message('Versão salva reaberta.');
@@ -282,6 +316,7 @@ function storeSelection(): void {
   savedRange = selection.getRangeAt(0).cloneRange();
   updateFormat();
   refreshTableState();
+  refreshLinkState();
 }
 function updateFormat(): void {
   const host = editor.value, selection = window.getSelection();
@@ -302,8 +337,11 @@ function updateFormat(): void {
   const a = css.textAlign;
   format.align = a === 'center' || a === 'right' || a === 'justify' ? a : 'left';
   format.list = el.closest('ul') ? 'ul' : el.closest('ol') ? 'ol' : '';
+  format.line = (el.closest('p,h1,h2,h3,li,blockquote,td,th') as HTMLElement | null)?.style.lineHeight ?? '';
 }
 function restoreSelection(): void {
+  // o evento selectionchange chega com atraso: antes de voltar ao trecho guardado, anota o trecho atual (se ainda estiver no texto)
+  storeSelection();
   editor.value?.focus();
   if (!savedRange) return;
   try {
@@ -321,6 +359,26 @@ function command(name: string, value?: string, css = false): boolean {
   capture('');
   storeSelection();
   return ok;
+}
+const LINE_BLOCKS = 'p,h1,h2,h3,li,blockquote,td,th';
+/** Espaçamento entre linhas dos parágrafos tocados pela seleção (vazio = padrão do documento). */
+function setLineHeight(event: Event): void {
+  const value = (event.target as HTMLSelectElement).value;
+  const host = editor.value; if (!host) return;
+  restoreSelection();
+  const sel = window.getSelection();
+  if (!sel?.rangeCount || !host.contains(sel.anchorNode)) return;
+  const range = sel.getRangeAt(0);
+  const touched = Array.from(host.querySelectorAll<HTMLElement>(LINE_BLOCKS)).filter((el) => range.intersectsNode(el) && !el.querySelector(LINE_BLOCKS));
+  if (!touched.length) { const own = (sel.anchorNode instanceof Element ? sel.anchorNode : sel.anchorNode?.parentElement)?.closest<HTMLElement>(LINE_BLOCKS); if (own) touched.push(own); }
+  if (!touched.length) { message('Coloque o cursor em um parágrafo.'); return; }
+  for (const el of touched) {
+    if (value) el.style.lineHeight = value; else el.style.removeProperty('line-height');
+    if (!el.getAttribute('style')) el.removeAttribute('style');
+  }
+  capture('');
+  storeSelection();
+  message(value ? 'Espaçamento entre linhas: ' + value.replace('.', ',') + '.' : 'Espaçamento entre linhas padrão.');
 }
 function setBlock(event: Event): void { command('formatBlock', (event.target as HTMLSelectElement).value); }
 function setFont(event: Event): void { command('fontName', (event.target as HTMLSelectElement).value, true); }
@@ -345,6 +403,103 @@ function clearHighlight(): void {
   capture('');
 }
 
+// --- links ---
+const inLink = ref(false);
+const linkOpen = ref(false);
+const linkUrl = ref('');
+const linkError = ref('');
+const linkInput = ref<HTMLInputElement | null>(null);
+function currentLink(): HTMLAnchorElement | null {
+  const sel = window.getSelection();
+  const node = sel?.anchorNode ?? null;
+  const el = node instanceof Element ? node : node?.parentElement ?? null;
+  const a = el?.closest('a') as HTMLAnchorElement | null;
+  return a && editor.value?.contains(a) ? a : null;
+}
+function refreshLinkState(): void { inLink.value = !!currentLink(); }
+function openLink(): void {
+  storeSelection();
+  const existing = currentLink();
+  linkUrl.value = existing?.getAttribute('href') ?? '';
+  linkError.value = '';
+  linkOpen.value = true;
+  void nextTick(() => linkInput.value?.focus());
+}
+function closeLink(): void { linkOpen.value = false; linkError.value = ''; restoreSelection(); }
+function applyLink(): void {
+  const href = linkFromInput(linkUrl.value);
+  if (!href) { linkError.value = 'Endereço inválido. Use http://, https:// ou um e-mail (mailto:).'; return; }
+  restoreSelection();
+  const existing = currentLink();
+  const sel = window.getSelection();
+  if (existing) {
+    existing.setAttribute('href', href);
+    capture('');
+    message('Endereço do link atualizado.');
+  } else if (sel && sel.isCollapsed) {
+    command('insertHTML', '<a href="' + escapeHtml(href) + '">' + escapeHtml(linkUrl.value.trim()) + '</a>&nbsp;');
+    message('Link inserido. Selecione um texto antes para transformá-lo em link.');
+  } else {
+    command('createLink', href);
+    message('Link aplicado ao texto selecionado.');
+  }
+  linkOpen.value = false; linkError.value = '';
+  refreshLinkState();
+}
+function removeLink(): void {
+  restoreSelection();
+  const existing = currentLink();
+  if (existing && window.getSelection()?.isCollapsed) {
+    // cursor dentro do link: desfaz o link inteiro, mantendo o texto
+    const parent = existing.parentNode;
+    if (parent) {
+      while (existing.firstChild) parent.insertBefore(existing.firstChild, existing);
+      existing.remove();
+      parent.normalize();
+      capture('');
+    }
+  } else command('unlink');
+  linkOpen.value = false;
+  refreshLinkState();
+  message('Link removido; o texto continua no documento.');
+}
+function onEditorLinkClick(event: MouseEvent): boolean {
+  const a = (event.target instanceof Element ? event.target.closest('a') : null) as HTMLAnchorElement | null;
+  if (!a || !editor.value?.contains(a)) return false;
+  event.preventDefault(); // dentro do editor o clique só posiciona o cursor
+  if (event.ctrlKey || event.metaKey) {
+    const href = cleanHref(a.getAttribute('href') ?? '');
+    if (href) window.open(href, '_blank', 'noopener,noreferrer');
+  } else message('Link: ' + (a.getAttribute('href') ?? '') + ' — Ctrl+clique abre em outra aba.');
+  return true;
+}
+
+// --- estrutura (títulos) ---
+interface Heading { index: number; level: number; text: string }
+const headings = ref<Heading[]>([]);
+function refreshOutline(): void {
+  const host = editor.value; if (!host) return;
+  const found: Heading[] = [];
+  host.querySelectorAll('h1,h2,h3').forEach((h, index) => {
+    const text = (h.textContent ?? '').replace(/\s+/g, ' ').trim();
+    found.push({ index, level: Number(h.tagName.slice(1)), text: text || '(título vazio)' });
+  });
+  const same = found.length === headings.value.length && found.every((h, i) => h.text === headings.value[i]!.text && h.level === headings.value[i]!.level);
+  if (!same) headings.value = found;
+}
+function goToHeading(h: Heading): void {
+  const host = editor.value; if (!host) return;
+  const el = host.querySelectorAll('h1,h2,h3')[h.index] as HTMLElement | undefined;
+  if (!el) return;
+  host.focus();
+  const range = document.createRange();
+  range.selectNodeContents(el); range.collapse(true);
+  const sel = window.getSelection(); sel?.removeAllRanges(); sel?.addRange(range);
+  el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  storeSelection();
+  message('Título: ' + h.text);
+}
+
 // --- imagem: seleção, tamanho e remoção ---
 function clearImage(): void { selectedImg.value = null; frame.value = null; }
 function updateFrame(): void {
@@ -362,6 +517,7 @@ function contentWidth(): number {
   return host.clientWidth - Number.parseFloat(css.paddingLeft) - Number.parseFloat(css.paddingRight);
 }
 function onEditorClick(event: MouseEvent): void {
+  if (onEditorLinkClick(event)) return;
   const target = event.target;
   if (target instanceof HTMLImageElement && editor.value?.contains(target)) {
     selectedImg.value = target;
@@ -569,9 +725,11 @@ function newDocument(): void {
   if (dirty() || status.value === 'saving' || status.value === 'error' || status.value === 'conflict') {
     if (!confirm('Há alterações que podem não ter sido salvas. Criar outro documento mesmo assim?')) return;
   }
-  location.assign('/apps/texto/');
+  leaving = true;
+  location.assign(newProjectUrl(location.pathname));
 }
 function beforeUnload(event: BeforeUnloadEvent): void {
+  if (leaving) return;
   if (dirty() || saving || status.value === 'conflict') { event.preventDefault(); event.returnValue = ''; }
 }
 function keyboard(event: KeyboardEvent): void {
@@ -581,12 +739,17 @@ function keyboard(event: KeyboardEvent): void {
   const active = document.activeElement;
   const inDocument = !!editor.value && (editor.value.contains(active) || active === document.body);
   if (!inDocument) return; // no campo do nome valem os atalhos do próprio campo
-  if (key === 'z' && !event.shiftKey) { event.preventDefault(); undo(); }
+  if (key === 'k' && !event.shiftKey && editor.value?.contains(active)) { event.preventDefault(); openLink(); }
+  else if (key === 'z' && !event.shiftKey) { event.preventDefault(); undo(); }
   else if ((key === 'z' && event.shiftKey) || key === 'y') { event.preventDefault(); redo(); }
 }
+function flushOnHide(): void { if (document.visibilityState === 'hidden' && status.value === 'pending') void saveNow(); }
+function flushOnPageHide(): void { if (status.value === 'pending') void saveNow(); }
 onMounted(async () => {
   mounted = true;
   window.addEventListener('beforeunload', beforeUnload);
+  document.addEventListener('visibilitychange', flushOnHide);
+  window.addEventListener('pagehide', flushOnPageHide);
   window.addEventListener('keydown', keyboard);
   document.addEventListener('selectionchange', storeSelection);
   try {
@@ -595,11 +758,25 @@ onMounted(async () => {
       if (!mounted) return;
       documentRecord.value = opened.record; state.value = opened.state;
       committed = JSON.stringify(opened.state); status.value = 'saved';
+      lastTitle = opened.record.label;
+      projects.register(opened.record.id, opened.record.label);
+      if (restoredDoc) { try { history.replaceState(null, '', location.pathname + '?doc=' + encodeURIComponent(opened.record.id)); } catch { /* sem URL */ } }
     }
     if (editor.value) editor.value.innerHTML = state.value.html;
     editHistory.reset({ html: editor.value?.innerHTML ?? state.value.html, start: 0, end: 0 });
-    requestAnimationFrame(countPages);
-  } catch (err) { loadError.value = friendlyError(err); status.value = 'unavailable'; }
+    requestAnimationFrame(() => { countPages(); refreshOutline(); });
+  } catch (err) {
+    const missing = err instanceof MissingCopy || (err as Error)?.name === 'MissingCopy';
+    if (missing && docId) { forgetDocument(docId); projects.reload(); }
+    if (missing && restoredDoc) {
+      // O último projeto não existe mais: abre um texto em branco, sem alarme.
+      state.value = initialTextState(); committed = JSON.stringify(normalizedTextState(state.value)); status.value = 'new';
+      if (editor.value) editor.value.innerHTML = state.value.html;
+      editHistory.reset({ html: editor.value?.innerHTML ?? state.value.html, start: 0, end: 0 });
+      try { history.replaceState(null, '', newProjectUrl(location.pathname)); } catch { /* sem URL */ }
+      message('O último projeto não está mais neste aparelho. Abri um documento novo.');
+    } else { loadError.value = friendlyError(err); status.value = 'unavailable'; }
+  }
   finally { loading.value = false; }
 });
 onBeforeUnmount(() => {
@@ -607,6 +784,8 @@ onBeforeUnmount(() => {
   clearTimeout(pendingTimer);
   document.removeEventListener('selectionchange', storeSelection);
   window.removeEventListener('beforeunload', beforeUnload);
+  document.removeEventListener('visibilitychange', flushOnHide);
+  window.removeEventListener('pagehide', flushOnPageHide);
   window.removeEventListener('keydown', keyboard);
 });
 </script>
@@ -615,14 +794,15 @@ onBeforeUnmount(() => {
   <div ref="root" class="text-app" :style="{ '--app': tool.color }">
     <a class="skip-link" href="#text-body">Pular para o documento</a>
     <header class="top">
-      <a class="back" :href="LAUNCHER_PATH + '#/documentos'" aria-label="Voltar à biblioteca">← <span class="back-label">Documentos</span></a>
+      <a class="back" :href="LAUNCHER_PATH + '#/'" aria-label="Voltar ao início" data-testid="back-home">← <span class="back-label">Início</span></a>
       <AppIcon id="texts" size="sm" />
       <div class="title">
         <h1>Texto</h1>
-        <span class="muted tiny">Editor de documentos · Coding 2.0</span>
+        <span class="muted tiny">Editor de documentos · Coding</span>
       </div>
       <SaveStatus :state="status" />
     </header>
+    <ProjectTabs v-if="!loadError" :projects="projects" :wide="wideText" />
     <section v-if="status === 'conflict'" role="alert" class="alert" data-testid="text-conflict">
       <strong>Conflito de edição.</strong> {{ error }}
       <button class="btn btn-primary" type="button" @click="resolveConflictCopy">Salvar como nova cópia</button>
@@ -685,12 +865,25 @@ onBeforeUnmount(() => {
             <button type="button" class="tool" :aria-pressed="format.align === 'center'" aria-label="Centralizar" @mousedown.prevent @click="command('justifyCenter')">≡</button>
             <button type="button" class="tool" :aria-pressed="format.align === 'right'" aria-label="Alinhar à direita" @mousedown.prevent @click="command('justifyRight')">⇥</button>
             <button type="button" class="tool" :aria-pressed="format.align === 'justify'" aria-label="Justificar" @mousedown.prevent @click="command('justifyFull')">☰</button>
+            <select class="tool sel" aria-label="Espaçamento entre linhas" data-testid="text-line-height" :value="format.line" @change="setLineHeight">
+              <option value="">Linhas: padrão</option>
+              <option v-for="n in TEXT_LINE_HEIGHTS" :key="n" :value="String(n)">Linhas: {{ String(n).replace('.', ',') }}</option>
+            </select>
             <button type="button" class="tool" :aria-pressed="format.list === 'ul'" aria-label="Lista com marcadores" @mousedown.prevent @click="command('insertUnorderedList')">• Lista</button>
             <button type="button" class="tool" :aria-pressed="format.list === 'ol'" aria-label="Lista numerada" @mousedown.prevent @click="command('insertOrderedList')">1. Lista</button>
           </div>
           <div class="grp" role="group" aria-label="Inserir" data-tool-group="inserir">
             <button type="button" class="tool" data-testid="text-table" @mousedown.prevent @click="insertTable">Tabela</button>
             <button type="button" class="tool" aria-label="Quebra de página" title="Quebra de página" data-testid="text-page-break" @mousedown.prevent @click="insertPageBreak">⤓<span class="wide-label"> Quebra</span></button>
+            <button type="button" class="tool" :aria-pressed="inLink" aria-label="Inserir ou editar link" title="Inserir ou editar link (Ctrl+K)" data-testid="text-link" @mousedown.prevent @click="openLink">Link</button>
+            <button v-if="inLink" type="button" class="tool danger" aria-label="Remover link" data-testid="text-unlink" @mousedown.prevent @click="removeLink">Remover link</button>
+            <form v-if="linkOpen" class="linkform" data-testid="text-link-form" @submit.prevent="applyLink">
+              <label class="sr-only" for="text-link-url">Endereço do link</label>
+              <input id="text-link-url" ref="linkInput" v-model="linkUrl" type="text" inputmode="url" autocomplete="off" placeholder="https://… ou nome@site.com" data-testid="text-link-url" @keydown.esc.prevent="closeLink" />
+              <button type="submit" class="tool strong" data-testid="text-link-apply">Aplicar</button>
+              <button type="button" class="tool" data-testid="text-link-cancel" @click="closeLink">Cancelar</button>
+              <p v-if="linkError" class="linkerr" role="alert" data-testid="text-link-error">{{ linkError }}</p>
+            </form>
             <template v-if="inTable">
               <button type="button" class="tool" aria-label="Linha acima" data-testid="row-above" @mousedown.prevent @click="tableOp('row-above')">+ Linha ↑</button>
               <button type="button" class="tool" aria-label="Linha abaixo" data-testid="row-below" @mousedown.prevent @click="tableOp('row-below')">+ Linha ↓</button>
@@ -716,6 +909,13 @@ onBeforeUnmount(() => {
               </select>
               <button type="button" class="tool danger" aria-label="Remover imagem" data-testid="img-remove" @mousedown.prevent @click="removeImage">Remover</button>
             </template>
+          </div>
+          <div class="grp outline" role="group" aria-label="Estrutura do documento" data-tool-group="estrutura" data-testid="text-outline">
+            <p class="outline-title">Estrutura <span class="muted tiny">({{ headings.length }} {{ headings.length === 1 ? 'título' : 'títulos' }})</span></p>
+            <p v-if="!headings.length" class="muted outline-empty">Use “Título 1”, “Título 2” ou “Título 3” no estilo do parágrafo para montar a estrutura e navegar por ela.</p>
+            <ul v-else class="outline-list">
+              <li v-for="h in headings" :key="h.index"><button type="button" class="outline-item" :class="'lv' + h.level" data-testid="outline-item" :data-level="h.level" @mousedown.prevent @click="goToHeading(h)">{{ h.text }}</button></li>
+            </ul>
           </div>
           <div class="grp output" role="group" aria-label="Exportar" data-tool-group="arquivo">
             <button type="button" class="tool" aria-label="Exportar HTML" @click="exportHtml"><span class="wide-label">Exportar </span>HTML</button>
@@ -769,6 +969,17 @@ onBeforeUnmount(() => {
 .text-desktop-resizer:hover, .text-desktop-resizer.active, .text-desktop-resizer:focus-visible { background:color-mix(in srgb,var(--app) 45%,transparent); outline:none; }
 .text-sheet-head, .text-bottom-nav { display: none; }
 .toolbar { display: flex; flex: 1; flex-direction: column; align-items: stretch; gap: 12px; padding: 14px; background: var(--surface); min-width: 0; }
+.linkform { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.linkform input { flex: 1 1 180px; min-width: 0; min-height: 40px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: inherit; font: inherit; }
+.linkerr { flex: 1 1 100%; margin: 0; color: var(--danger); font-size: 13px; }
+.outline-title { flex: 1 1 100%; margin: 0; font-weight: 700; }
+.outline-empty { flex: 1 1 100%; margin: 0; font-size: 13px; }
+.outline-list { flex: 1 1 100%; list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 220px; overflow: auto; }
+.outline-item { width: 100%; min-height: 36px; text-align: left; padding: 4px 8px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; font-size: 14px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.outline-item:hover, .outline-item:focus-visible { background: var(--surface-2, rgba(127,127,127,.15)); }
+.outline-item.lv1 { font-weight: 700; }
+.outline-item.lv2 { padding-left: 20px; }
+.outline-item.lv3 { padding-left: 34px; font-size: 13px; }
 .grp { display: flex; flex-wrap: wrap; align-content: flex-start; align-items: center; gap: 6px; min-width: 0; padding: 8px 0 12px; border-bottom: 1px solid var(--border); scroll-margin-top: 14px; }
 .tool { border: 1px solid transparent; background: var(--panel); color: var(--text); border-radius: 9px; min-width: 44px; min-height: 44px; padding: 7px 10px; font-size: 14px; font-weight: 700; white-space: nowrap; }
 .tool:hover:not(:disabled) { border-color: var(--accent); }
@@ -794,6 +1005,7 @@ onBeforeUnmount(() => {
 .body :deep(h3) { font-size: 18px; line-height: 1.35; margin: 0 0 .5em; }
 .body :deep(p) { margin: 0 0 .8em; }
 .body :deep(img) { max-width: 100%; height: auto; display: block; cursor: pointer; }
+.body :deep(a) { color: #1155cc; text-decoration: underline; cursor: text; }
 .body :deep(blockquote) { border-left: 3px solid #8da5d9; padding-left: 15px; margin: 0 0 .8em; color: #36475c; }
 .body :deep(table) { border-collapse: collapse; width: 100%; margin: 0 0 .8em; table-layout: fixed; }
 .body :deep(td), .body :deep(th) { border: 1px solid #9aa4b4; padding: 4px 8px; vertical-align: top; min-width: 2em; overflow-wrap: anywhere; }

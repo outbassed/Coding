@@ -48,6 +48,33 @@ export function cleanPercent(value: string): number | null {
   const n = Math.round(Number(m[1]));
   return n >= MIN_IMAGE_PERCENT && n <= 100 ? n : null;
 }
+/** Só endereços http, https e mailto viram link; qualquer outro esquema (javascript:, data:, file:…) é descartado. */
+export function cleanHref(value: string): string | null {
+  const v = value.trim();
+  if (!v || v.length > 2000 || /[\u0000-\u0020\u007f]/.test(v)) return null;
+  let url: URL;
+  try { url = new URL(v); } catch { return null; }
+  if (url.protocol === 'mailto:') return url.pathname ? url.href : null;
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+  return url.hostname ? url.href : null;
+}
+/** Aceita o que a pessoa digita: "exemplo.com" vira https://exemplo.com e "nome@site.com" vira mailto:. */
+export function linkFromInput(value: string): string | null {
+  const v = value.trim();
+  if (!v) return null;
+  if (/^(?:https?|mailto):/i.test(v)) return cleanHref(v);
+  if (/^(?:javascript|data|vbscript|file|blob):/i.test(v)) return null;
+  if (/^[^\s@/]+@[^\s@/]+\.[^\s@/]+$/.test(v)) return cleanHref('mailto:' + v);
+  return cleanHref('https://' + v);
+}
+/** Espaçamentos entre linhas oferecidos no editor (unitless, como no CSS). */
+export const TEXT_LINE_HEIGHTS = [1, 1.15, 1.5, 2] as const;
+export function cleanLineHeight(value: string): number | null {
+  const n = Number(value.trim());
+  if (!Number.isFinite(n)) return null;
+  const r = Math.round(n * 100) / 100;
+  return (TEXT_LINE_HEIGHTS as readonly number[]).includes(r) ? r : null;
+}
 const styleTags = new Set(['P', 'H1', 'H2', 'H3', 'SPAN', 'LI', 'BLOCKQUOTE', 'TD', 'TH']);
 const IMAGE_ALIGNS = new Set(['left', 'center', 'right']);
 
@@ -80,6 +107,14 @@ export function sanitizeTextHtml(source: string): string {
       if (el.getAttribute('data-break') === 'page') { const hr = out.createElement('hr'); hr.setAttribute('data-break', 'page'); parent.appendChild(hr); }
       return;
     }
+    if (tag === 'A') {
+      const href = cleanHref(el.getAttribute('href') ?? '');
+      const link = href ? out.createElement('a') : out.createDocumentFragment();
+      if (href && link instanceof Element) { link.setAttribute('href', href); link.setAttribute('rel', 'noopener noreferrer'); link.setAttribute('target', '_blank'); }
+      for (const child of [...el.childNodes]) clean(child, link);
+      parent.appendChild(link);
+      return;
+    }
     const target = safeTags.has(tag) ? out.createElement(tag.toLowerCase()) : out.createDocumentFragment();
     if (target instanceof Element && styleTags.has(tag)) {
       const css = (el as HTMLElement).style;
@@ -94,6 +129,8 @@ export function sanitizeTextHtml(source: string): string {
       if (color) t.style.color = color;
       const back = css?.backgroundColor ? cleanColor(css.backgroundColor) : null;
       if (back) t.style.backgroundColor = back;
+      const lineHeight = tag !== 'SPAN' && css?.lineHeight ? cleanLineHeight(css.lineHeight) : null;
+      if (lineHeight) t.style.lineHeight = String(lineHeight);
       if (t.getAttribute('style') === '') t.removeAttribute('style');
     }
     for (const child of [...el.childNodes]) clean(child, target);

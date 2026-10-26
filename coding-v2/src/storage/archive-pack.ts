@@ -35,7 +35,7 @@ interface Manifest {
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
-function assertCopy(record: CopyRecord): void {
+export function assertCopy(record: CopyRecord): void {
   if (!record || typeof record.id !== 'string' || !record.id || !Number.isSafeInteger(record.revision)
     || record.revision < 1 || typeof record.legacyId !== 'string'
     || !['indexeddb', 'localStorage', 'backup', 'v2'].includes(record.source)) throw new Error('Cópia incompleta.');
@@ -55,7 +55,7 @@ async function hashes(blob: Blob): Promise<string[]> {
   for (let offset = 0; offset < blob.size; offset += CHUNK) out.push(await digest(blob.slice(offset, offset + CHUNK)));
   return out;
 }
-function sanitised(copy: CopyRecord): CopyRecord {
+export function sanitised(copy: CopyRecord): CopyRecord {
   // Do not include private storage indices or duplicate large images in the
   // metadata section. Empty blobs preserve image fields, IDs and MIME.
   return {
@@ -154,7 +154,7 @@ export async function decodeBinaryPackage(file: Blob): Promise<CopyRecord[]> {
 /** Import with the same atomic and duplicate-ID protections as signed JSON backups. */
 export async function importBinaryPackage(file: Blob): Promise<number> {
   const copies = await decodeBinaryPackage(file);
-  return importCopiesAtomic(copies, true);
+  return importCopiesAtomic(copies, true, 'elevate');
 }
 /**
  * Choose the existing JSON format for small backups; use raw binary when JSON

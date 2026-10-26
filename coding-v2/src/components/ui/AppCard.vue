@@ -2,34 +2,34 @@
 import { computed } from 'vue';
 import { RouterLink } from 'vue-router';
 import { availabilityLabel, availabilityOf, categories, type CodingTool } from '../../shared/catalog';
-import { legacyLink } from '../../shared/links';
 import AppIcon from './AppIcon.vue';
-import StatusPill from './StatusPill.vue';
-import ActivateButton from './ActivateButton.vue';
+import { useFavoritesStore } from '../../stores/favorites';
+import { useOfflineStore } from '../../stores/offline';
 
-const props = defineProps<{ tool: CodingTool; enabled: boolean }>();
+/** Todo aplicativo está sempre disponível online: o cartão só abre, favorita e informa o uso offline. */
+const props = defineProps<{ tool: CodingTool }>();
+const favorites = useFavoritesStore();
+const offline = useOfflineStore();
+const offlineReady = computed(() => offline.supported && ['installed', 'update-available'].includes(offline.stateOf(props.tool.id)));
+const fav = computed(() => favorites.isFavorite(props.tool.id));
 const avail = computed(() => availabilityOf(props.tool));
 const category = computed(() => categories.find((c) => c.id === props.tool.category)?.label ?? '');
-const pill = computed(() => props.tool.status !== 'preview'
-  ? { tone: 'soon' as const, label: 'Em breve' }
-  : props.enabled ? { tone: 'on' as const, label: 'Ativado' } : { tone: 'off' as const, label: 'Não ativado' });
 </script>
 
 <template>
   <article class="card" :style="{ '--app': tool.color }" :data-tool="tool.id">
+    <button type="button" class="star" :aria-pressed="fav" :aria-label="(fav ? 'Remover ' : 'Favoritar ') + tool.name + (fav ? ' dos favoritos' : '')" data-testid="favorite" @click.stop="favorites.toggle(tool.id)">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9 6.8 19.7l1-5.9L3.5 9.7l5.9-.8z" :fill="fav ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></svg>
+    </button>
     <div class="top">
       <AppIcon :id="tool.id" size="lg" />
-      <StatusPill :tone="pill.tone" :label="pill.label" />
+      <span v-if="offlineReady" class="off-ok" data-testid="card-offline" title="Os arquivos deste app estão guardados neste navegador">Offline</span>
     </div>
     <h3><RouterLink :to="{ name: 'app', params: { id: tool.id } }" class="name">{{ tool.name }}</RouterLink></h3>
     <p class="meta" data-testid="card-meta"><span class="avail" :data-avail="avail">{{ availabilityLabel[avail] }}</span><span class="dot" aria-hidden="true">·</span><span>{{ category }}</span></p>
     <p class="muted desc">{{ tool.description }}</p>
     <div class="actions">
-      <template v-if="tool.status === 'preview'">
-        <a v-if="enabled && tool.path" :href="tool.path" class="btn btn-app" :aria-label="'Abrir ' + (avail === 'functional' ? 'o editor de ' : 'prévia de ') + tool.name">{{ avail === 'functional' ? 'Abrir' : 'Abrir prévia' }}</a>
-        <ActivateButton :tool="tool" :enabled="enabled" />
-      </template>
-      <a v-else class="btn btn-ghost" :href="legacyLink(tool.legacyHash)" :aria-label="'Abrir ' + tool.name + ' no Coding atual'">Abrir no Coding atual ↗</a>
+      <a v-if="tool.path" :href="tool.path" class="btn btn-app" :aria-label="'Abrir o editor de ' + tool.name">Abrir</a>
     </div>
   </article>
 </template>
@@ -37,7 +37,11 @@ const pill = computed(() => props.tool.status !== 'preview'
 <style scoped>
 .card { display:flex; flex-direction:column; align-items:center; text-align:center; min-width:0; padding:20px 12px 14px; background:var(--surface); border:1px solid var(--border); border-radius:20px; position:relative; gap:8px; }
 .card:hover { border-color:color-mix(in srgb,var(--accent) 42%,var(--border)); background:var(--panel); }
+.star { position:absolute; top:2px; right:2px; z-index:2; display:grid; place-items:center; width:44px; height:44px; padding:0; border:0; background:transparent; border-radius:12px; color:var(--muted); }
+.star[aria-pressed="true"] { color:var(--app); }
+.star:hover { color:var(--text); }
 .top { display:grid; justify-items:center; gap:7px; margin-bottom:1px; }
+.off-ok { font-size:11px; font-weight:700; color:var(--ok); }
 .top :deep(.app-icon) { width:78px; height:78px; }
 h3 { font-size:15px; line-height:1.25; margin:0; max-width:100%; font-weight:760; overflow-wrap:anywhere; }
 .name { text-decoration:none; }
@@ -55,13 +59,10 @@ h3 { font-size:15px; line-height:1.25; margin:0; max-width:100%; font-weight:760
   .card:hover { background:var(--panel); }
   .top { margin:0; }
   .top :deep(.app-icon) { width:clamp(58px,18vw,72px); height:clamp(58px,18vw,72px); }
-  .top :deep([data-testid="status-pill"]) { display:none; }
   h3 { font-size:12px; font-weight:690; min-height:29px; max-width:100%; }
   .meta,.desc,.actions { display:none; }
 }
 @media(min-width:600px) and (max-width:899px) {
   .card { padding:14px 6px; } .top { max-width:100%; min-width:0; } .top :deep(.app-icon) { width:68px;height:68px; }
-  /* colunas estreitas (4 por linha ao lado da barra lateral): a etiqueta de estado quebra em vez de vazar */
-  .top :deep([data-testid="status-pill"]) { white-space:normal; text-align:center; justify-content:center; max-width:100%; padding:3px 6px; font-size:11px; }
 }
 </style>

@@ -6,7 +6,7 @@ import { useDocument } from '../../editors/useDocument';
 import { downloadBlob, downloadText, safeFileName } from '../../shared/files/download';
 import { friendlyError } from '../../library/errors';
 import { FUNCTION_NAMES, cellName, indexToCol, isError } from './formula';
-import { deleteCols, deleteRows, display, Evaluator, fillRange, insertCols, insertRows, key, MAX_SHEETS, rangeName, renameSheet, sheetId, sortRows, type Align, type Cell, type CellFormat } from './model';
+import { applyColor, clearColors, deleteCols, deleteRows, display, effectiveColor, Evaluator, fillRange, insertCols, insertRows, key, MAX_SHEETS, parseKey, rangeName, renameSheet, sheetId, shownColors, sortRows, type Align, type Cell, type CellFormat, type StyleProp } from './model';
 import { exportCsv, exportXlsx, importFile } from './io';
 import { calcKind, calcTemplates } from './kind';
 
@@ -39,11 +39,31 @@ function select(r: number, c: number, extend = false): void {
   if (!extend) anchor.value = p;
   void nextTick(() => scrollIntoView(p.r, p.c));
 }
+/** Seleção de colunas/linhas inteiras: a célula ativa fica no topo/à esquerda, como nas planilhas de mercado. */
+function selectColumns(c: number, extend = false): void {
+  if (editing.value) commit();
+  const from = extend ? Math.min(sheet.value.cols - 1, Math.max(0, anchor.value.c)) : c;
+  anchor.value = { r: sheet.value.rows - 1, c: from };
+  focus.value = { r: 0, c };
+  void nextTick(() => scrollIntoView(0, c));
+}
+function selectRows(r: number, extend = false): void {
+  if (editing.value) commit();
+  const from = extend ? Math.min(sheet.value.rows - 1, Math.max(0, anchor.value.r)) : r;
+  anchor.value = { r: from, c: sheet.value.cols - 1 };
+  focus.value = { r, c: 0 };
+}
+function selectAll(): void {
+  if (editing.value) commit();
+  anchor.value = { r: sheet.value.rows - 1, c: sheet.value.cols - 1 };
+  focus.value = { r: 0, c: 0 };
+  void nextTick(() => tableEl.value?.focus({ preventScroll: true }));
+}
 function setCell(r: number, c: number, patch: Partial<Cell>): void {
   const k = key(r, c);
   const current = sheet.value.cells[k] ?? { v: '' };
   const next: Cell = { ...current, ...patch };
-  if (!next.v && !next.f && !next.b && !next.a) delete sheet.value.cells[k];
+  if (!next.v && !next.f && !next.b && !next.a && !next.fg && !next.bg) delete sheet.value.cells[k];
   else sheet.value.cells[k] = next;
 }
 function commit(move: 'down' | 'right' | 'none' = 'none'): void {
@@ -84,6 +104,9 @@ function onGridKey(event: KeyboardEvent): void {
     case 'Home': event.preventDefault(); select(mod ? 0 : r, 0, ext); return;
     case 'End': event.preventDefault(); select(r, sheet.value.cols - 1, ext); return;
   }
+  if (mod && event.key === ' ') { event.preventDefault(); selectColumns(c); return; }
+  if (!mod && ext && event.key === ' ') { event.preventDefault(); selectRows(r); return; }
+  if (mod && event.key.toLowerCase() === 'a') { event.preventDefault(); selectAll(); return; }
   if (mod && event.key.toLowerCase() === 'b') { event.preventDefault(); toggleBold(); return; }
   if (mod && event.key.toLowerCase() === 'd') { event.preventDefault(); fill('down'); return; }
   if (!mod && !event.altKey && event.key.length === 1) { event.preventDefault(); startEdit(event.key); }
@@ -151,7 +174,42 @@ function setFormat(f: CellFormat): void { eachInRange((r, c) => setCell(r, c, { 
 const allBold = computed(() => { let all = true; eachInRange((r, c) => { if (!sheet.value.cells[key(r, c)]?.b) all = false; }); return all; });
 function toggleBold(): void { const on = !allBold.value; eachInRange((r, c) => setCell(r, c, { b: on || undefined })); }
 function setAlign(a: Align): void { eachInRange((r, c) => setCell(r, c, { a: a || undefined })); }
-function clearFormats(): void { eachInRange((r, c) => setCell(r, c, { f: undefined, b: undefined, a: undefined })); }
+function clearFormats(): void {
+  const { r1, c1, r2, c2 } = range.value;
+  // só as células que existem (uma coluna inteira não vira milhares de células vazias)
+  for (const k of Object.keys(sheet.value.cells)) {
+    const [r, c] = parseKey(k);
+    if (r >= r1 && r <= r2 && c >= c1 && c <= c2) setCell(r, c, { f: undefined, b: undefined, a: undefined });
+  }
+  clearColors(sheet.value, range.value);
+  doc.say('Formatação removida da seleção.');
+}
+
+// ---- cores de fonte e de preenchimento ----
+const PALETTE: { name: string; hex: string }[] = [
+  { name: 'Preto', hex: '#000000' }, { name: 'Branco', hex: '#ffffff' }, { name: 'Cinza', hex: '#a6a6a6' },
+  { name: 'Vermelho', hex: '#c00000' }, { name: 'Laranja', hex: '#ed7d31' }, { name: 'Amarelo', hex: '#ffd966' },
+  { name: 'Verde', hex: '#70ad47' }, { name: 'Azul', hex: '#4472c4' }, { name: 'Roxo', hex: '#7030a0' }, { name: 'Rosa', hex: '#ff99cc' }
+];
+const propNames: Record<StyleProp, string> = { fg: 'Cor da fonte', bg: 'Preenchimento' };
+function colorOf(prop: StyleProp): string { return effectiveColor(sheet.value, focus.value.r, focus.value.c, prop) ?? (prop === 'fg' ? '#000000' : '#ffffff'); }
+function paint(prop: StyleProp, color: string | null): void {
+  const n = applyColor(sheet.value, range.value, prop, color);
+  if (!n) return;
+  const whole = n === range.value.c2 - range.value.c1 + 1 && range.value.r1 === 0 && range.value.r2 === sheet.value.rows - 1;
+  doc.say(propNames[prop] + (color ? ' aplicada' : ' removida') + (whole ? ' em ' + n + (n === 1 ? ' coluna inteira.' : ' colunas inteiras.') : ' em ' + n + (n === 1 ? ' célula.' : ' células.')));
+}
+function cellStyle(r: number, c: number): Record<string, string> {
+  const colors = shownColors(sheet.value, r, c);
+  const out: Record<string, string> = { textAlign: cellAlign(r, c) };
+  if (colors.bg) out['--cell-bg'] = colors.bg;
+  if (colors.fg) out['--cell-fg'] = colors.fg;
+  return out;
+}
+function printStyle(r: number, c: number): Record<string, string> {
+  const colors = shownColors(sheet.value, r, c);
+  return { textAlign: cellAlign(r, c), fontWeight: sheet.value.cells[key(r, c)]?.b ? '700' : '400', ...(colors.bg ? { backgroundColor: colors.bg } : {}), ...(colors.fg ? { color: colors.fg } : {}) };
+}
 const formatNames: Record<CellFormat, string> = { general: 'Geral', number: 'Número (2 casas)', integer: 'Inteiro', currency: 'Moeda (R$)', percent: 'Porcentagem', text: 'Texto' };
 const currentFormat = computed<CellFormat>(() => activeCell.value?.f ?? 'general');
 const colWidth = computed({ get: () => width(focus.value.c), set: (w: number) => { if (Number.isFinite(w)) sheet.value.widths[String(focus.value.c)] = Math.min(600, Math.max(40, Math.round(w))); } });
@@ -250,6 +308,125 @@ function onPaste(event: ClipboardEvent): void {
   doc.say(skipped ? 'Colado; parte ficou fora da área da aba.' : 'Colado.');
 }
 
+// ---- menu contextual da grade (mesma seleção usada por teclado e painel) ----
+function onGridContextMenu(event: MouseEvent): void {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  const col = target.closest<HTMLElement>('[data-col]');
+  const row = target.closest<HTMLElement>('[data-row]');
+  const cell = target.closest<HTMLElement>('[data-cell]');
+  if (col?.dataset.col) {
+    const c = indexFromLetter(col.dataset.col);
+    if (c >= 0) selectColumns(c);
+  } else if (row?.dataset.row) {
+    selectRows(Number(row.dataset.row) - 1);
+  } else if (cell?.dataset.cell) {
+    const match = /^([A-Z]+)([0-9]+)$/.exec(cell.dataset.cell);
+    if (match) {
+      const c = indexFromLetter(match[1]!);
+      const r = Number(match[2]!) - 1;
+      if (c >= 0 && !inRange(r, c)) select(r, c);
+    }
+  }
+}
+function indexFromLetter(label: string): number {
+  let value = 0;
+  for (const letter of label) value = value * 26 + letter.charCodeAt(0) - 64;
+  return value - 1;
+}
+function selectionTsv(): string {
+  const { r1, c1, r2, c2 } = range.value;
+  const lines: string[] = [];
+  for (let r = r1; r <= r2; r++) {
+    const cells: string[] = [];
+    for (let c = c1; c <= c2; c++) cells.push(sheet.value.cells[key(r, c)]?.v ?? '');
+    lines.push(cells.join('\t'));
+  }
+  return lines.join('\n');
+}
+async function copySelection(): Promise<boolean> {
+  if (editing.value) commit();
+  const text = selectionTsv();
+  try {
+    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
+    else {
+      const temp = document.createElement('textarea');
+      temp.value = text;
+      temp.style.cssText = 'position:fixed;left:-9999px;top:0';
+      document.body.append(temp);
+      temp.select();
+      const ok = document.execCommand('copy');
+      temp.remove();
+      if (!ok) throw new Error('clipboard');
+    }
+    doc.say('Copiado: ' + activeName.value + '.');
+    return true;
+  } catch {
+    doc.say('O navegador bloqueou a cópia. Selecione a grade e pressione Ctrl+C.');
+    return false;
+  }
+}
+async function pasteSelection(): Promise<void> {
+  if (editing.value) commit();
+  try {
+    if (!navigator.clipboard?.readText) throw new Error('clipboard');
+    const text = await navigator.clipboard.readText();
+    if (!text) { doc.say('A área de transferência está vazia.'); return; }
+    pasteTsv(text);
+  } catch { doc.say('O navegador bloqueou o acesso. Selecione a grade e pressione Ctrl+V.'); }
+}
+function pasteTsv(text: string): void {
+  const lines = text.replace(/\r/g, '').replace(/\n$/, '').split('\n').map(line => line.split('\t'));
+  const { r, c } = focus.value;
+  let skipped = false;
+  for (let i = 0; i < lines.length; i++) for (let j = 0; j < lines[i]!.length; j++) {
+    if (r + i >= sheet.value.rows || c + j >= sheet.value.cols) { skipped = true; continue; }
+    setCell(r + i, c + j, { v: lines[i]![j]!.slice(0, 5000) });
+  }
+  doc.say(skipped ? 'Colado parcialmente: ultrapassou o tamanho da aba.' : 'Dados colados.');
+}
+function duplicateSelectionAxis(axis: 'column' | 'row'): void {
+  const { r1, r2, c1, c2 } = range.value;
+  if (axis === 'column') {
+    const count = c2 - c1 + 1;
+    const snapshots = Array.from({ length: count }, (_, n) =>
+      Array.from({ length: sheet.value.rows }, (_, r) => sheet.value.cells[key(r, c1 + n)] ? { ...sheet.value.cells[key(r, c1 + n)]! } : null));
+    if (!insertCols(state.value, si.value, c2 + 1, count)) { doc.say('Não há espaço para duplicar colunas.'); return; }
+    snapshots.forEach((column, n) => column.forEach((cell, r) => { if (cell) sheet.value.cells[key(r, c2 + 1 + n)] = cell; }));
+    selectColumns(c2 + 1);
+    doc.say(count + ' coluna(s) duplicada(s).');
+  } else {
+    const count = r2 - r1 + 1;
+    const snapshots = Array.from({ length: count }, (_, n) =>
+      Array.from({ length: sheet.value.cols }, (_, c) => sheet.value.cells[key(r1 + n, c)] ? { ...sheet.value.cells[key(r1 + n, c)]! } : null));
+    if (!insertRows(state.value, si.value, r2 + 1, count)) { doc.say('Não há espaço para duplicar linhas.'); return; }
+    snapshots.forEach((row, n) => row.forEach((cell, c) => { if (cell) sheet.value.cells[key(r2 + 1 + n, c)] = cell; }));
+    selectRows(r2 + 1);
+    doc.say(count + ' linha(s) duplicada(s).');
+  }
+}
+async function sheetContextAction(event: Event): Promise<void> {
+  const detail = (event as CustomEvent<{ command: string }>).detail;
+  if (!detail) return;
+  switch (detail.command) {
+    case 'copy': await copySelection(); break;
+    case 'cut': if (await copySelection()) clearRange(); break;
+    case 'paste': await pasteSelection(); break;
+    case 'duplicate-column': duplicateSelectionAxis('column'); break;
+    case 'duplicate-row': duplicateSelectionAxis('row'); break;
+    case 'insert-column-left': colsOp('left'); break;
+    case 'insert-column-right': colsOp('right'); break;
+    case 'delete-column': if (confirm('Excluir a(s) coluna(s) selecionada(s)?')) colsOp('delete'); break;
+    case 'insert-row-above': rowsOp('above'); break;
+    case 'insert-row-below': rowsOp('below'); break;
+    case 'delete-row': if (confirm('Excluir a(s) linha(s) selecionada(s)?')) rowsOp('delete'); break;
+    case 'clear': clearRange(); doc.say('Conteúdo limpo.'); break;
+    case 'format': break;
+  }
+}
+onMounted(() => document.addEventListener('coding:sheet-context-action', sheetContextAction));
+onBeforeUnmount(() => document.removeEventListener('coding:sheet-context-action', sheetContextAction));
+
 // ---- arquivo ----
 const fileInput = ref<HTMLInputElement | null>(null);
 const busy = ref(false);
@@ -294,6 +471,22 @@ const printRange = computed(() => {
             <button type="button" class="ib" :aria-pressed="activeCell?.a === 'center'" aria-label="Centralizar" @click="setAlign('center')">≡</button>
             <button type="button" class="ib" :aria-pressed="activeCell?.a === 'right'" aria-label="Alinhar à direita" @click="setAlign('right')">⯈</button>
           </div></div>
+        <div v-for="prop in (['fg', 'bg'] as StyleProp[])" :key="prop" class="ed-field" role="group" :aria-label="propNames[prop]" :data-testid="prop + '-group'">
+          <span class="ed-label">{{ propNames[prop] }}</span>
+          <div class="swatches">
+            <button v-for="p in PALETTE" :key="p.hex" type="button" class="sw" :style="{ background: p.hex }" :aria-label="propNames[prop] + ': ' + p.name" :title="p.name"
+              :data-testid="prop + '-' + p.hex.slice(1)" @click="paint(prop, p.hex)"></button>
+            <label class="sw-custom"><span class="sr-only">{{ propNames[prop] }} personalizada</span>
+              <input type="color" :value="colorOf(prop)" :data-testid="prop + '-custom'" @change="paint(prop, ($event.target as HTMLInputElement).value)" /></label>
+            <button type="button" class="btn sw-none" :data-testid="prop + '-none'" @click="paint(prop, null)">Sem cor</button>
+          </div>
+        </div>
+        <div class="ed-field"><span class="ed-label">Selecionar</span>
+          <div class="seg" role="group" aria-label="Selecionar">
+            <button type="button" class="btn" data-testid="select-column" title="Ctrl+Espaço" @click="selectColumns(focus.c)">Coluna</button>
+            <button type="button" class="btn" data-testid="select-row" title="Shift+Espaço" @click="selectRows(focus.r)">Linha</button>
+            <button type="button" class="btn" data-testid="select-all" title="Ctrl+A" @click="selectAll">Tudo</button>
+          </div></div>
         <label class="ed-field"><span class="ed-label">Largura da coluna {{ indexToCol(focus.c) }} (px)</span><input v-model.number="colWidth" class="inp inp-num" type="number" min="40" max="600" step="10" /></label>
         <button type="button" class="btn" data-testid="fill-down" title="Ctrl+D" @click="fill('down')">Preencher para baixo</button>
         <button type="button" class="btn" @click="fill('right')">Preencher à direita</button>
@@ -336,6 +529,37 @@ const printRange = computed(() => {
       </FileTab>
     </template>
 
+    <template #inspector>
+      <div class="calc-properties" data-testid="calc-properties">
+        <p class="ed-hint">Seleção ativa: <strong>{{ activeName }}</strong></p>
+        <label class="ed-field"><span class="ed-label">Formato da seleção</span>
+          <select class="inp" :value="currentFormat" aria-label="Formato nas propriedades" @change="setFormat(($event.target as HTMLSelectElement).value as CellFormat)">
+            <option v-for="(label, f) in formatNames" :key="f" :value="f">{{ label }}</option>
+          </select>
+        </label>
+        <div class="ed-field"><span class="ed-label">Alinhamento e estilo</span>
+          <div class="prop-buttons">
+            <button type="button" class="btn" :aria-pressed="allBold" @click="toggleBold">Negrito</button>
+            <button type="button" class="btn" @click="setAlign('left')">Esquerda</button>
+            <button type="button" class="btn" @click="setAlign('center')">Centro</button>
+            <button type="button" class="btn" @click="setAlign('right')">Direita</button>
+          </div>
+        </div>
+        <div class="prop-colors">
+          <label class="ed-field"><span class="ed-label">Cor da fonte</span><input type="color" :value="colorOf('fg')" aria-label="Cor da fonte nas propriedades" @input="paint('fg', ($event.target as HTMLInputElement).value)" /></label>
+          <label class="ed-field"><span class="ed-label">Preenchimento</span><input type="color" :value="colorOf('bg')" aria-label="Preenchimento nas propriedades" @input="paint('bg', ($event.target as HTMLInputElement).value)" /></label>
+        </div>
+        <label class="ed-field"><span class="ed-label">Largura da coluna {{ indexToCol(focus.c) }} (px)</span><input v-model.number="colWidth" class="inp inp-num" type="number" min="40" max="600" step="10" /></label>
+        <div class="prop-buttons">
+          <button type="button" class="btn" @click="selectColumns(focus.c)">Selecionar coluna</button>
+          <button type="button" class="btn" @click="selectRows(focus.r)">Selecionar linha</button>
+          <button type="button" class="btn" @click="copySelection()">Copiar seleção</button>
+          <button type="button" class="btn" @click="pasteSelection()">Colar</button>
+          <button type="button" class="btn" @click="clearRange()">Limpar conteúdo</button>
+        </div>
+        <p v-if="selectionStats" class="ed-hint">{{ selectionStats }}</p>
+      </div>
+    </template>
     <div class="calc">
       <div class="fbar">
         <span class="addr" data-testid="cell-address" aria-live="off">{{ activeName }}</span>
@@ -346,17 +570,17 @@ const printRange = computed(() => {
       </div>
       <p v-if="activeError" class="ed-error ferr" role="status">Fórmula com erro: {{ activeError }}</p>
       <div ref="gridEl" class="grid" data-testid="grid" @scroll="onScroll">
-        <table ref="tableEl" tabindex="0" role="grid" :aria-label="'Aba ' + sheet.name" :aria-rowcount="sheet.rows + 1" :aria-colcount="sheet.cols + 1"
+        <table ref="tableEl" tabindex="0" role="grid" @contextmenu="onGridContextMenu" :aria-label="'Aba ' + sheet.name" :aria-rowcount="sheet.rows + 1" :aria-colcount="sheet.cols + 1"
           :aria-activedescendant="'cell-' + focus.r + '-' + focus.c" :style="{ width: 48 + colsShown.reduce((s, c) => s + width(c), 0) + 'px' }"
           @keydown="onGridKey" @copy="onCopy" @paste="onPaste">
           <colgroup><col style="width: 48px" /><col v-for="c in colsShown" :key="c" :style="{ width: width(c) + 'px' }" /></colgroup>
-          <thead><tr role="row" aria-rowindex="1"><th class="corner" role="columnheader"><span class="sr-only">Linha</span></th><th v-for="c in colsShown" :key="c" role="columnheader" :class="{ hl: c >= range.c1 && c <= range.c2 }" scope="col">{{ indexToCol(c) }}</th></tr></thead>
+          <thead><tr role="row" aria-rowindex="1"><th class="corner" role="columnheader" title="Selecionar tudo" data-testid="corner" @click="selectAll"><span class="sr-only">Selecionar tudo</span></th><th v-for="c in colsShown" :key="c" role="columnheader" :class="{ hl: c >= range.c1 && c <= range.c2, hd: true }" scope="col" :data-col="indexToCol(c)" :title="'Selecionar coluna ' + indexToCol(c)" @click="selectColumns(c, $event.shiftKey)">{{ indexToCol(c) }}</th></tr></thead>
           <tbody>
             <tr v-if="firstRow > 0" aria-hidden="true" class="spacer" :style="{ height: firstRow * ROW_H + 'px' }"><td :colspan="sheet.cols + 1"></td></tr>
             <tr v-for="r in rowsShown" :key="r" role="row" :aria-rowindex="r + 2">
-              <th role="rowheader" scope="row" :class="{ hl: r >= range.r1 && r <= range.r2 }">{{ r + 1 }}</th>
+              <th role="rowheader" scope="row" class="hd" :class="{ hl: r >= range.r1 && r <= range.r2 }" :data-row="r + 1" :title="'Selecionar linha ' + (r + 1)" @click="selectRows(r, $event.shiftKey)">{{ r + 1 }}</th>
               <td v-for="c in colsShown" :id="'cell-' + r + '-' + c" :key="c" role="gridcell" :aria-colindex="c + 2" :aria-selected="inRange(r, c)"
-                :class="{ sel: inRange(r, c), act: r === focus.r && c === focus.c, b: sheet.cells[key(r, c)]?.b, err: isErr(r, c) }" :style="{ textAlign: cellAlign(r, c) as 'left' }"
+                :class="{ sel: inRange(r, c), act: r === focus.r && c === focus.c, b: sheet.cells[key(r, c)]?.b, err: isErr(r, c) }" :style="cellStyle(r, c)"
                 :data-cell="cellName(r, c)" @pointerdown="onCellDown($event, r, c)" @pointerenter="onCellEnter(r, c)" @dblclick="startEdit()">
                 <input v-if="editing && r === focus.r && c === focus.c" id="cell-editor" v-model="draft" class="cell-editor" autocomplete="off" spellcheck="false" :aria-label="'Editar ' + cellName(r, c)" @keydown="onEditorKey" @blur="commit()" />
                 <template v-else>{{ shown(r, c) }}</template>
@@ -374,14 +598,24 @@ const printRange = computed(() => {
         <span class="stats muted" data-testid="selection-stats">{{ selectionStats }}</span>
       </div>
       <table class="print-only" aria-hidden="true">
-        <tbody><tr v-for="r in printRange.rows" :key="r"><td v-for="c in printRange.cols" :key="c" :style="{ textAlign: cellAlign(r, c) as 'left', fontWeight: sheet.cells[key(r, c)]?.b ? 700 : 400 }">{{ shown(r, c) }}</td></tr></tbody>
+        <tbody><tr v-for="r in printRange.rows" :key="r"><td v-for="c in printRange.cols" :key="c" :style="printStyle(r, c)">{{ shown(r, c) }}</td></tr></tbody>
       </table>
     </div>
   </EditorShell>
 </template>
 
 <style scoped>
+.calc-properties { display: grid; align-content: start; gap: 15px; }
+.prop-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.prop-buttons .btn { min-height: 36px; }
+.prop-colors { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.prop-colors input { width: 100%; min-height: 38px; cursor: pointer; background: transparent; border: 1px solid var(--border); border-radius: 8px; }
 .seg { display: inline-flex; gap: 2px; }
+.swatches { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; max-width: 360px; }
+.sw { width: 28px; height: 28px; min-width: 28px; padding: 0; border-radius: 8px; border: 1px solid var(--border); box-shadow: inset 0 0 0 1px color-mix(in srgb, #000 18%, transparent); }
+.sw-custom input { width: 36px; height: 32px; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: transparent; cursor: pointer; }
+.sw-none { min-height: 32px; padding: 0 10px; font-size: 12.5px; }
+@media (pointer: coarse) { .sw { width: 44px; height: 44px; min-width: 44px; } .sw-custom input { width: 48px; height: 44px; } .sw-none { min-height: 44px; } }
 .seg .ib { border: 1px solid var(--border); }
 .grid-ops { display: grid; gap: 10px; }
 .calc { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--surface); }
@@ -394,17 +628,18 @@ const printRange = computed(() => {
 table:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 table { border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 14px; }
 th, td { height: 31px; box-sizing: border-box; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-td { background: var(--surface); cursor: cell; user-select: none; position: relative; }
+td { background: var(--cell-bg, var(--surface)); color: var(--cell-fg, inherit); cursor: cell; user-select: none; position: relative; }
 thead th { position: sticky; top: 0; z-index: 2; background: var(--panel); font-size: 12px; font-weight: 700; color: var(--muted); text-align: center; }
 tbody th { position: sticky; left: 0; z-index: 1; background: var(--panel); font-size: 12px; color: var(--muted); text-align: center; font-weight: 600; }
 .corner { left: 0; z-index: 3; }
 th.hl { background: color-mix(in srgb, var(--app) 30%, var(--panel)); color: var(--text); }
-td.sel { background: color-mix(in srgb, var(--app) 16%, var(--surface)); }
+td.sel::after { content: ''; position: absolute; inset: 0; background: color-mix(in srgb, var(--app) 22%, transparent); pointer-events: none; }
+th.hd { cursor: pointer; user-select: none; }
 td.act { box-shadow: inset 0 0 0 2px var(--app); }
 td.b { font-weight: 700; }
-td.err { color: var(--danger); }
+td.err { color: var(--cell-fg, var(--danger)); }
 .spacer td { border: 0; background: transparent; padding: 0; }
-.cell-editor { position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box; border: 2px solid var(--accent); padding: 0 5px; font: inherit; background: var(--surface); color: var(--text); outline: none; }
+.cell-editor { position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box; border: 2px solid var(--accent); padding: 0 5px; font: inherit; background: var(--surface); color: var(--text); outline: none; z-index: 1; }
 .foot { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--border); background: var(--panel); min-height: 44px; }
 .sheets { display: flex; overflow-x: auto; flex: 1; min-width: 0; }
 .sheet-tab { flex: none; min-height: 44px; padding: 0 14px; border: 0; border-right: 1px solid var(--border); background: transparent; font-weight: 600; color: var(--muted); }
@@ -415,6 +650,7 @@ td.err { color: var(--danger); }
 @media print {
   .fbar, .ferr, .grid, .foot { display: none !important; }
   .print-only { display: table; border-collapse: collapse; font-size: 11pt; }
+  .print-only { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .print-only td { border: 1px solid #999; padding: 2px 6px; height: auto; white-space: normal; color: #000; background: #fff; }
 }
 </style>

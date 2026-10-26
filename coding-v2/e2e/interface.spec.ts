@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { APP_COUNT } from './helpers';
 
 const viewports = [
   { name: '320', width: 320, height: 640 }, { name: '360', width: 360, height: 740 }, { name: '390', width: 390, height: 844 },
@@ -61,7 +62,7 @@ test.describe('comportamento', () => {
     await expect(page).toHaveURL(/#\/catalogo$/);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Catálogo');
     await page.goBack();
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Seu espaço de criação.');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Coding Launcher');
   });
 
   test('recarregar mantém a tela (link direto)', async ({ page }) => {
@@ -77,21 +78,22 @@ test.describe('comportamento', () => {
     await expect(page.locator('#page-title')).toBeFocused();
   });
 
-  test('ativação persiste e desativar pede confirmação', async ({ page }) => {
+  test('sem ativação: os 15 apps aparecem em Meus apps e a preferência antiga é ignorada sem ser apagada', async ({ page }) => {
+    await page.addInitScript(() => {
+      if (!localStorage.getItem('coding-v2-apps')) localStorage.setItem('coding-v2-apps', JSON.stringify({ v: 2, known: ['labels'], enabled: ['labels'] }));
+    });
     await page.goto('/launcher/#/meus-apps');
-    await page.getByRole('button', { name: 'Desativar Texto no Launcher' }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await page.getByRole('button', { name: 'Desativar atalho' }).click();
-    await expect(page.locator('article.card')).toHaveCount(8);
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
+    await expect(page.getByRole('button', { name: /Ativar|Desativar/ })).toHaveCount(0);
     await page.reload();
-    await expect(page.locator('article.card')).toHaveCount(8);
-    await expect(page.locator('article.card[data-tool="texts"]')).toHaveCount(0);
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
+    expect(await page.evaluate(() => localStorage.getItem('coding-v2-apps'))).toContain('"enabled":["labels"]');
   });
 
-  test('busca no topo leva ao catálogo filtrado', async ({ page }) => {
-    await page.goto('/launcher/');
-    await page.getByRole('searchbox', { name: 'Buscar aplicativos' }).fill('sorteio');
-    await expect(page).toHaveURL(/#\/catalogo\?q=sorteio/);
+  test('a busca do catálogo filtra no lugar, sem trocar de tela', async ({ page }) => {
+    await page.goto('/launcher/#/catalogo');
+    await page.getByRole('searchbox', { name: 'Buscar no catálogo' }).fill('sorteio');
+    await expect(page).toHaveURL(/#\/catalogo$/);
     await expect(page.locator('article.card')).toHaveCount(1);
   });
 
@@ -110,20 +112,20 @@ test.describe('comportamento', () => {
     expect(bg).toBe('rgb(15, 19, 25)');
   });
 
-  test('editor de Texto: conteúdo editável, ferramentas reais e retorno à biblioteca', async ({ page }) => {
+  test('editor de Texto: conteúdo editável, ferramentas reais e retorno ao início', async ({ page }) => {
     await page.goto('/apps/texto/');
     await expect(page.getByText('Prévia ilustrativa')).toHaveCount(0);
     await expect(page.getByTestId('text-editor')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Negrito' })).toBeEnabled();
-    await page.getByRole('link', { name: 'Voltar à biblioteca' }).click();
-    await expect(page).toHaveURL(/\/launcher\/#\/documentos$/);
+    await page.getByRole('link', { name: 'Voltar ao início' }).click();
+    await expect(page).toHaveURL(/\/launcher\/#\/$/);
   });
 
-  test('editor de Etiquetas é funcional (sem aviso de prévia) e Voltar leva à biblioteca', async ({ page }) => {
+  test('editor de Etiquetas é funcional (sem aviso de prévia) e Voltar leva ao início', async ({ page }) => {
     await page.goto('/apps/etiquetas/');
     await expect(page.getByText('Prévia ilustrativa')).toHaveCount(0);
-    await page.getByRole('link', { name: 'Voltar à biblioteca' }).click();
-    await expect(page).toHaveURL(/\/launcher\/#\/documentos$/);
+    await page.getByRole('link', { name: 'Voltar ao início' }).click();
+    await expect(page).toHaveURL(/\/launcher\/#\/$/);
   });
 
   test('não instala PWA automaticamente; preparo exige clique explícito', async ({ page }) => {

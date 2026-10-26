@@ -144,33 +144,117 @@ function addLayer(kind: Exclude<LayerKind, 'image'>): void {
 }
 const fileInput = ref<HTMLInputElement | null>(null);
 const MAX_IMAGE = 25 * 1024 * 1024;
+const MAX_PIXELS = 120_000_000;
+const NATIVE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+
+/** Re-codifica um formato que o app não guarda direto (GIF, BMP, AVIF…) como PNG, preservando a transparência. */
+async function toPng(bmp: ImageBitmap): Promise<Blob> {
+  const canvas = document.createElement('canvas');
+  canvas.width = bmp.width; canvas.height = bmp.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('canvas indisponível');
+  ctx.drawImage(bmp, 0, 0);
+  return await new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Falha ao converter a imagem.'))), 'image/png'));
+}
+
+/**
+ * Entrada única de imagens (botão, Ctrl+V, botão Colar e arrastar): valida, decodifica, guarda o arquivo na Biblioteca
+ * e cria uma camada. Devolve se a camada foi criada.
+ */
+async function addImageBlob(file: Blob, rawName: string, convertOthers = false): Promise<boolean> {
+  const name = rawName || 'Imagem';
+  if (file.type === 'image/svg+xml') { note('SVG não é aceito como camada. Exporte como PNG, JPG ou WebP.'); return false; }
+  const native = NATIVE_TYPES.includes(file.type);
+  if (!native && !(convertOthers && file.type.startsWith('image/'))) { note('“' + name + '” não é PNG, JPG ou WebP.'); return false; }
+  if (file.size > MAX_IMAGE) { note('“' + name + '” passa de 25 MB.'); return false; }
+  if (state.value.layers.length >= MAX_LAYERS) { note('Limite de ' + MAX_LAYERS + ' camadas.'); return false; }
+  let bmp: ImageBitmap;
+  try { bmp = await createImageBitmap(file); } catch { note('Não foi possível abrir “' + name + '”. O arquivo pode estar corrompido ou ter um formato sem suporte neste navegador.'); return false; }
+  if (bmp.width * bmp.height > MAX_PIXELS) { bmp.close(); note('“' + name + '” é grande demais (mais de 120 megapixels).'); return false; }
+  let stored: Blob = file;
+  if (!native) {
+    try { stored = await toPng(bmp); } catch { bmp.close(); note('Não foi possível converter “' + name + '” para PNG.'); return false; }
+  }
+  const id = 'img-' + crypto.randomUUID();
+  bitmaps.value.set(id, bmp);
+  const image: LegacyImage = { id, docId: '', blob: stored, mime: stored.type, name: name.slice(0, 120) };
+  images.value = [...images.value, image];
+  if (!state.value.layers.length) {
+    // primeira foto: a tela assume o tamanho dela (limitado a 6000 px)
+    const k = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
+    state.value.width = Math.max(16, Math.round(bmp.width * k)); state.value.height = Math.max(16, Math.round(bmp.height * k));
+  }
+  const fit = Math.min(1, (state.value.width * 0.9) / bmp.width, (state.value.height * 0.9) / bmp.height);
+  const full = !state.value.layers.length;
+  const w = Math.round(full ? state.value.width : bmp.width * fit), h = Math.round(full ? state.value.height : bmp.height * fit);
+  state.value.layers.push({ id: lid(), name: name.replace(/\.[^.]+$/, '').slice(0, 60) || 'Imagem', kind: 'image', imageId: id, crop: { x: 0, y: 0, w: 1, h: 1 }, x: Math.round((state.value.width - w) / 2), y: Math.round((state.value.height - h) / 2), w, h, rotation: 0, flipX: false, flipY: false, opacity: 1, visible: true, filters: noFilters() });
+  selectedId.value = state.value.layers[state.value.layers.length - 1]!.id;
+  bitmapTick.value++;
+  note('Imagem “' + name + '” adicionada como camada.');
+  return true;
+}
 async function onImageFile(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement;
   const files = Array.from(input.files ?? []); input.value = '';
-  for (const file of files) {
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) { note('“' + file.name + '” não é PNG, JPG ou WebP.'); continue; }
-    if (file.size > MAX_IMAGE) { note('“' + file.name + '” passa de 25 MB.'); continue; }
-    if (state.value.layers.length >= MAX_LAYERS) { note('Limite de ' + MAX_LAYERS + ' camadas.'); break; }
-    let bmp: ImageBitmap;
-    try { bmp = await createImageBitmap(file); } catch { note('Não foi possível abrir “' + file.name + '”. O arquivo pode estar corrompido.'); continue; }
-    const id = 'img-' + crypto.randomUUID();
-    bitmaps.value.set(id, bmp);
-    const image: LegacyImage = { id, docId: '', blob: file, mime: file.type, name: file.name.slice(0, 120) };
-    images.value = [...images.value, image];
-    if (!state.value.layers.length) {
-      // primeira foto: a tela assume o tamanho dela (limitado a 6000 px)
-      const k = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
-      state.value.width = Math.max(16, Math.round(bmp.width * k)); state.value.height = Math.max(16, Math.round(bmp.height * k));
-    }
-    const fit = Math.min(1, (state.value.width * 0.9) / bmp.width, (state.value.height * 0.9) / bmp.height);
-    const full = !state.value.layers.length;
-    const w = Math.round(full ? state.value.width : bmp.width * fit), h = Math.round(full ? state.value.height : bmp.height * fit);
-    state.value.layers.push({ id: lid(), name: file.name.replace(/\.[^.]+$/, '').slice(0, 60) || 'Imagem', kind: 'image', imageId: id, crop: { x: 0, y: 0, w: 1, h: 1 }, x: Math.round((state.value.width - w) / 2), y: Math.round((state.value.height - h) / 2), w, h, rotation: 0, flipX: false, flipY: false, opacity: 1, visible: true, filters: noFilters() });
-    selectedId.value = state.value.layers[state.value.layers.length - 1]!.id;
-    bitmapTick.value++;
-    note('Imagem “' + file.name + '” adicionada como camada.');
-  }
+  for (const file of files) { if (state.value.layers.length >= MAX_LAYERS) { note('Limite de ' + MAX_LAYERS + ' camadas.'); break; } await addImageBlob(file, file.name); }
 }
+
+// ---- colar (Ctrl+V), botão Colar e arrastar ----
+/** Campos em que Ctrl+V deve continuar colando texto normalmente. */
+function isTextTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el || !el.tagName) return false;
+  if (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') return true;
+  if (el.tagName === 'INPUT') return !['button', 'checkbox', 'radio', 'range', 'color', 'file', 'submit', 'reset', 'image'].includes((el as HTMLInputElement).type);
+  return el.isContentEditable;
+}
+function imagesIn(data: DataTransfer | null): File[] {
+  if (!data) return [];
+  const out: File[] = [];
+  for (const item of Array.from(data.items ?? [])) {
+    if (item.kind !== 'file' || !item.type.startsWith('image/')) continue;
+    const f = item.getAsFile(); if (f) out.push(f);
+  }
+  if (!out.length) for (const f of Array.from(data.files ?? [])) if (f.type.startsWith('image/')) out.push(f);
+  return out;
+}
+let pasting = false;
+async function addAll(files: File[], fallbackName: string): Promise<void> {
+  if (pasting) return;
+  pasting = true;
+  try {
+    let n = 0;
+    for (const f of files) { if (await addImageBlob(f, f.name && f.name !== 'image.png' ? f.name : fallbackName, true)) n++; }
+    if (n > 1) note(n + ' imagens adicionadas como camadas.');
+  } finally { pasting = false; }
+}
+function onPaste(event: ClipboardEvent): void {
+  if (event.defaultPrevented || isTextTarget(event.target)) return; // não rouba o Ctrl+V de campos de texto
+  const files = imagesIn(event.clipboardData);
+  if (!files.length) return; // texto puro: nada a fazer aqui
+  event.preventDefault();
+  void addAll(files, 'Imagem colada');
+}
+async function pasteFromClipboard(): Promise<void> {
+  if (!navigator.clipboard || typeof navigator.clipboard.read !== 'function') { note('Este navegador não deixa o app ler a área de transferência. Copie a imagem e use Ctrl+V (⌘V no Mac) com a área da imagem selecionada.'); return; }
+  try {
+    const items = await navigator.clipboard.read();
+    let n = 0;
+    for (const item of items) {
+      const type = item.types.find((t) => t.startsWith('image/')); if (!type) continue;
+      const blob = await item.getType(type);
+      if (await addImageBlob(blob, 'Imagem colada', true)) n++;
+    }
+    if (!n) note('Não há imagem na área de transferência. Copie uma imagem e tente de novo.');
+  } catch { note('O navegador não permitiu ler a área de transferência. Libere a permissão ou use Ctrl+V (⌘V no Mac).'); }
+}
+function onDrop(event: DragEvent): void {
+  const files = imagesIn(event.dataTransfer);
+  if (!files.length) { note('Solte arquivos de imagem (PNG, JPG ou WebP).'); return; }
+  void addAll(files, 'Imagem');
+}
+onMounted(() => window.addEventListener('paste', onPaste));
+onBeforeUnmount(() => window.removeEventListener('paste', onPaste));
 function removeLayer(id: string): void {
   const i = state.value.layers.findIndex((l) => l.id === id); if (i < 0) return;
   state.value.layers.splice(i, 1);
@@ -252,6 +336,7 @@ void nextTick;
         <div class="ed-row">
           <button type="button" class="btn btn-app" data-testid="add-image" @click="fileInput?.click()">Adicionar imagem</button>
           <input ref="fileInput" type="file" class="sr-only" accept="image/png,image/jpeg,image/webp" multiple aria-label="Escolher imagens PNG, JPG ou WebP" data-testid="image-input" @change="onImageFile" />
+          <button type="button" class="btn" data-testid="paste-image" title="Ctrl+V" @click="pasteFromClipboard">Colar imagem</button>
           <button type="button" class="btn" data-testid="add-text" @click="addLayer('text')">Texto</button>
           <button type="button" class="btn" data-testid="add-rect" @click="addLayer('rect')">Retângulo</button>
           <button type="button" class="btn" @click="addLayer('ellipse')">Elipse</button>
@@ -266,7 +351,7 @@ void nextTick;
             <button type="button" class="ib" :aria-label="'Excluir ' + l.name" @click="removeLayer(l.id)"><NavIcon name="trash" /></button>
           </li>
         </ol>
-        <p v-if="!state.layers.length" class="ed-hint">Sem camadas: adicione uma imagem, um texto ou uma forma.</p>
+        <p v-if="!state.layers.length" class="ed-hint">Sem camadas: adicione uma imagem, um texto ou uma forma. Também dá para colar uma imagem copiada (Ctrl+V) ou arrastar arquivos para a área da imagem.</p>
         <label v-if="selected" class="ed-field"><span class="ed-label">Nome da camada</span><input v-model="selected.name" class="inp" maxlength="60" /></label>
       </div>
       <template v-else-if="!selected && current !== 'tela' && current !== 'arquivo'"><p class="ed-hint">Selecione uma camada na imagem ou na aba Camadas.</p></template>
@@ -335,7 +420,7 @@ void nextTick;
     </template>
 
     <div class="img-stage">
-      <div ref="stageEl" class="viewport" tabindex="0" role="region" aria-label="Área da imagem. Setas movem a camada selecionada; Delete exclui." data-testid="image-viewport" @keydown="onStageKey">
+      <div ref="stageEl" class="viewport" tabindex="0" role="region" aria-label="Área da imagem. Setas movem a camada selecionada; Delete exclui." data-testid="image-viewport" @keydown="onStageKey" @dragover.prevent @drop.prevent="onDrop">
         <div class="board" :style="{ width: state.width * scale + 'px', height: state.height * scale + 'px' }" :class="{ checker: state.background === 'transparent' }">
           <canvas ref="canvasEl" class="cv" :style="{ width: state.width * scale + 'px', height: state.height * scale + 'px' }" role="img" :aria-label="'Composição ' + state.width + ' × ' + state.height + ' com ' + state.layers.length + ' camadas'" data-testid="image-canvas" @pointerdown="onCanvasDown"></canvas>
           <div v-if="frameStyle" class="frame" :style="frameStyle" data-testid="selection-frame">

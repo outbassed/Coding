@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { APP_COUNT } from './helpers';
 import AxeBuilder from '@axe-core/playwright';
 
 async function axeClean(page: Page, label: string): Promise<void> {
@@ -41,7 +42,7 @@ test.describe('Launcher · celulares', () => {
       }
       await page.goto('/launcher/#/catalogo');
       const grid = await columns(page);
-      expect(grid.cards).toBe(9);
+      expect(grid.cards).toBe(APP_COUNT);
       expect(grid.cols).toBe(3);
       expect(grid.maxRight).toBeLessThanOrEqual(width);
       const nav = page.getByRole('navigation', { name: 'Navegação móvel' });

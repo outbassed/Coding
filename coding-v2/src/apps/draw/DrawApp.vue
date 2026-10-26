@@ -6,7 +6,7 @@ import { useDocument } from '../../editors/useDocument';
 import { useMediaQuery } from '../../composables/useMediaQuery';
 import { useSettingsStore } from '../../stores/settings';
 import { downloadText, safeFileName } from '../../shared/files/download';
-import { MAX_HISTORY, available, cleanNames, drawNumbers, makeTeams, pickName, rollDice, wheelAngle, type DrawMode } from './model';
+import { MAX_HISTORY, MAX_PRESETS, available, cleanNames, drawNumbers, makeTeams, pickName, rollDice, wheelAngle, type DrawMode } from './model';
 import { drawKind, drawTemplates } from './kind';
 
 const doc = useDocument({ kind: drawKind, templates: drawTemplates, path: '/apps/sorteio/' });
@@ -94,7 +94,48 @@ function runTeams(): void {
     record('teams', text); doc.say('Equipes geradas. ' + text);
   } catch (e) { error.value = (e as Error).message; }
 }
-function clearHistory(): void { if (confirm('Apagar o histórico de resultados deste sorteio?')) { state.value.history = []; result.value = null; } }
+// listas de participantes guardadas
+const presetName = ref('');
+const presetPick = ref('');
+function savePreset(): void {
+  error.value = '';
+  const name = presetName.value.trim().slice(0, 60);
+  const names = cleanNames(state.value.participants);
+  if (!name) { error.value = 'Dê um nome à lista antes de salvar.'; return; }
+  if (!names.length) { error.value = 'Escreva pelo menos um participante antes de salvar a lista.'; return; }
+  const same = state.value.presets.find((p) => p.name.toLowerCase() === name.toLowerCase());
+  if (same) { same.participants = names; same.name = name; presetPick.value = same.id; doc.say('Lista “' + name + '” atualizada com ' + names.length + ' nomes.'); }
+  else {
+    if (state.value.presets.length >= MAX_PRESETS) { error.value = 'Limite de ' + MAX_PRESETS + ' listas salvas. Exclua uma para guardar outra.'; return; }
+    const id = 'lista-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    state.value.presets.push({ id, name, participants: names });
+    presetPick.value = id;
+    doc.say('Lista “' + name + '” salva com ' + names.length + ' nomes.');
+  }
+  presetName.value = '';
+}
+function loadPreset(): void {
+  error.value = '';
+  const p = state.value.presets.find((x) => x.id === presetPick.value);
+  if (!p) { error.value = 'Escolha uma lista salva para carregar.'; return; }
+  state.value.participants = [...p.participants];
+  state.value.drawn = [];
+  result.value = null;
+  doc.say('Lista “' + p.name + '” carregada com ' + p.participants.length + ' nomes. Quem já tinha sido sorteado foi liberado.');
+}
+function deletePreset(): void {
+  const i = state.value.presets.findIndex((x) => x.id === presetPick.value);
+  if (i < 0) return;
+  const [gone] = state.value.presets.splice(i, 1);
+  presetPick.value = '';
+  doc.say('Lista “' + gone!.name + '” excluída. Os participantes atuais não mudaram.');
+}
+// ver um resultado antigo sem sortear de novo
+const inspected = ref<number | null>(null);
+const inspectedEntry = computed(() => (inspected.value === null ? null : state.value.history[inspected.value] ?? null));
+const inspectedLines = computed(() => (inspectedEntry.value ? inspectedEntry.value.text.split(' | ') : []));
+const recent = computed(() => state.value.history.map((h, index) => ({ h, index })).reverse().slice(0, 30));
+function clearHistory(): void { if (confirm('Apagar o histórico de resultados deste sorteio?')) { state.value.history = []; result.value = null; inspected.value = null; } }
 const dateFmt = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 const modeName: Record<DrawMode, string> = { wheel: 'Roleta', numbers: 'Números', dice: 'Dados', teams: 'Equipes' };
 function exportHistory(): void {
@@ -111,6 +152,20 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
       <div v-if="current === 'wheel' || current === 'teams'" class="ed-group">
         <label class="ed-field"><span class="ed-label">Participantes (um por linha) · {{ total }}</span>
           <textarea v-model="namesText" class="inp names" rows="5" data-testid="names" @input="doc.setChangeKey('names')"></textarea></label>
+        <details class="presets" data-testid="presets">
+          <summary>Listas salvas ({{ state.presets.length }})</summary>
+          <div class="ed-row">
+            <label class="ed-field"><span class="ed-label">Nome da lista</span><input v-model="presetName" class="inp" maxlength="60" placeholder="Ex.: Turma A" data-testid="preset-name" @keydown.enter.prevent="savePreset" /></label>
+            <button type="button" class="btn" data-testid="preset-save" @click="savePreset">Salvar lista atual</button>
+          </div>
+          <div v-if="state.presets.length" class="ed-row">
+            <label class="ed-field"><span class="ed-label">Listas guardadas</span>
+              <select v-model="presetPick" class="inp" data-testid="preset-select"><option value="">Escolha…</option><option v-for="p in state.presets" :key="p.id" :value="p.id">{{ p.name }} ({{ p.participants.length }})</option></select></label>
+            <button type="button" class="btn" :disabled="!presetPick" data-testid="preset-load" @click="loadPreset">Carregar</button>
+            <button type="button" class="btn" :disabled="!presetPick" data-testid="preset-delete" @click="deletePreset">Excluir</button>
+          </div>
+          <p v-else class="muted small">Guarde a lista de participantes com um nome para reutilizá-la depois.</p>
+        </details>
         <div v-if="current === 'wheel'" class="ed-row">
           <label class="check"><input v-model="state.excludeDrawn" type="checkbox" data-testid="exclude" /> Não repetir quem já saiu</label>
           <button type="button" class="btn" :disabled="!state.drawn.length" data-testid="reset-drawn" @click="resetDrawn">Recomeçar ({{ state.drawn.length }} já sorteados)</button>
@@ -181,8 +236,13 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
       <section class="history" aria-labelledby="hist-h">
         <h2 id="hist-h">Histórico ({{ state.history.length }})</h2>
         <ol v-if="state.history.length" reversed data-testid="history">
-          <li v-for="(h, i) in [...state.history].reverse().slice(0, 30)" :key="i"><small class="muted">{{ dateFmt.format(h.at) }} · {{ modeName[h.mode] }}</small> {{ h.text }}</li>
+          <li v-for="r in recent" :key="r.index"><button type="button" class="hist-item" :aria-pressed="inspected === r.index" data-testid="history-item" @click="inspected = inspected === r.index ? null : r.index"><small class="muted">{{ dateFmt.format(r.h.at) }} · {{ modeName[r.h.mode] }}</small> {{ r.h.text }}</button></li>
         </ol>
+        <div v-if="inspectedEntry" class="inspect" role="region" aria-label="Resultado do histórico" data-testid="history-detail">
+          <p class="muted small">{{ modeName[inspectedEntry.mode] }} · {{ dateFmt.format(inspectedEntry.at) }} — registro salvo; nada foi sorteado de novo.</p>
+          <ul><li v-for="(line, k) in inspectedLines" :key="k">{{ line }}</li></ul>
+          <button type="button" class="btn" @click="inspected = null">Fechar</button>
+        </div>
         <p v-else class="muted small">Os resultados aparecem aqui e ficam salvos no documento.</p>
       </section>
     </div>
@@ -216,5 +276,11 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
 .team ol { margin: 0; padding-left: 20px; }
 .history { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; }
 .history h2 { font-size: 16px; margin: 0 0 8px; }
+.presets { border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; }
+.presets summary { cursor: pointer; font-weight: 600; min-height: 36px; display: flex; align-items: center; }
+.hist-item { display: block; width: 100%; text-align: left; background: transparent; border: 0; border-radius: 8px; padding: 4px 6px; color: inherit; font: inherit; cursor: pointer; }
+.hist-item:hover, .hist-item[aria-pressed="true"] { background: var(--bg); outline: 1px solid var(--border); }
+.inspect { margin-top: 10px; padding: 10px 12px; border: 2px solid var(--app); border-radius: 12px; display: grid; gap: 6px; }
+.inspect ul { margin: 0; padding-left: 20px; overflow-wrap: anywhere; }
 .history ol { margin: 0; padding-left: 22px; display: grid; gap: 4px; max-height: 40vh; overflow: auto; }
 </style>

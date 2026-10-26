@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { getTool } from '../shared/catalog';
 import { LAUNCHER_PATH } from '../shared/links';
 import { useSettingsStore } from '../stores/settings';
 import { useMediaQuery } from '../composables/useMediaQuery';
 import { useResizableSidebar } from '../composables/useResizableSidebar';
 import type { EditorTab } from '../editors/model';
+import ProjectTabs from '../editors/ProjectTabs.vue';
+import { useProjectTabs } from '../editors/projectTabs';
+import { forgetDocument, restoreTarget } from '../workspace/prefs';
 import AppIcon from '../components/ui/AppIcon.vue';
 import NavIcon from '../components/ui/NavIcon.vue';
 import SaveStatus, { type SaveState } from '../components/editor/SaveStatus.vue';
@@ -30,6 +33,9 @@ const tool = getTool('labels');
 const wide = useMediaQuery('(min-width: 900px)', true);
 const roomy = useMediaQuery('(min-width: 600px)', true);
 const desktopSide = useResizableSidebar('labels', 380);
+const desktopProperties = useResizableSidebar('labels-properties', 276, 240, 380, 'left');
+const propertiesDocked = useMediaQuery('(min-width: 1180px)', true);
+const propertiesOpen = ref(true);
 
 const live = ref('');
 const announce = (text: string): void => { live.value = ''; void nextTick(() => { live.value = text; }); };
@@ -63,8 +69,53 @@ const itemsRef = ref<InstanceType<typeof ItemsPanel>[] | InstanceType<typeof Ite
 const showSide = computed(() => roomy.value && wide.value);
 const showSheet = computed(() => !showSide.value && sheetOpen.value);
 
-const docId = new URLSearchParams(location.search).get('doc');
-onMounted(() => { if (docId) void editor.load(docId); else editor.startNew(stateFromTemplate(new URLSearchParams(location.search).get('modelo')) ?? undefined); });
+const query = new URLSearchParams(location.search);
+const explicitDoc = query.get('doc');
+// Sem ?doc, ?modelo ou ?novo o app volta ao último projeto aberto (preferência "Continuar de onde parei").
+const restoredDoc = !explicitDoc && !query.has('modelo') && !query.has('novo') ? restoreTarget('labels') : null;
+const docId = explicitDoc ?? restoredDoc;
+
+let leaving = false;
+const projects = useProjectTabs({
+  type: 'labels',
+  path: location.pathname,
+  currentId: () => editor.copyId.value,
+  canLeave: async () => {
+    await editor.saveNow();
+    const st = editor.saveState.value;
+    if (st === 'pending' || st === 'saving' || st === 'error' || st === 'conflict') {
+      if (!confirm('Há alterações que podem não ter sido salvas. Sair deste projeto mesmo assim?')) return false;
+    }
+    leaving = true;
+    return true;
+  },
+  renameCurrent: (name) => { editor.setField('name', name); }
+});
+// Registra a aba quando o documento ganha id (abrir ou primeira gravação) e acompanha o nome.
+watch(() => editor.copyId.value, (id) => { if (id) { projects.register(id, editor.state.value.name.trim() || 'Etiquetas'); void projects.refreshCount(); } });
+watch(() => editor.state.value.name, (name) => { const id = editor.copyId.value; if (id && editor.saveState.value === 'saved') projects.retitle(id, name.trim() || 'Etiquetas'); });
+watch(() => editor.saveState.value, (st) => { const id = editor.copyId.value; if (id && st === 'saved') projects.retitle(id, editor.state.value.name.trim() || 'Etiquetas'); });
+function guardUnload(event: BeforeUnloadEvent): void { if (leaving) event.stopImmediatePropagation(); }
+window.addEventListener('beforeunload', guardUnload, true);
+onBeforeUnmount(() => window.removeEventListener('beforeunload', guardUnload, true));
+
+onMounted(async () => {
+  if (!docId) { editor.startNew(stateFromTemplate(query.get('modelo')) ?? undefined); return; }
+  await editor.load(docId);
+  if (!editor.loadError.value) {
+    if (restoredDoc) { try { history.replaceState(null, '', location.pathname + '?doc=' + encodeURIComponent(docId)); } catch { /* sem URL */ } }
+    return;
+  }
+  const lost = editor.loadError.value;
+  if (/não existe mais/i.test(lost)) { forgetDocument(docId); projects.reload(); }
+  if (restoredDoc && /não existe mais/i.test(lost)) {
+    // O último projeto não existe mais: abre um em branco, sem alarme.
+    editor.loadError.value = '';
+    editor.startNew();
+    try { history.replaceState(null, '', location.pathname + '?novo=1'); } catch { /* sem URL */ }
+    announce('O último projeto não está mais neste aparelho. Abri um projeto novo.');
+  }
+});
 
 const saveState = computed<SaveState>(() => editor.loadError.value ? 'unavailable' : editor.saveState.value);
 const statusDetail = computed(() => {
@@ -144,7 +195,7 @@ function onKey(event: KeyboardEvent): void {
 }
 onMounted(() => document.addEventListener('keydown', onKey));
 onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
-document.title = 'Etiquetas · Coding 2.0';
+document.title = 'Etiquetas · Coding';
 const copiesChange = (id: string, value: number): void => editor.setItem(id, { copies: toInt(value, 1, 1, MAX_COPIES) });
 const title = computed(() => state.value.name.trim() || 'Documento sem título');
 </script>
@@ -153,7 +204,7 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
   <div class="ed" :style="{ '--app': tool.color, '--app-cx-l': tool.textLight, '--app-cx-d': tool.textDark }" data-app="labels" :data-layout="roomy ? (wide ? 'wide' : 'tablet') : 'phone'">
     <a class="skip-link" href="#folha" @click.prevent="focusCanvas">Pular para a folha</a>
     <header class="bar">
-      <a class="back" :href="LAUNCHER_PATH + '#/documentos'" aria-label="Voltar à biblioteca"><NavIcon name="back" /><span class="t">Biblioteca</span></a>
+      <a class="back" :href="LAUNCHER_PATH + '#/'" aria-label="Voltar ao início" data-testid="back-home"><NavIcon name="back" /><span class="t">Início</span></a>
       <AppIcon id="labels" size="sm" class="appicon" />
       <div class="titles">
         <h1 class="name">Etiquetas</h1>
@@ -163,8 +214,10 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
         <button type="button" class="ib" aria-label="Desfazer" title="Desfazer (Ctrl+Z)" :disabled="!editor.canUndo.value" data-testid="undo" @click="editor.undo()"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
         <button type="button" class="ib" aria-label="Refazer" title="Refazer (Ctrl+Shift+Z)" :disabled="!editor.canRedo.value" data-testid="redo" @click="editor.redo()"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
       </div>
+      <button v-if="showSide && !propertiesOpen" type="button" class="btn" data-testid="show-properties" @click="propertiesOpen = true">Propriedades</button>
       <SaveStatus :state="saveState" class="status" />
     </header>
+    <ProjectTabs v-if="!editor.loadError.value" :projects="projects" :wide="roomy" />
 
     <div class="live sr-only" role="status" aria-live="polite" data-testid="editor-status">{{ live }}</div>
 
@@ -209,6 +262,39 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
         <p v-if="roomy" class="summary" data-testid="summary">{{ layout.labelCount }} {{ layout.labelCount === 1 ? 'etiqueta' : 'etiquetas' }} · {{ layout.itemCount }} {{ layout.itemCount === 1 ? 'item' : 'itens' }}<template v-if="statusDetail"> · {{ statusDetail }}</template></p>
         <p v-if="layout.warning" class="warn" role="status" data-testid="layout-warning">{{ layout.warning }}</p>
       </div>
+      <aside v-if="showSide && propertiesOpen && !editor.loadError.value" class="properties" :class="{ floating: !propertiesDocked }"
+        :style="{ width: desktopProperties.width.value + 'px' }" aria-label="Propriedades das etiquetas" data-testid="editor-inspector">
+        <div class="properties-title"><strong>Propriedades</strong><button type="button" class="ib" aria-label="Recolher propriedades" data-testid="hide-properties" @click="propertiesOpen = false"><NavIcon name="close" /></button></div>
+        <div class="properties-body">
+          <p class="properties-note">{{ layout.labelCount }} etiqueta(s) · {{ layout.pageCount }} folha(s)</p>
+          <label class="properties-field">Prefixo do código
+            <input type="text" maxlength="30" :value="state.prefix" @input="field('prefix', ($event.target as HTMLInputElement).value)" />
+          </label>
+          <label class="properties-field">Tamanho do código (pt)
+            <input type="number" min="8" max="96" step="1" :value="state.codeSize" @change="field('codeSize', toInt(($event.target as HTMLInputElement).value, state.codeSize, 8, 96))" />
+          </label>
+          <label class="properties-field">Tamanho da descrição (pt)
+            <input type="number" min="8" max="96" step="1" :value="state.descSize" @change="field('descSize', toInt(($event.target as HTMLInputElement).value, state.descSize, 8, 96))" />
+          </label>
+          <label class="properties-field">Alinhamento do código
+            <select :value="state.codeAlign" @change="field('codeAlign', ($event.target as HTMLSelectElement).value as 'left' | 'center' | 'right')">
+              <option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option>
+            </select>
+          </label>
+          <label class="properties-field">Etiquetas por linha
+            <select :value="state.cols" @change="field('cols', Number(($event.target as HTMLSelectElement).value))">
+              <option :value="1">1</option><option :value="2">2</option><option :value="3">3</option>
+            </select>
+          </label>
+          <label class="properties-field">Espaçamento (mm)
+            <input type="number" min="0" max="25" step="1" :value="state.gap" @change="field('gap', toInt(($event.target as HTMLInputElement).value, state.gap, 0, 25))" />
+          </label>
+          <label class="properties-check"><input type="checkbox" :checked="state.border" @change="field('border', ($event.target as HTMLInputElement).checked)" /> Linha de corte</label>
+        </div>
+        <div v-if="propertiesDocked" class="properties-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Ajustar largura das propriedades"
+          :aria-valuenow="desktopProperties.width.value" :aria-valuemin="desktopProperties.min" :aria-valuemax="desktopProperties.max" :class="{ active: desktopProperties.dragging.value }"
+          @pointerdown="desktopProperties.start" @pointermove="desktopProperties.move" @pointerup="desktopProperties.end" @pointercancel="desktopProperties.end" @dblclick="desktopProperties.reset" @keydown="desktopProperties.keys" />
+      </aside>
     </main>
 
     <TableImportDialog :open="tableOpen" :current-items="state.items.filter((i) => i.code.trim() || i.description.trim()).length" @close="tableOpen = false" @apply="applyTable" />
@@ -216,7 +302,7 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
     <PrintSheets v-if="!editor.loadError.value" :state="state" :pages="pages" />
 
     <template v-if="!showSide && !editor.loadError.value">
-      <BottomSheet v-if="showSheet" v-model:snap="snap" :title="tabs.find((t) => t.id === tab)?.label ?? 'Editor'" :style="{ '--chrome': '180px', ...(snap === 'full' ? { maxHeight: '85dvh' } : {}) }" @close="sheetOpen = false">
+      <BottomSheet v-if="showSheet" v-model:snap="snap" :title="tabs.find((t) => t.id === tab)?.label ?? 'Editor'" :style="{ '--chrome': '233px', ...(snap === 'full' ? { maxHeight: '85dvh' } : {}) }" @close="sheetOpen = false">
         <ItemsPanel v-if="tab === 'itens'" ref="itemsRef" :items="state.items" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @bulk="bulkOpen = true" @import="tableOpen = true" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
         <FormatPanel v-else-if="tab === 'formato'" :state="state" @field="field" />
         <PagePanel v-else-if="tab === 'pagina'" :state="state" :layout="layout" @field="field" />
@@ -252,7 +338,19 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
 .conflict h2 { font-size: 16px; margin: 0 0 4px; }
 .conflict p { margin: 0 0 8px; }
 .cf-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.main { flex: 1; min-height: 0; display: flex; }
+.main { flex: 1; min-height: 0; display: flex; position: relative; }
+.properties { position: relative; flex: none; display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-left: 1px solid var(--border); }
+.properties.floating { position: absolute; right: 0; top: 0; bottom: 0; width: min(300px, 42vw) !important; z-index: 11; box-shadow: -12px 0 24px #0002; }
+.properties-title { display:flex; align-items:center; justify-content:space-between; min-height:48px; border-bottom:1px solid var(--border); padding:0 12px; font-size:13px; }
+.properties-body { flex:1; min-height:0; overflow-y:auto; padding:14px 12px 24px; display:grid; align-content:start; gap:14px; }
+.properties-note { font-size:12px; color:var(--muted); margin:0; }
+.properties-field { display:grid; gap:6px; font-size:12px; font-weight:700; }
+.properties-field input,.properties-field select { min-width:0; width:100%; min-height:40px; border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:9px; padding:6px 10px; font-size:14px; }
+.properties-check { display:flex; align-items:center; gap:10px; font-size:13px; }
+.properties-check input { width:20px; height:20px; }
+.properties-resizer { position:absolute; z-index:5; left:-5px; top:0; bottom:0; width:10px; cursor:col-resize; touch-action:none; }
+.properties-resizer:hover,.properties-resizer.active,.properties-resizer:focus-visible { background:color-mix(in srgb,var(--app) 45%,transparent); }
+@media print { .properties { display:none !important; } }
 .side { width: 380px; position: relative; flex: none; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); min-height: 0; }
 .desktop-resizer { position:absolute; top:0; right:-5px; bottom:0; width:10px; z-index:5; cursor:col-resize; touch-action:none; }
 .desktop-resizer:hover, .desktop-resizer.active, .desktop-resizer:focus-visible { background:color-mix(in srgb,var(--app) 45%,transparent); outline:none; }

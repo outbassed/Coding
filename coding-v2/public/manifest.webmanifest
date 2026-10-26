@@ -1,7 +1,7 @@
 {
   "id": "/launcher/",
-  "name": "Coding 2.0 Preview",
-  "short_name": "Coding 2.0",
+  "name": "Coding Launcher",
+  "short_name": "Coding",
   "description": "Editores de documentos, etiquetas, planilhas, imagens e PDFs em um só lugar.",
   "lang": "pt-BR",
   "start_url": "/launcher/",

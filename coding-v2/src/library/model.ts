@@ -1,29 +1,34 @@
 import type { CopySummary, Source } from '../storage/documents';
 import { findTool, type ToolId } from '../shared/catalog';
+import { formatBytes } from '../shared/bytes';
 
 /** Tipos gravados pelo Coding atual → ferramentas do catálogo 2.0. */
 const TYPE_TO_TOOL: Record<string, ToolId> = {
   labels: 'labels', texts: 'texts', calc: 'calc', images: 'images', pdf: 'pdf',
-  codes: 'codes', sheet: 'sheet-labels', draw: 'draw', split: 'split'
+  codes: 'codes', sheet: 'labels', draw: 'draw', split: 'split', calculator: 'calculator', colors: 'colors', zip: 'zip', compare: 'compare', code: 'code', viewer: 'viewer', paint: 'paint'
 };
 
 export function toolIdForType(type: unknown): ToolId | null {
   return typeof type === 'string' && Object.hasOwn(TYPE_TO_TOOL, type) ? (TYPE_TO_TOOL[type] ?? null) : null;
 }
+/** Tipo do app removido “Planilha → Etiquetas”: os documentos continuam na Biblioteca e podem virar Etiquetas. */
+export const LEGACY_SHEET_LABEL = 'Planilha → Etiquetas (descontinuado)';
+export const isLegacySheet = (type: unknown): boolean => type === 'sheet';
 export function typeLabel(type: unknown): string {
+  if (isLegacySheet(type)) return LEGACY_SHEET_LABEL;
   const id = toolIdForType(type);
   return id ? (findTool(id)?.name ?? 'Documento') : 'Tipo desconhecido';
 }
 export const originLabels: Record<Source, string> = {
-  indexeddb: 'Coding atual (IndexedDB)',
-  localStorage: 'Coding atual (localStorage)',
+  indexeddb: 'Importado (banco anterior, IndexedDB)',
+  localStorage: 'Importado (armazenamento anterior, localStorage)',
   backup: 'Backup importado',
-  v2: 'Criado na v2'
+  v2: 'Criado no Coding'
 };
 
 /** Histórico: documentos da v2 anteriores ao contrato de origem usavam 'backup' com prefixo 'v2-labels-'. */
 export const originText = (copy: { source: Source; legacyId: string }): string =>
-  copy.legacyId.startsWith('v2-labels-') ? 'Criado na v2' : originLabels[copy.source];
+  copy.legacyId.startsWith('v2-labels-') ? 'Criado no Coding' : originLabels[copy.source];
 export type SortKey = 'recent' | 'oldest' | 'name-asc' | 'name-desc' | 'type' | 'images';
 export const sortLabels: Record<SortKey, string> = {
   recent: 'Atualização mais recente',
@@ -78,9 +83,15 @@ const V2_APPS: Record<string, { path: string; prefix: string }> = {
   images: { path: '/apps/imagens/', prefix: 'v2-images-' },
   pdf: { path: '/apps/pdf/', prefix: 'v2-pdf-' },
   codes: { path: '/apps/qr/', prefix: 'v2-codes-' },
-  sheet: { path: '/apps/planilha-etiquetas/', prefix: 'v2-sheet-' },
   draw: { path: '/apps/sorteio/', prefix: 'v2-draw-' },
-  split: { path: '/apps/racha-conta/', prefix: 'v2-split-' }
+  split: { path: '/apps/racha-conta/', prefix: 'v2-split-' },
+  calculator: { path: '/apps/calculadora/', prefix: 'v2-calculator-' },
+  colors: { path: '/apps/cores/', prefix: 'v2-colors-' },
+  zip: { path: '/apps/zip/', prefix: 'v2-zip-' },
+  compare: { path: '/apps/comparador/', prefix: 'v2-compare-' },
+  code: { path: '/apps/codigo/', prefix: 'v2-code-' },
+  viewer: { path: '/apps/visualizador/', prefix: 'v2-viewer-' },
+  paint: { path: '/apps/pintar/', prefix: 'v2-paint-' }
 };
 export function openHref(copy: Pick<CopySummary, 'id' | 'type' | 'legacyId'>): string | null {
   if (copy.type === 'labels') return '/apps/etiquetas/?doc=' + encodeURIComponent(copy.id);
@@ -126,11 +137,7 @@ export const activeFilterCount = (filters: LibraryFilters): number =>
 const dateFormat = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'short' });
 export const formatDate = (timestamp: number): string => (Number.isFinite(timestamp) ? dateFormat.format(new Date(timestamp)) : 'data desconhecida');
 export const imagesText = (count: number): string => (count === 1 ? '1 imagem' : count + ' imagens');
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1).replace('.', ',') + ' MB';
-}
+export { formatBytes };
 /** Tamanho das imagens; cópias antigas podem não ter o total registrado. */
 export const imagesSizeText = (count: number, bytes: number | null): string =>
   count === 0 ? 'sem imagens' : bytes === null ? 'tamanho não registrado' : formatBytes(bytes);

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, type Ref } from 'vue';
+import { computed, ref, useSlots, watch, type Ref } from 'vue';
 import { getTool, type ToolId } from '../shared/catalog';
 import { LAUNCHER_PATH } from '../shared/links';
 import { useSettingsStore } from '../stores/settings';
@@ -10,6 +10,8 @@ import AppIcon from '../components/ui/AppIcon.vue';
 import NavIcon from '../components/ui/NavIcon.vue';
 import BottomSheet, { type SheetSnap } from '../components/editor/BottomSheet.vue';
 import SaveStatus, { type SaveState } from '../components/editor/SaveStatus.vue';
+import ProjectTabs from './ProjectTabs.vue';
+import type { ProjectTabsController } from './projectTabs';
 
 export interface ShellDoc {
   state: Ref<{ name: string }>;
@@ -19,6 +21,8 @@ export interface ShellDoc {
   note: Ref<string>;
   canUndo: Ref<boolean>;
   canRedo: Ref<boolean>;
+  /** Abas de projeto do app (ausente em editores que ainda não as usam). */
+  projects?: ProjectTabsController;
   undo(): void; redo(): void; saveNow(): Promise<void>; saveAsCopy(): Promise<void>; reloadSaved(): Promise<void>;
 }
 export interface ShellTab { id: string; label: string }
@@ -33,16 +37,24 @@ const tab = defineModel<string>('tab', { required: true });
 useSettingsStore();
 const tool = getTool(props.app);
 const wide = useMediaQuery('(min-width: 900px)', true);
+const inspectorDocked = useMediaQuery('(min-width: 1180px)', true);
+const slots = useSlots();
 const root = ref<HTMLElement | null>(null);
 useVisualViewport(() => root.value);
 const panelOpen = ref(true);
 const desktopToolsOpen = ref(true);
+const inspectorOpen = ref(true);
+const INSPECTOR = '__inspector';
 const snap = ref<SheetSnap>('half');
 const SIDE = '__side';
-const allTabs = computed<ShellTab[]>(() => (!wide.value && props.sideLabel && !!props.sideLabel ? [...props.tabs, { id: SIDE, label: props.sideLabel }] : props.tabs));
+const allTabs = computed<ShellTab[]>(() => wide.value ? props.tabs : [
+  ...props.tabs,
+  ...(props.sideLabel && slots.side ? [{ id: SIDE, label: props.sideLabel }] : []),
+  ...(slots.inspector ? [{ id: INSPECTOR, label: 'Propriedades' }] : [])
+]);
 const currentTitle = computed(() => allTabs.value.find((t) => t.id === tab.value)?.label ?? 'Ferramentas');
-watch(wide, (isWide) => { if (isWide && tab.value === SIDE) tab.value = props.tabs[0]?.id ?? ''; panelOpen.value = true; });
-document.title = tool.name + ' · Coding 2.0';
+watch(wide, (isWide) => { if (isWide && (tab.value === SIDE || tab.value === INSPECTOR)) tab.value = props.tabs[0]?.id ?? ''; panelOpen.value = true; });
+document.title = tool.name + ' · Coding';
 
 function pick(id: string): void {
   if (!wide.value && tab.value === id) { panelOpen.value = !panelOpen.value; return; }
@@ -66,15 +78,16 @@ const name = computed({
 });
 
 const { width: sideWidth, dragging: draggingSide, start: resizeStart, move: resizeMove, end: resizeEnd, keys: resizeKey, reset: resizeReset } = useResizableSidebar(props.app, 356);
+const inspector = useResizableSidebar(props.app + '-properties', 288, 240, 400, 'left');
 
 </script>
 
 <template>
   <div ref="root" class="es" :class="wide ? 'is-wide' : 'is-narrow'" :data-app="app" :data-layout="wide ? 'wide' : 'narrow'"
-    :style="{ '--app': tool.color, '--app-cx-l': tool.textLight, '--app-cx-d': tool.textDark, '--es-sidebar-width': sideWidth + 'px' }">
+    :style="{ '--app': tool.color, '--app-cx-l': tool.textLight, '--app-cx-d': tool.textDark, '--es-sidebar-width': sideWidth + 'px', '--es-inspector-width': inspector.width.value + 'px' }">
     <a class="skip-link" href="#es-stage" @click.prevent="focusStage">Pular para o documento</a>
     <header class="es-head">
-      <a class="es-back" :href="LAUNCHER_PATH + '#/documentos'" aria-label="Voltar à biblioteca"><NavIcon name="back" /><span class="es-back-t">Biblioteca</span></a>
+      <a class="es-back" :href="LAUNCHER_PATH + '#/'" aria-label="Voltar ao início" data-testid="back-home"><NavIcon name="back" /><span class="es-back-t">Início</span></a>
       <AppIcon :id="app" size="sm" class="es-icon" />
       <div class="es-titles">
         <h1 class="es-app">{{ tool.name }}</h1>
@@ -86,8 +99,11 @@ const { width: sideWidth, dragging: draggingSide, start: resizeStart, move: resi
         <button type="button" class="ib" aria-label="Desfazer" title="Desfazer (Ctrl+Z)" :disabled="!doc.canUndo.value" data-testid="undo" @click="doc.undo()"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
         <button type="button" class="ib" aria-label="Refazer" title="Refazer (Ctrl+Shift+Z)" :disabled="!doc.canRedo.value" data-testid="redo" @click="doc.redo()"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
       </div>
+      <button v-if="wide && $slots.inspector && !inspectorOpen" type="button" class="btn es-show-properties" data-testid="show-properties" @click="inspectorOpen = true">Propriedades</button>
       <SaveStatus :state="doc.status.value" class="es-status" />
     </header>
+
+    <ProjectTabs v-if="doc.projects && !doc.loadError.value" :projects="doc.projects" :wide="wide" />
 
     <div v-if="doc.loadError.value || doc.status.value === 'conflict' || doc.status.value === 'error'" class="es-alerts" role="region" aria-label="Avisos">
       <p v-if="doc.loadError.value" class="es-problem" role="alert" data-testid="load-error">
@@ -106,7 +122,11 @@ const { width: sideWidth, dragging: draggingSide, start: resizeStart, move: resi
       </p>
     </div>
 
-    <div v-if="!doc.loadError.value" class="es-workspace" :class="{ 'es-without-sidebar': wide && !desktopToolsOpen }">
+    <div v-if="!doc.loadError.value" class="es-workspace" :class="{
+      'es-without-sidebar': wide && !desktopToolsOpen,
+      'es-with-inspector': wide && inspectorDocked && !!$slots.inspector && inspectorOpen,
+      'es-inspector-floating': wide && !inspectorDocked && !!$slots.inspector && inspectorOpen
+    }">
       <aside v-if="wide && desktopToolsOpen" class="es-tools" aria-label="Ferramentas" data-testid="editor-sidebar">
         <div class="es-tabs" role="tablist" aria-label="Categorias de ferramentas" data-testid="editor-tabs" @keydown="onTabKey">
           <button v-for="t in tabs" :id="'es-tab-' + t.id" :key="t.id" type="button" role="tab" class="es-tab"
@@ -131,11 +151,21 @@ const { width: sideWidth, dragging: draggingSide, start: resizeStart, move: resi
         <main id="es-stage" class="es-stage" tabindex="0" aria-label="Área de trabalho e prévia" data-testid="editor-stage"><slot /></main>
         <footer v-if="$slots.footer" class="es-footer" aria-label="Controles da prévia"><slot name="footer" /></footer>
       </div>
+      <aside v-if="wide && $slots.inspector && inspectorOpen" class="es-inspector" aria-label="Propriedades" data-testid="editor-inspector">
+        <div class="es-inspector-title"><strong>Propriedades</strong><button type="button" class="ib" aria-label="Recolher propriedades" data-testid="hide-properties" @click="inspectorOpen = false"><NavIcon name="close" /></button></div>
+        <div class="es-inspector-content"><slot name="inspector" /></div>
+        <div v-if="inspectorDocked" class="es-inspector-resizer" role="separator" tabindex="0" aria-label="Ajustar largura do painel de propriedades" aria-orientation="vertical"
+          :aria-valuenow="inspector.width.value" :aria-valuemin="inspector.min" :aria-valuemax="inspector.max" :class="{ active: inspector.dragging.value }"
+          @pointerdown="inspector.start" @pointermove="inspector.move" @pointerup="inspector.end" @pointercancel="inspector.end" @dblclick="inspector.reset" @keydown="inspector.keys" />
+      </aside>
       <template v-if="!wide">
         <BottomSheet v-if="panelOpen" v-model:snap="snap" class="es-mobile-sheet" :title="currentTitle"
-          :style="{ '--chrome': '155px', ...(snap === 'full' ? { maxHeight: 'min(70dvh, calc(var(--vv-h, 100dvh) - 220px))' } : {}) }"
+          :style="{ '--chrome': '208px', ...(snap === 'full' ? { maxHeight: 'min(70dvh, calc(var(--vv-h, 100dvh) - 220px))' } : {}) }"
           @close="panelOpen = false">
-          <section v-if="tab === SIDE && $slots.side" id="es-panel" role="tabpanel" :aria-labelledby="'es-tab-' + tab" data-testid="editor-panel">
+          <section v-if="tab === INSPECTOR && $slots.inspector" id="es-panel" role="tabpanel" :aria-labelledby="'es-tab-' + tab" data-testid="editor-panel">
+            <slot name="inspector" />
+          </section>
+          <section v-else-if="tab === SIDE && $slots.side" id="es-panel" role="tabpanel" :aria-labelledby="'es-tab-' + tab" data-testid="editor-panel">
             <slot name="side" />
           </section>
           <div v-else id="es-panel" role="tabpanel" :aria-labelledby="'es-tab-' + tab" data-testid="editor-panel">
@@ -174,6 +204,17 @@ const { width: sideWidth, dragging: draggingSide, start: resizeStart, move: resi
 .es-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .es-workspace { flex: 1; min-height: 0; min-width: 0; display: grid; grid-template-columns: var(--es-sidebar-width, 356px) minmax(0,1fr); }
 .es-workspace.es-without-sidebar { grid-template-columns: minmax(0,1fr); }
+.es-workspace.es-with-inspector { grid-template-columns: var(--es-sidebar-width, 356px) minmax(0,1fr) var(--es-inspector-width, 288px); }
+.es-workspace.es-with-inspector.es-without-sidebar { grid-template-columns: minmax(0,1fr) var(--es-inspector-width, 288px); }
+.es-workspace.es-inspector-floating { position: relative; }
+.es-inspector { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; border-left: 1px solid var(--border); background: var(--surface); }
+.es-inspector-title { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 0 10px 0 16px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.es-inspector-title .ib { flex: none; }
+.es-inspector-content { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 12px 24px; }
+.es-inspector-resizer { position: absolute; left: -5px; top: 0; bottom: 0; width: 10px; z-index: 5; cursor: col-resize; touch-action: none; }
+.es-inspector-resizer:hover, .es-inspector-resizer.active, .es-inspector-resizer:focus-visible { background: color-mix(in srgb, var(--app) 45%, transparent); outline: none; }
+.es-inspector-floating .es-inspector { position: absolute; right: 0; top: 0; bottom: 0; width: min(var(--es-inspector-width), 45vw); z-index: 12; box-shadow: -12px 0 24px #0002; }
+.es-show-properties { flex: none; }
 .es-tools { position: relative; min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); }
 .es-tabs { display: flex; gap: 0; flex: none; border-bottom: 1px solid var(--border); background: var(--surface); overflow-x: auto; scrollbar-width: thin; }
 .es-tab { flex: none; min-height: 48px; padding: 0 12px; border: 0; border-bottom: 3px solid transparent; background: transparent; font-weight: 700; font-size: 12px; color: var(--muted); white-space: nowrap; }
@@ -202,5 +243,5 @@ const { width: sideWidth, dragging: draggingSide, start: resizeStart, move: resi
 .es-mobile-tab[aria-selected="true"]:not([aria-expanded="false"]) { background: var(--app); border-color: var(--app); color: var(--ink); }
 @media (max-width: 599px) { .es-back-t { display: none; } .es-head { gap: 4px; } .es-name { font-size: 11px; } }
 @media (max-width: 420px) { .es-icon { display: none; } .es-status { white-space: normal; text-align: center; max-width: 96px; font-size: 11px; line-height: 1.2; } }
-@media print { .es { display: block; height: auto; position: static; } .es-head, .es-alerts, .es-tools, .es-mobile-nav, .es-mobile-sheet, .es-footer, .es-reopen, .skip-link { display: none !important; } .es-workspace, .es-canvas, .es-stage { display: block !important; height: auto !important; overflow: visible !important; } }
+@media print { .es { display: block; height: auto; position: static; } .es-head, .es-alerts, .es-tools, .es-inspector, .es-mobile-nav, .es-mobile-sheet, .es-footer, .es-reopen, .skip-link { display: none !important; } .es-workspace, .es-canvas, .es-stage { display: block !important; height: auto !important; overflow: visible !important; } }
 </style>

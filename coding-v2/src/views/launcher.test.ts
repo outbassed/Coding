@@ -1,58 +1,76 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
 import { mountLauncher, violations } from '../test/helpers';
+import { tools } from '../shared/catalog';
+import { latestOf } from '../shared/versions';
+import { versionRecords } from '../shared/versions-data';
+import { settingsTabs } from '../components/settings/tabs';
 
-beforeEach(() => { localStorage.clear(); });
+beforeEach(() => { localStorage.clear(); sessionStorage.clear(); });
 afterEach(() => { document.body.innerHTML = ''; });
 
 describe('Launcher · telas', () => {
-  it('Início mostra os nove apps ativados e um único h1', async () => {
+  it('Início é um acesso rápido: identidade, busca, todos os aplicativos e um único h1', async () => {
     const { wrapper } = await mountLauncher('/');
     expect(wrapper.findAll('h1')).toHaveLength(1);
-    expect(wrapper.findAll('article.card')).toHaveLength(9);
-    expect(wrapper.text()).toContain('Explorar o catálogo');
+    expect(wrapper.get('h1').text()).toBe('Coding Launcher');
+    expect(wrapper.find('input[type="search"][aria-label="Buscar aplicativos"]').exists()).toBe(true);
+    expect(wrapper.findAll('article.card')).toHaveLength(tools.length);
+    // sem os números do topo nem os botões que repetem a navegação
+    expect(wrapper.find('[data-testid="home-stats"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="home-actions"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toMatch(/Prévia|Preview|2\.0|Antigo|Coding atual|Novo Coding/);
     wrapper.unmount();
   });
 
-  it('Catálogo lista os nove e filtra', async () => {
-    const { wrapper } = await mountLauncher('/catalogo');
-    expect(wrapper.findAll('article.card')).toHaveLength(9);
-    // nenhum app é "em breve": o filtro não aparece
-    expect(wrapper.findAll('button.f').some((b) => b.text() === 'Em breve')).toBe(false);
-    await wrapper.findAll('button.f').find((b) => b.text() === 'Ativados')?.trigger('click');
-    expect(wrapper.findAll('article.card')).toHaveLength(9);
-    await wrapper.findAll('button.f').find((b) => b.text() === 'Não ativados')?.trigger('click');
+  it('a busca do Início filtra os aplicativos ignorando acentos', async () => {
+    const { wrapper } = await mountLauncher('/');
+    await wrapper.get('#home-search').setValue('PLANILHÁ');
+    expect(wrapper.findAll('article.card h3').map((h) => h.text())).toEqual(['Planilhas']);
+    await wrapper.get('#home-search').setValue('zzzz');
     expect(wrapper.findAll('article.card')).toHaveLength(0);
+    expect(wrapper.text()).toContain('Nenhum aplicativo combina com a busca');
+    wrapper.unmount();
+  });
+
+  it('Catálogo lista todos, filtra e não tem filtro de ativação', async () => {
+    const { wrapper } = await mountLauncher('/catalogo');
+    expect(wrapper.findAll('article.card')).toHaveLength(tools.length);
+    const labels = wrapper.findAll('button.f').map((b) => b.text());
+    for (const gone of ['Ativados', 'Não ativados', 'Em breve', 'Todos']) expect(labels).not.toContain(gone);
     wrapper.unmount();
   });
 
   it('busca ignora acentos', async () => {
-    const { wrapper, router } = await mountLauncher('/catalogo');
-    await router.replace({ name: 'catalog', query: { q: 'planilha' } });
-    await flushPromises();
+    const { wrapper } = await mountLauncher('/catalogo');
+    await wrapper.get('#catalog-search').setValue('PLANILHÁ');
     const names = wrapper.findAll('article.card h3').map((h) => h.text());
-    expect(names).toEqual(expect.arrayContaining(['Planilhas', 'Planilha → Etiquetas']));
+    expect(names).toEqual(['Planilhas']);
     expect(names).not.toContain('Texto');
     wrapper.unmount();
   });
 
-  it('Detalhes separa os três níveis sem afirmar offline nem instalação', async () => {
+  it('Detalhes: sempre “Abrir editor”, versão e compilação do registro, histórico e seção offline', async () => {
     const { wrapper } = await mountLauncher('/app/labels');
-    const levels = wrapper.findAll('li.level');
-    expect(levels.map((l) => l.attributes('data-level'))).toEqual(['activation', 'offline', 'install']);
-    expect(levels[0]?.text()).toContain('Ativado');
-    expect(levels[1]?.text()).toContain('Não verificado');
-    expect(levels[2]?.text()).toContain('Não comprovado');
-    expect(wrapper.text()).not.toMatch(/disponível offline\s*(✓|ativo)/i);
+    const open = wrapper.get('[data-testid="open-editor"]');
+    expect(open.text()).toBe('Abrir editor');
+    expect(open.attributes('href')).toBe('/apps/etiquetas/');
+    const release = latestOf('labels', versionRecords)!;
+    expect(wrapper.get('[data-testid="app-version"]').text()).toBe(release.version);
+    expect(wrapper.get('[data-testid="app-build"]').text()).toBe(release.build);
+    expect(wrapper.get('[data-testid="app-history-link"]').attributes('href')).toBe('/versoes/etiquetas/');
+    expect(wrapper.find('[data-testid="app-offline"]').exists()).toBe(true);
+    expect(wrapper.text()).not.toMatch(/Ativar|Ativado|desativ|Disponibilidade e instalação/i);
     wrapper.unmount();
   });
 
-  it('Detalhes de cada app novo abrem o editor 2.0 e mantêm o link para o Coding atual', async () => {
-    for (const [id, path, hash] of [['images', '/apps/imagens/', '#/imagens'], ['calc', '/apps/planilhas/', '#/planilhas'], ['split', '/apps/racha-conta/', '#/racha']] as const) {
-      const { wrapper } = await mountLauncher('/app/' + id);
-      expect(wrapper.find('a[href="' + path + '"]').exists()).toBe(true);
-      expect(wrapper.findAll('a').some((a) => (a.attributes('href') ?? '').includes(hash))).toBe(true);
+  it('todo app tem o editor e o histórico de versões no endereço da própria pasta', async () => {
+    for (const t of tools) {
+      const { wrapper } = await mountLauncher('/app/' + t.id);
+      expect(wrapper.get('[data-testid="open-editor"]').attributes('href')).toBe(t.path);
+      expect(wrapper.get('[data-testid="app-history-link"]').attributes('href')).toBe('/versoes/' + t.path!.split('/')[2] + '/');
       expect(wrapper.find('[data-testid="ready-list"]').exists()).toBe(true);
+      expect(wrapper.text()).not.toMatch(/Coding atual|Coding 2|Prévia/);
       wrapper.unmount();
     }
   });
@@ -63,9 +81,10 @@ describe('Launcher · telas', () => {
     wrapper.unmount();
   });
 
-  it('Documentos não finge ler o banco antigo', async () => {
+  it('Documentos explica que a importação é somente leitura', async () => {
     const { wrapper } = await mountLauncher('/documentos');
-    expect(wrapper.text()).toContain('O Coding 1.0 não é alterado');
+    expect(wrapper.text()).toContain('somente leitura');
+    expect(wrapper.text()).not.toMatch(/Coding 1\.0|Coding antigo|Coding atual/);
     wrapper.unmount();
   });
 
@@ -77,35 +96,46 @@ describe('Launcher · telas', () => {
 });
 
 describe('Launcher · aparência de loja', () => {
-  it('Início destaca o app funcional com ação real e não inventa documentos recentes', async () => {
+  it('Início mostra cards reais com “Abrir” e não inventa documentos recentes', async () => {
     const { wrapper } = await mountLauncher('/');
-    const hero = wrapper.find('[data-testid="featured"]');
-    expect(hero.text()).toContain('Etiquetas');
-    expect(hero.text()).toContain('Editor funcional');
-    expect(hero.find('a[href="/apps/etiquetas/"]').exists()).toBe(true);
+    const card = wrapper.find('article.card[data-tool="labels"]');
+    expect(card.text()).toContain('Etiquetas');
+    expect(card.text()).toContain('Editor funcional');
+    expect(card.find('a[href="/apps/etiquetas/"]').text()).toBe('Abrir');
     expect(wrapper.find('[data-testid="recent-docs"]').exists()).toBe(false);
-    expect(wrapper.text()).toContain('9 editores disponíveis');
     wrapper.unmount();
   });
 
-  it('Catálogo filtra por categoria e mostra o destaque só sem filtros', async () => {
+  it('favoritos vão para o começo da grade do Início', async () => {
+    localStorage.setItem('coding-v2-favorites', JSON.stringify(['paint']));
+    const { wrapper } = await mountLauncher('/');
+    expect(wrapper.findAll('article.card h3')[0]?.text()).toBe('Pintar');
+    wrapper.unmount();
+  });
+
+  it('Catálogo filtra pela lista suspensa de categorias e combina com a busca', async () => {
     const { wrapper } = await mountLauncher('/catalogo');
-    expect(wrapper.find('[data-testid="spotlight"]').exists()).toBe(true);
-    await wrapper.findAll('button.cat').find((b) => b.text() === 'Etiquetas e códigos')?.trigger('click');
-    expect(wrapper.findAll('article.card h3').map((h) => h.text()).sort()).toEqual(['Etiquetas', 'Planilha → Etiquetas', 'QR / Barras']);
-    expect(wrapper.find('[data-testid="spotlight"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="category-list"]').isVisible()).toBe(false);
+    await wrapper.get('[data-testid="category-button"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.get('[data-testid="category-list"]').isVisible()).toBe(true);
+    await wrapper.get('[data-category="labels"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.get('[data-testid="category-button"]').text()).toContain('Etiquetas e códigos');
+    expect(wrapper.findAll('article.card h3').map((h) => h.text()).sort()).toEqual(['Etiquetas', 'QR / Barras']);
+    await wrapper.get('#catalog-search').setValue('qr');
+    expect(wrapper.findAll('article.card h3').map((h) => h.text())).toEqual(['QR / Barras']);
+    await wrapper.get('#catalog-search').setValue('texto');
+    expect(wrapper.findAll('article.card')).toHaveLength(0);
     await wrapper.find('[data-testid="clear-filters"]').trigger('click');
     await flushPromises();
-    expect(wrapper.findAll('article.card')).toHaveLength(9);
+    expect(wrapper.findAll('article.card')).toHaveLength(tools.length);
     wrapper.unmount();
   });
 
-  it('cada card diz o que de fato existe: funcional, prévia ou em breve', async () => {
+  it('cada card diz que o editor é funcional', async () => {
     const { wrapper } = await mountLauncher('/catalogo');
     const meta = Object.fromEntries(wrapper.findAll('article.card').map((c) => [c.find('h3').text(), c.find('[data-testid="card-meta"]').text()]));
-    expect(meta['Etiquetas']).toContain('Editor funcional');
-    expect(meta['Texto']).toContain('Editor funcional');
-    expect(meta['Planilhas']).toContain('Editor funcional');
     expect(Object.values(meta).every((m) => m.includes('Editor funcional'))).toBe(true);
     wrapper.unmount();
   });
@@ -119,65 +149,103 @@ describe('Launcher · aparência de loja', () => {
     b.wrapper.unmount();
   });
 
-  it('Meus apps oferece ativar o que está desativado, sem instalar nada', async () => {
+  it('Meus apps mostra todos os aplicativos, sem ativar nem desativar nada', async () => {
     const { wrapper } = await mountLauncher('/meus-apps');
+    expect(wrapper.findAll('article.card')).toHaveLength(tools.length);
     expect(wrapper.find('[data-testid="available-to-activate"]').exists()).toBe(false);
-    await wrapper.find('button[aria-label="Desativar Texto no Launcher"]').trigger('click');
-    await flushPromises();
-    await wrapper.findAll('dialog button').find((b) => b.text() === 'Desativar atalho')?.trigger('click');
-    await flushPromises();
-    const box = wrapper.find('[data-testid="available-to-activate"]');
-    expect(box.text()).toContain('Texto');
-    expect(box.text()).toContain('não instala nada');
-    await box.find('button[aria-label="Ativar Texto no Launcher"]').trigger('click');
-    expect(wrapper.find('[data-testid="available-to-activate"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toMatch(/ativar|ativado|desativ/i);
     wrapper.unmount();
   });
 });
 
-describe('Launcher · ativação', () => {
-  it('desativar pede confirmação, mantém documentos e avisa leitores de tela', async () => {
+describe('Launcher · sem ativação de aplicativos', () => {
+  it('nenhuma tela oferece ativar ou desativar, e nenhum diálogo de desativação existe', async () => {
+    for (const path of ['/', '/meus-apps', '/catalogo', '/app/texts']) {
+      const { wrapper } = await mountLauncher(path);
+      expect(wrapper.findAll('button').filter((b) => /ativar|desativar/i.test(b.text() + (b.attributes('aria-label') ?? '')))).toHaveLength(0);
+      expect(document.querySelector('dialog[open]')).toBeNull();
+      wrapper.unmount();
+    }
+  });
+
+  it('preferência antiga de ativação (coding-v2-apps) é ignorada e não é apagada', async () => {
+    const old = JSON.stringify({ v: 2, known: ['labels'], enabled: ['labels'] });
+    localStorage.setItem('coding-v2-apps', old);
+    localStorage.setItem('coding-v2-favorites', JSON.stringify(['calc']));
     const { wrapper } = await mountLauncher('/meus-apps');
-    const button = wrapper.find('button[aria-label="Desativar Etiquetas no Launcher"]');
-    expect(button.exists()).toBe(true);
-    await button.trigger('click');
-    await flushPromises();
-    expect(document.querySelector('dialog[open]')).not.toBeNull();
-    expect(wrapper.text()).toContain('Seus documentos não são apagados');
-    const confirm = wrapper.findAll('dialog button').find((b) => b.text() === 'Desativar atalho');
-    await confirm?.trigger('click');
-    await flushPromises();
-    expect(wrapper.findAll('article.card')).toHaveLength(8);
-    expect(wrapper.find('[data-testid="announcer"]').text()).toContain('Seus documentos não foram removidos');
+    expect(wrapper.findAll('article.card')).toHaveLength(tools.length);
+    expect(localStorage.getItem('coding-v2-apps')).toBe(old);
+    expect(localStorage.getItem('coding-v2-favorites')).toBe(JSON.stringify(['calc']));
+    wrapper.unmount();
+  });
+});
+
+describe('Launcher · Ajustes em abas', () => {
+  it('tem as sete categorias e mostra só a atual', async () => {
+    const { wrapper } = await mountLauncher('/ajustes');
+    expect(wrapper.findAll('[role="tab"]').map((t) => t.text())).toEqual(['Geral', 'Aparência', 'Projetos', 'Offline', 'Atalhos', 'Avançado', 'Sobre']);
+    expect(wrapper.get('[role="tab"][aria-selected="true"]').text()).toBe('Geral');
+    expect(wrapper.find('[data-testid="general-summary"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="offline-manager"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="about-panel"]').exists()).toBe(false);
     wrapper.unmount();
   });
 
-  it('cancelar não altera nada', async () => {
-    const { wrapper } = await mountLauncher('/meus-apps');
-    await wrapper.find('button[aria-label="Desativar Texto no Launcher"]').trigger('click');
+  it('cada aba abre o seu conteúdo e a escolha vai para o endereço', async () => {
+    const expected: Record<string, string> = {
+      geral: 'general-summary', aparencia: 'motion-option', projetos: 'doc-counts', offline: 'offline-manager', atalhos: 'shortcuts-panel', avancado: 'advanced-panel', sobre: 'about-panel'
+    };
+    for (const t of settingsTabs) {
+      const { wrapper, router } = await mountLauncher('/ajustes?aba=' + t.id);
+      await flushPromises();
+      expect(wrapper.get('[data-testid="settings-panel"]').attributes('data-tab')).toBe(t.id);
+      expect(wrapper.find('[data-testid="' + expected[t.id] + '"]').exists(), t.id).toBe(true);
+      expect(router.currentRoute.value.query.aba).toBe(t.id);
+      wrapper.unmount();
+    }
+  });
+
+  it('clicar numa aba troca o painel, mantém o foco na aba e usa o seletor no celular', async () => {
+    const { wrapper, router } = await mountLauncher('/ajustes');
+    await wrapper.get('[data-testid="settings-tab-sobre"]').trigger('click');
     await flushPromises();
-    await wrapper.findAll('dialog button').find((b) => b.text() === 'Cancelar')?.trigger('click');
+    expect(router.currentRoute.value.query.aba).toBe('sobre');
+    expect(wrapper.find('[data-testid="about-panel"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="settings-picker"]').setValue('aparencia');
     await flushPromises();
-    expect(wrapper.findAll('article.card')).toHaveLength(9);
+    expect(router.currentRoute.value.query.aba).toBe('aparencia');
+    expect(wrapper.find('[data-testid="motion-option"]').exists()).toBe(true);
     wrapper.unmount();
   });
 
-  it('ativar de novo é imediato e os botões têm nome acessível específico', async () => {
-    const { wrapper } = await mountLauncher('/catalogo');
-    await wrapper.find('button[aria-label="Desativar Texto no Launcher"]').trigger('click');
-    await flushPromises();
-    await wrapper.findAll('dialog button').find((b) => b.text() === 'Desativar atalho')?.trigger('click');
-    await flushPromises();
-    const activate = wrapper.find('button[aria-label="Ativar Texto no Launcher"]');
-    expect(activate.exists()).toBe(true);
-    await activate.trigger('click');
-    expect(wrapper.find('button[aria-label="Desativar Texto no Launcher"]').exists()).toBe(true);
+  it('aba desconhecida volta para Geral', async () => {
+    const { wrapper } = await mountLauncher('/ajustes?aba=nada');
+    expect(wrapper.get('[role="tab"][aria-selected="true"]').text()).toBe('Geral');
+    wrapper.unmount();
+  });
+
+  it('Sobre mostra Coding, versão, compilação e o link do histórico, lidos do registro', async () => {
+    const { wrapper } = await mountLauncher('/ajustes?aba=sobre');
+    const release = latestOf('launcher', versionRecords)!;
+    expect(wrapper.get('[data-testid="about-name"]').text()).toBe('Coding');
+    expect(wrapper.get('[data-testid="about-version"]').text()).toBe('Versão ' + release.version);
+    expect(wrapper.get('[data-testid="about-build"]').text()).toBe(release.build);
+    expect(wrapper.get('[data-testid="about-history"]').attributes('href')).toBe('/versoes/');
+    expect(wrapper.get('[data-testid="about-panel"]').text()).not.toMatch(/Prévia|Preview|Coding atual|Antigo/);
+    wrapper.unmount();
+  });
+
+  it('Atalhos usa a mesma lista do menu de contexto, sem inventar', async () => {
+    const { wrapper } = await mountLauncher('/ajustes?aba=atalhos');
+    expect(wrapper.findAll('details.app')).toHaveLength(tools.length);
+    expect(wrapper.get('[data-testid="shortcuts-texts"]').text()).toContain('Ctrl+S');
     wrapper.unmount();
   });
 });
 
 describe('Launcher · acessibilidade (axe)', () => {
-  for (const path of ['/', '/meus-apps', '/catalogo', '/app/texts', '/app/calc', '/documentos', '/ajustes', '/nada']) {
+  const paths = ['/', '/meus-apps', '/catalogo', '/app/texts', '/app/calc', '/documentos', '/nada', ...settingsTabs.map((t) => '/ajustes?aba=' + t.id)];
+  for (const path of paths) {
     it('sem violações em ' + path, async () => {
       const { wrapper } = await mountLauncher(path);
       expect(await violations(wrapper.element)).toEqual([]);

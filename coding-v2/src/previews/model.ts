@@ -9,6 +9,17 @@ import { cleanNames, normalizeDraw } from '../apps/draw/model';
 import { normalizeImages } from '../apps/images/model';
 import { normalizePdf } from '../apps/pdf/model';
 import { normalizeSheetLabels } from '../apps/sheet-labels/model';
+import { normalizeCalc as normalizeCalculator, preview as calculatorLive } from '../apps/calculator/model';
+import { formatNumber } from '../apps/calculator/format';
+import { normalizeColors } from '../apps/colors/model';
+import { normalizeCompare, bothTextual } from '../apps/compare/model';
+import { compareText } from '../apps/compare/diff';
+import { normalizeViewer } from '../apps/viewer/model';
+import { KIND_LABELS } from '../apps/viewer/kinds';
+import { normalizePaint } from '../apps/paint/model';
+import { entryPage, normalizeCode, totalChars as codeChars } from '../apps/code/model';
+import { normalizeZip, totalSize as zipTotal } from '../apps/zip/model';
+import { formatBytes } from '../shared/bytes';
 
 /** Limites do que entra no cache: só o que cabe na primeira folha/tela precisa ser guardado. */
 export const MAX_PREVIEW_BLOCKS = 60;
@@ -82,7 +93,7 @@ export function textPreview(raw: unknown): Preview {
   return { kind: 'text', html: sanitizeTextHtml(out.body.innerHTML) };
 }
 
-const PREVIEW_TYPES = ['labels', 'texts', 'calc', 'sheet', 'codes', 'split', 'draw', 'images', 'pdf'] as const;
+const PREVIEW_TYPES = ['labels', 'texts', 'calc', 'sheet', 'codes', 'split', 'draw', 'images', 'pdf', 'calculator', 'colors', 'zip', 'compare', 'code', 'viewer', 'paint'] as const;
 export type PreviewType = typeof PREVIEW_TYPES[number];
 export function previewable(type: unknown): type is PreviewType { return typeof type === 'string' && (PREVIEW_TYPES as readonly string[]).includes(type); }
 const obj = (raw: unknown): Record<string, unknown> => (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {});
@@ -146,6 +157,70 @@ export function imagesPreview(raw: unknown): Preview {
   for (const l of [...s.layers].reverse().slice(0, 8)) lines.push([{ image: 'Imagem', text: 'Texto', rect: 'Retângulo', ellipse: 'Elipse' }[l.kind], (l.kind === 'text' ? (l.text ?? '').split('\n')[0] : l.name).slice(0, 30)]);
   return { kind: 'summary', title: s.name || 'Imagem', lines };
 }
+export function calculatorPreview(raw: unknown): Preview {
+  need(raw, 'history');
+  const s = normalizeCalculator(raw);
+  const lines: [string, string][] = [['Modo', s.mode === 'pro' ? 'Pro' : 'Básico']];
+  const live = calculatorLive(s);
+  if (s.expr.trim()) lines.push([s.expr.slice(0, 30), live && live.ok ? formatNumber(live.value, s.decimals) : '…']);
+  for (const h of s.history.slice(-6).reverse()) lines.push([h.expr.slice(0, 30), h.text.slice(0, 24)]);
+  if (s.vars.length) lines.push(['Variáveis', String(s.vars.length)]);
+  return { kind: 'summary', title: s.name || 'Calculadora', lines };
+}
+export function colorsPreview(raw: unknown): Preview {
+  need(raw, 'palette');
+  const s = normalizeColors(raw);
+  const lines: [string, string][] = [['Cor atual', s.base], ['Cores na paleta', String(s.palette.length)]];
+  for (const p of s.palette.slice(0, 8)) lines.push([(p.name || 'Cor').slice(0, 30), p.hex]);
+  return { kind: 'summary', title: s.name || 'Paleta de cores', lines };
+}
+export function zipPreview(raw: unknown): Preview {
+  need(raw, 'files');
+  const s = normalizeZip(raw);
+  const lines: [string, string][] = [['Arquivos', String(s.files.length)], ['Tamanho', formatBytes(zipTotal(s))], ['Gravação', s.compress ? 'Compactado' : 'Sem compressão']];
+  for (const f of s.files.slice(0, 6)) lines.push([f.path.slice(0, 30), formatBytes(f.size)]);
+  return { kind: 'summary', title: s.name || 'Arquivos compactados', lines };
+}
+export function comparePreview(raw: unknown): Preview {
+  const o = obj(raw);
+  if (typeof o.a !== 'object' || o.a === null || typeof o.b !== 'object' || o.b === null) throw new Error('Formato sem prévia');
+  const s = normalizeCompare(raw);
+  const lines: [string, string][] = [['A', s.a.name.slice(0, 30) + ' · ' + formatBytes(s.a.size)], ['B', s.b.name.slice(0, 30) + ' · ' + formatBytes(s.b.size)]];
+  if (bothTextual(s) && (s.a.kind !== 'empty' || s.b.kind !== 'empty')) {
+    const r = compareText(s.a.text, s.b.text, s.options);
+    if (r.tooLarge) lines.push(['Resultado', 'Arquivos grandes demais']);
+    else if (r.identical) lines.push(['Resultado', 'Idênticos']);
+    else lines.push(['Semelhança', r.stats.similarity + '%'], ['Trocadas', String(r.stats.changed)], ['Removidas', String(r.stats.removed)], ['Acrescentadas', String(r.stats.added)]);
+  } else if (!bothTextual(s)) lines.push(['Comparação', 'Byte a byte']);
+  return { kind: 'summary', title: s.name || 'Comparação de arquivos', lines };
+}
+export function codePreview(raw: unknown): Preview {
+  const o = obj(raw);
+  if (!Array.isArray(o.files) && typeof o.html !== 'string' && typeof o.css !== 'string' && typeof o.js !== 'string') throw new Error('Formato sem prévia');
+  const s = normalizeCode(raw);
+  const lines: [string, string][] = [['Arquivos', String(s.files.length + s.assets.length)]];
+  if (s.assets.length) lines.push(['Imagens e recursos', String(s.assets.length)]);
+  for (const f of s.files.slice(0, 5)) lines.push([f.path.slice(0, 30), f.text.split('\n').length + ' linhas']);
+  if (s.files.length > 5) lines.push(['Outros arquivos de texto', String(s.files.length - 5)]);
+  lines.push(['Tamanho', codeChars(s).toLocaleString('pt-BR') + ' caracteres']);
+  const page = entryPage(s);
+  const title = page ? /<title[^>]*>([^<]{1,60})<\/title>/i.exec(s.files.find((f) => f.path === page)?.text ?? '')?.[1]?.trim() : undefined;
+  if (title) lines.unshift(['Título da página', title]);
+  return { kind: 'summary', title: s.name || 'Projeto de código', lines };
+}
+export function viewerPreview(raw: unknown): Preview {
+  need(raw, 'files');
+  const s = normalizeViewer(raw);
+  const lines: [string, string][] = [['Arquivos', String(s.files.length)], ['Tamanho', formatBytes(s.files.reduce((n, f) => n + f.size, 0))]];
+  for (const f of s.files.slice(0, 6)) lines.push([f.name.slice(0, 30), KIND_LABELS[f.kind]]);
+  return { kind: 'summary', title: s.name || 'Arquivos para visualizar', lines };
+}
+export function paintPreview(raw: unknown): Preview {
+  need(raw, 'layers');
+  const s = normalizePaint(raw);
+  const lines: [string, string][] = [['Tela', s.width + ' × ' + s.height + ' px'], ['Camadas', String(s.layers.length)], ['Fundo', s.background === 'transparent' ? 'Transparente' : s.background]];
+  return { kind: 'summary', title: s.name || 'Desenho', lines };
+}
 export function pdfPreview(raw: unknown): Preview {
   need(raw, 'pages');
   const s = normalizePdf(raw);
@@ -165,6 +240,13 @@ export function buildPreview(type: string | undefined, state: unknown): Preview 
     case 'draw': return drawPreview(state);
     case 'images': return imagesPreview(state);
     case 'pdf': return pdfPreview(state);
+    case 'calculator': return calculatorPreview(state);
+    case 'colors': return colorsPreview(state);
+    case 'zip': return zipPreview(state);
+    case 'compare': return comparePreview(state);
+    case 'code': return codePreview(state);
+    case 'viewer': return viewerPreview(state);
+    case 'paint': return paintPreview(state);
     default: throw new Error('Tipo sem prévia');
   }
 }

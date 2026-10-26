@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CopySummary } from '../storage/documents';
-import { applyFilters, defaultFilters, filtersFromQuery, filtersToQuery, imagesSizeText, normalize, openHref, toolIdForType, toolsPresent } from './model';
+import { applyFilters, defaultFilters, filtersFromQuery, filtersToQuery, imagesSizeText, normalize, openHref, toolIdForType, toolsPresent, typeLabel } from './model';
 
 function copy(id: string, label: string, type: string, updatedAt: number, source: CopySummary['source'] = 'backup'): CopySummary {
   return { id, legacyId: id, source, label, revision: 1, createdAt: 1, updatedAt, type, imageCount: 0, imageBytes: null };
@@ -12,7 +12,8 @@ const list = [
 
 describe('modelo da biblioteca', () => {
   it('mapeia tipos antigos para as ferramentas do catálogo', () => {
-    expect(toolIdForType('sheet')).toBe('sheet-labels');
+    expect(toolIdForType('sheet')).toBe('labels');
+    expect(typeLabel('sheet')).toContain('descontinuado');
     expect(toolIdForType('labels')).toBe('labels');
     expect(toolIdForType('desconhecido')).toBeNull();
     expect(toolIdForType('toString')).toBeNull();
@@ -24,7 +25,7 @@ describe('modelo da biblioteca', () => {
     expect(applyFilters(list, { ...defaultFilters(), q: 'zzz' })).toEqual([]);
   });
   it('filtra por ferramenta e origem', () => {
-    expect(applyFilters(list, { ...defaultFilters(), tool: 'sheet-labels' }).map((c) => c.id)).toEqual(['3']);
+    expect(applyFilters(list, { ...defaultFilters(), tool: 'labels' }).map((c) => c.id)).toContain('3');
     expect(applyFilters(list, { ...defaultFilters(), origin: 'indexeddb' }).map((c) => c.id)).toEqual(['2']);
   });
   it('ordena por atualização e por nome (numérico, sem acento)', () => {
@@ -39,7 +40,7 @@ describe('modelo da biblioteca', () => {
     expect(list.map((c) => c.id)).toEqual(before);
   });
   it('lista só as ferramentas presentes', () => {
-    expect(toolsPresent(list).sort()).toEqual(['images', 'labels', 'sheet-labels', 'texts']);
+    expect(toolsPresent(list).sort()).toEqual(['images', 'labels', 'texts']);
   });
   it('filtros vão e voltam pela URL e valores inválidos são ignorados', () => {
     const f = { q: 'x', tool: 'labels' as const, origin: 'backup' as const, sort: 'name-asc' as const };
@@ -74,7 +75,7 @@ describe('modelo da biblioteca', () => {
     expect(openHref({ id: 'a', type: 'texts', legacyId: 'txt-1' })).toBeNull();
     expect(openHref({ id: 'a', type: 'images', legacyId: 'i' })).toBeNull();
     expect(openHref({ id: 'a', type: 'images', legacyId: 'v2-images-1' })).toBe('/apps/imagens/?doc=a');
-    expect(openHref({ id: 'a', type: 'sheet', legacyId: 'v2-sheet-1' })).toBe('/apps/planilha-etiquetas/?doc=a');
+    expect(openHref({ id: 'a', type: 'sheet', legacyId: 'v2-sheet-1' })).toBeNull();
     expect(openHref({ id: 'a', type: 'calc', legacyId: 'legado-calc' })).toBeNull();
   });
 });

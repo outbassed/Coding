@@ -3,19 +3,22 @@ import { INK, tools } from './catalog';
 import { contrast } from '../test/color';
 
 describe('catálogo', () => {
-  it('tem nove ferramentas com ids únicos', () => {
-    expect(tools).toHaveLength(9);
-    expect(new Set(tools.map((tool) => tool.id)).size).toBe(9);
+  it('tem ferramentas com ids únicos', () => {
+    expect(tools).toHaveLength(15);
+    expect(new Set(tools.map((tool) => tool.id)).size).toBe(tools.length);
   });
-  it('os nove apps existem no 2.0, abrem por endereço próprio e listam o que já funciona', () => {
-    expect(tools.every((tool) => tool.status === 'preview' && tool.initiallyActive)).toBe(true);
+  it('os 15 apps têm página própria e listam o que já funciona', () => {
+    expect(tools.every((tool) => tool.status === 'preview')).toBe(true);
     const paths = tools.map((tool) => tool.path);
     expect(paths.every((path) => typeof path === 'string' && /^\/apps\/[a-z-]+\/$/.test(path))).toBe(true);
-    expect(new Set(paths).size).toBe(9);
+    expect(new Set(paths).size).toBe(tools.length);
     expect(tools.every((tool) => tool.ready.length >= 3)).toBe(true);
   });
-  it('rotas da versão estável são únicas', () => {
-    expect(new Set(tools.map((tool) => tool.legacyHash)).size).toBe(9);
+  it('rotas de documentos anteriores são únicas; apps mais novos não têm rota antiga', () => {
+    const hashes = tools.map((tool) => tool.legacyHash).filter((hash): hash is string => hash !== null);
+    expect(new Set(hashes).size).toBe(hashes.length);
+    expect(hashes).toHaveLength(8);
+    for (const id of ['calculator', 'colors', 'zip', 'compare', 'code', 'viewer', 'paint']) expect(tools.find((tool) => tool.id === id)?.legacyHash).toBeNull();
   });
 });
 

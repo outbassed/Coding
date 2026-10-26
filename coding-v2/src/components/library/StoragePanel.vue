@@ -41,8 +41,8 @@ const pct = (): number => Math.min(100, Math.max(0, info.value?.percentage ?? 0)
     <p v-else-if="info && !info.supported" class="muted" data-testid="storage-unsupported">Este navegador não informa o espaço usado nem permite pedir armazenamento persistente.</p>
     <template v-else-if="info">
       <p data-testid="storage-usage">
-        Usado por este site: <strong>{{ info.usage === null ? 'não informado' : formatBytes(info.usage) }}</strong>
-        <template v-if="info.quota !== null"> de uma cota estimada de <strong>{{ formatBytes(info.quota) }}</strong><template v-if="info.percentage !== null"> ({{ info.percentage.toFixed(1).replace('.', ',') }}%)</template></template>.
+        Usado por este site: <strong>{{ formatBytes(info.usage) }}</strong>
+        <template v-if="info.quota !== null"> de uma cota estimada (não é espaço livre garantido) de <strong>{{ formatBytes(info.quota) }}</strong><template v-if="info.percentage !== null"> ({{ info.percentage.toFixed(1).replace('.', ',') }}%)</template></template>.
       </p>
       <progress v-if="info.percentage !== null" class="bar" max="100" :value="pct()" aria-label="Espaço usado da cota estimada"></progress>
       <p class="muted small">É uma estimativa do site inteiro, incluindo outros dados do Coding neste endereço. Não é o espaço livre do aparelho.</p>

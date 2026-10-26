@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-export type NavIconName = 'home' | 'apps' | 'catalog' | 'docs' | 'settings' | 'search' | 'back' | 'external' | 'check' | 'info' | 'close' | 'minus' | 'plus' | 'panel' | 'chevron-up' | 'chevron-down' | 'copy' | 'eye' | 'eye-off' | 'arrow-up' | 'arrow-down' | 'duplicate' | 'trash';
+export type NavIconName = 'home' | 'apps' | 'catalog' | 'docs' | 'settings' | 'search' | 'back' | 'external' | 'check' | 'info' | 'close' | 'minus' | 'plus' | 'panel' | 'chevron-up' | 'chevron-down' | 'copy' | 'eye' | 'eye-off' | 'arrow-up' | 'arrow-down' | 'duplicate' | 'trash' | 'lock' | 'unlock';
 const props = defineProps<{ name: NavIconName }>();
 /** Logos oficiais das cinco seções: casinha e chave inglesa clássicas + três logos novos no mesmo estilo. */
 const navLogos = {
@@ -24,6 +24,8 @@ const original = computed(() => restored[props.name]);
     <template v-else-if="name === 'arrow-down'"><path d="M12 4v16M5 13l7 7 7-7"/></template>
     <template v-else-if="name === 'duplicate'"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></template>
     <template v-else-if="name === 'trash'"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5"/></template>
+    <template v-else-if="name === 'lock'"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></template>
+    <template v-else-if="name === 'unlock'"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-1.9"/></template>
     <template v-else-if="name === 'home'"><path d="M4 11 12 4l8 7M6 9.5V20h12V9.5M10 20v-5h4v5"/></template>
     <template v-else-if="name === 'apps'"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></template>
     <template v-else-if="name === 'catalog'"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><path d="M16.75 13.5v7M13.25 17h7"/></template>
