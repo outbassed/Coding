@@ -6,7 +6,7 @@ export default defineConfig({
   fullyParallel: true,
   reporter: process.env.CI ? [['github'], ['list']] : 'list',
   retries: process.env.CI ? 0 : 0,
-  testMatch: process.env.CI ? /versos\.spec/ : undefined, // TEMPORÁRIO (diagnóstico)
+  testMatch: process.env.CI ? /(versos|zz-shots)\.spec/ : undefined, // TEMPORÁRIO (diagnóstico)
   use: { baseURL: 'http://127.0.0.1:4173' },
   webServer: {
     command: 'npx vite preview --port 4173 --host 127.0.0.1 --strictPort',
