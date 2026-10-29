@@ -158,7 +158,7 @@ export function detectRatio(width: number, height: number): RatioId {
   }
   return 'custom';
 }
-/** Dimensões ao trocar a proporção mantendo o lado maior (a resolução é escolhida à parte). */
+/** Dimensões ao trocar a proporção mantendo o lado maior (a resolução é escolhida à parte). Não limita: quem chama valida. */
 export function dimsForRatio(ratio: RatioId, width: number, height: number): { width: number; height: number } {
   if (ratio === 'custom') return { width, height };
   const r = ratioDef(ratio);
@@ -166,15 +166,16 @@ export function dimsForRatio(ratio: RatioId, width: number, height: number): { w
   const wide = r.w >= r.h;
   const w = wide ? long : Math.round((long * r.w) / r.h);
   const h = wide ? Math.round((long * r.h) / r.w) : long;
-  return { width: clamp(w, MIN_SIDE, MAX_SIDE), height: clamp(h, MIN_SIDE, MAX_SIDE) };
+  return { width: w, height: h };
 }
 /** Muda a largura (ou a altura) respeitando a proporção predefinida; em "custom" mexe só no lado pedido. */
 export function resizeKeepingRatio(scene: Pick<Scene, 'width' | 'height' | 'ratio'>, side: 'width' | 'height', value: number): { width: number; height: number } {
-  const v = Math.round(clamp(value, MIN_SIDE, MAX_SIDE));
+  const v = Math.round(value);
   if (scene.ratio === 'custom') return side === 'width' ? { width: v, height: scene.height } : { width: scene.width, height: v };
   const r = ratioDef(scene.ratio);
-  if (side === 'width') return { width: v, height: clamp(Math.round((v * r.h) / r.w), MIN_SIDE, MAX_SIDE) };
-  return { width: clamp(Math.round((v * r.w) / r.h), MIN_SIDE, MAX_SIDE), height: v };
+  // sem limitar: quem chama valida o resultado e mostra por que não cabe (em vez de mudar a proporção em silêncio)
+  if (side === 'width') return { width: v, height: Math.round((v * r.h) / r.w) };
+  return { width: Math.round((v * r.w) / r.h), height: v };
 }
 export const pixelCount = (scene: Pick<Scene, 'width' | 'height'>): number => scene.width * scene.height;
 
@@ -363,9 +364,12 @@ export function presetStyle(preset: StylePreset, sceneHeight: number): TextStyle
 // ---------- nomes de arquivos ----------
 
 export type ExportKind = 'full' | 'text';
+/** Nome-base seguro de arquivo a partir do nome do projeto. */
+export function projectBaseName(project: string): string {
+  return project.normalize('NFC').replace(/[^\p{L}\p{N} ._-]+/gu, '-').replace(/\s+/g, ' ').trim().replace(/^[-. ]+|[-. ]+$/g, '').slice(0, 60) || 'versos';
+}
 /** `projeto-001.png`, `projeto-001-texto.png`: previsíveis e na ordem das cenas. */
 export function exportFileName(project: string, index: number, total: number, kind: ExportKind, extension = 'png'): string {
-  const base = project.normalize('NFC').replace(/[^\p{L}\p{N} ._-]+/gu, '-').replace(/\s+/g, ' ').trim().replace(/^[-. ]+|[-. ]+$/g, '').slice(0, 60) || 'versos';
   const width = Math.max(3, String(total).length);
-  return base + '-' + String(index + 1).padStart(width, '0') + (kind === 'text' ? '-texto' : '') + '.' + extension;
+  return projectBaseName(project) + '-' + String(index + 1).padStart(width, '0') + (kind === 'text' ? '-texto' : '') + '.' + extension;
 }
