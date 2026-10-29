@@ -17,7 +17,7 @@ test('prepara capturas', async ({ browser }) => {
     await page.getByTestId('versos-canvas').waitFor();
     if (s.tab) {
       await page.getByTestId('editor-tabs').getByRole('tab', { name: s.tab, exact: true }).click();
-      await page.getByTestId('text-pick').first().click().catch(() => undefined);
+      await page.getByTestId('text-pick').first().click({ timeout: 1500 }).catch(() => undefined);
     }
     await page.waitForTimeout(1500);
     shots[s.name] = (await page.screenshot({ type: 'jpeg', quality: 30 })).toString('base64');
