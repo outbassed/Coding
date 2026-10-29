@@ -3,8 +3,9 @@ import { test } from '@playwright/test';
 /* TEMPORÁRIO: captura telas em baixa resolução e as devolve em pedaços nas mensagens de erro. Será removido. */
 const shots: Record<string, string> = {};
 const SPECS = [
-  { name: 'm2', w: 390, h: 844, f: 0.55, scheme: 'dark' as const, url: '/apps/versos/?modelo=citacao', tab: 'Textos' },
-  { name: 'd1', w: 1280, h: 720, f: 0.55, scheme: 'light' as const, url: '/apps/versos/?modelo=letra', tab: 'Textos' }
+  { name: 'm2', w: 390, h: 844, f: 0.5, scheme: 'dark' as const, url: '/apps/versos/?modelo=citacao', tab: 'Textos' },
+  { name: 'm3', w: 390, h: 844, f: 0.5, scheme: 'light' as const, url: '/apps/versos/?modelo=letra', tab: 'Cena' },
+  { name: 'd2', w: 1280, h: 720, f: 0.45, scheme: 'dark' as const, url: '/apps/versos/?modelo=story', tab: 'Estilos' }
 ];
 const CHUNK = 3800, CHUNKS = 6;
 

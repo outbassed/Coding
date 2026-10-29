@@ -50,7 +50,7 @@ async function onImportBackground(event: Event): Promise<void> {
 </script>
 
 <template>
-  <EditorShell v-model:tab="tab" app="versos" :doc="doc" :tabs="tabs" side-label="Cenas" :start-open="false">
+  <EditorShell v-model:tab="tab" app="versos" :doc="doc" :tabs="tabs" side-label="Cenas" :start-open="false" :chrome="330">
     <template #head>
       <div class="vs-head" role="group" aria-label="Arquivo">
         <button type="button" class="btn vs-hb vs-wide-only" title="Salvar agora (Ctrl+S)" data-testid="save-now" @click="doc.saveNow()">

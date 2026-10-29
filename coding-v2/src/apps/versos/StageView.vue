@@ -169,7 +169,7 @@ const label = computed(() => {
       <span class="z" data-testid="zoom" aria-live="off">{{ zoomText }}</span>
       <button type="button" class="ib" aria-label="Aumentar zoom" @click="setZoom(scale * 1.25)">+</button>
       <button type="button" class="btn small" @click="zoom = 0">Ajustar</button>
-      <button type="button" class="btn small" @click="zoom = 1">100%</button>
+      <button type="button" class="btn small z100" @click="zoom = 1">100%</button>
       <span class="muted dims" data-testid="scene-dims">{{ v.scene.width }} × {{ v.scene.height }} px</span>
     </div>
   </div>
@@ -197,4 +197,6 @@ const label = computed(() => {
 .z { min-width: 48px; text-align: center; font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
 .small { min-height: 36px; padding: 4px 10px; font-size: 13px; }
 .dims { font-size: 12.5px; margin-left: auto; font-variant-numeric: tabular-nums; }
+/* celular: a barra de zoom fica numa linha só (as medidas da cena aparecem na aba Cena) */
+@media (max-width: 899px) { .dims, .z100 { display: none; } .zoombar { flex-wrap: nowrap; justify-content: center; } }
 </style>

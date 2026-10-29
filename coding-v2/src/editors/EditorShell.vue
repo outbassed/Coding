@@ -32,7 +32,7 @@ export interface ShellTab { id: string; label: string }
  * mobile com prévia acima, BottomSheet ajustável e abas fixas na parte inferior.
  * Só uma instância de cada painel é montada em qualquer breakpoint.
  */
-const props = withDefaults(defineProps<{ app: ToolId; doc: ShellDoc; tabs: ShellTab[]; sideLabel?: string; history?: boolean; startOpen?: boolean }>(), { sideLabel: '', history: true, startOpen: true });
+const props = withDefaults(defineProps<{ app: ToolId; doc: ShellDoc; tabs: ShellTab[]; sideLabel?: string; history?: boolean; startOpen?: boolean; chrome?: number }>(), { sideLabel: '', history: true, startOpen: true, chrome: 208 });
 const tab = defineModel<string>('tab', { required: true });
 useSettingsStore();
 const tool = getTool(props.app);
@@ -161,7 +161,7 @@ const inspector = useResizableSidebar(props.app + '-properties', 288, 240, 400, 
       </aside>
       <template v-if="!wide">
         <BottomSheet v-if="panelOpen" v-model:snap="snap" class="es-mobile-sheet" :title="currentTitle"
-          :style="{ '--chrome': '208px', ...(snap === 'full' ? { maxHeight: 'min(70dvh, calc(var(--vv-h, 100dvh) - 220px))' } : {}) }"
+          :style="{ '--chrome': props.chrome + 'px', ...(snap === 'full' ? { maxHeight: 'min(70dvh, calc(var(--vv-h, 100dvh) - 220px))' } : {}) }"
           @close="panelOpen = false">
           <section v-if="tab === INSPECTOR && $slots.inspector" id="es-panel" role="tabpanel" :aria-labelledby="'es-tab-' + tab" data-testid="editor-panel">
             <slot name="inspector" />
