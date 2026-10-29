@@ -1057,7 +1057,7 @@ test.describe('Versos · teclado, menu de contexto e acessibilidade', () => {
       const id = await page.evaluate(() => (document.activeElement as HTMLElement | null)?.getAttribute('data-testid') ?? document.activeElement?.getAttribute('aria-label') ?? '');
       if (id) reached.add(id);
     }
-    for (const id of ['undo', 'add-scene', 'scene-pick', 'versos-viewport', 'scene-prev', 'scene-next']) expect(reached.has(id), id).toBe(true);
+    for (const id of ['undo', 'add-scene', 'scene-pick', 'versos-viewport', 'scene-prev', 'footer-add-scene']) expect(reached.has(id), id).toBe(true);
     const outline = await page.evaluate(() => { const el = document.activeElement as HTMLElement; const s = getComputedStyle(el); return s.outlineStyle + s.boxShadow; });
     expect(outline).not.toBe('nonenone');
   });
