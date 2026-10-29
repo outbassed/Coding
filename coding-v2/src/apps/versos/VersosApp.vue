@@ -113,7 +113,7 @@ async function onImportBackground(event: Event): Promise<void> {
 @media (max-width: 899px) {
   .vf { gap: 4px; }
   .vf-nav { flex-wrap: nowrap; gap: 4px; justify-content: space-between; }
-  .vf-nav > .ib { flex: none; width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; }
+  .vf-nav > .ib { flex: none; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; }
   .vf-pos { flex: 1; min-width: 0; font-size: 12px; }
   .vf-add { flex: none; min-height: 36px; margin-left: 0; padding: 4px 10px; font-size: 12px; }
 }
