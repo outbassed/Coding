@@ -45,7 +45,7 @@ test.describe('Central de Versões · rotas', () => {
   test('os arquivos estáticos de cada rota existem no build (hospedagem sem regras de reescrita)', () => {
     const base = readFileSync('dist/versoes/index.html', 'utf8');
     const slugs = allSlugs();
-    expect(slugs).toHaveLength(16);
+    expect(slugs).toHaveLength(17);
     for (const slug of slugs) {
       for (const root of ['versoes', 'versions']) {
         const file = 'dist/' + root + '/' + slug + '/index.html';
