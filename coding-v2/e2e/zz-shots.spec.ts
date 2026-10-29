@@ -6,7 +6,7 @@ const SPECS = [
   { name: 'm2', w: 390, h: 844, f: 0.55, scheme: 'dark' as const, url: '/apps/versos/?modelo=citacao', tab: 'Textos' },
   { name: 'd1', w: 1280, h: 720, f: 0.55, scheme: 'light' as const, url: '/apps/versos/?modelo=letra', tab: 'Textos' }
 ];
-const CHUNK = 7500, CHUNKS = 4;
+const CHUNK = 3800, CHUNKS = 6;
 
 test('prepara capturas', async ({ browser }) => {
   for (const s of SPECS) {
@@ -24,6 +24,6 @@ test('prepara capturas', async ({ browser }) => {
   }
   for (const sp of SPECS) {
     const data = shots[sp.name] ?? '';
-    for (let i = 0; i < CHUNKS; i++) console.log('::notice title=S' + sp.name + i + '::SHOT:' + sp.name + ':' + i + ':' + data.length + ':' + data.slice(i * CHUNK, (i + 1) * CHUNK) + ':END');
+    for (let i = 0; i < Math.min(CHUNKS, Math.ceil(data.length / CHUNK)); i++) console.log('::notice title=S' + sp.name + i + '::SHOT:' + sp.name + ':' + i + ':' + data.length + ':' + data.slice(i * CHUNK, (i + 1) * CHUNK) + ':END');
   }
 });
