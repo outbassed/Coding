@@ -15,7 +15,10 @@ import type { VersionRecord } from './versions';
  */
 export const versionRecords: readonly VersionRecord[] = [
   {
-    target: 'launcher', version: '2.0.1', build: '29.10.26.200822', releaseDate: '2026-10-29', releaseTime: '20:08:22',
+    target: 'launcher', version: '2.0.1', build: '29.10.26.201511', releaseDate: '2026-10-29', releaseTime: '20:15:11',
+    novidades: [
+      'Coding Launcher 2.0 publicado no domínio oficial com 16 aplicativos, incluindo o Versos.'
+    ],
     melhorias: [
       'Instalação offline por aplicativo e instalação como PWA habilitadas no domínio oficial codingtxt.vercel.app.'
     ],
