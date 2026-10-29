@@ -950,6 +950,15 @@ test.describe('Versos · celular', () => {
     await noHorizontalScroll(page);
   });
 
+  test('arquivo inválido expõe o erro do player mesmo quando o painel mobile foi recolhido', async ({ page }) => {
+    await openVersos(page);
+    await openPlayer(page);
+    await page.getByTestId('media-input').setInputFiles({ name: 'invalido.mp3', mimeType: 'audio/mpeg', buffer: Buffer.from('arquivo nao e mp3 '.repeat(40)) });
+    await expect(page.getByTestId('player-toggle')).toHaveAttribute('aria-expanded', 'true', { timeout: 10000 });
+    await expect(page.getByTestId('player-error')).toBeVisible();
+    await expect(canvas(page)).toBeVisible();
+  });
+
   test('27. layout próprio no celular: prévia principal, abas, cenas e propriedades em gaveta, sem rolagem horizontal', async ({ page }) => {
     await openVersos(page);
     await expect(page.getByTestId('editor-sidebar')).toHaveCount(0);
