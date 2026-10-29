@@ -1083,6 +1083,18 @@ test.describe('Versos · teclado, menu de contexto e acessibilidade', () => {
     await page.keyboard.press('Escape');
   });
 
+  test('Alt+Shift+N adiciona um texto e Alt+Shift+E leva à exportação', async ({ page }) => {
+    await openVersos(page);
+    await page.getByTestId('editor-stage').focus();
+    await page.keyboard.press('Alt+Shift+N');
+    await expect(page.getByTestId('text-content')).toBeVisible();
+    await tab(page, 'Textos').click();
+    await expect(textItems(page)).toHaveCount(1);
+    await page.getByTestId('editor-stage').focus();
+    await page.keyboard.press('Alt+Shift+E');
+    await expect(page.getByTestId('export-scene')).toBeVisible();
+  });
+
   test('o editor desktop passa na verificação de acessibilidade (claro e escuro)', async ({ page }) => {
     for (const scheme of ['light', 'dark'] as const) {
       await page.emulateMedia({ colorScheme: scheme });
