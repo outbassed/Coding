@@ -56,8 +56,8 @@ test.describe('Central de Versões · rotas', () => {
     await expect(page.getByTestId('modal-sec-correcoes')).toContainText('zoom automático');
     await page.getByTestId('modal-close').click();
     await page.goto('/launcher/#/app/versos');
-    // O caminho exato de Detalhes é definido pelo roteador do Launcher.
-    // Se a rota acima mudar, a checagem de registro comum continua no teste unitário.
+    await expect(page.getByTestId('app-version')).toHaveText('1.0.1');
+    await expect(page.getByTestId('app-build')).toHaveText(releases[0]!.build);
   });
 
   test('os arquivos estáticos de cada rota existem no build (hospedagem sem regras de reescrita)', () => {
