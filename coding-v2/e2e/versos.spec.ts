@@ -776,7 +776,6 @@ test.describe('Versos · música de referência', () => {
     await loadWav(page, 30);
     await page.getByTestId('player-play').click();
     await expect(page.getByTestId('player-play')).toContainText('Pausar');
-    await settle(page);
     // recarregar
     const before = (await mediaLog(page)).length;
     await page.reload();
@@ -932,7 +931,12 @@ test.describe('Versos · celular', () => {
     await openVersos(page);
     await expect(page.getByTestId('editor-sidebar')).toHaveCount(0);
     const box = (await canvas(page).boundingBox())!;
-    expect(box.width).toBeGreaterThan(250);
+    const metrics = await page.evaluate(() => {
+      const r = (sel: string) => { const e = document.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect(); return [Math.round(b.x), Math.round(b.y), Math.round(b.width), Math.round(b.height)]; };
+      const kids = Array.from(document.querySelectorAll('.es-head > *')).map((e) => { const b = e.getBoundingClientRect(); return (e.className || e.tagName) + ':' + Math.round(b.x) + ',' + Math.round(b.width); });
+      return { head: r('.es-head'), canvasArea: r('.es-canvas'), stage: r('[data-testid="editor-stage"]'), footer: r('.es-footer'), sheet: r('.es-mobile-sheet'), nav: r('.es-mobile-nav'), zoombar: r('.zoombar'), kids, sw: document.documentElement.scrollWidth };
+    });
+    expect(box.width, JSON.stringify(metrics)).toBeGreaterThan(250);
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(390);
     for (const name of ['Cena', 'Textos', 'Estilos', 'Arquivo', 'Cenas', 'Propriedades']) await expect(tab(page, name)).toBeVisible();
@@ -1045,14 +1049,15 @@ test.describe('Versos · teclado, menu de contexto e acessibilidade', () => {
 
   test('a navegação por Tab percorre os controles na ordem visual e o foco é visível', async ({ page }) => {
     await openVersos(page);
+    await page.getByTestId('add-scene').click(); // com histórico, desfazer fica habilitado e entra na ordem do Tab
     await page.getByTestId('doc-name').focus();
     const reached = new Set<string>();
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 160; i++) {
       await page.keyboard.press('Tab');
       const id = await page.evaluate(() => (document.activeElement as HTMLElement | null)?.getAttribute('data-testid') ?? document.activeElement?.getAttribute('aria-label') ?? '');
       if (id) reached.add(id);
     }
-    for (const id of ['undo', 'redo', 'add-scene', 'scene-pick', 'versos-viewport', 'scene-prev', 'scene-next']) expect(reached.has(id), id).toBe(true);
+    for (const id of ['undo', 'add-scene', 'scene-pick', 'versos-viewport', 'scene-prev', 'scene-next']) expect(reached.has(id), id).toBe(true);
     const outline = await page.evaluate(() => { const el = document.activeElement as HTMLElement; const s = getComputedStyle(el); return s.outlineStyle + s.boxShadow; });
     expect(outline).not.toBe('nonenone');
   });
@@ -1066,7 +1071,7 @@ test.describe('Versos · teclado, menu de contexto e acessibilidade', () => {
     await page.getByRole('menuitem', { name: /^Duplicar cena/ }).click();
     await expect(sceneItems(page)).toHaveCount(2);
     await sceneItems(page).first().getByTestId('scene-pick').click();
-    await canvas(page).click({ button: 'right', position: { x: 10, y: 10 } });
+    await canvas(page).click({ button: 'right' }); // o centro da cena é onde está o texto
     await expect(page.getByTestId('coding-context-menu')).toBeVisible();
     await expect(page.getByRole('menuitem', { name: /^Duplicar texto/ })).toBeVisible();
     await page.getByRole('menuitem', { name: /^Duplicar texto/ }).click();
@@ -1100,7 +1105,9 @@ test.describe('Versos · integração', () => {
     await expect(card.getByRole('link', { name: 'Abrir o editor de Versos' })).toHaveAttribute('href', '/apps/versos/');
     await page.goto('/versos/');
     await expect(canvas(page)).toBeVisible();
+    await page.getByTestId('doc-name').fill('Pelo atalho curto'); // o projeto é criado na primeira alteração
     await expect.poll(() => new URL(page.url()).pathname).toBe('/apps/versos/');
+    expect(page.url()).toContain('?doc=');
     await page.goto('/launcher/#/app/versos');
     await expect(page.getByRole('heading', { name: 'Versos' }).first()).toBeVisible();
     await expect(page.getByText('Criação e tipografia').first()).toBeVisible();

@@ -32,7 +32,7 @@ export interface ShellTab { id: string; label: string }
  * mobile com prévia acima, BottomSheet ajustável e abas fixas na parte inferior.
  * Só uma instância de cada painel é montada em qualquer breakpoint.
  */
-const props = withDefaults(defineProps<{ app: ToolId; doc: ShellDoc; tabs: ShellTab[]; sideLabel?: string; history?: boolean }>(), { sideLabel: '', history: true });
+const props = withDefaults(defineProps<{ app: ToolId; doc: ShellDoc; tabs: ShellTab[]; sideLabel?: string; history?: boolean; startOpen?: boolean }>(), { sideLabel: '', history: true, startOpen: true });
 const tab = defineModel<string>('tab', { required: true });
 useSettingsStore();
 const tool = getTool(props.app);
@@ -41,7 +41,8 @@ const inspectorDocked = useMediaQuery('(min-width: 1180px)', true);
 const slots = useSlots();
 const root = ref<HTMLElement | null>(null);
 useVisualViewport(() => root.value);
-const panelOpen = ref(true);
+/** No celular a gaveta começa aberta, salvo em apps cuja prévia é o foco (`startOpen=false`). */
+const panelOpen = ref(props.startOpen);
 const desktopToolsOpen = ref(true);
 const inspectorOpen = ref(true);
 const INSPECTOR = '__inspector';
