@@ -17,7 +17,13 @@ const zoom = ref(0); // 0 = ajustar à área
 const boxes = shallowRef<BlockBox[]>([]);
 const missing = ref<string[]>([]);
 
-const fit = computed(() => Math.max(0.02, Math.min(4, Math.min((box.value.w - 24) / props.v.scene.width, (box.value.h - 24) / props.v.scene.height))));
+const fit = computed(() => {
+  // O tamanho da prévia depende do espaço REAL depois do cabeçalho, player e gaveta;
+  // evite um zoom mínimo forçado que extrapola o viewport quando a altura muda.
+  const availableW = Math.max(1, box.value.w - 20);
+  const availableH = Math.max(1, box.value.h - 20);
+  return Math.max(0.005, Math.min(4, availableW / props.v.scene.width, availableH / props.v.scene.height));
+});
 const scale = computed(() => (zoom.value > 0 ? zoom.value : fit.value));
 const zoomText = computed(() => Math.round(scale.value * 100) + '%');
 function setZoom(value: number): void { zoom.value = Math.max(0.02, Math.min(4, value)); }
@@ -198,5 +204,11 @@ const label = computed(() => {
 .small { min-height: 36px; padding: 4px 10px; font-size: 13px; }
 .dims { font-size: 12.5px; margin-left: auto; font-variant-numeric: tabular-nums; }
 /* celular: a barra de zoom fica numa linha só (as medidas da cena aparecem na aba Cena) */
-@media (max-width: 899px) { .dims, .z100 { display: none; } .zoombar { flex-wrap: nowrap; justify-content: center; } }
+@media (max-width: 899px) {
+  .viewport { padding: 8px; }
+  .dims, .z100 { display: none; }
+  .zoombar { flex-wrap: nowrap; justify-content: center; padding: 2px 8px; gap: 4px; }
+  .zoombar .ib { min-width: 38px; min-height: 38px; padding: 0; }
+  .zoombar .small { min-height: 36px; }
+}
 </style>

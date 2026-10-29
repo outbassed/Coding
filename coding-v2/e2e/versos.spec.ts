@@ -927,6 +927,38 @@ test.describe('Versos · fontes', () => {
 test.describe('Versos · celular', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
+  test('regressão: importar música mantém o player compacto e a prévia legível, mesmo com a gaveta aberta', async ({ page }) => {
+    await openVersos(page);
+    await openPlayer(page);
+    await page.getByTestId('media-input').setInputFiles({ name: 'referencia.wav', mimeType: 'audio/wav', buffer: makeWav(20) });
+    await expect(page.getByTestId('player-toggle')).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('player-quick')).toBeVisible();
+    await expect(page.getByTestId('player-play')).toBeHidden();
+    await expect(page.getByTestId('player-toggle')).toContainText('referencia.wav');
+    const fit = (await canvas(page).boundingBox())!;
+    expect(fit.width, 'prévia deve ser grande quando player está recolhido').toBeGreaterThan(235);
+    expect(fit.height).toBeGreaterThan(235);
+    await page.getByTestId('player-quick').click();
+    await expect(page.getByTestId('player-quick')).toHaveAttribute('aria-label', 'Pausar');
+    await tab(page, 'Cena').click();
+    await expect(page.getByTestId('bottom-sheet')).toBeVisible();
+    await expect.poll(async () => (await canvas(page).boundingBox())?.width ?? 0).toBeGreaterThan(185);
+    await expect(page.getByTestId('player-toggle')).toHaveAttribute('aria-expanded', 'false');
+    await page.getByTestId('footer-add-scene').click();
+    await expect(page.getByTestId('scene-position')).toHaveText('Cena 2 de 2');
+    await expect(page.getByTestId('player-quick')).toHaveAttribute('aria-label', 'Pausar');
+    await noHorizontalScroll(page);
+  });
+
+  test('arquivo inválido expõe o erro do player mesmo quando o painel mobile foi recolhido', async ({ page }) => {
+    await openVersos(page);
+    await openPlayer(page);
+    await page.getByTestId('media-input').setInputFiles({ name: 'invalido.mp3', mimeType: 'audio/mpeg', buffer: Buffer.from('arquivo nao e mp3 '.repeat(40)) });
+    await expect(page.getByTestId('player-toggle')).toHaveAttribute('aria-expanded', 'true', { timeout: 10000 });
+    await expect(page.getByTestId('player-error')).toBeVisible();
+    await expect(canvas(page)).toBeVisible();
+  });
+
   test('27. layout próprio no celular: prévia principal, abas, cenas e propriedades em gaveta, sem rolagem horizontal', async ({ page }) => {
     await openVersos(page);
     await expect(page.getByTestId('editor-sidebar')).toHaveCount(0);
