@@ -24,6 +24,8 @@ const kindLabel = computed(() => (snap.value.kind === 'video' ? 'vídeo (só o �
 let raf = 0;
 function loop(): void { player.tick(); raf = requestAnimationFrame(loop); }
 watch(playing, (on) => { cancelAnimationFrame(raf); if (on) raf = requestAnimationFrame(loop); }, { immediate: true });
+// Se o navegador não conseguir decodificar um arquivo, mostre o erro mesmo no celular.
+watch(() => snap.value.status, (status) => { if (status === 'error') open.value = true; });
 onBeforeUnmount(() => { cancelAnimationFrame(raf); disposePlayer(); }); // sair do editor encerra a reprodução
 
 function pick(): void { fileInput.value?.click(); }
@@ -40,7 +42,7 @@ function onFile(event: Event): void {
   if (check.level === 'warn') notice.value = check.message;
   if (player.load(file)) {
     // No celular a música é secundária: carregar não deve esconder a composição com controles grandes.
-    open.value = !window.matchMedia('(max-width: 899px)').matches;
+    open.value = !window.matchMedia('(max-width: 899px)').matches || check.level === 'warn';
     emit('announce', 'Arquivo de referência carregado: ' + file.name + '. Use Tocar para ouvir.');
   }
 }
