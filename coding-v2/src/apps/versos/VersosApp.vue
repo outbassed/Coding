@@ -53,11 +53,11 @@ async function onImportBackground(event: Event): Promise<void> {
   <EditorShell v-model:tab="tab" app="versos" :doc="doc" :tabs="tabs" side-label="Cenas" :start-open="false">
     <template #head>
       <div class="vs-head" role="group" aria-label="Arquivo">
-        <button type="button" class="btn vs-hb" title="Salvar agora (Ctrl+S)" data-testid="save-now" @click="doc.saveNow()">
+        <button type="button" class="btn vs-hb vs-wide-only" title="Salvar agora (Ctrl+S)" data-testid="save-now" @click="doc.saveNow()">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6"/></svg>
           <span class="vs-hl">Salvar</span>
         </button>
-        <button type="button" class="btn vs-hb" title="Importar imagem de fundo para esta cena" data-testid="import-bg" @click="fileInput?.click()">
+        <button type="button" class="btn vs-hb vs-wide-only" title="Importar imagem de fundo para esta cena" data-testid="import-bg" @click="fileInput?.click()">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></svg>
           <span class="vs-hl">Importar</span>
         </button>
@@ -103,7 +103,8 @@ async function onImportBackground(event: Event): Promise<void> {
 <style scoped>
 .vs-head { display: inline-flex; gap: 6px; flex: none; }
 .vs-hb { min-height: 40px; padding: 4px 10px; font-size: 13px; }
-@media (max-width: 899px) { .vs-hl { display: none; } .vs-hb { min-width: 44px; min-height: 44px; padding: 0; } }
+/* celular: o cabeçalho é estreito; só Exportar fica, e Salvar/Importar continuam em Arquivo e Cena (e o projeto salva sozinho) */
+@media (max-width: 899px) { .vs-hl, .vs-wide-only { display: none; } .vs-hb { min-width: 44px; min-height: 44px; padding: 0; } }
 .vs-loading { position: absolute; inset: auto 0 12px 0; margin: 0 auto; width: fit-content; padding: 6px 14px; border-radius: 99px; background: var(--surface); border: 1px solid var(--border); font-weight: 700; font-size: 13px; box-shadow: var(--shadow); }
 .vf { display: grid; gap: 6px; min-width: 0; }
 .vf-nav { display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; }
