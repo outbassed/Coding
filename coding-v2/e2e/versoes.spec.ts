@@ -35,11 +35,29 @@ test.describe('Central de Versões · rotas', () => {
       await page.goto(url);
       await expect(page.getByTestId('versions-title'), url).toHaveText(t.name);
       await expect(page.getByTestId('menu-' + t.id)).toHaveAttribute('aria-current', 'page');
-      await expect(page.getByTestId('version-list').getByRole('button').first()).toContainText(t.name + ' — 1.0.0 — ');
+      await expect(page.getByTestId('version-list').getByRole('button').first()).toContainText(t.name + ' — ' + recordsFor(t.id, versionRecords)[0]!.version + ' — ');
       await page.reload();
       await expect(page.getByTestId('versions-title'), 'recarregado ' + url).toHaveText(t.name);
       expect(new URL(page.url()).pathname).toBe(url);
     }
+  });
+
+  test('Versos 1.0.1 mostra compilação nova, preserva o 1.0.0 e concorda com Detalhes', async ({ page }) => {
+    const releases = recordsFor('versos', versionRecords);
+    expect(releases.map((r) => r.version).slice(0, 2)).toEqual(['1.0.1', '1.0.0']);
+    expect(releases[0]!.build).not.toBe(releases[1]!.build);
+    await page.goto('/versoes/versos/');
+    const latest = page.getByTestId('version-1.0.1');
+    await expect(latest).toContainText('Versos — 1.0.1 — ' + releases[0]!.build);
+    await expect(page.getByTestId('version-1.0.0')).toBeVisible();
+    await latest.click();
+    await expect(page.getByTestId('modal-version')).toHaveText('1.0.1');
+    await expect(page.getByTestId('modal-build')).toHaveText(releases[0]!.build);
+    await expect(page.getByTestId('modal-sec-correcoes')).toContainText('zoom automático');
+    await page.getByTestId('modal-close').click();
+    await page.goto('/launcher/#/app/versos');
+    await expect(page.getByTestId('app-version')).toHaveText('1.0.1');
+    await expect(page.getByTestId('app-build')).toHaveText(releases[0]!.build);
   });
 
   test('os arquivos estáticos de cada rota existem no build (hospedagem sem regras de reescrita)', () => {
