@@ -15,6 +15,25 @@ import type { VersionRecord } from './versions';
  */
 export const versionRecords: readonly VersionRecord[] = [
   {
+    target: 'versos', version: '1.0.1', build: '28.10.26.235345', releaseDate: '2026-10-28', releaseTime: '23:53:45',
+    melhorias: [
+      'No celular, o player musical fica compacto depois da importação: a prévia volta a ocupar o espaço principal.',
+      'Controle rápido de Play/Pause, nome do arquivo, andamento e tempo da música diretamente na barra recolhida.',
+      'Cabeçalho, navegação de cenas, barra de zoom e gaveta de ferramentas mais compactos no celular.'
+    ],
+    correcoes: [
+      'Ajustado o zoom automático ao espaço disponível da prévia, inclusive ao abrir ou fechar ferramentas.',
+      'Ao trocar de cena, a música continua tocando normalmente.',
+      'Avisos de arquivos grandes e erros de reprodução continuam acessíveis mesmo com o player compacto.',
+      'Alvos de toque da navegação preservados com pelo menos 44 px.'
+    ],
+    alteracoesTecnicas: [
+      'Atualização do player reduzida para oito vezes por segundo para economizar processamento.',
+      'Incluídos testes automatizados de regressão mobile, player musical e visualização da prévia.'
+    ],
+    prUrl: 'https://github.com/outbassed/Coding/pull/16', commit: '3b1ba936fd67f35eccefeca2aa51e49664f2744a'
+  },
+  {
     target: 'launcher', version: '2.0.0', build: '25.10.26.232332', releaseDate: '2026-10-25', releaseTime: '23:23:32',
     novidades: [
       'Central de Versões em /versoes/, com o histórico do Launcher e de cada aplicativo.',
