@@ -138,6 +138,19 @@ const mediaLog = (page: Page): Promise<string[]> => page.evaluate(() => JSON.par
 const openPlayer = async (page: Page): Promise<void> => {
   if ((await page.getByTestId('player-toggle').getAttribute('aria-expanded')) !== 'true') await page.getByTestId('player-toggle').click();
 };
+/** Lê o armazenamento de documentos: estados dos projetos Versos e os tipos dos arquivos (imagens) guardados. */
+async function readVersosDb(page: Page): Promise<{ states: string[]; blobTypes: string[] }> {
+  return await page.evaluate(async () => {
+    const db: IDBDatabase = await new Promise((res, rej) => { const r = indexedDB.open('coding-v2-documents'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+    const all = <T>(store: string): Promise<T[]> => new Promise((res, rej) => { const r = db.transaction(store).objectStore(store).getAll(); r.onsuccess = () => res(r.result as T[]); r.onerror = () => rej(r.error); });
+    const copies = await all<{ snapshot: { doc: { type?: string; state: unknown }; images: { blob?: Blob }[] } }>('copies');
+    const assets = await all<{ image: { blob?: Blob } }>('assets');
+    const mine = copies.filter((c) => c.snapshot.doc.type === 'versos');
+    const blobs = [...mine.flatMap((c) => c.snapshot.images), ...assets.map((a) => a.image)].map((i) => i.blob?.type ?? '').filter(Boolean);
+    db.close();
+    return { states: mine.map((c) => JSON.stringify(c.snapshot.doc.state)), blobTypes: blobs };
+  });
+}
 async function noHorizontalScroll(page: Page): Promise<void> {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow, 'rolagem horizontal').toBeLessThanOrEqual(0);
@@ -153,7 +166,10 @@ test.describe('Versos · cenas e textos', () => {
     await expect(page.getByTestId('doc-name')).not.toHaveValue('');
     await expect.poll(async () => near(await pixel(page, 0.5, 0.5), [0x14, 0x16, 0x1c], 3)).toBe(true);
     await expect(page.getByTestId('text-props-empty')).toBeVisible();
+    await expect(page.getByTestId('save-status')).toContainText('ainda não salvo'); // nada é gravado até a primeira alteração
+    await page.getByTestId('doc-name').fill('Primeiro projeto');
     await settle(page);
+    expect(page.url()).toContain('?doc=');
   });
 
   test('2. adicionar texto e formatar: conteúdo, tamanho, peso, cor, alinhamento, contorno e sombra aparecem na prévia', async ({ page }) => {
@@ -273,10 +289,12 @@ test.describe('Versos · fundos', () => {
     await page.getByTestId('bg-fit').selectOption('contain');
     await page.getByTestId('bg-fit').selectOption('stretch');
     await setField(page, 'bg-zoom', 200);
-    await expect(textItems(page)).toHaveCount(1);
+    await expect(canvas(page)).toHaveAttribute('aria-label', /com 1 texto/);
     await page.getByTestId('bg-remove').click();
     await expect(page.getByTestId('bg-remove')).toHaveCount(0);
     await expect.poll(async () => near(await pixel(page, 0.02, 0.02), [0x14, 0x16, 0x1c], 6)).toBe(true);
+    await expect(canvas(page)).toHaveAttribute('aria-label', /com 1 texto/);
+    await tab(page, 'Textos').click();
     await expect(textItems(page)).toHaveCount(1);
   });
 
@@ -514,29 +532,11 @@ test.describe('Versos · persistência', () => {
     await tab(page, 'Cena').click();
     await importBackground(page, await makePng(page, 120, 80, '#00c000'));
     await settle(page);
-    const found = await page.evaluate(async () => {
-      const dbs = await indexedDB.databases();
-      const out: { json: string; images: number }[] = [];
-      for (const info of dbs) {
-        if (!info.name) continue;
-        const db: IDBDatabase = await new Promise((res, rej) => { const r = indexedDB.open(info.name!); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
-        let json = '', images = 0;
-        for (const store of Array.from(db.objectStoreNames)) {
-          const rows: unknown[] = await new Promise((res, rej) => { const r = db.transaction(store).objectStore(store).getAll(); r.onsuccess = () => res(r.result as unknown[]); r.onerror = () => rej(r.error); });
-          for (const row of rows) {
-            const o = row as { blob?: unknown; state?: unknown; type?: string };
-            if (o && o.blob instanceof Blob) images++;
-            if (o && o.type === 'versos') json += JSON.stringify(o.state);
-          }
-        }
-        db.close();
-        if (json) out.push({ json, images });
-      }
-      return out;
-    });
-    expect(found.length).toBeGreaterThan(0);
-    for (const f of found) expect(f.json).not.toContain('blob:');
-    expect(found.reduce((n, f) => n + f.images, 0)).toBeGreaterThan(0);
+    const stored = await readVersosDb(page);
+    expect(stored.states.length).toBe(1);
+    expect(stored.states[0]).not.toContain('blob:');
+    expect(stored.states[0]).toContain('"imageId"');
+    expect(stored.blobTypes).toContain('image/png');
   });
 });
 
@@ -688,21 +688,15 @@ test.describe('Versos · música de referência', () => {
     await expect(page.getByTestId('player-name')).toHaveCount(0);
     expect(await mediaLog(page)).toContain('revoke');
     // a música nunca vai para o projeto
+    await addText(page, 'Salvar');
     await settle(page);
-    const stored = await page.evaluate(async () => {
-      const dbs = await indexedDB.databases(); let audio = 0;
-      for (const info of dbs) {
-        if (!info.name) continue;
-        const db: IDBDatabase = await new Promise((res, rej) => { const r = indexedDB.open(info.name!); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
-        for (const store of Array.from(db.objectStoreNames)) {
-          const rows: unknown[] = await new Promise((res, rej) => { const r = db.transaction(store).objectStore(store).getAll(); r.onsuccess = () => res(r.result as unknown[]); r.onerror = () => rej(r.error); });
-          for (const row of rows) { const b = (row as { blob?: Blob }).blob; if (b instanceof Blob && b.type.startsWith('audio')) audio++; }
-        }
-        db.close();
-      }
-      return audio;
-    });
-    expect(stored).toBe(0);
+    await loadWav(page, 5, 'outra.wav');
+    await settle(page);
+    const stored = await readVersosDb(page);
+    expect(stored.states.length).toBe(1);
+    expect(stored.states[0]).not.toContain('outra.wav');
+    expect(stored.states[0]).not.toContain('blob:');
+    expect(stored.blobTypes.filter((t) => t.startsWith('audio') || t.startsWith('video'))).toEqual([]);
   });
 
   test('20. importar vídeo: só o áudio é usado e nenhuma imagem de vídeo aparece', async ({ page }) => {
