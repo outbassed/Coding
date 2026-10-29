@@ -5,7 +5,7 @@ import { tools } from '../src/shared/catalog';
 import { allSlugs, formatRelease, historyPath, recordsFor, TARGET_ORDER, targetName } from '../src/shared/versions';
 import { versionRecords } from '../src/shared/versions-data';
 
-const MENU_NAMES = ['Coding Launcher', 'Etiquetas', 'Texto', 'Planilhas', 'Imagens', 'Editor PDF', 'QR / Barras', 'Sorteio', 'Racha-conta', 'Calculadora', 'Estúdio de Cores', 'Compactador ZIP', 'Comparador de Arquivos', 'Código', 'Pintar', 'Visualizador'];
+const MENU_NAMES = ['Coding Launcher', 'Etiquetas', 'Texto', 'Planilhas', 'Imagens', 'Editor PDF', 'QR / Barras', 'Sorteio', 'Racha-conta', 'Calculadora', 'Estúdio de Cores', 'Compactador ZIP', 'Comparador de Arquivos', 'Código', 'Pintar', 'Visualizador', 'Versos'];
 const launcherLatest = recordsFor('launcher', versionRecords)[0]!;
 const slugOf = (id: string): string => tools.find((t) => t.id === id)!.path!.split('/')[2]!;
 
@@ -198,7 +198,7 @@ test.describe('Central de Versões · modal', () => {
 test.describe('Central de Versões · celular', () => {
   test.use({ viewport: { width: 375, height: 700 } });
 
-  test('☰ abre a gaveta com o Launcher, os 15 apps e “Voltar ao Launcher”; fecha por Esc, fora e ao escolher', async ({ page }) => {
+  test('☰ abre a gaveta com o Launcher, os 16 apps e “Voltar ao Launcher”; fecha por Esc, fora e ao escolher', async ({ page }) => {
     await page.goto('/versoes/');
     const burger = page.getByTestId('menu-toggle');
     await expect(burger).toBeVisible();
@@ -319,7 +319,7 @@ test.describe('Central de Versões · larguras e acessibilidade', () => {
   }
 });
 
-test('histórico e catálogo concordam: o Launcher e os 15 apps têm versão', () => {
+test('histórico e catálogo concordam: o Launcher e os 16 apps têm versão', () => {
   for (const t of TARGET_ORDER) expect(recordsFor(t, versionRecords).length, t).toBeGreaterThan(0);
   expect(historyPath('launcher')).toBe('/versoes/');
 });

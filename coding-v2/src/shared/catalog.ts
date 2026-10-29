@@ -1,4 +1,4 @@
-export type ToolId = 'labels' | 'texts' | 'calc' | 'images' | 'pdf' | 'codes' | 'draw' | 'split' | 'calculator' | 'colors' | 'zip' | 'compare' | 'code' | 'viewer' | 'paint';
+export type ToolId = 'labels' | 'texts' | 'calc' | 'images' | 'pdf' | 'codes' | 'draw' | 'split' | 'calculator' | 'colors' | 'zip' | 'compare' | 'code' | 'viewer' | 'paint' | 'versos';
 
 /**
  * preview: o app tem página própria no Launcher. Com `ready` preenchido, o editor é funcional.
@@ -7,12 +7,13 @@ export type ToolId = 'labels' | 'texts' | 'calc' | 'images' | 'pdf' | 'codes' | 
  */
 export type ToolStatus = 'preview' | 'planned';
 
-export type CategoryId = 'writing' | 'labels' | 'data' | 'media' | 'fun';
+export type CategoryId = 'writing' | 'labels' | 'data' | 'media' | 'create' | 'fun';
 export const categories: readonly { id: CategoryId; label: string }[] = [
   { id: 'writing', label: 'Escrita' },
   { id: 'labels', label: 'Etiquetas e códigos' },
   { id: 'data', label: 'Planilhas e contas' },
   { id: 'media', label: 'Imagens e PDF' },
+  { id: 'create', label: 'Criação e tipografia' },
   { id: 'fun', label: 'Utilidades' }
 ];
 
@@ -53,6 +54,7 @@ const READY_compare = ['Compara dois textos linha a linha (algoritmo de Myers) c
 const READY_code = ['Projeto com vários arquivos e pastas: explorador para criar, renomear, mover e excluir', 'Editor com numeração de linhas, realce de sintaxe, fechamento automático de parênteses e aspas, Tab, recuo e Ctrl+Enter para executar', 'Localizar e substituir no arquivo ou em todo o projeto', 'Importar arquivos, pasta ou ZIP; imagens, fontes e JSON do projeto funcionam na página', 'Resultado numa página isolada (sandbox sem allow-same-origin), sem rede e sem acesso aos seus documentos, com console e navegação entre páginas', 'Baixar o projeto em ZIP ou como página única', 'Modelos prontos: contador, cartão, lista de tarefas e site com páginas e pastas'] as const;
 const READY_viewer = ['Abre imagens, vídeo e áudio, com zoom, giro, fundo e velocidade', 'SVG sanitizado: sem scripts, sem links e sem recursos externos', 'Modelos 3D (STL, OBJ e GLB) com giro, zoom e arestas, calculados neste aparelho', 'PDF página a página e arquivos de texto com números de linha e JSON formatado', 'Reconhece o tipo pelo conteúdo, não só pelo nome; arquivos desconhecidos mostram os primeiros bytes'] as const;
 const READY_paint = ['Camadas com visibilidade, opacidade, ordem, duplicar, mesclar e limpar', 'Pincel, borracha, linha, retângulo, elipse, balde com tolerância e conta-gotas', 'Desfazer e refazer até 100 passos, incluindo operações de camada e tamanho da tela', 'Importe imagens como camadas (arquivo, Ctrl+V ou arrastar) e exporte PNG, JPG ou WebP', 'Tela de 16 a 4096 px por lado, com fundo sólido ou transparente; tudo calculado neste aparelho'] as const;
+const READY_versos = ['Cenas independentes com miniaturas: criar, duplicar, copiar, colar, recortar, reordenar e excluir', 'Vários textos por cena com fonte, tamanho, peso, cor, contorno, sombra, posição, rotação e camadas', 'Fundo por cena: imagem, cor sólida (com transparência) ou transparente; proporção e resolução próprias', 'Estilos prontos, copiar e colar formatação e estilos do projeto, sem trocar o conteúdo das cenas', 'Exporte PNG da cena, de todas as cenas, só os textos com fundo transparente ou um ZIP', 'Música ou vídeo de referência opcional (só o áudio), que não é salvo no projeto; fontes livres incluídas, funcionam offline'] as const;
 const READY_calculator = ['Modo Básico (teclado, memória e porcentagem) e modo Pro (funções científicas)', 'Leitor de expressões próprio e seguro: nada é executado como código', 'Graus ou radianos, casas decimais e variáveis com nome', 'Histórico salvo com reuso da conta ou do resultado', 'Copiar resultado e exportar o histórico'] as const;
 
 export const tools: readonly CodingTool[] = [
@@ -70,7 +72,8 @@ export const tools: readonly CodingTool[] = [
   { id: 'compare', category: 'data', ready: READY_compare, name: 'Comparador de Arquivos', description: 'Diferenças entre textos e arquivos', color: '#8FA6C2', textLight: '#4A6A8F', textDark: '#8FA6C2', path: '/apps/comparador/', legacyHash: null, status: 'preview', planned: ['Comparar pastas inteiras', 'Mesclar as diferenças'] },
   { id: 'code', category: 'fun', ready: READY_code, name: 'Código', description: 'HTML, CSS e JavaScript com visualização', color: '#4CC2A0', textLight: '#0E7A5E', textDark: '#4CC2A0', path: '/apps/codigo/', legacyHash: null, status: 'preview', planned: ['Módulos com import entre arquivos', 'Destaque do par de parênteses'] },
   { id: 'viewer', category: 'media', ready: READY_viewer, name: 'Visualizador', description: 'Imagens, vídeo, áudio, 3D, PDF e texto', color: '#D98BE8', textLight: '#8A3FA0', textDark: '#D98BE8', path: '/apps/visualizador/', legacyHash: null, status: 'preview', planned: ['Anotações sobre imagens', 'Mais formatos 3D'] },
-  { id: 'paint', category: 'media', ready: READY_paint, name: 'Pintar', description: 'Desenho em camadas, balde e exportação', color: '#F2A65A', textLight: '#9A4A00', textDark: '#F2A65A', path: '/apps/pintar/', legacyHash: null, status: 'preview', planned: ['Seleção e recorte', 'Texto sobre o desenho'] }
+  { id: 'paint', category: 'media', ready: READY_paint, name: 'Pintar', description: 'Desenho em camadas, balde e exportação', color: '#F2A65A', textLight: '#9A4A00', textDark: '#F2A65A', path: '/apps/pintar/', legacyHash: null, status: 'preview', planned: ['Seleção e recorte', 'Texto sobre o desenho'] },
+  { id: 'versos', category: 'create', ready: READY_versos, name: 'Versos', description: 'Letras, frases e citações em imagens', color: '#D4A95C', textLight: '#7A5614', textDark: '#D4A95C', path: '/apps/versos/', legacyHash: null, status: 'preview', planned: ['Mais fontes pelo futuro Coding Fontes'] }
 ] as const;
 
 export const isToolId = (value: unknown): value is ToolId => typeof value === 'string' && tools.some((tool) => tool.id === value);

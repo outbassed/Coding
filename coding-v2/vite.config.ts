@@ -3,10 +3,11 @@ import vue from '@vitejs/plugin-vue';
 import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'node:path';
 import { versionsRoutes } from './scripts/versions-routes-plugin';
+import { appAliases } from './scripts/app-aliases-plugin';
 
 // Entradas HTML independentes. Nunca aponta para o index.html antigo da raiz do repo.
 export default defineConfig({
-  plugins: [vue(), tailwindcss(), versionsRoutes()],
+  plugins: [vue(), tailwindcss(), versionsRoutes(), appAliases()],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -30,7 +31,8 @@ export default defineConfig({
         'comparador': resolve(import.meta.dirname, 'apps/comparador/index.html'),
         'codigo': resolve(import.meta.dirname, 'apps/codigo/index.html'),
         'visualizador': resolve(import.meta.dirname, 'apps/visualizador/index.html'),
-        'pintar': resolve(import.meta.dirname, 'apps/pintar/index.html')
+        'pintar': resolve(import.meta.dirname, 'apps/pintar/index.html'),
+        'versos': resolve(import.meta.dirname, 'apps/versos/index.html')
       }
     }
   }

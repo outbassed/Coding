@@ -41,7 +41,7 @@ test.describe('Identidade pública', () => {
 });
 
 test.describe('Início como acesso rápido', () => {
-  test('computador: identidade, busca e os 15 apps, sem estatísticas no topo nem botões repetidos', async ({ page }) => {
+  test('computador: identidade, busca e os 16 apps, sem estatísticas no topo nem botões repetidos', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/launcher/');
     await expect(page.getByRole('searchbox', { name: 'Buscar aplicativos' })).toBeVisible();
