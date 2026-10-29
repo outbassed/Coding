@@ -1,7 +1,6 @@
 import { test } from '@playwright/test';
 
 /* TEMPORÁRIO: captura telas em baixa resolução e as devolve em pedaços nas mensagens de erro. Será removido. */
-test.describe.configure({ mode: 'serial' });
 const shots: Record<string, string> = {};
 const SPECS = [
   { name: 'm1', w: 390, h: 844, f: 0.55, scheme: 'light' as const, url: '/apps/versos/?modelo=letra', tab: '' },
@@ -24,12 +23,8 @@ test('prepara capturas', async ({ browser }) => {
     shots[s.name] = (await page.screenshot({ type: 'jpeg', quality: 38 })).toString('base64');
     await ctx.close();
   }
-});
-for (const s of SPECS) {
-  for (let i = 0; i < CHUNKS; i++) {
-    test(`pedaço ${s.name} ${i}`, () => {
-      const data = shots[s.name] ?? '';
-      throw new Error('SHOT:' + s.name + ':' + i + ':' + data.length + ':' + data.slice(i * CHUNK, (i + 1) * CHUNK) + ':END');
-    });
+  for (const sp of SPECS) {
+    const data = shots[sp.name] ?? '';
+    for (let i = 0; i < CHUNKS; i++) console.log('::notice title=S' + sp.name + i + '::SHOT:' + sp.name + ':' + i + ':' + data.length + ':' + data.slice(i * CHUNK, (i + 1) * CHUNK) + ':END');
   }
-}
+});
