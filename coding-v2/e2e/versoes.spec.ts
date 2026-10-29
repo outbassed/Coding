@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { existsSync, readFileSync } from 'node:fs';
 import { tools } from '../src/shared/catalog';
-import { allSlugs, formatRelease, historyPath, recordsFor, TARGET_ORDER, targetName } from '../src/shared/versions';
+import { allSlugs, formatRelease, historyPath, NOTE_SECTIONS, recordsFor, sectionsOf, TARGET_ORDER, targetName } from '../src/shared/versions';
 import { versionRecords } from '../src/shared/versions-data';
 
 const MENU_NAMES = ['Coding Launcher', 'Etiquetas', 'Texto', 'Planilhas', 'Imagens', 'Editor PDF', 'QR / Barras', 'Sorteio', 'Racha-conta', 'Calculadora', 'Estúdio de Cores', 'Compactador ZIP', 'Comparador de Arquivos', 'Código', 'Pintar', 'Visualizador', 'Versos'];
@@ -153,11 +153,13 @@ test.describe('Central de Versões · modal', () => {
     await expect(page.getByTestId('modal-version')).toHaveText(launcherLatest.version);
     await expect(page.getByTestId('modal-build')).toHaveText(launcherLatest.build);
     await expect(page.getByTestId('modal-release')).toHaveText(formatRelease(launcherLatest));
-    await expect(page.getByTestId('modal-sec-novidades')).toBeVisible();
-    await expect(page.getByTestId('modal-sec-melhorias')).toBeVisible();
-    await expect(page.getByTestId('modal-sec-alteracoesTecnicas')).toBeVisible();
-    await expect(page.getByTestId('modal-sec-correcoes')).toHaveCount(0);
-    await expect(page.getByTestId('modal-sec-problemasConhecidos')).toHaveCount(0);
+    // O histórico muda a cada release: validar as seções reais, sem assumir o formato do Launcher 2.0.0.
+    const visibleSections = new Set(sectionsOf(launcherLatest).map((section) => section.key));
+    for (const section of NOTE_SECTIONS) {
+      const locator = page.getByTestId('modal-sec-' + section.key);
+      if (visibleSections.has(section.key)) await expect(locator).toBeVisible();
+      else await expect(locator).toHaveCount(0);
+    }
     expect(await page.evaluate(() => document.documentElement.classList.contains('scroll-lock'))).toBe(true);
   });
 
