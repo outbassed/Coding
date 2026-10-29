@@ -38,7 +38,11 @@ function onFile(event: Event): void {
   const check = checkImport(kind, file.size, loadImportLimits());
   if (check.level === 'block') { notice.value = check.message; emit('announce', check.message); return; }
   if (check.level === 'warn') notice.value = check.message;
-  if (player.load(file)) { open.value = true; emit('announce', 'Arquivo de referência carregado: ' + file.name + '. Use Tocar para ouvir.'); }
+  if (player.load(file)) {
+    // No celular a música é secundária: carregar não deve esconder a composição com controles grandes.
+    open.value = !window.matchMedia('(max-width: 899px)').matches;
+    emit('announce', 'Arquivo de referência carregado: ' + file.name + '. Use Tocar para ouvir.');
+  }
 }
 function toggle(): void { void player.toggle(); }
 function onSeek(event: Event): void { player.seek(Number((event.target as HTMLInputElement).value)); }
@@ -52,17 +56,20 @@ function remove(): void { player.remove(); notice.value = ''; emit('announce', '
 <template>
   <section class="pl" :class="{ open }" aria-label="Música de referência" data-testid="player">
     <div class="pl-head">
-      <button type="button" class="pl-toggle" :aria-expanded="open" aria-controls="pl-body" data-testid="player-toggle" @click="open = !open">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg>
-        <span class="pl-title">Música</span>
-        <span v-if="hasFile" class="pl-file">{{ snap.fileName }}</span>
-        <span v-if="playing" class="pl-live" aria-label="Tocando">●</span>
-      </button>
-      <button v-if="hasFile && ready && !open" type="button" class="ib" :aria-label="playing ? 'Pausar' : 'Tocar'" data-testid="player-quick" @click="toggle">
+      <button v-if="hasFile && ready" type="button" class="ib pl-quick" :aria-label="playing ? 'Pausar' : 'Tocar'" data-testid="player-quick" @click="toggle">
         <svg v-if="!playing" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
         <svg v-else viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
       </button>
+      <button type="button" class="pl-toggle" :aria-expanded="open" aria-controls="pl-body" :aria-label="hasFile ? 'Detalhes da música: ' + snap.fileName : 'Adicionar música de referência'" data-testid="player-toggle" @click="open = !open">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg>
+        <span v-if="!hasFile" class="pl-title">Música (opcional)</span>
+        <span v-else class="pl-file" :title="snap.fileName">{{ snap.fileName }}</span>
+        <span v-if="hasFile" class="pl-mini-time" aria-live="off">{{ formatTime(snap.current) }} / {{ formatTime(duration) }}</span>
+        <span v-if="playing" class="pl-live" aria-label="Tocando">●</span>
+        <svg class="pl-chevron" :class="{ expanded: open }" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
     </div>
+    <div v-if="hasFile" class="pl-mini-progress" aria-hidden="true"><span :style="{ width: (duration ? Math.min(100, Math.max(0, snap.current / duration * 100)) : 0) + '%' }"></span></div>
 
     <div v-show="open" id="pl-body" class="pl-body">
       <template v-if="!hasFile">
@@ -104,12 +111,20 @@ function remove(): void { player.remove(); notice.value = ''; emit('announce', '
 
 <style scoped>
 .pl { min-width: 0; }
-.pl-head { display: flex; align-items: center; gap: 4px; min-width: 0; }
-.pl-toggle { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); font-weight: 700; font-size: 13px; text-align: left; }
+.pl-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.pl-toggle { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); color: var(--text); font-weight: 700; font-size: 13px; text-align: left; }
 .pl.open .pl-toggle { border-color: var(--app); }
 .pl-title { flex: none; }
-.pl-file { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--muted); }
+.pl-file { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--text); }
 .pl-live { color: var(--app); font-size: 11px; animation: pulse 1.4s ease-in-out infinite; }
+.pl-quick { flex: none; width: 44px; height: 44px; border: 0; border-radius: 12px; background: var(--app); color: var(--ink); display: grid; place-items: center; }
+.pl-quick:hover { filter: brightness(1.06); }
+.pl-mini-time { flex: none; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 500; }
+.pl-chevron { flex: none; color: var(--muted); transition: transform .16s ease; }
+.pl-chevron.expanded { transform: rotate(180deg); }
+.pl-mini-progress { height: 3px; margin: 3px 0 0 50px; overflow: hidden; background: var(--border); border-radius: 99px; }
+.pl-mini-progress > span { display: block; height: 100%; background: var(--app); transition: width .14s linear; }
+@media (max-width: 420px) { .pl-head { gap: 4px; } .pl-toggle { gap: 6px; padding: 0 8px; } .pl-mini-time { font-size: 10px; } }
 @keyframes pulse { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .pl-live { animation: none; } }
 .pl-body { display: grid; gap: 8px; padding: 10px 2px 4px; min-width: 0; }
