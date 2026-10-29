@@ -1,9 +1,11 @@
 /**
- * Recurso de Preview: apenas builds/ambientes autorizados e isolados do Coding 1.0.
- * Nunca registra service worker nos domínios conhecidos do Coding 1.0.
+ * Instalação offline: liberada no domínio oficial do Coding 2.0 e em previews autorizados.
+ * O domínio legado continua protegido; nenhum cache/documento local é apagado.
  */
 export const previewPwaEnabled = import.meta.env.VITE_CODING_PREVIEW_PWA === '1';
-const productionHosts = new Set(['codingtxt.vercel.app', 'coding-seven-sigma.vercel.app']);
+// O Coding 2.0 agora é o site oficial neste domínio. O domínio legado continua protegido.
+const productionHosts = new Set(['codingtxt.vercel.app']);
+const legacyHosts = new Set(['coding-seven-sigma.vercel.app']);
 const isLocalHost = (host: string): boolean => host === 'localhost' || host === '127.0.0.1';
 /** Ambientes de Preview do Coding 2.0 (Cloudflare Pages) e desenvolvimento local. */
 const isPreviewHost = (host: string): boolean => host.endsWith('.pages.dev') || isLocalHost(host);
@@ -14,8 +16,8 @@ export type OfflineSupport = { ok: true } | { ok: false; reason: string };
 export function offlineSupport(): OfflineSupport {
   if (typeof window === 'undefined' || typeof location === 'undefined') return { ok: false, reason: 'A instalação offline não está disponível fora do navegador.' };
   const host = location.hostname;
-  if (productionHosts.has(host)) return { ok: false, reason: 'Este endereço é o do site já publicado. A instalação offline fica desligada aqui para não interferir nele.' };
-  if (!previewPwaEnabled && !isPreviewHost(host)) return { ok: false, reason: 'A instalação offline só está disponível em ambientes de teste isolados (endereços *.pages.dev ou localhost) e em builds autorizados.' };
+  if (legacyHosts.has(host)) return { ok: false, reason: 'Este endereço continua reservado ao Coding antigo; a instalação offline do Coding 2.0 fica desligada aqui.' };
+  if (!productionHosts.has(host) && !previewPwaEnabled && !isPreviewHost(host)) return { ok: false, reason: 'A instalação offline só está disponível em ambientes de teste isolados (endereços *.pages.dev ou localhost) e em builds autorizados.' };
   if (!(location.protocol === 'https:' || isLocalHost(host))) return { ok: false, reason: 'A instalação offline exige uma conexão segura (HTTPS).' };
   if (!('serviceWorker' in navigator) || !('caches' in window)) return { ok: false, reason: 'Este navegador não oferece service worker e armazenamento de cache (isso é comum em modo privado ou em navegadores antigos).' };
   if (typeof indexedDB === 'undefined') return { ok: false, reason: 'Este navegador não permite o banco local necessário para registrar o que foi instalado.' };
