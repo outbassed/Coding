@@ -20,13 +20,16 @@ const duration = computed(() => (snap.value.duration > 0 ? snap.value.duration :
 const progressText = computed(() => formatTime(snap.value.current) + ' de ' + formatTime(duration.value));
 const kindLabel = computed(() => (snap.value.kind === 'video' ? 'vídeo (só o áudio toca)' : 'áudio'));
 
-// a barra anda suave durante a reprodução (timeupdate só chega ~4x por segundo)
-let raf = 0;
-function loop(): void { player.tick(); raf = requestAnimationFrame(loop); }
-watch(playing, (on) => { cancelAnimationFrame(raf); if (on) raf = requestAnimationFrame(loop); }, { immediate: true });
+// O elemento nativo já envia timeupdate; 8 atualizações por segundo bastam para uma barra suave.
+// Evita recalcular toda a interface 60 vezes por segundo enquanto a música toca no celular.
+let tickTimer: ReturnType<typeof setInterval> | undefined;
+watch(playing, (on) => {
+  if (tickTimer !== undefined) { clearInterval(tickTimer); tickTimer = undefined; }
+  if (on) tickTimer = setInterval(() => player.tick(), 125);
+}, { immediate: true });
 // Se o navegador não conseguir decodificar um arquivo, mostre o erro mesmo no celular.
 watch(() => snap.value.status, (status) => { if (status === 'error') open.value = true; });
-onBeforeUnmount(() => { cancelAnimationFrame(raf); disposePlayer(); }); // sair do editor encerra a reprodução
+onBeforeUnmount(() => { if (tickTimer !== undefined) clearInterval(tickTimer); disposePlayer(); }); // sair do editor encerra a reprodução
 
 function pick(): void { fileInput.value?.click(); }
 function onFile(event: Event): void {
