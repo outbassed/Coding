@@ -15,6 +15,18 @@ import type { VersionRecord } from './versions';
  */
 export const versionRecords: readonly VersionRecord[] = [
   {
+    target: 'launcher', version: '2.0.1', build: '29.10.26.200822', releaseDate: '2026-10-29', releaseTime: '20:08:22',
+    melhorias: [
+      'Instalação offline por aplicativo e instalação como PWA habilitadas no domínio oficial codingtxt.vercel.app.'
+    ],
+    correcoes: [
+      'Removido o bloqueio legado de instalação offline no domínio oficial, mantendo proteção no endereço antigo.'
+    ],
+    alteracoesTecnicas: [
+      'Publicação do Coding Launcher 2.0 com os 16 aplicativos; dados do Coding anterior não são apagados.'
+    ]
+  },
+  {
     target: 'versos', version: '1.0.1', build: '28.10.26.235345', releaseDate: '2026-10-28', releaseTime: '23:53:45',
     melhorias: [
       'No celular, o player musical fica compacto depois da importação: a prévia volta a ocupar o espaço principal.',
