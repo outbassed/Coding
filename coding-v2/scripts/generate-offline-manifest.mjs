@@ -82,9 +82,13 @@ const corePaths = [...new Set([...(await graph('/launcher/index.html', iconPaths
 const coreFiles = await describe(corePaths);
 const coreSet = new Set(corePaths);
 
+/** Páginas-alias geradas pelo build (scripts/app-aliases-plugin.ts). */
+const ALIAS_PAGES = { '/apps/versos/index.html': '/versos/index.html' };
 const appEntries = [];
 for (const app of apps) {
-  const paths = await graph(app.page);
+  // Endereço curto do app (ex.: /versos/): a mesma página, incluída para abrir também sem rede.
+  const alias = ALIAS_PAGES[app.page];
+  const paths = await graph(app.page, alias && all.has(alias) ? [alias] : []);
   appEntries.push({ id: app.id, name: app.name, page: app.page, paths });
 }
 const owners = new Map();

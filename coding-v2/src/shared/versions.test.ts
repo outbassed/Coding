@@ -44,9 +44,9 @@ describe('versão semver', () => {
 });
 
 describe('alvos e endereços', () => {
-  it('há exatamente o Launcher e os 15 apps do catálogo, cada um uma vez', () => {
-    expect(TARGET_ORDER).toHaveLength(16);
-    expect(new Set(TARGET_ORDER).size).toBe(16);
+  it('há exatamente o Launcher e os 16 apps do catálogo, cada um uma vez', () => {
+    expect(TARGET_ORDER).toHaveLength(17);
+    expect(new Set(TARGET_ORDER).size).toBe(17);
     expect(TARGET_ORDER.slice(1).sort()).toEqual(tools.map((t) => t.id).sort());
   });
   it('o endereço de cada histórico vem da pasta real da página do app', () => {
@@ -56,12 +56,12 @@ describe('alvos e endereços', () => {
       expect(targetFromSlug(slugOf(t.id))).toBe(t.id);
       expect(targetName(t.id)).toBe(t.name);
     }
-    expect(new Set(allSlugs()).size).toBe(16);
+    expect(new Set(allSlugs()).size).toBe(17);
     expect(targetFromSlug('nao-existe')).toBeNull();
     expect(targetName('launcher')).toBe('Coding Launcher');
   });
   it('o menu segue a ordem aprovada', () => {
-    expect(TARGET_ORDER.map(targetName)).toEqual(['Coding Launcher', 'Etiquetas', 'Texto', 'Planilhas', 'Imagens', 'Editor PDF', 'QR / Barras', 'Sorteio', 'Racha-conta', 'Calculadora', 'Estúdio de Cores', 'Compactador ZIP', 'Comparador de Arquivos', 'Código', 'Pintar', 'Visualizador']);
+    expect(TARGET_ORDER.map(targetName)).toEqual(['Coding Launcher', 'Etiquetas', 'Texto', 'Planilhas', 'Imagens', 'Editor PDF', 'QR / Barras', 'Sorteio', 'Racha-conta', 'Calculadora', 'Estúdio de Cores', 'Compactador ZIP', 'Comparador de Arquivos', 'Código', 'Pintar', 'Visualizador', 'Versos']);
   });
 });
 

@@ -17,6 +17,7 @@ import { compareText } from '../apps/compare/diff';
 import { normalizeViewer } from '../apps/viewer/model';
 import { KIND_LABELS } from '../apps/viewer/kinds';
 import { normalizePaint } from '../apps/paint/model';
+import { normalizeVersos } from '../apps/versos/model';
 import { entryPage, normalizeCode, totalChars as codeChars } from '../apps/code/model';
 import { normalizeZip, totalSize as zipTotal } from '../apps/zip/model';
 import { formatBytes } from '../shared/bytes';
@@ -93,7 +94,7 @@ export function textPreview(raw: unknown): Preview {
   return { kind: 'text', html: sanitizeTextHtml(out.body.innerHTML) };
 }
 
-const PREVIEW_TYPES = ['labels', 'texts', 'calc', 'sheet', 'codes', 'split', 'draw', 'images', 'pdf', 'calculator', 'colors', 'zip', 'compare', 'code', 'viewer', 'paint'] as const;
+const PREVIEW_TYPES = ['labels', 'texts', 'calc', 'sheet', 'codes', 'split', 'draw', 'images', 'pdf', 'calculator', 'colors', 'zip', 'compare', 'code', 'viewer', 'paint', 'versos'] as const;
 export type PreviewType = typeof PREVIEW_TYPES[number];
 export function previewable(type: unknown): type is PreviewType { return typeof type === 'string' && (PREVIEW_TYPES as readonly string[]).includes(type); }
 const obj = (raw: unknown): Record<string, unknown> => (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {});
@@ -221,6 +222,16 @@ export function paintPreview(raw: unknown): Preview {
   const lines: [string, string][] = [['Tela', s.width + ' × ' + s.height + ' px'], ['Camadas', String(s.layers.length)], ['Fundo', s.background === 'transparent' ? 'Transparente' : s.background]];
   return { kind: 'summary', title: s.name || 'Desenho', lines };
 }
+export function versosPreview(raw: unknown): Preview {
+  need(raw, 'scenes');
+  const s = normalizeVersos(raw);
+  const texts = s.scenes.reduce((n, sc) => n + sc.texts.length, 0);
+  const first = s.scenes[0]!;
+  const lines: [string, string][] = [['Cenas', String(s.scenes.length)], ['Textos', String(texts)], ['Primeira cena', first.width + ' × ' + first.height + ' px']];
+  const sample = s.scenes.flatMap((sc) => sc.texts).map((t) => t.text.replace(/\s+/g, ' ').trim()).find(Boolean);
+  if (sample) lines.push(['Começa com', sample.slice(0, 40)]);
+  return { kind: 'summary', title: s.name || 'Projeto Versos', lines };
+}
 export function pdfPreview(raw: unknown): Preview {
   need(raw, 'pages');
   const s = normalizePdf(raw);
@@ -247,6 +258,7 @@ export function buildPreview(type: string | undefined, state: unknown): Preview 
     case 'code': return codePreview(state);
     case 'viewer': return viewerPreview(state);
     case 'paint': return paintPreview(state);
+    case 'versos': return versosPreview(state);
     default: throw new Error('Tipo sem prévia');
   }
 }

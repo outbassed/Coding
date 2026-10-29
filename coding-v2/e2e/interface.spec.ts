@@ -78,7 +78,7 @@ test.describe('comportamento', () => {
     await expect(page.locator('#page-title')).toBeFocused();
   });
 
-  test('sem ativação: os 15 apps aparecem em Meus apps e a preferência antiga é ignorada sem ser apagada', async ({ page }) => {
+  test('sem ativação: os 16 apps aparecem em Meus apps e a preferência antiga é ignorada sem ser apagada', async ({ page }) => {
     await page.addInitScript(() => {
       if (!localStorage.getItem('coding-v2-apps')) localStorage.setItem('coding-v2-apps', JSON.stringify({ v: 2, known: ['labels'], enabled: ['labels'] }));
     });

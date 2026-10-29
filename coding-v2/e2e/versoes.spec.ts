@@ -5,7 +5,7 @@ import { tools } from '../src/shared/catalog';
 import { allSlugs, formatRelease, historyPath, recordsFor, TARGET_ORDER, targetName } from '../src/shared/versions';
 import { versionRecords } from '../src/shared/versions-data';
 
-const MENU_NAMES = ['Coding Launcher', 'Etiquetas', 'Texto', 'Planilhas', 'Imagens', 'Editor PDF', 'QR / Barras', 'Sorteio', 'Racha-conta', 'Calculadora', 'Estúdio de Cores', 'Compactador ZIP', 'Comparador de Arquivos', 'Código', 'Pintar', 'Visualizador'];
+const MENU_NAMES = ['Coding Launcher', 'Etiquetas', 'Texto', 'Planilhas', 'Imagens', 'Editor PDF', 'QR / Barras', 'Sorteio', 'Racha-conta', 'Calculadora', 'Estúdio de Cores', 'Compactador ZIP', 'Comparador de Arquivos', 'Código', 'Pintar', 'Visualizador', 'Versos'];
 const launcherLatest = recordsFor('launcher', versionRecords)[0]!;
 const slugOf = (id: string): string => tools.find((t) => t.id === id)!.path!.split('/')[2]!;
 
@@ -35,17 +35,35 @@ test.describe('Central de Versões · rotas', () => {
       await page.goto(url);
       await expect(page.getByTestId('versions-title'), url).toHaveText(t.name);
       await expect(page.getByTestId('menu-' + t.id)).toHaveAttribute('aria-current', 'page');
-      await expect(page.getByTestId('version-list').getByRole('button').first()).toContainText(t.name + ' — 1.0.0 — ');
+      await expect(page.getByTestId('version-list').getByRole('button').first()).toContainText(t.name + ' — ' + recordsFor(t.id, versionRecords)[0]!.version + ' — ');
       await page.reload();
       await expect(page.getByTestId('versions-title'), 'recarregado ' + url).toHaveText(t.name);
       expect(new URL(page.url()).pathname).toBe(url);
     }
   });
 
+  test('Versos 1.0.1 mostra compilação nova, preserva o 1.0.0 e concorda com Detalhes', async ({ page }) => {
+    const releases = recordsFor('versos', versionRecords);
+    expect(releases.map((r) => r.version).slice(0, 2)).toEqual(['1.0.1', '1.0.0']);
+    expect(releases[0]!.build).not.toBe(releases[1]!.build);
+    await page.goto('/versoes/versos/');
+    const latest = page.getByTestId('version-1.0.1');
+    await expect(latest).toContainText('Versos — 1.0.1 — ' + releases[0]!.build);
+    await expect(page.getByTestId('version-1.0.0')).toBeVisible();
+    await latest.click();
+    await expect(page.getByTestId('modal-version')).toHaveText('1.0.1');
+    await expect(page.getByTestId('modal-build')).toHaveText(releases[0]!.build);
+    await expect(page.getByTestId('modal-sec-correcoes')).toContainText('zoom automático');
+    await page.getByTestId('modal-close').click();
+    await page.goto('/launcher/#/app/versos');
+    await expect(page.getByTestId('app-version')).toHaveText('1.0.1');
+    await expect(page.getByTestId('app-build')).toHaveText(releases[0]!.build);
+  });
+
   test('os arquivos estáticos de cada rota existem no build (hospedagem sem regras de reescrita)', () => {
     const base = readFileSync('dist/versoes/index.html', 'utf8');
     const slugs = allSlugs();
-    expect(slugs).toHaveLength(16);
+    expect(slugs).toHaveLength(17);
     for (const slug of slugs) {
       for (const root of ['versoes', 'versions']) {
         const file = 'dist/' + root + '/' + slug + '/index.html';
@@ -198,7 +216,7 @@ test.describe('Central de Versões · modal', () => {
 test.describe('Central de Versões · celular', () => {
   test.use({ viewport: { width: 375, height: 700 } });
 
-  test('☰ abre a gaveta com o Launcher, os 15 apps e “Voltar ao Launcher”; fecha por Esc, fora e ao escolher', async ({ page }) => {
+  test('☰ abre a gaveta com o Launcher, os 16 apps e “Voltar ao Launcher”; fecha por Esc, fora e ao escolher', async ({ page }) => {
     await page.goto('/versoes/');
     const burger = page.getByTestId('menu-toggle');
     await expect(burger).toBeVisible();
@@ -319,7 +337,7 @@ test.describe('Central de Versões · larguras e acessibilidade', () => {
   }
 });
 
-test('histórico e catálogo concordam: o Launcher e os 15 apps têm versão', () => {
+test('histórico e catálogo concordam: o Launcher e os 16 apps têm versão', () => {
   for (const t of TARGET_ORDER) expect(recordsFor(t, versionRecords).length, t).toBeGreaterThan(0);
   expect(historyPath('launcher')).toBe('/versoes/');
 });

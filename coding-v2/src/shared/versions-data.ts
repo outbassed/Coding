@@ -15,6 +15,25 @@ import type { VersionRecord } from './versions';
  */
 export const versionRecords: readonly VersionRecord[] = [
   {
+    target: 'versos', version: '1.0.1', build: '28.10.26.235345', releaseDate: '2026-10-28', releaseTime: '23:53:45',
+    melhorias: [
+      'No celular, o player musical fica compacto depois da importação: a prévia volta a ocupar o espaço principal.',
+      'Controle rápido de Play/Pause, nome do arquivo, andamento e tempo da música diretamente na barra recolhida.',
+      'Cabeçalho, navegação de cenas, barra de zoom e gaveta de ferramentas mais compactos no celular.'
+    ],
+    correcoes: [
+      'Ajustado o zoom automático ao espaço disponível da prévia, inclusive ao abrir ou fechar ferramentas.',
+      'Ao trocar de cena, a música continua tocando normalmente.',
+      'Avisos de arquivos grandes e erros de reprodução continuam acessíveis mesmo com o player compacto.',
+      'Alvos de toque da navegação preservados com pelo menos 44 px.'
+    ],
+    alteracoesTecnicas: [
+      'Atualização do player reduzida para oito vezes por segundo para economizar processamento.',
+      'Incluídos testes automatizados de regressão mobile, player musical e visualização da prévia.'
+    ],
+    prUrl: 'https://github.com/outbassed/Coding/pull/16', commit: '3b1ba936fd67f35eccefeca2aa51e49664f2744a'
+  },
+  {
     target: 'launcher', version: '2.0.0', build: '25.10.26.232332', releaseDate: '2026-10-25', releaseTime: '23:23:32',
     novidades: [
       'Central de Versões em /versoes/, com o histórico do Launcher e de cada aplicativo.',
@@ -23,7 +42,7 @@ export const versionRecords: readonly VersionRecord[] = [
       'Gerenciamento offline em cada aplicativo, na página de Detalhes.'
     ],
     melhorias: [
-      'Os 15 aplicativos ficam sempre disponíveis: não é preciso ativar nem desativar nada.',
+      'Todos os aplicativos ficam sempre disponíveis: não é preciso ativar nem desativar nada.',
       'Instalar, atualizar, reparar e desinstalar o uso offline em um só lugar, sincronizado entre Detalhes e Ajustes.'
     ],
     alteracoesTecnicas: [
@@ -60,5 +79,24 @@ export const versionRecords: readonly VersionRecord[] = [
   {
     target: 'viewer', version: '1.0.0', build: '25.10.26.174525', releaseDate: '2026-10-25', releaseTime: '17:45:25', commit: 'c93f2f3',
     novidades: ['Versão inicial registrada na Central de Versões.', 'Visualização de imagens, áudio e vídeo.']
-  }
+  },
+  {
+    target: 'versos', version: '1.0.0', build: '28.10.26.211555', releaseDate: '2026-10-28', releaseTime: '21:15:55',
+    novidades: [
+      'Editor de composição tipográfica para imagens: letras de música, frases, citações e títulos, em dezenas de cenas ou numa só imagem.',
+      'Cenas independentes, cada uma com seus textos, fundo, proporção e resolução, com miniaturas, duplicar, copiar, colar, recortar e reordenar.',
+      'Vários textos por cena com fonte, tamanho, peso, cor, contorno, sombra, posição, rotação e ordem de camadas, mais estilos prontos e copiar/colar formatação.',
+      'Exporta PNG da cena, de todas as cenas, só os textos com fundo transparente ou um ZIP, cada cena na própria resolução.',
+      'Música ou vídeo de referência opcional (só o áudio), que não vai para o projeto e para ao sair do Versos.',
+      'Fontes livres (licença OFL) incluídas no aplicativo, que funcionam offline.'
+    ],
+    alteracoesTecnicas: [
+      'Limites de áudio, vídeo e imagem importados configuráveis em Ajustes → Projetos.',
+      'Pronto para receber fontes de um futuro Coding Fontes sem alterar os projetos já salvos.'
+    ],
+    problemasConhecidos: [
+      'Os formatos de áudio e vídeo aceitos dependem do navegador.',
+      'O ZIP de exportação é limitado a 200 MB.'
+    ]
+  },
 ];

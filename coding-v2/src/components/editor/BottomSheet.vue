@@ -50,7 +50,7 @@ function cycle(): void {
 
 <style scoped>
 /* Altura limitada para a prévia manter pelo menos 220px. --chrome = barras fixas da tela. */
-.sheet { --h: 30dvh; flex: none; display: flex; flex-direction: column; height: var(--h); max-height: calc(100dvh - var(--chrome, 180px) - 220px); background: var(--surface); border-top: 1px solid var(--border); border-radius: 18px 18px 0 0; box-shadow: 0 -8px 24px rgb(0 0 0 / 10%); }
+.sheet { --h: 30dvh; flex: none; display: flex; flex-direction: column; height: var(--h); max-height: max(150px, calc(100dvh - var(--chrome, 180px) - 220px)); background: var(--surface); border-top: 1px solid var(--border); border-radius: 18px 18px 0 0; box-shadow: 0 -8px 24px rgb(0 0 0 / 10%); }
 .snap-half { --h: 50dvh; }
 .snap-full { --h: 85dvh; }
 .head { position: relative; display: flex; align-items: center; gap: 4px; padding: 14px 8px 4px 16px; }
