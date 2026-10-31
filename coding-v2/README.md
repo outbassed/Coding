@@ -78,6 +78,7 @@ No Launcher, vá a **Ajustes → Offline** ou à página de **Detalhes** do app 
 - **Atualizar** reaparece quando o build novo muda algum arquivo de um app instalado; a atualização é conferida do mesmo jeito e só substitui depois de concluída.
 - Só olhar a tela de Ajustes não cria cache nem banco: o estado é lido sem criar nada.
 - No Catálogo e em Meus apps, o cartão mostra o selo **Offline** nos apps instalados, e o Catálogo filtra por instalados ou não.
+- **Meus apps lista só os apps instalados offline** (sem nenhum instalado, mostra um estado vazio que leva ao Catálogo). Onde o uso offline não está disponível (endereço publicado, modo privado, navegador sem service worker), ninguém consegue instalar, então Meus apps mostra todos, com um aviso. Início e Catálogo continuam listando todos, e qualquer app abre online.
 - Limite honesto: o teste automático roda no Chromium (Playwright) contra o build real, servido por HTTP local, com a rede realmente cortada no navegador. Safari/iOS e a instalação em aparelhos reais não foram validados.
 - O serviço é registrado somente por ação explícita nos Ajustes e apenas em HTTPS ou localhost. Há bloqueio adicional dos domínios conhecidos da versão 1.0.
 - O service worker tem escopo `/` e foi projetado **somente para um projeto Vercel Preview separado**, cujo domínio seja dedicado ao Coding 2.0. Não ative o sinalizador em um domínio compartilhado com a versão 1.0.

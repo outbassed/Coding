@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { APP_COUNT } from './helpers';
+import { APP_COUNT, seedInstalledApps } from './helpers';
 import AxeBuilder from '@axe-core/playwright';
 
 async function axeClean(page: Page): Promise<void> {
@@ -71,15 +71,32 @@ test.describe('Launcher · loja no computador', () => {
     await expect(page.getByRole('link', { name: 'Abrir editor' })).toHaveAttribute('href', '/apps/planilhas/');
   });
 
-  test('Meus apps: todos os aplicativos, sem ativar nem desativar', async ({ page }) => {
+  test('Meus apps: só os aplicativos instalados offline, sem ativar nem desativar', async ({ page }) => {
+    await seedInstalledApps(page, ['labels', 'calc']);
     await page.goto('/launcher/#/meus-apps');
+    await expect(page.locator('article.card')).toHaveCount(2);
     const card = page.locator('article.card[data-tool="labels"]');
-    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
     await expect(card.getByRole('link', { name: 'Abrir o editor de Etiquetas' })).toHaveAttribute('href', '/apps/etiquetas/');
     await expect(card.getByTestId('card-meta')).toContainText('Editor funcional');
+    await expect(card.getByTestId('card-offline')).toBeVisible();
+    await expect(page.locator('article.card[data-tool="texts"]')).toHaveCount(0);
     await expect(page.getByTestId('status-pill')).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Ativar|Desativar/ })).toHaveCount(0);
     await expect(page.getByTestId('available-to-activate')).toHaveCount(0);
+    // O Catálogo e o Início seguem com todos.
+    await page.goto('/launcher/#/catalogo');
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
+    await page.goto('/launcher/');
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
+  });
+
+  test('Meus apps: sem nada instalado mostra o estado vazio e leva ao Catálogo', async ({ page }) => {
+    await page.goto('/launcher/#/meus-apps');
+    await expect(page.getByTestId('empty-state')).toContainText('Nenhum aplicativo instalado ainda');
+    await expect(page.locator('article.card')).toHaveCount(0);
+    await page.getByTestId('myapps-empty-catalog').click();
+    await expect(page).toHaveURL(/#\/catalogo$/);
+    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
   });
 
   test('grade usa bem monitores largos', async ({ page }) => {
