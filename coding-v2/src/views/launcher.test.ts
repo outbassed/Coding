@@ -116,7 +116,7 @@ describe('Launcher · aparência de loja', () => {
   it('favoritos aparecem no painel do Início, com link para o editor', async () => {
     localStorage.setItem('coding-v2-favorites', JSON.stringify(['paint']));
     const { wrapper } = await mountLauncher('/');
-    const link = wrapper.get('[data-testid="home-favorites"] a');
+    const link = wrapper.get('[data-testid="home-favorites"] ul a');
     expect(link.text()).toBe('Pintar');
     expect(link.attributes('href')).toBe('/apps/pintar/');
     wrapper.unmount();
