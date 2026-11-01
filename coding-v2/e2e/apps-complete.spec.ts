@@ -32,7 +32,7 @@ test.describe('Racha-conta', () => {
     await expect(page).toHaveURL(/\?doc=/);
     await page.reload();
     await expect(page.getByTestId('split-total')).toHaveText('R$ 2.046,50');
-    await tab(page, 'Arquivo').click();
+    await page.getByTestId('file-menu').locator('summary').click();
     const [csv] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-csv').click()]);
     expect(csv.suggestedFilename()).toMatch(/\.csv$/);
     expect((await bytesOf(csv)).toString('utf8')).toContain('Sorvete');
@@ -380,7 +380,8 @@ test.describe('Documentos de backups antigos', () => {
 });
 
 test.describe('Casca dos editores · celular e acessibilidade', () => {
-  const apps = ['/apps/planilhas/', '/apps/imagens/', '/apps/pdf/', '/apps/qr/', '/apps/sorteio/', '/apps/racha-conta/'];
+  // Sorteio e Racha-conta organizam a própria tela (layout livre): veja layouts-lote2.spec.ts.
+  const apps = ['/apps/planilhas/', '/apps/imagens/', '/apps/pdf/', '/apps/qr/'];
   test('celular (390 px): prévia em cima, ferramentas embaixo, sem rolagem horizontal, sem violações', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     for (const url of apps) {

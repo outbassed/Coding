@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
+// Sorteio e Racha-conta (lote 2) e os apps do lote 1 organizam a própria tela; veja layouts-lote1/2.spec.ts.
 const shared = [
-  '/apps/planilhas/', '/apps/imagens/', '/apps/pdf/', '/apps/qr/',
-  '/apps/sorteio/', '/apps/racha-conta/'
+  '/apps/planilhas/', '/apps/imagens/', '/apps/pdf/', '/apps/qr/'
 ];
 
 test.describe('Padrão visual do Etiquetas · sete editores', () => {
