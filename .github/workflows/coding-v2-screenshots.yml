@@ -1,0 +1,59 @@
+name: Coding 2.0 capturas de tela
+# Fotografa o site compilado em vários aparelhos e guarda as imagens como artifact. Não publica nada.
+on:
+  pull_request:
+    paths: ['coding-v2/**', '.github/workflows/coding-v2-screenshots.yml']
+  workflow_dispatch:
+    inputs:
+      filter:
+        description: 'Só telas cujo nome contém (separe por vírgula). Vazio = todas'
+        required: false
+        default: ''
+      schemes:
+        description: 'Temas: light, dark ou light,dark'
+        required: false
+        default: 'light'
+      devices:
+        description: 'Aparelhos (desktop,notebook,tablet-retrato,tablet-paisagem,celular,celular-pequeno). Vazio = todos'
+        required: false
+        default: ''
+permissions:
+  contents: read
+concurrency:
+  group: coding-v2-shots-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  shots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: coding-v2
+    env:
+      VITE_CODING_PREVIEW_PWA: '1'
+      SHOTS_FILTER: ${{ inputs.filter }}
+      SHOTS_SCHEMES: ${{ inputs.schemes }}
+      SHOTS_DEVICES: ${{ inputs.devices }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: coding-v2/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npx vite build
+      - run: node scripts/generate-offline-manifest.mjs
+      - name: Fotografar
+        run: npx playwright test -c playwright.shots.config.ts
+      - name: Resumo
+        if: always()
+        run: node scripts/dev/shots-summary.mjs shots-out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: capturas-${{ github.event.pull_request.head.sha || github.sha }}
+          path: coding-v2/shots-out
+          retention-days: 14
+          if-no-files-found: error
