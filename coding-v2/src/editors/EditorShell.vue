@@ -32,7 +32,7 @@ export interface ShellTab { id: string; label: string }
  * mobile com prévia acima, BottomSheet ajustável e abas fixas na parte inferior.
  * Só uma instância de cada painel é montada em qualquer breakpoint.
  */
-const props = withDefaults(defineProps<{ app: ToolId; doc: ShellDoc; tabs: ShellTab[]; sideLabel?: string; history?: boolean }>(), { sideLabel: '', history: true });
+const props = withDefaults(defineProps<{ app: ToolId; doc: ShellDoc; tabs: ShellTab[]; sideLabel?: string; history?: boolean; startOpen?: boolean; chrome?: number }>(), { sideLabel: '', history: true, startOpen: true, chrome: 208 });
 const tab = defineModel<string>('tab', { required: true });
 useSettingsStore();
 const tool = getTool(props.app);
@@ -41,11 +41,13 @@ const inspectorDocked = useMediaQuery('(min-width: 1180px)', true);
 const slots = useSlots();
 const root = ref<HTMLElement | null>(null);
 useVisualViewport(() => root.value);
-const panelOpen = ref(true);
+/** No celular a gaveta começa aberta, salvo em apps cuja prévia é o foco (`startOpen=false`). */
+const panelOpen = ref(props.startOpen);
 const desktopToolsOpen = ref(true);
 const inspectorOpen = ref(true);
 const INSPECTOR = '__inspector';
-const snap = ref<SheetSnap>('half');
+// No Versos a composição precisa receber prioridade visual, inclusive quando a gaveta é aberta.
+const snap = ref<SheetSnap>(props.app === 'versos' ? 'compact' : 'half');
 const SIDE = '__side';
 const allTabs = computed<ShellTab[]>(() => wide.value ? props.tabs : [
   ...props.tabs,
@@ -100,7 +102,7 @@ const inspector = useResizableSidebar(props.app + '-properties', 288, 240, 400, 
         <button type="button" class="ib" aria-label="Refazer" title="Refazer (Ctrl+Shift+Z)" :disabled="!doc.canRedo.value" data-testid="redo" @click="doc.redo()"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
       </div>
       <button v-if="wide && $slots.inspector && !inspectorOpen" type="button" class="btn es-show-properties" data-testid="show-properties" @click="inspectorOpen = true">Propriedades</button>
-      <SaveStatus :state="doc.status.value" class="es-status" />
+      <SaveStatus :state="doc.status.value" :compact="app === 'versos' && !wide" class="es-status" />
     </header>
 
     <ProjectTabs v-if="doc.projects && !doc.loadError.value" :projects="doc.projects" :wide="wide" />
@@ -160,7 +162,7 @@ const inspector = useResizableSidebar(props.app + '-properties', 288, 240, 400, 
       </aside>
       <template v-if="!wide">
         <BottomSheet v-if="panelOpen" v-model:snap="snap" class="es-mobile-sheet" :title="currentTitle"
-          :style="{ '--chrome': '208px', ...(snap === 'full' ? { maxHeight: 'min(70dvh, calc(var(--vv-h, 100dvh) - 220px))' } : {}) }"
+          :style="{ '--chrome': props.chrome + 'px', ...(snap === 'full' ? { maxHeight: 'min(70dvh, calc(var(--vv-h, 100dvh) - 220px))' } : {}) }"
           @close="panelOpen = false">
           <section v-if="tab === INSPECTOR && $slots.inspector" id="es-panel" role="tabpanel" :aria-labelledby="'es-tab-' + tab" data-testid="editor-panel">
             <slot name="inspector" />
@@ -243,5 +245,17 @@ const inspector = useResizableSidebar(props.app + '-properties', 288, 240, 400, 
 .es-mobile-tab[aria-selected="true"]:not([aria-expanded="false"]) { background: var(--app); border-color: var(--app); color: var(--ink); }
 @media (max-width: 599px) { .es-back-t { display: none; } .es-head { gap: 4px; } .es-name { font-size: 11px; } }
 @media (max-width: 420px) { .es-icon { display: none; } .es-status { white-space: normal; text-align: center; max-width: 96px; font-size: 11px; line-height: 1.2; } }
+/* Versos mobile: cabeçalho e controles compactos sem alterar os outros 15 editores. */
+@media (max-width: 899px) {
+  .es[data-app="versos"].is-narrow .es-head { min-height: calc(50px + var(--sa-t)); gap: 4px; padding-right: max(6px, var(--sa-r)); }
+  .es[data-app="versos"].is-narrow .es-back { min-width: 38px; padding: 0 2px; }
+  .es[data-app="versos"].is-narrow .es-undo .ib { min-width: 36px; padding: 0 3px; }
+  .es[data-app="versos"].is-narrow .es-status { flex-shrink: 0; max-width: none; }
+  .es[data-app="versos"].is-narrow :deep(.pt-mobile) { padding-block: 2px; }
+  .es[data-app="versos"].is-narrow :deep(.pt-current) { min-height: 38px; }
+  .es[data-app="versos"].is-narrow .es-footer { padding: 5px 10px; }
+  .es[data-app="versos"].is-narrow .es-mobile-tabs { gap: 5px; padding-top: 5px; padding-bottom: calc(5px + var(--sa-b)); }
+  .es[data-app="versos"].is-narrow .es-mobile-tab { min-height: 42px; padding: 0 13px; }
+}
 @media print { .es { display: block; height: auto; position: static; } .es-head, .es-alerts, .es-tools, .es-inspector, .es-mobile-nav, .es-mobile-sheet, .es-footer, .es-reopen, .skip-link { display: none !important; } .es-workspace, .es-canvas, .es-stage { display: block !important; height: auto !important; overflow: visible !important; } }
 </style>

@@ -4,10 +4,10 @@ import { contrast } from '../test/color';
 
 describe('catálogo', () => {
   it('tem ferramentas com ids únicos', () => {
-    expect(tools).toHaveLength(15);
+    expect(tools).toHaveLength(16);
     expect(new Set(tools.map((tool) => tool.id)).size).toBe(tools.length);
   });
-  it('os 15 apps têm página própria e listam o que já funciona', () => {
+  it('os 16 apps têm página própria e listam o que já funciona', () => {
     expect(tools.every((tool) => tool.status === 'preview')).toBe(true);
     const paths = tools.map((tool) => tool.path);
     expect(paths.every((path) => typeof path === 'string' && /^\/apps\/[a-z-]+\/$/.test(path))).toBe(true);
@@ -18,7 +18,7 @@ describe('catálogo', () => {
     const hashes = tools.map((tool) => tool.legacyHash).filter((hash): hash is string => hash !== null);
     expect(new Set(hashes).size).toBe(hashes.length);
     expect(hashes).toHaveLength(8);
-    for (const id of ['calculator', 'colors', 'zip', 'compare', 'code', 'viewer', 'paint']) expect(tools.find((tool) => tool.id === id)?.legacyHash).toBeNull();
+    for (const id of ['calculator', 'colors', 'zip', 'compare', 'code', 'viewer', 'paint', 'versos']) expect(tools.find((tool) => tool.id === id)?.legacyHash).toBeNull();
   });
 });
 

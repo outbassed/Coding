@@ -2,13 +2,13 @@
 import type { DocTemplate } from './templates';
 
 /** Aba "Arquivo" comum: exportações do app (slot) + novo documento a partir de modelos editáveis. */
-defineProps<{ templates: readonly DocTemplate<unknown>[] }>();
+withDefaults(defineProps<{ templates: readonly DocTemplate<unknown>[]; exportTitle?: string }>(), { exportTitle: 'Exportar e imprimir' });
 const emit = defineEmits<{ new: [id: string] }>();
 </script>
 
 <template>
   <div class="file-tab">
-    <section class="ed-group" aria-labelledby="ft-export"><h2 id="ft-export">Exportar e imprimir</h2><div class="ed-row"><slot /></div><slot name="after" /></section>
+    <section class="ed-group" aria-labelledby="ft-export"><h2 id="ft-export">{{ exportTitle }}</h2><div class="ed-row"><slot /></div><slot name="after" /></section>
     <section class="ed-group" aria-labelledby="ft-new">
       <h2 id="ft-new">Novo a partir de um modelo</h2>
       <ul class="tpl" data-testid="templates">

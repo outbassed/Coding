@@ -8,7 +8,7 @@
     "build": "vue-tsc --noEmit && vite build && node scripts/generate-offline-manifest.mjs",
     "typecheck": "vue-tsc --noEmit",
     "preview": "vite preview --host 0.0.0.0",
-    "test:structure": "node scripts/check-structure.mjs",
+    "test:structure": "node scripts/check-structure.mjs && node scripts/check-version-bumps.mjs",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
     "test": "npm run test:structure && npm run test:unit && npm run test:e2e"

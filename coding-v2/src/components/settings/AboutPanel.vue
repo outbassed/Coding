@@ -9,6 +9,7 @@ const credits = [
   { name: 'pdf-lib', license: 'MIT', use: 'Editar e montar PDFs' },
   { name: 'PDF.js', license: 'Apache-2.0', use: 'Mostrar as páginas dos PDFs' },
   { name: 'qrcode-generator', license: 'MIT', use: 'Gerar QR codes' },
+  { name: 'Fontes do Versos: Arimo, Montserrat, Oswald, Bebas Neue, Anton, Playfair Display, Cormorant Garamond, Lora, Great Vibes, Dancing Script, Pacifico e Caveat', license: 'SIL OFL 1.1 (avisos em /fonts/versos/)', use: 'Texto das cenas do Versos, incluídas no aplicativo' },
   { name: 'Vue, Pinia e Vue Router', license: 'MIT', use: 'Interface do Launcher e dos aplicativos' }
 ];
 </script>

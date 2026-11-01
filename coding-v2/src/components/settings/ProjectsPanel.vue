@@ -4,6 +4,7 @@ import { useCopyCounts } from '../../composables/useCopyCounts';
 import AppIcon from '../ui/AppIcon.vue';
 import StoragePanel from '../library/StoragePanel.vue';
 import LimitsPanel from '../ui/LimitsPanel.vue';
+import ImportLimitsPanel from '../ui/ImportLimitsPanel.vue';
 
 const emit = defineEmits<{ announce: [text: string] }>();
 const { copies, counts, perApp } = useCopyCounts();
@@ -11,6 +12,7 @@ const { copies, counts, perApp } = useCopyCounts();
 
 <template>
   <LimitsPanel :counts="counts" @announce="emit('announce', $event)" />
+  <ImportLimitsPanel @announce="emit('announce', $event)" />
 
   <section class="card" aria-labelledby="docs-h">
     <h2 id="docs-h">Documentos e armazenamento</h2>

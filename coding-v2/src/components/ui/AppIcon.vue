@@ -7,7 +7,7 @@ const props = withDefaults(defineProps<{ id: ToolId; size?: 'sm' | 'md' | 'lg' |
 const originalNames: Record<ToolId, string> = {
   labels: 'labels', texts: 'texts', calc: 'calc', images: 'images',
   pdf: 'pdf', codes: 'codes',
-  draw: 'draw', split: 'split', calculator: 'calculator', colors: 'colors', zip: 'zip', compare: 'compare', code: 'code', viewer: 'viewer', paint: 'paint'
+  draw: 'draw', split: 'split', calculator: 'calculator', colors: 'colors', zip: 'zip', compare: 'compare', code: 'code', viewer: 'viewer', paint: 'paint', versos: 'versos'
 };
 const src = computed(() => '/legacy-icons/' + originalNames[props.id] + '.svg');
 </script>
