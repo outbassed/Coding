@@ -21,7 +21,7 @@ Precisam só do `gh` (GitHub CLI) autenticado. Usam `GITHUB_REPOSITORY` ou, se v
 | --- | --- |
 | `ci-wait.sh <sha>` | Espera `build` e `shots` terminarem e mostra o resultado. |
 | `ci-report.sh <sha>` | Mostra passos que falharam, o resumo dos testes e as anotações (avisos de layout, medições). |
-| `shots-get.sh <sha> [pasta]` | Baixa as capturas: `<pasta>/<aparelho>/<tema>/<tela>.png`. |
+| `shots-get.sh <pr> [pasta]` | Baixa as capturas do PR pela branch espelho `ci-capturas` (`<pasta>/<aparelho>/<tema>/<tela>.png`). Com um `<sha>` baixa o artifact. |
 | `preview-url.sh <pr>` | Lista os endereços de pré-visualização do PR. |
 
 ## 3. Capturas de tela (conferir layout)
@@ -31,7 +31,8 @@ Precisam só do `gh` (GitHub CLI) autenticado. Usam `GITHUB_REPOSITORY` ou, se v
 - O robô também **avisa** (anotação `::warning`) quando uma página rola na horizontal, ou rola na vertical num editor, que deveria caber na janela. Foi esse tipo de medição que achou o bug de rolagem das Etiquetas.
 - **Acrescentar uma tela ou estado:** edite `shots/routes.ts` (um objeto com `name`, `path` e, se preciso, `before`/`after` para preparar dados). Dados de teste sempre em contexto limpo.
 - **Rodar só parte:** em *Actions → Coding 2.0 capturas de tela → Run workflow* (disponível depois que o arquivo estiver na branch padrão) informe `filter`, `schemes` (`light,dark`) e `devices`. Em PRs, roda tudo no tema claro.
-- Para ver as imagens: `shots-get.sh <sha>` e abra os PNG.
+- **Onde ficam as imagens:** (1) *artifact* `capturas-<sha>` da execução (14 dias; quem edita pelo navegador baixa na página da execução); (2) espelho na branch `ci-capturas`, pasta `pr-<número>/`, regravado a cada execução e apagado quando o PR fecha. O espelho existe porque alguns ambientes não conseguem baixar artifacts (o GitHub os serve de um armazenamento externo). Essa branch só guarda imagens: não contém código e não tem relação com a produção.
+- Para ver as imagens: `shots-get.sh <pr>` e abra os PNG.
 
 ## 4. Pré-visualização ao vivo
 

@@ -7,7 +7,7 @@ Guia completo do fluxo: `coding-v2/DESENVOLVIMENTO.md`.
 - **Não tente instalar dependências nem acessar o npm no seu ambiente.** A rede costuma ser bloqueada; não insista nem contorne.
 - Edite os arquivos, faça commit e `git push` para uma branch `feature/<assunto>-sonnet`, e abra um PR **em rascunho** pela API REST (`gh api repos/outbassed/Coding/pulls ...`; o GraphQL é bloqueado).
 - Quem compila, roda TypeScript, testes unitários e e2e é o **GitHub Actions** (`coding-v2-ci.yml`). Veja o resultado com `coding-v2/scripts/dev/ci-wait.sh <sha>` e `ci-report.sh <sha>`.
-- Para conferir **layout**, o Actions fotografa o site em desktop, notebook, tablet e celular (`coding-v2-screenshots.yml`). Baixe com `scripts/dev/shots-get.sh <sha>` e olhe as imagens com a ferramenta Read. Para ver o site rodando, use `scripts/dev/preview-url.sh <pr>` (Cloudflare Pages/Vercel).
+- Para conferir **layout**, o Actions fotografa o site em desktop, notebook, tablet e celular (`coding-v2-screenshots.yml`). Baixe com `scripts/dev/shots-get.sh <número-do-pr>` (espelho na branch `ci-capturas`; o download de artifacts costuma ser bloqueado) e olhe as imagens com a ferramenta Read. Para ver o site rodando, use `scripts/dev/preview-url.sh <pr>` (Cloudflare Pages/Vercel).
 - Para investigar um bug, escreva um teste ou uma medição em `e2e/` ou `shots/`, rode na CI e leia as anotações (`::notice`/`::warning`). Remova o diagnóstico temporário antes do commit final.
 
 ## Limites (sempre valem)
