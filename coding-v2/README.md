@@ -100,3 +100,6 @@ No Launcher, vá a **Ajustes → Offline** ou à página de **Detalhes** do app 
 - O atalho `?`, fora de campos de edição, apresenta a lista **somente do aplicativo aberto**. `Alt+Shift+N` aciona a ação principal de cada aplicativo e `Alt+Shift+E` executa a exportação quando disponível. Controles desativados não são clicados.
 - Nenhum app é bloqueado: todas as páginas abrem online diretamente.
 - No PC, arraste a divisória do painel esquerdo ou ajuste-a com as setas quando focada; dê dois cliques para restaurar. A largura persiste separadamente por app. Nenhuma mudança na estrutura dos painéis mobile/tablet.
+
+## Desenvolvimento
+Fluxo sem instalar nada (GitHub Actions, capturas de tela em vários aparelhos, pré-visualizações e regras de segurança): veja [DESENVOLVIMENTO.md](DESENVOLVIMENTO.md).
