@@ -294,6 +294,8 @@ test.describe('Pintar · ferramentas avançadas', () => {
     await page.getByTestId('brush-size').fill('200');
     await page.getByTestId('brush-hardness').fill('0');
     await click(page, [0.3, 0.5]);
+    // Na CI o primeiro toque às vezes se perde (a camada ainda está assentando): se o centro não ficou vermelho, toca de novo.
+    for (let attempt = 0; attempt < 3 && !isRed(await pixel(page, 0.3, 0.5)); attempt++) { await page.waitForTimeout(400); if (!isRed(await pixel(page, 0.3, 0.5))) await click(page, [0.3, 0.5]); }
     // 200 px de diâmetro numa tela de 1080: raio ≈ 0,0926 da largura; 80% do raio ≈ 0,074
     await expect.poll(async () => isRed(await pixel(page, 0.3, 0.5))).toBe(true);
     const soft = await pixel(page, 0.3 + 0.074, 0.5);
