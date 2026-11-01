@@ -79,7 +79,7 @@ test.describe('Launcher · loja no computador', () => {
     await expect(page.locator('article.card')).toHaveCount(2);
     const card = page.locator('article.card[data-tool="labels"]');
     await expect(card.getByRole('link', { name: 'Abrir o editor de Etiquetas' })).toHaveAttribute('href', '/apps/etiquetas/');
-    await expect(card.getByTestId('card-meta')).toContainText('Editor funcional');
+    await expect(card.getByTestId('card-installed')).toContainText('Versão');
     await expect(card.getByTestId('card-offline')).toBeVisible();
     await expect(page.locator('article.card[data-tool="texts"]')).toHaveCount(0);
     await expect(page.getByTestId('status-pill')).toHaveCount(0);
@@ -140,7 +140,8 @@ test.describe('Launcher · loja no celular', () => {
 
       test('grade 3 por linha abre detalhes do app, sem cards gigantes', async ({ page }) => {
         await page.goto('/launcher/#/catalogo');
-        const cards = page.locator('article.card');
+        // a vitrine tem uma grade por categoria; “Planilhas e contas” tem 4 aplicativos (3 na primeira linha, 1 na segunda)
+        const cards = page.locator('[data-category="data"] article.card');
         const boxes = await cards.evaluateAll((els) => els.slice(0, 4).map((el) => {
           const r = el.getBoundingClientRect(); return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width) };
         }));

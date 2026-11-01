@@ -149,7 +149,7 @@ test.describe('Lista suspensa de categorias', () => {
 test.describe('Favoritos', () => {
   test('favoritar leva o app ao painel do Início e ordena Meus apps', async ({ page }) => {
     await page.goto('/launcher/');
-    await expect(page.getByTestId('home-favorites').getByRole('link')).toHaveCount(0);
+    await expect(page.getByTestId('home-favorites').locator('ul a')).toHaveCount(0);
     await page.goto('/launcher/#/catalogo');
     await page.locator('article.card[data-tool="split"]').getByTestId('favorite').click();
     await expect(page.locator('article.card[data-tool="split"]').getByTestId('favorite')).toHaveAttribute('aria-pressed', 'true');
