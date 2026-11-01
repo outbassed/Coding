@@ -277,7 +277,8 @@ test.describe('Central de Versões · celular', () => {
     await page.getByTestId('menu-toggle').click();
     await page.setViewportSize({ width: 1280, height: 800 });
     await expect(page.getByTestId('versions-menu')).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.classList.contains('scroll-lock'))).toBe(false);
+    // a página reage ao redimensionamento um instante depois: espera em vez de ler uma vez só
+    await expect.poll(() => page.evaluate(() => document.documentElement.classList.contains('scroll-lock'))).toBe(false);
   });
 });
 

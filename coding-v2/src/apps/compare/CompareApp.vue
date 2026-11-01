@@ -2,6 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import EditorShell from '../../editors/EditorShell.vue';
 import FileTab from '../../editors/FileTab.vue';
+import SegTabs from '../../editors/SegTabs.vue';
+import { useMediaQuery } from '../../composables/useMediaQuery';
 import { useDocument } from '../../editors/useDocument';
 import { downloadText, safeFileName } from '../../shared/files/download';
 import { formatBytes } from '../../shared/bytes';
@@ -15,8 +17,13 @@ const doc = useDocument<CompareState>({
   imagesFor: (state, images) => { const used = new Set([state.a.blobId, state.b.blobId]); return images.filter((i) => used.has(i.id)); }
 });
 const { state, images } = doc;
-const tabs = [{ id: 'arquivos', label: 'Arquivos' }, { id: 'opcoes', label: 'Opções' }, { id: 'arquivo', label: 'Arquivo' }];
-const tab = ref('arquivos');
+/** Layout livre: os dois lados e o resultado aparecem juntos no PC (entradas lado a lado em cima, resultado embaixo); no celular, um de cada vez. */
+const wide = useMediaQuery('(min-width: 900px)', true);
+const sideTabs = [{ id: 'a', label: 'Lado A' }, { id: 'b', label: 'Lado B' }, { id: 'resultado', label: 'Resultado' }];
+const mobileView = ref('a');
+const inputsOpen = ref(true);
+/** No celular as opções ficam recolhidas, para os lados e o resultado aparecerem logo. */
+const optsOpen = ref(false);
 const problem = ref('');
 const info = ref('');
 function ok(text: string): void { info.value = text; problem.value = ''; doc.say(text); }
@@ -172,50 +179,60 @@ const rowText = (side: { n: number; text: string } | undefined): string => (side
 </script>
 
 <template>
-  <EditorShell v-model:tab="tab" app="compare" :doc="doc" :tabs="tabs" :history="false">
-    <template #panel="{ tab: current }">
-      <div v-if="current === 'arquivos'" class="ed-group">
-        <section v-for="key in (['a', 'b'] as const)" :key="key" class="side" :aria-label="'Lado ' + key.toUpperCase()">
-          <h2 class="ed-label-h">Lado {{ key.toUpperCase() }}</h2>
-          <label class="ed-field"><span class="ed-label">Arquivo</span>
-            <input type="file" class="inp" :aria-label="'Escolher o arquivo do lado ' + key.toUpperCase()" :data-testid="'side-' + key + '-file'" @change="onFile(key, $event)" /></label>
-          <label class="ed-field"><span class="ed-label">Nome</span>
-            <input class="inp" :value="state[key].name" maxlength="160" :data-testid="'side-' + key + '-name'" @change="onName(key, $event)" /></label>
-          <label v-if="state[key].kind !== 'binary'" class="ed-field"><span class="ed-label">Texto (cole ou edite)</span>
-            <textarea class="inp" rows="5" spellcheck="false" :value="state[key].text" :maxlength="MAX_TEXT_CHARS" :data-testid="'side-' + key + '-text'" @input="onText(key, $event)" /></label>
-          <p v-else class="ed-hint" :data-testid="'side-' + key + '-binary'">Arquivo binário de {{ formatBytes(state[key].size) }}: comparado byte a byte.</p>
-          <div class="ed-row"><button type="button" class="btn" :disabled="state[key].kind === 'empty'" :data-testid="'clear-' + key" @click="clearSide(key)">Limpar lado {{ key.toUpperCase() }}</button></div>
-        </section>
-        <div class="ed-row"><button type="button" class="btn" data-testid="swap-sides" @click="swap">Trocar A e B</button></div>
-      </div>
-
-      <div v-else-if="current === 'opcoes'" class="ed-group">
-        <fieldset class="opts">
-          <legend class="ed-label">Ao comparar texto</legend>
-          <label class="check"><input v-model="state.options.ignoreCase" type="checkbox" data-testid="opt-case" /> Ignorar maiúsculas e minúsculas</label>
+  <EditorShell app="compare" layout="free" :doc="doc" :history="false">
+    <div class="cp" data-testid="compare-stage" :data-wide="wide ? 'sim' : 'nao'">
+      <div class="tools" role="group" aria-label="Opções da comparação">
+        <fieldset v-show="wide || optsOpen" class="opts">
+          <legend class="sr-only">Ao comparar texto</legend>
+          <label class="check"><input v-model="state.options.ignoreCase" type="checkbox" data-testid="opt-case" /> Ignorar maiúsculas</label>
           <label class="check"><input v-model="state.options.ignoreSpace" type="checkbox" data-testid="opt-space" /> Ignorar espaços repetidos e nas pontas</label>
           <label class="check"><input v-model="state.options.ignoreBlank" type="checkbox" data-testid="opt-blank" /> Ignorar linhas em branco</label>
         </fieldset>
-        <fieldset class="opts">
-          <legend class="ed-label">Exibição</legend>
+        <fieldset v-show="wide || optsOpen" class="opts">
+          <legend class="sr-only">Exibição</legend>
           <label class="check"><input type="radio" name="cmp-view" :checked="state.view === 'side'" data-testid="view-side" @change="state.view = 'side'" /> Lado a lado</label>
           <label class="check"><input type="radio" name="cmp-view" :checked="state.view === 'unified'" data-testid="view-unified" @change="state.view = 'unified'" /> Unificada (como o diff)</label>
-          <label class="check"><input v-model="state.onlyDiffs" type="checkbox" data-testid="only-diffs" /> Mostrar só as diferenças (com 3 linhas de contexto)</label>
+          <label class="check"><input v-model="state.onlyDiffs" type="checkbox" data-testid="only-diffs" /> Só as diferenças (com 3 linhas de contexto)</label>
         </fieldset>
-        <p class="ed-hint">Finais de linha diferentes (Windows e Linux) nunca contam como diferença. Arquivos que não são texto são comparados byte a byte.</p>
+        <div class="tool-btns">
+          <button v-if="!wide" type="button" class="btn" data-testid="toggle-opts" :aria-expanded="optsOpen" @click="optsOpen = !optsOpen">{{ optsOpen ? 'Ocultar opções' : 'Opções' }}</button>
+          <button type="button" class="btn" data-testid="swap-sides" @click="swap">Trocar A e B</button>
+          <button v-if="wide" type="button" class="btn" data-testid="toggle-inputs" :aria-expanded="inputsOpen" aria-controls="cp-panes" @click="inputsOpen = !inputsOpen">{{ inputsOpen ? 'Recolher entradas' : 'Mostrar entradas' }}</button>
+          <details class="filemenu" data-testid="file-menu">
+            <summary class="btn">Arquivo</summary>
+            <div class="filemenu-body">
+              <FileTab :templates="compareTemplates" @new="doc.newFrom">
+                <button type="button" class="btn" :disabled="!result || result.identical" data-testid="export-diff" @click="exportDiff">Diferenças (.diff)</button>
+                <button type="button" class="btn" :disabled="!result || result.identical" data-testid="copy-diff" @click="copyDiff">Copiar diferenças</button>
+                <button type="button" class="btn" :disabled="status === 'vazio'" data-testid="export-report" @click="exportReport">Relatório (TXT)</button>
+              </FileTab>
+            </div>
+          </details>
+        </div>
+        <p v-show="wide || optsOpen" class="ed-hint note">Finais de linha diferentes (Windows e Linux) nunca contam como diferença. Arquivos que não são texto são comparados byte a byte.</p>
       </div>
 
-      <FileTab v-else :templates="compareTemplates" @new="doc.newFrom">
-        <button type="button" class="btn" :disabled="!result || result.identical" data-testid="export-diff" @click="exportDiff">Diferenças (.diff)</button>
-        <button type="button" class="btn" :disabled="!result || result.identical" data-testid="copy-diff" @click="copyDiff">Copiar diferenças</button>
-        <button type="button" class="btn" :disabled="status === 'vazio'" data-testid="export-report" @click="exportReport">Relatório (TXT)</button>
-      </FileTab>
-    </template>
+      <SegTabs v-if="!wide" v-model="mobileView" :tabs="sideTabs" label="Lados e resultado" prefix="cp" fill />
 
-    <div class="stage" data-testid="compare-stage">
-      <p v-if="problem" class="ed-error" role="alert" data-testid="compare-error">{{ problem }}</p>
-      <p v-else-if="info" class="ed-ok" role="status" data-testid="compare-info">{{ info }}</p>
+      <div v-show="wide ? inputsOpen : mobileView !== 'resultado'" id="cp-panes" class="panes">
+        <section v-for="key in (['a', 'b'] as const)" v-show="wide || mobileView === key" :key="key" class="side" :aria-label="'Lado ' + key.toUpperCase()">
+          <h2 class="ed-label-h">Lado {{ key.toUpperCase() }}</h2>
+          <div class="ed-row">
+            <label class="ed-field grow"><span class="ed-label">Arquivo</span>
+              <input type="file" class="inp" :aria-label="'Escolher o arquivo do lado ' + key.toUpperCase()" :data-testid="'side-' + key + '-file'" @change="onFile(key, $event)" /></label>
+            <label class="ed-field grow"><span class="ed-label">Nome</span>
+              <input class="inp" :value="state[key].name" maxlength="160" :data-testid="'side-' + key + '-name'" @change="onName(key, $event)" /></label>
+          </div>
+          <label v-if="state[key].kind !== 'binary'" class="ed-field"><span class="ed-label">Texto (cole ou edite)</span>
+            <textarea class="inp" rows="8" spellcheck="false" :value="state[key].text" :maxlength="MAX_TEXT_CHARS" :data-testid="'side-' + key + '-text'" @input="onText(key, $event)" /></label>
+          <p v-else class="ed-hint" :data-testid="'side-' + key + '-binary'">Arquivo binário de {{ formatBytes(state[key].size) }}: comparado byte a byte.</p>
+          <div class="ed-row"><button type="button" class="btn" :disabled="state[key].kind === 'empty'" :data-testid="'clear-' + key" @click="clearSide(key)">Limpar lado {{ key.toUpperCase() }}</button></div>
+        </section>
+      </div>
 
+      <div v-show="wide || mobileView === 'resultado'" class="results">
+        <p v-if="problem" class="ed-error" role="alert" data-testid="compare-error">{{ problem }}</p>
+        <p v-else-if="info" class="ed-ok" role="status" data-testid="compare-info">{{ info }}</p>
       <section aria-labelledby="res-h">
         <h2 id="res-h" class="sh">Resultado</h2>
         <p class="status" :data-state="status" data-testid="compare-status">{{ statusText }}</p>
@@ -286,17 +303,29 @@ const rowText = (side: { n: number; text: string } | undefined): string => (side
         </div>
         <p v-if="shown.length > MAX_ROWS" class="ed-hint">Mostrando as primeiras {{ MAX_ROWS }} linhas. Exporte as diferenças para ver tudo.</p>
       </section>
+      </div>
     </div>
   </EditorShell>
 </template>
 
 <style scoped>
-.stage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; width: min(100%, 1100px); margin: 0 auto; padding: 14px max(14px, var(--sa-r)) 28px max(14px, var(--sa-l)); box-sizing: border-box; min-width: 0; }
+.cp { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-content: start; box-sizing: border-box; min-width: 0; padding: 12px max(14px, var(--sa-r)) 28px max(14px, var(--sa-l)); }
+.tools { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; padding: 8px 12px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+.tool-btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
+@media (max-width: 899px) { .tools { gap: 2px 14px; } .tool-btns { margin-left: 0; width: 100%; } .opts { flex: 1 1 100%; } }
+.note { flex: 1 1 100%; }
+.filemenu { position: relative; }
+.filemenu > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; }
+.filemenu > summary::-webkit-details-marker { display: none; }
+.filemenu-body { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; width: min(420px, 86vw); max-height: 70vh; overflow: auto; padding: 12px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: 0 12px 32px #0003; }
+.panes { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.results { display: grid; gap: 14px; min-width: 0; padding: 14px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+.grow { flex: 1 1 140px; }
 .sh { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .ed-label-h { margin: 0; font-size: 14px; }
-.side { display: grid; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.side { display: grid; gap: 8px; align-content: start; min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
 textarea.inp { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; }
-.opts { border: 0; margin: 0 0 8px; padding: 0; display: grid; gap: 2px; }
+.opts { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0 14px; min-width: 0; }
 .check { display: flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 600; }
 .check input { width: 20px; height: 20px; flex: 0 0 auto; }
 .status { margin: 0 0 8px; font-size: 18px; font-weight: 800; }
@@ -328,5 +357,9 @@ mark { background: color-mix(in srgb, var(--danger) 28%, transparent); color: in
   .drow { grid-template-columns: 34px minmax(0, 1fr); }
   .drow .lnb { display: none; }
   .drow .b { grid-column: 1 / -1; border-top: 1px dashed var(--border); }
+}
+@media (min-width: 900px) {
+  .panes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .side textarea.inp { min-height: 180px; }
 }
 </style>

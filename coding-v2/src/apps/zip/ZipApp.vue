@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import EditorShell from '../../editors/EditorShell.vue';
 import FileTab from '../../editors/FileTab.vue';
+import SegTabs from '../../editors/SegTabs.vue';
 import { useDocument } from '../../editors/useDocument';
 import { downloadBlob, downloadText, safeFileName } from '../../shared/files/download';
 import { formatBytes } from '../../shared/bytes';
@@ -15,8 +16,9 @@ const doc = useDocument<ZipState>({
   imagesFor: (state, images) => { const used = new Set(state.files.map((f) => f.id)); return images.filter((i) => used.has(i.id)); }
 });
 const { state, images } = doc;
-const tabs = [{ id: 'arquivos', label: 'Arquivos' }, { id: 'compactar', label: 'Compactar' }, { id: 'abrir', label: 'Abrir ZIP' }, { id: 'arquivo', label: 'Arquivo' }];
-const tab = ref('arquivos');
+/** Layout livre: os arquivos do projeto ficam sempre à vista; as operações (compactar, abrir um ZIP, arquivo) trocam num painel ao lado. */
+const tabs = [{ id: 'compactar', label: 'Compactar' }, { id: 'abrir', label: 'Abrir ZIP' }, { id: 'arquivo', label: 'Arquivo' }];
+const tab = ref('compactar');
 const busy = ref(false);
 const problem = ref('');
 const info = ref('');
@@ -167,108 +169,129 @@ function listText(): void {
 </script>
 
 <template>
-  <EditorShell v-model:tab="tab" app="zip" :doc="doc" :tabs="tabs" :history="false">
-    <template #panel="{ tab: current }">
-      <div v-if="current === 'arquivos'" class="ed-group">
-        <label class="ed-field"><span class="ed-label">Adicionar arquivos</span>
-          <input ref="fileInput" type="file" multiple class="inp" aria-label="Escolher arquivos para o ZIP" data-testid="zip-files-input" @change="onFiles" /></label>
+  <EditorShell app="zip" layout="free" :doc="doc" :history="false">
+    <div class="zx" data-testid="zip-stage">
+      <section class="files" aria-label="Arquivos do projeto">
+        <div class="bar">
+          <label class="add btn btn-app">
+            <span>Adicionar arquivos</span>
+            <input ref="fileInput" type="file" multiple class="pick" aria-label="Escolher arquivos para o ZIP" data-testid="zip-files-input" @change="onFiles" />
+          </label>
+          <p class="sum" data-testid="project-summary">{{ state.files.length }} {{ state.files.length === 1 ? 'arquivo' : 'arquivos' }} · {{ formatBytes(total) }} · {{ state.compress ? 'compactado' : 'sem compressão' }}</p>
+          <button type="button" class="btn" :disabled="!state.files.length" data-testid="clear-project" @click="clearProject">Esvaziar projeto</button>
+        </div>
         <p class="ed-hint">Até {{ MAX_ENTRIES }} arquivos e {{ MB(MAX_TOTAL_BYTES) }} MB no total. Tudo é feito neste aparelho, nada é enviado. Os arquivos ficam salvos no projeto.</p>
-        <div class="ed-row"><button type="button" class="btn" :disabled="!state.files.length" data-testid="clear-project" @click="clearProject">Esvaziar projeto</button></div>
-      </div>
+        <p v-if="problem" class="ed-error" role="alert" data-testid="zip-error">{{ problem }}</p>
+        <p v-else-if="info" class="ed-ok" role="status" data-testid="zip-info">{{ info }}</p>
 
-      <div v-else-if="current === 'compactar'" class="ed-group">
-        <fieldset class="seg">
-          <legend class="ed-label">Como gravar</legend>
-          <label class="radio"><input type="radio" name="zip-mode" :checked="state.compress" data-testid="mode-compress" @change="state.compress = true" /> Compactar (menor)</label>
-          <label class="radio"><input type="radio" name="zip-mode" :checked="!state.compress" data-testid="mode-store" @change="state.compress = false" /> Só agrupar (rápido)</label>
-        </fieldset>
-        <p v-if="state.compress && !canCompress()" class="ed-error" role="alert">Este navegador não consegue compactar; o ZIP será criado sem compressão.</p>
-        <p class="ed-hint">O arquivo se chamará <strong>{{ zipFileName(state.name) }}</strong> (o nome do projeto, no alto). Arquivos que já são compactados, como JPG, MP4 ou PDF, quase não diminuem.</p>
-        <div class="ed-row"><button type="button" class="btn btn-app" :disabled="busy || !state.files.length" data-testid="create-zip" @click="createZip">{{ busy ? 'Criando…' : 'Criar e baixar o ZIP' }}</button></div>
-        <p v-if="!state.files.length" class="ed-hint">Adicione arquivos na aba Arquivos.</p>
-      </div>
-
-      <div v-else-if="current === 'abrir'" class="ed-group">
-        <label class="ed-field"><span class="ed-label">Arquivo ZIP</span>
-          <input type="file" accept=".zip,application/zip,application/x-zip-compressed" class="inp" aria-label="Escolher um arquivo ZIP para abrir" data-testid="zip-open-input" @change="onZip" /></label>
-        <p v-if="!canDecompress()" class="ed-error" role="alert">Este navegador não descompacta ZIP. Atualize o navegador.</p>
-        <template v-if="opened">
-          <div class="ed-row">
-            <button type="button" class="btn" :disabled="busy" data-testid="verify-zip" @click="verify">Testar integridade</button>
-            <button type="button" class="btn btn-app" :disabled="busy || !openedFiles.length" data-testid="add-all" @click="addAll">Adicionar tudo ao projeto</button>
-            <button type="button" class="btn" data-testid="close-zip" @click="closeZip">Fechar ZIP</button>
-          </div>
-          <p v-if="verified" :class="verified.bad.length ? 'ed-error' : 'ed-ok'" role="status" data-testid="verify-result">
-            {{ verified.bad.length ? 'Com problema: ' + verified.bad.join(', ') : verified.ok === 1 ? 'O arquivo confere (tamanho e CRC-32).' : 'Todos os ' + verified.ok + ' arquivos conferem (tamanho e CRC-32).' }}
-          </p>
-        </template>
-        <p v-else class="ed-hint">Veja o que há dentro de um ZIP, confira se não está corrompido e extraia só o que precisar. ZIPs com senha e acima de 4 GB não são suportados.</p>
-      </div>
-
-      <FileTab v-else :templates="zipTemplates" @new="doc.newFrom">
-        <button type="button" class="btn" :disabled="!state.files.length" data-testid="export-list" @click="listText">Lista de arquivos (TXT)</button>
-      </FileTab>
-    </template>
-
-    <div class="stage" data-testid="zip-stage">
-      <p v-if="problem" class="ed-error" role="alert" data-testid="zip-error">{{ problem }}</p>
-      <p v-else-if="info" class="ed-ok" role="status" data-testid="zip-info">{{ info }}</p>
-
-      <section aria-labelledby="proj-h">
         <h2 id="proj-h" class="sh">Projeto</h2>
-        <p class="sum" data-testid="project-summary">{{ state.files.length }} {{ state.files.length === 1 ? 'arquivo' : 'arquivos' }} · {{ formatBytes(total) }} · {{ state.compress ? 'compactado' : 'sem compressão' }}</p>
-        <ul v-if="state.files.length" class="rows" data-testid="file-list">
+        <ul v-if="state.files.length" class="rows" data-testid="file-list" aria-labelledby="proj-h">
           <li v-for="(f, i) in visibleFiles" :key="f.id" :data-testid="'file-' + i">
             <input class="inp nm" :value="f.path" maxlength="240" :aria-label="'Nome de ' + f.path + ' no ZIP'" @change="renameFile(f.id, $event)" />
             <span class="sz">{{ formatBytes(f.size) }}</span>
             <button type="button" class="btn" :aria-label="'Remover ' + f.path" :data-testid="'remove-' + i" @click="removeFile(f.id)">Remover</button>
           </li>
         </ul>
-        <p v-else class="ed-hint" data-testid="file-empty">Nenhum arquivo ainda. Use a aba Arquivos para adicionar.</p>
+        <div v-else class="empty" data-testid="file-empty">
+          <strong>Nenhum arquivo ainda</strong>
+          <span>Use “Adicionar arquivos” para montar o seu ZIP, ou abra um ZIP existente no painel ao lado.</span>
+        </div>
         <p v-if="state.files.length > 300" class="ed-hint">Mostrando os primeiros 300 de {{ state.files.length }} arquivos.</p>
+
+        <section v-if="opened" aria-labelledby="open-h" class="opened" data-testid="opened-zip">
+          <h2 id="open-h" class="sh">Dentro de {{ opened.name }}</h2>
+          <p class="sum" data-testid="opened-summary">{{ opened.listing.entries.length }} {{ opened.listing.entries.length === 1 ? 'item' : 'itens' }} · {{ formatBytes(opened.listing.totalSize) }} descompactado</p>
+          <ul class="rows" data-testid="entry-list">
+            <li v-for="(e, i) in visibleEntries" :key="i" :data-testid="'entry-' + i" :data-directory="e.directory ? 'sim' : 'nao'">
+              <span class="nm"><span class="path">{{ e.name || e.rawName }}</span>
+                <small class="muted">{{ e.directory ? 'pasta' : formatBytes(e.size) + (e.method === 8 ? ' · compactado' : e.method === 0 ? ' · armazenado' : ' · método ' + e.method) }}{{ e.modified ? ' · ' + dateFmt.format(e.modified) : '' }}</small>
+                <small v-if="e.unsafe" class="warn" data-testid="entry-unsafe">Caminho suspeito: o nome foi limpo para {{ e.name || '(vazio)' }}.</small>
+              </span>
+              <template v-if="!e.directory && e.name">
+                <button type="button" class="btn" :aria-label="'Extrair ' + e.name" :data-testid="'extract-' + i" @click="downloadEntry(e)">Extrair</button>
+                <button type="button" class="btn" :aria-label="'Adicionar ' + e.name + ' ao projeto'" :data-testid="'to-project-' + i" @click="addEntry(e)">Ao projeto</button>
+              </template>
+            </li>
+          </ul>
+          <p v-if="opened.listing.entries.length > 300" class="ed-hint">Mostrando os primeiros 300 itens.</p>
+        </section>
       </section>
 
-      <section v-if="result" aria-labelledby="res-h" class="card" data-testid="zip-result">
-        <h2 id="res-h" class="sh">ZIP criado</h2>
-        <p><strong>{{ result.name }}</strong> · {{ formatBytes(result.size) }} ({{ result.savings }}; original {{ formatBytes(result.original) }})</p>
-        <p class="ed-hint">{{ result.files }} {{ result.files === 1 ? 'arquivo' : 'arquivos' }}, {{ result.stored }} gravado{{ result.stored === 1 ? '' : 's' }} sem compressão por não diminuírem. O download foi iniciado: confira a pasta de downloads do aparelho.</p>
-      </section>
+      <section class="ops" aria-label="Operações">
+        <SegTabs v-model="tab" :tabs="tabs" label="Operações do ZIP" prefix="zx" panel-id="zx-panel" fill />
+        <div id="zx-panel" class="panel" role="tabpanel" :aria-labelledby="'zx-tab-' + tab" data-testid="editor-panel">
+          <div v-if="tab === 'compactar'" class="ed-group">
+            <fieldset class="seg">
+              <legend class="ed-label">Como gravar</legend>
+              <label class="radio"><input type="radio" name="zip-mode" :checked="state.compress" data-testid="mode-compress" @change="state.compress = true" /> Compactar (menor)</label>
+              <label class="radio"><input type="radio" name="zip-mode" :checked="!state.compress" data-testid="mode-store" @change="state.compress = false" /> Só agrupar (rápido)</label>
+            </fieldset>
+            <p v-if="state.compress && !canCompress()" class="ed-error" role="alert">Este navegador não consegue compactar; o ZIP será criado sem compressão.</p>
+            <p class="ed-hint">O arquivo se chamará <strong>{{ zipFileName(state.name) }}</strong> (o nome do projeto, no alto). Arquivos que já são compactados, como JPG, MP4 ou PDF, quase não diminuem.</p>
+            <div class="ed-row"><button type="button" class="btn btn-app go" :disabled="busy || !state.files.length" data-testid="create-zip" @click="createZip">{{ busy ? 'Criando…' : 'Criar e baixar o ZIP' }}</button></div>
+            <p v-if="!state.files.length" class="ed-hint">Adicione arquivos ao projeto primeiro.</p>
+            <section v-if="result" aria-labelledby="res-h" class="card" data-testid="zip-result">
+              <h2 id="res-h" class="sh">ZIP criado</h2>
+              <p><strong>{{ result.name }}</strong> · {{ formatBytes(result.size) }} ({{ result.savings }}; original {{ formatBytes(result.original) }})</p>
+              <p class="ed-hint">{{ result.files }} {{ result.files === 1 ? 'arquivo' : 'arquivos' }}, {{ result.stored }} gravado{{ result.stored === 1 ? '' : 's' }} sem compressão por não diminuírem. O download foi iniciado: confira a pasta de downloads.</p>
+            </section>
+          </div>
 
-      <section v-if="opened" aria-labelledby="open-h" data-testid="opened-zip">
-        <h2 id="open-h" class="sh">Dentro de {{ opened.name }}</h2>
-        <p class="sum" data-testid="opened-summary">{{ opened.listing.entries.length }} {{ opened.listing.entries.length === 1 ? 'item' : 'itens' }} · {{ formatBytes(opened.listing.totalSize) }} descompactado</p>
-        <ul class="rows" data-testid="entry-list">
-          <li v-for="(e, i) in visibleEntries" :key="i" :data-testid="'entry-' + i" :data-directory="e.directory ? 'sim' : 'nao'">
-            <span class="nm"><span class="path">{{ e.name || e.rawName }}</span>
-              <small class="muted">{{ e.directory ? 'pasta' : formatBytes(e.size) + (e.method === 8 ? ' · compactado' : e.method === 0 ? ' · armazenado' : ' · método ' + e.method) }}{{ e.modified ? ' · ' + dateFmt.format(e.modified) : '' }}</small>
-              <small v-if="e.unsafe" class="warn" data-testid="entry-unsafe">Caminho suspeito: o nome foi limpo para {{ e.name || '(vazio)' }}.</small>
-            </span>
-            <template v-if="!e.directory && e.name">
-              <button type="button" class="btn" :aria-label="'Extrair ' + e.name" :data-testid="'extract-' + i" @click="downloadEntry(e)">Extrair</button>
-              <button type="button" class="btn" :aria-label="'Adicionar ' + e.name + ' ao projeto'" :data-testid="'to-project-' + i" @click="addEntry(e)">Ao projeto</button>
+          <div v-else-if="tab === 'abrir'" class="ed-group">
+            <label class="ed-field"><span class="ed-label">Arquivo ZIP</span>
+              <input type="file" accept=".zip,application/zip,application/x-zip-compressed" class="inp" aria-label="Escolher um arquivo ZIP para abrir" data-testid="zip-open-input" @change="onZip" /></label>
+            <p v-if="!canDecompress()" class="ed-error" role="alert">Este navegador não descompacta ZIP. Atualize o navegador.</p>
+            <template v-if="opened">
+              <div class="ed-row">
+                <button type="button" class="btn" :disabled="busy" data-testid="verify-zip" @click="verify">Testar integridade</button>
+                <button type="button" class="btn btn-app" :disabled="busy || !openedFiles.length" data-testid="add-all" @click="addAll">Adicionar tudo ao projeto</button>
+                <button type="button" class="btn" data-testid="close-zip" @click="closeZip">Fechar ZIP</button>
+              </div>
+              <p v-if="verified" :class="verified.bad.length ? 'ed-error' : 'ed-ok'" role="status" data-testid="verify-result">
+                {{ verified.bad.length ? 'Com problema: ' + verified.bad.join(', ') : verified.ok === 1 ? 'O arquivo confere (tamanho e CRC-32).' : 'Todos os ' + verified.ok + ' arquivos conferem (tamanho e CRC-32).' }}
+              </p>
             </template>
-          </li>
-        </ul>
-        <p v-if="opened.listing.entries.length > 300" class="ed-hint">Mostrando os primeiros 300 itens.</p>
+            <p v-else class="ed-hint">Veja o que há dentro de um ZIP, confira se não está corrompido e extraia só o que precisar. ZIPs com senha e acima de 4 GB não são suportados.</p>
+          </div>
+
+          <FileTab v-else :templates="zipTemplates" @new="doc.newFrom">
+            <button type="button" class="btn" :disabled="!state.files.length" data-testid="export-list" @click="listText">Lista de arquivos (TXT)</button>
+          </FileTab>
+        </div>
       </section>
     </div>
   </EditorShell>
 </template>
 
 <style scoped>
-.stage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; width: min(100%, 720px); margin: 0 auto; padding: 14px max(14px, var(--sa-r)) 28px max(14px, var(--sa-l)); box-sizing: border-box; }
-.sh { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
-.sum { margin: 0 0 8px; font-weight: 700; }
+/* Os arquivos são o centro; as operações ficam ao lado (PC) ou logo abaixo da lista (tablet e celular). */
+.zx { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; box-sizing: border-box; padding: 14px max(14px, var(--sa-r)) 28px max(14px, var(--sa-l)); }
+.files { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.ops { display: grid; gap: 10px; align-content: start; min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.add { position: relative; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 16px; cursor: pointer; overflow: hidden; }
+.pick { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 0; }
+.add:has(.pick:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
+.sh { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.sum { margin: 0; font-weight: 700; flex: 1 1 160px; }
 .rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.rows li { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); min-width: 0; }
+.rows li { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); min-width: 0; }
 .nm { flex: 1 1 160px; min-width: 0; display: grid; gap: 2px; }
 input.nm { display: block; }
 .path { overflow-wrap: anywhere; font-weight: 650; }
-.sz { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+.sz { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; min-width: 64px; text-align: right; }
 .warn { color: var(--danger); font-weight: 600; }
-.card { padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+.empty { display: grid; gap: 6px; place-items: center; text-align: center; padding: 36px 18px; border: 2px dashed color-mix(in srgb, var(--app) 55%, var(--border)); border-radius: 18px; background: color-mix(in srgb, var(--app) 6%, var(--surface)); color: var(--muted); }
+.empty strong { color: var(--text); font-size: 17px; }
+.opened { display: grid; gap: 8px; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--border); }
+.card { padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel); }
 .card p { margin: 0 0 4px; }
 .seg { border: 0; margin: 0; padding: 0; display: grid; gap: 2px; }
 .radio { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 650; }
 .radio input { width: 20px; height: 20px; }
+.go { min-height: 48px; }
+@media (min-width: 900px) {
+  .zx { grid-template-columns: minmax(0, 1fr) 360px; column-gap: 18px; padding-top: 18px; }
+  .ops { position: sticky; top: 0; align-self: start; }
+}
 </style>

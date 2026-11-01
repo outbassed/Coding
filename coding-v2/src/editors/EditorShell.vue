@@ -11,6 +11,7 @@ import NavIcon from '../components/ui/NavIcon.vue';
 import BottomSheet, { type SheetSnap } from '../components/editor/BottomSheet.vue';
 import SaveStatus, { type SaveState } from '../components/editor/SaveStatus.vue';
 import ProjectTabs from './ProjectTabs.vue';
+import { identityOf } from './identity';
 import type { ProjectTabsController } from './projectTabs';
 
 export interface ShellDoc {
@@ -32,10 +33,13 @@ export interface ShellTab { id: string; label: string }
  * mobile com prévia acima, BottomSheet ajustável e abas fixas na parte inferior.
  * Só uma instância de cada painel é montada em qualquer breakpoint.
  */
-const props = withDefaults(defineProps<{ app: ToolId; doc: ShellDoc; tabs: ShellTab[]; sideLabel?: string; history?: boolean; startOpen?: boolean; chrome?: number }>(), { sideLabel: '', history: true, startOpen: true, chrome: 208 });
-const tab = defineModel<string>('tab', { required: true });
+const props = withDefaults(defineProps<{ app: ToolId; doc: ShellDoc; tabs?: ShellTab[]; sideLabel?: string; history?: boolean; startOpen?: boolean; chrome?: number; layout?: 'tools' | 'free' }>(), { tabs: () => [], sideLabel: '', history: true, startOpen: true, chrome: 208, layout: 'tools' });
+/** `free`: o app organiza a própria área de trabalho (sem painel de ferramentas, abas nem gaveta da casca); a casca mantém só o cabeçalho, as abas de projeto e os avisos. */
+const free = props.layout === 'free';
+const tab = defineModel<string>('tab', { default: '' });
 useSettingsStore();
 const tool = getTool(props.app);
+const identity = identityOf(props.app);
 const wide = useMediaQuery('(min-width: 900px)', true);
 const inspectorDocked = useMediaQuery('(min-width: 1180px)', true);
 const slots = useSlots();
@@ -79,13 +83,13 @@ const name = computed({
   set: (value: string) => { props.doc.state.value.name = value.slice(0, 250); }
 });
 
-const { width: sideWidth, dragging: draggingSide, start: resizeStart, move: resizeMove, end: resizeEnd, keys: resizeKey, reset: resizeReset } = useResizableSidebar(props.app, 356);
+const { width: sideWidth, dragging: draggingSide, start: resizeStart, move: resizeMove, end: resizeEnd, keys: resizeKey, reset: resizeReset } = useResizableSidebar(props.app, identity.sidebar, 296, 460, identity.side === 'right' ? 'left' : 'right');
 const inspector = useResizableSidebar(props.app + '-properties', 288, 240, 400, 'left');
 
 </script>
 
 <template>
-  <div ref="root" class="es" :class="wide ? 'is-wide' : 'is-narrow'" :data-app="app" :data-layout="wide ? 'wide' : 'narrow'"
+  <div ref="root" class="es" :class="wide ? 'is-wide' : 'is-narrow'" :data-app="app" :data-layout="wide ? 'wide' : 'narrow'" :data-free="free ? 'sim' : undefined" :data-side="identity.side" :data-head="identity.head" :data-stage="identity.stage"
     :style="{ '--app': tool.color, '--app-cx-l': tool.textLight, '--app-cx-d': tool.textDark, '--es-sidebar-width': sideWidth + 'px', '--es-inspector-width': inspector.width.value + 'px' }">
     <a class="skip-link" href="#es-stage" @click.prevent="focusStage">Pular para o documento</a>
     <header class="es-head">
@@ -125,11 +129,12 @@ const inspector = useResizableSidebar(props.app + '-properties', 288, 240, 400, 
     </div>
 
     <div v-if="!doc.loadError.value" class="es-workspace" :class="{
+      'es-free': free,
       'es-without-sidebar': wide && !desktopToolsOpen,
       'es-with-inspector': wide && inspectorDocked && !!$slots.inspector && inspectorOpen,
       'es-inspector-floating': wide && !inspectorDocked && !!$slots.inspector && inspectorOpen
     }">
-      <aside v-if="wide && desktopToolsOpen" class="es-tools" aria-label="Ferramentas" data-testid="editor-sidebar">
+      <aside v-if="!free && wide && desktopToolsOpen" class="es-tools" aria-label="Ferramentas" data-testid="editor-sidebar">
         <div class="es-tabs" role="tablist" aria-label="Categorias de ferramentas" data-testid="editor-tabs" @keydown="onTabKey">
           <button v-for="t in tabs" :id="'es-tab-' + t.id" :key="t.id" type="button" role="tab" class="es-tab"
             :aria-selected="tab === t.id" aria-controls="es-panel" :tabindex="tab === t.id ? 0 : -1" @click="pick(t.id)">{{ t.label }}</button>
@@ -147,7 +152,7 @@ const inspector = useResizableSidebar(props.app + '-properties', 288, 240, 400, 
           @pointerdown="resizeStart" @pointermove="resizeMove" @pointerup="resizeEnd" @pointercancel="resizeEnd" @dblclick="resizeReset" @keydown="resizeKey" title="Arraste para ajustar; dois cliques para restaurar" />
       </aside>
       <div class="es-canvas">
-        <button v-if="wide && !desktopToolsOpen" class="es-reopen btn" type="button" data-testid="reopen-tools" @click="desktopToolsOpen = true">
+        <button v-if="!free && wide && !desktopToolsOpen" class="es-reopen btn" type="button" data-testid="reopen-tools" @click="desktopToolsOpen = true">
           <NavIcon name="panel" /> Mostrar ferramentas
         </button>
         <main id="es-stage" class="es-stage" tabindex="0" aria-label="Área de trabalho e prévia" data-testid="editor-stage"><slot /></main>
@@ -160,7 +165,7 @@ const inspector = useResizableSidebar(props.app + '-properties', 288, 240, 400, 
           :aria-valuenow="inspector.width.value" :aria-valuemin="inspector.min" :aria-valuemax="inspector.max" :class="{ active: inspector.dragging.value }"
           @pointerdown="inspector.start" @pointermove="inspector.move" @pointerup="inspector.end" @pointercancel="inspector.end" @dblclick="inspector.reset" @keydown="inspector.keys" />
       </aside>
-      <template v-if="!wide">
+      <template v-if="!free && !wide">
         <BottomSheet v-if="panelOpen" v-model:snap="snap" class="es-mobile-sheet" :title="currentTitle"
           :style="{ '--chrome': props.chrome + 'px', ...(snap === 'full' ? { maxHeight: 'min(70dvh, calc(var(--vv-h, 100dvh) - 220px))' } : {}) }"
           @close="panelOpen = false">
@@ -205,7 +210,7 @@ const inspector = useResizableSidebar(props.app + '-properties', 288, 240, 400, 
 .es-problem a { color: var(--accent); text-decoration: underline; }
 .es-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .es-workspace { flex: 1; min-height: 0; min-width: 0; display: grid; grid-template-columns: var(--es-sidebar-width, 356px) minmax(0,1fr); }
-.es-workspace.es-without-sidebar { grid-template-columns: minmax(0,1fr); }
+.es-workspace.es-without-sidebar, .es-workspace.es-free { grid-template-columns: minmax(0,1fr); }
 .es-workspace.es-with-inspector { grid-template-columns: var(--es-sidebar-width, 356px) minmax(0,1fr) var(--es-inspector-width, 288px); }
 .es-workspace.es-with-inspector.es-without-sidebar { grid-template-columns: minmax(0,1fr) var(--es-inspector-width, 288px); }
 .es-workspace.es-inspector-floating { position: relative; }
@@ -243,6 +248,20 @@ const inspector = useResizableSidebar(props.app + '-properties', 288, 240, 400, 
 .es-mobile-tabs { display: flex; gap: 8px; align-items: center; padding: 8px max(12px, var(--sa-r)) calc(8px + var(--sa-b)) max(12px, var(--sa-l)); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: thin; }
 .es-mobile-tab { flex: none; min-height: 44px; padding: 0 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); font-size: 12px; font-weight: 700; color: var(--text); scroll-snap-align: start; }
 .es-mobile-tab[aria-selected="true"]:not([aria-expanded="false"]) { background: var(--app); border-color: var(--app); color: var(--ink); }
+/* Layout livre: a área de trabalho é uma coluna que o app preenche (cresce até a altura toda e rola quando o conteúdo é maior). */
+.es[data-free] .es-stage { display: flex; flex-direction: column; }
+.es[data-free] .es-stage > * { flex: 1 0 auto; min-width: 0; }
+/* Identidade por app (veja identity.ts): lado do painel, cabeçalho e fundo da área de trabalho. */
+.es.is-wide[data-side="right"] .es-workspace:not(.es-with-inspector) { grid-template-columns: minmax(0, 1fr) var(--es-sidebar-width, 356px); }
+.es.is-wide[data-side="right"] .es-workspace.es-without-sidebar:not(.es-with-inspector) { grid-template-columns: minmax(0, 1fr); }
+.es.is-wide[data-side="right"] .es-tools { order: 2; border-right: 0; border-left: 1px solid var(--border); }
+.es.is-wide[data-side="right"] .es-canvas { order: 1; }
+.es.is-wide[data-side="right"] .es-resizer { right: auto; left: -5px; }
+.es[data-head="tint"] .es-head { background: linear-gradient(100deg, color-mix(in srgb, var(--app) 16%, var(--surface)), var(--surface) 70%); }
+.es[data-stage="device"] .es-stage { background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--app) 22%, var(--bg)), var(--bg) 70%); }
+.es[data-stage="checker"] .es-stage { background-color: var(--bg); background-image: conic-gradient(color-mix(in srgb, var(--text) 5%, var(--bg)) 25%, transparent 0 50%, color-mix(in srgb, var(--text) 5%, var(--bg)) 0 75%, transparent 0); background-size: 28px 28px; background-attachment: local; }
+.es[data-stage="dots"] .es-stage { background-color: var(--bg); background-image: radial-gradient(color-mix(in srgb, var(--app) 38%, transparent) 1.4px, transparent 1.6px); background-size: 22px 22px; background-attachment: local; }
+.es[data-stage="grid"] .es-stage { background-color: var(--bg); background-image: linear-gradient(color-mix(in srgb, var(--text) 7%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--text) 7%, transparent) 1px, transparent 1px); background-size: 32px 32px; background-attachment: local; }
 @media (max-width: 599px) { .es-back-t { display: none; } .es-head { gap: 4px; } .es-name { font-size: 11px; } }
 @media (max-width: 420px) { .es-icon { display: none; } .es-status { white-space: normal; text-align: center; max-width: 96px; font-size: 11px; line-height: 1.2; } }
 /* Versos mobile: cabeçalho e controles compactos sem alterar os outros 15 editores. */

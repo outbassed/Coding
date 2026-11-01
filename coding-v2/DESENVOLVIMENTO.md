@@ -51,3 +51,6 @@ Precisam só do `gh` (GitHub CLI) autenticado. Usam `GITHUB_REPOSITORY` ou, se v
 - **Dados das pessoas:** nunca apagar nem reescrever projetos, documentos, backups ou configurações; não abrir o banco legado `coding-db`; migrações precisam de teste.
 - **Versões:** ao mexer em um app ou no Launcher, registre a versão em `src/shared/versions-data.ts` (`node scripts/stamp-build.mjs` dá a compilação) e ajuste os testes que fixam versões.
 - **Ambiente de trabalho sem rede:** não tente instalar dependências; use a CI.
+
+## Identidade dos editores (layout próprio por app)
+Todos os editores usam a casca `src/editors/EditorShell.vue`; a identidade de cada app fica em `src/editors/identity.ts` (lado do painel, largura, cabeçalho e fundo da área de trabalho). Para um app novo ou do próximo lote, acrescente uma linha ali, registre a nova versão do app em `versions-data.ts` e confira as capturas (desktop, tablet e celular). O lado do painel só vale no layout largo (≥ 900 px); no celular continua prévia em cima, gaveta e abas embaixo. Use só tons de `--bg` e da cor do app no fundo, para não mudar o contraste do texto.

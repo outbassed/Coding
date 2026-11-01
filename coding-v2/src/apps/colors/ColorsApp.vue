@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import EditorShell from '../../editors/EditorShell.vue';
 import FileTab from '../../editors/FileTab.vue';
+import SegTabs from '../../editors/SegTabs.vue';
 import { useDocument } from '../../editors/useDocument';
 import { downloadText, safeFileName } from '../../shared/files/download';
 import {
@@ -14,11 +15,12 @@ import { colorsKind, colorsTemplates } from './kind';
 
 const doc = useDocument({ kind: colorsKind, templates: colorsTemplates, path: '/apps/cores/' });
 const { state } = doc;
+/** Layout livre: a cor atual e a paleta ficam sempre à vista; as bancadas (harmonias, contraste, imagem, paleta, arquivo) trocam abaixo da visualização. */
 const tabs = [
-  { id: 'cor', label: 'Cor' }, { id: 'harmonias', label: 'Harmonias' }, { id: 'contraste', label: 'Contraste' },
+  { id: 'harmonias', label: 'Harmonias' }, { id: 'contraste', label: 'Contraste' },
   { id: 'imagem', label: 'Imagem' }, { id: 'paleta', label: 'Paleta' }, { id: 'arquivo', label: 'Arquivo' }
 ];
-const tab = ref('cor');
+const tab = ref('harmonias');
 
 function set(patch: Partial<ColorsState>): void { Object.assign(state.value, patch); }
 /** Sempre cor válida (o estado é normalizado ao carregar). */
@@ -71,7 +73,7 @@ function add(hexes: string[], names: string[] = []): void {
   set({ palette: r.state.palette });
   report(r);
 }
-function useAsBase(hex: string): void { set({ base: hex }); tab.value = 'cor'; doc.say('Cor ' + hex + ' em edição.'); }
+function useAsBase(hex: string): void { set({ base: hex }); doc.say('Cor ' + hex + ' em edição.'); }
 
 // ---- harmonias
 const harmony = computed(() => schemeHexes(state.value.base, state.value.scheme));
@@ -232,122 +234,134 @@ function exportAs(kind: 'css' | 'json' | 'txt' | 'svg'): void {
 </script>
 
 <template>
-  <EditorShell v-model:tab="tab" app="colors" :doc="doc" :tabs="tabs" :history="false">
-    <template #panel="{ tab: current }">
-      <div v-if="current === 'cor'" class="ed-group">
+  <EditorShell app="colors" layout="free" :doc="doc" :history="false">
+    <div class="cs" data-testid="colors-stage">
+      <section class="hero" :style="{ background: state.base, color: onBase }" aria-label="Cor atual">
+        <strong class="hero-hex" data-testid="hero-hex">{{ toHex(baseRgb) }}</strong>
+        <span class="hero-hsl">{{ cssHsl(baseRgb) }}</span>
+        <span class="hero-sample" aria-hidden="true">Aa · Texto de exemplo sobre a cor</span>
+      </section>
+
+      <section class="edit" aria-labelledby="edit-h">
+        <h2 id="edit-h" class="sh">Editar cor</h2>
         <div class="ed-row">
           <label class="ed-field"><span class="ed-label">Seletor</span><input type="color" class="picker" :value="state.base" aria-label="Escolher a cor no seletor" data-testid="base-picker" @input="onPicker" /></label>
           <label class="ed-field grow"><span class="ed-label">Código da cor</span>
             <input v-model="hexDraft" class="inp mono" maxlength="60" spellcheck="false" autocomplete="off" aria-label="Código da cor" :aria-invalid="hexError ? 'true' : undefined" :aria-describedby="hexError ? 'hex-err' : undefined" data-testid="base-hex" @input="onHexInput" /></label>
         </div>
         <p v-if="hexError" id="hex-err" class="ed-error" role="alert" data-testid="hex-error">{{ hexError }}</p>
-        <label class="ed-field"><span class="ed-label">Matiz: {{ Math.round(hsl.h) }}°</span><input type="range" min="0" max="360" step="1" :value="Math.round(hsl.h)" aria-label="Matiz" data-testid="slider-h" @input="setHsl('h', Number(($event.target as HTMLInputElement).value))" /></label>
-        <label class="ed-field"><span class="ed-label">Saturação: {{ Math.round(hsl.s) }}%</span><input type="range" min="0" max="100" step="1" :value="Math.round(hsl.s)" aria-label="Saturação" data-testid="slider-s" @input="setHsl('s', Number(($event.target as HTMLInputElement).value))" /></label>
-        <label class="ed-field"><span class="ed-label">Luminosidade: {{ Math.round(hsl.l) }}%</span><input type="range" min="0" max="100" step="1" :value="Math.round(hsl.l)" aria-label="Luminosidade" data-testid="slider-l" @input="setHsl('l', Number(($event.target as HTMLInputElement).value))" /></label>
+        <div class="sliders">
+          <label class="ed-field"><span class="ed-label">Matiz: {{ Math.round(hsl.h) }}°</span><input type="range" min="0" max="360" step="1" :value="Math.round(hsl.h)" aria-label="Matiz" data-testid="slider-h" @input="setHsl('h', Number(($event.target as HTMLInputElement).value))" /></label>
+          <label class="ed-field"><span class="ed-label">Saturação: {{ Math.round(hsl.s) }}%</span><input type="range" min="0" max="100" step="1" :value="Math.round(hsl.s)" aria-label="Saturação" data-testid="slider-s" @input="setHsl('s', Number(($event.target as HTMLInputElement).value))" /></label>
+          <label class="ed-field"><span class="ed-label">Luminosidade: {{ Math.round(hsl.l) }}%</span><input type="range" min="0" max="100" step="1" :value="Math.round(hsl.l)" aria-label="Luminosidade" data-testid="slider-l" @input="setHsl('l', Number(($event.target as HTMLInputElement).value))" /></label>
+        </div>
         <div class="ed-row">
           <button type="button" class="btn btn-app" data-testid="add-base" @click="add([state.base])">Adicionar à paleta</button>
           <button v-if="hasEyeDropper" type="button" class="btn" data-testid="eyedropper" @click="pickFromScreen">Capturar da tela</button>
         </div>
         <p v-if="!hasEyeDropper" class="ed-hint">A captura de cor da tela depende do navegador (Chrome e Edge no computador). Aqui você pode usar o seletor ou digitar o código.</p>
-      </div>
-
-      <div v-else-if="current === 'harmonias'" class="ed-group">
-        <label class="ed-field"><span class="ed-label">Tipo de harmonia</span>
-          <select v-model="state.scheme" class="inp" data-testid="scheme-select"><option v-for="s in SCHEMES" :key="s.id" :value="s.id">{{ s.label }}</option></select></label>
-        <p class="ed-hint">{{ schemeHelp }} Baseada em <code>{{ state.base }}</code>.</p>
-        <ul class="chips" data-testid="harmony-list">
-          <li v-for="(hex, i) in harmony" :key="hex + i">
-            <button type="button" class="chip" :style="{ background: hex, color: textOn(hex) }" :aria-label="'Editar a cor ' + hex" @click="useAsBase(hex)">{{ hex }}</button>
-          </li>
-        </ul>
-        <div class="ed-row"><button type="button" class="btn btn-app" data-testid="add-harmony" @click="add(harmony)">Adicionar todas à paleta</button></div>
-      </div>
-
-      <div v-else-if="current === 'contraste'" class="ed-group">
-        <div class="ed-row">
-          <label class="ed-field"><span class="ed-label">Texto</span><span class="pair"><input type="color" class="picker" :value="state.fg" aria-label="Cor do texto no seletor" @input="pickPair('fg', $event)" /><input v-model="fgDraft" class="inp mono" maxlength="60" spellcheck="false" aria-label="Código da cor do texto" data-testid="contrast-fg" @input="onPair('fg')" /></span></label>
-          <label class="ed-field"><span class="ed-label">Fundo</span><span class="pair"><input type="color" class="picker" :value="state.bg" aria-label="Cor do fundo no seletor" @input="pickPair('bg', $event)" /><input v-model="bgDraft" class="inp mono" maxlength="60" spellcheck="false" aria-label="Código da cor do fundo" data-testid="contrast-bg" @input="onPair('bg')" /></span></label>
-        </div>
-        <div class="ed-row">
-          <button type="button" class="btn" data-testid="contrast-swap" @click="swapPair">Inverter</button>
-          <button type="button" class="btn" data-testid="contrast-base-fg" @click="useBaseIn('fg')">Usar a cor atual no texto</button>
-          <button type="button" class="btn" data-testid="contrast-base-bg" @click="useBaseIn('bg')">Usar a cor atual no fundo</button>
-        </div>
-        <p class="ratio" data-testid="contrast-ratio">Contraste {{ ratioText }}</p>
-        <ul class="checks" data-testid="contrast-checks">
-          <li v-for="c in checks" :key="c.id" :data-testid="'check-' + c.id" :data-ok="c.ok ? 'sim' : 'nao'"><span class="mark" aria-hidden="true">{{ c.ok ? '✓' : '✕' }}</span> {{ c.label }}: <strong>{{ c.ok ? 'passa' : 'não passa' }}</strong></li>
-        </ul>
-        <div v-if="suggestion" class="ed-row">
-          <p class="ed-hint grow">Para passar em AA, o texto poderia ser <code>{{ suggestion }}</code>.</p>
-          <button type="button" class="btn" data-testid="contrast-suggest" @click="applySuggestion">Aplicar sugestão</button>
-        </div>
-        <p v-else-if="!report2.aaNormal" class="ed-hint">Não há como chegar a 4,5 só ajustando a luminosidade do texto. Mude também o fundo.</p>
-      </div>
-
-      <div v-else-if="current === 'imagem'" class="ed-group">
-        <label class="ed-field"><span class="ed-label">Imagem</span>
-          <input type="file" class="inp" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" aria-label="Escolher uma imagem para extrair cores" data-testid="image-input" @change="onImage" /></label>
-        <div class="ed-row"><button type="button" class="btn" data-testid="paste-image" @click="pasteButton">Colar imagem da área de transferência</button></div>
-        <label class="ed-field"><span class="ed-label">Quantidade de cores: {{ extractCount }}</span><input v-model.number="extractCount" type="range" min="2" max="12" step="1" aria-label="Quantidade de cores a extrair" data-testid="extract-count" /></label>
-        <p v-if="imageError" class="ed-error" role="alert" data-testid="image-error">{{ imageError }}</p>
-        <template v-if="imageUrl">
-          <img :src="imageUrl" class="thumb pickable" :alt="'Imagem escolhida: ' + imageName + '. Clique para pegar a cor de um ponto.'" data-testid="image-preview" @click="pickFromImage" />
-          <ul class="chips" data-testid="extracted-list">
-            <li v-for="hex in extracted" :key="hex"><button type="button" class="chip" :style="{ background: hex, color: textOn(hex) }" :aria-label="'Editar a cor ' + hex" @click="useAsBase(hex)">{{ hex }}</button></li>
-          </ul>
-          <div class="ed-row"><button type="button" class="btn btn-app" :disabled="!extracted.length" data-testid="add-extracted" @click="add(extracted)">Adicionar todas à paleta</button></div>
-        </template>
-        <p v-else class="ed-hint">A imagem é lida só neste aparelho, nada é enviado. Escolha um arquivo, cole com Ctrl+V ou solte aqui. As cores dominantes são calculadas e você escolhe quais guardar; depois clique na imagem para pegar a cor exata de um ponto.</p>
-      </div>
-
-      <div v-else-if="current === 'paleta'" class="ed-group">
-        <div class="ed-row">
-          <button type="button" class="btn" :disabled="!state.palette.length" data-testid="clear-palette" @click="clearPalette">Esvaziar paleta</button>
-        </div>
-        <ul v-if="state.palette.length" class="plist" data-testid="palette-list">
-          <li v-for="(p, i) in state.palette" :key="p.id" :data-testid="'swatch-' + i">
-            <button type="button" class="dot" :style="{ background: p.hex }" :aria-label="'Editar a cor ' + p.hex" @click="useAsBase(p.hex)" />
-            <span class="pcode mono">{{ p.hex }}</span>
-            <input class="inp pname" :value="p.name" maxlength="40" placeholder="Nome" :aria-label="'Nome da cor ' + p.hex" @change="rename(p.id, $event)" />
-            <button type="button" class="btn" :disabled="i === 0" :aria-label="'Mover ' + p.hex + ' para cima'" @click="move(p.id, -1)">↑</button>
-            <button type="button" class="btn" :disabled="i === state.palette.length - 1" :aria-label="'Mover ' + p.hex + ' para baixo'" @click="move(p.id, 1)">↓</button>
-            <button type="button" class="btn" :aria-label="'Copiar ' + p.hex" @click="copy(p.hex)">Copiar</button>
-            <button type="button" class="btn" :aria-label="'Remover ' + p.hex" :data-testid="'remove-' + i" @click="drop(p.id, p.hex)">Remover</button>
-          </li>
-        </ul>
-        <p v-else class="ed-hint">A paleta está vazia. Adicione cores nas abas Cor, Harmonias ou Imagem, ou cole códigos abaixo.</p>
-        <label class="ed-field"><span class="ed-label">Importar de um texto</span>
-          <textarea v-model="importText" class="inp" rows="3" maxlength="20000" placeholder="#FF8800, rgb(0, 128, 0), hsl(240, 100%, 50%)" aria-label="Texto com códigos de cor" data-testid="import-text" /></label>
-        <p v-if="importMsg" class="ed-error" role="alert" data-testid="import-error">{{ importMsg }}</p>
-        <div class="ed-row"><button type="button" class="btn btn-app" :disabled="!importText.trim()" data-testid="import-run" @click="doImport">Importar cores</button></div>
-      </div>
-
-      <FileTab v-else :templates="colorsTemplates" @new="doc.newFrom">
-        <button type="button" class="btn" :disabled="!state.palette.length" data-testid="export-css" @click="exportAs('css')">CSS (variáveis)</button>
-        <button type="button" class="btn" :disabled="!state.palette.length" data-testid="export-json" @click="exportAs('json')">JSON</button>
-        <button type="button" class="btn" :disabled="!state.palette.length" data-testid="export-svg" @click="exportAs('svg')">Imagem SVG</button>
-        <button type="button" class="btn" :disabled="!state.palette.length" data-testid="export-txt" @click="exportAs('txt')">Texto (TXT)</button>
-      </FileTab>
-    </template>
-
-    <div class="stage" data-testid="colors-stage">
-      <section class="hero" :style="{ background: state.base, color: onBase }" aria-label="Cor atual">
-        <strong class="hero-hex" data-testid="hero-hex">{{ toHex(baseRgb) }}</strong>
-        <span>{{ cssHsl(baseRgb) }}</span>
-      </section>
-      <section aria-labelledby="values-h">
-        <h2 id="values-h" class="sh">Valores</h2>
-        <ul class="vals" data-testid="color-values">
+        <h2 id="values-h" class="sh vh">Valores</h2>
+        <ul class="vals" data-testid="color-values" aria-labelledby="values-h">
           <li v-for="f in formats" :key="f.id">
             <span class="vl">{{ f.label }}</span><code class="vv" :data-testid="'value-' + f.id">{{ f.value }}</code>
             <button type="button" class="btn" :aria-label="'Copiar ' + f.label" :data-testid="'copy-' + f.id" @click="copy(f.value)">Copiar</button>
           </li>
         </ul>
       </section>
-      <section aria-labelledby="pal-h">
+
+      <section class="bench" aria-label="Bancada de trabalho">
+        <SegTabs v-model="tab" :tabs="tabs" label="Bancadas de cores" prefix="cs" panel-id="cs-panel" />
+        <div id="cs-panel" class="panel" role="tabpanel" :aria-labelledby="'cs-tab-' + tab" data-testid="editor-panel">
+          <div v-if="tab === 'harmonias'" class="ed-group">
+            <label class="ed-field sel"><span class="ed-label">Tipo de harmonia</span>
+              <select v-model="state.scheme" class="inp" data-testid="scheme-select"><option v-for="s in SCHEMES" :key="s.id" :value="s.id">{{ s.label }}</option></select></label>
+            <p class="ed-hint">{{ schemeHelp }} Baseada em <code>{{ state.base }}</code>.</p>
+            <ul class="bands" data-testid="harmony-list">
+              <li v-for="(hex, i) in harmony" :key="hex + i">
+                <button type="button" class="band" :style="{ background: hex, color: textOn(hex) }" :aria-label="'Editar a cor ' + hex" @click="useAsBase(hex)">{{ hex }}</button>
+              </li>
+            </ul>
+            <div class="ed-row"><button type="button" class="btn btn-app" data-testid="add-harmony" @click="add(harmony)">Adicionar todas à paleta</button></div>
+          </div>
+
+          <div v-else-if="tab === 'contraste'" class="ed-group">
+            <div class="sample" :style="{ background: state.bg, color: state.fg }" aria-hidden="true">
+              <strong class="sample-big">Texto grande de exemplo</strong>
+              <span>Texto normal de exemplo: a rápida raposa marrom salta sobre o cão preguiçoso.</span>
+            </div>
+            <div class="ed-row">
+              <label class="ed-field"><span class="ed-label">Texto</span><span class="pair"><input type="color" class="picker" :value="state.fg" aria-label="Cor do texto no seletor" @input="pickPair('fg', $event)" /><input v-model="fgDraft" class="inp mono" maxlength="60" spellcheck="false" aria-label="Código da cor do texto" data-testid="contrast-fg" @input="onPair('fg')" /></span></label>
+              <label class="ed-field"><span class="ed-label">Fundo</span><span class="pair"><input type="color" class="picker" :value="state.bg" aria-label="Cor do fundo no seletor" @input="pickPair('bg', $event)" /><input v-model="bgDraft" class="inp mono" maxlength="60" spellcheck="false" aria-label="Código da cor do fundo" data-testid="contrast-bg" @input="onPair('bg')" /></span></label>
+            </div>
+            <div class="ed-row">
+              <button type="button" class="btn" data-testid="contrast-swap" @click="swapPair">Inverter</button>
+              <button type="button" class="btn" data-testid="contrast-base-fg" @click="useBaseIn('fg')">Usar a cor atual no texto</button>
+              <button type="button" class="btn" data-testid="contrast-base-bg" @click="useBaseIn('bg')">Usar a cor atual no fundo</button>
+            </div>
+            <p class="ratio" data-testid="contrast-ratio">Contraste {{ ratioText }}</p>
+            <ul class="checks" data-testid="contrast-checks">
+              <li v-for="c in checks" :key="c.id" :data-testid="'check-' + c.id" :data-ok="c.ok ? 'sim' : 'nao'"><span class="mark" aria-hidden="true">{{ c.ok ? '✓' : '✕' }}</span> {{ c.label }}: <strong>{{ c.ok ? 'passa' : 'não passa' }}</strong></li>
+            </ul>
+            <div v-if="suggestion" class="ed-row">
+              <p class="ed-hint grow">Para passar em AA, o texto poderia ser <code>{{ suggestion }}</code>.</p>
+              <button type="button" class="btn" data-testid="contrast-suggest" @click="applySuggestion">Aplicar sugestão</button>
+            </div>
+            <p v-else-if="!report2.aaNormal" class="ed-hint">Não há como chegar a 4,5 só ajustando a luminosidade do texto. Mude também o fundo.</p>
+          </div>
+
+          <div v-else-if="tab === 'imagem'" class="ed-group">
+            <div class="ed-row">
+              <label class="ed-field grow"><span class="ed-label">Imagem</span>
+                <input type="file" class="inp" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" aria-label="Escolher uma imagem para extrair cores" data-testid="image-input" @change="onImage" /></label>
+              <button type="button" class="btn" data-testid="paste-image" @click="pasteButton">Colar imagem da área de transferência</button>
+            </div>
+            <label class="ed-field"><span class="ed-label">Quantidade de cores: {{ extractCount }}</span><input v-model.number="extractCount" type="range" min="2" max="12" step="1" aria-label="Quantidade de cores a extrair" data-testid="extract-count" /></label>
+            <p v-if="imageError" class="ed-error" role="alert" data-testid="image-error">{{ imageError }}</p>
+            <template v-if="imageUrl">
+              <img :src="imageUrl" class="thumb pickable" :alt="'Imagem escolhida: ' + imageName + '. Clique para pegar a cor de um ponto.'" data-testid="image-preview" @click="pickFromImage" />
+              <ul class="bands" data-testid="extracted-list">
+                <li v-for="hex in extracted" :key="hex"><button type="button" class="band" :style="{ background: hex, color: textOn(hex) }" :aria-label="'Editar a cor ' + hex" @click="useAsBase(hex)">{{ hex }}</button></li>
+              </ul>
+              <div class="ed-row"><button type="button" class="btn btn-app" :disabled="!extracted.length" data-testid="add-extracted" @click="add(extracted)">Adicionar todas à paleta</button></div>
+            </template>
+            <p v-else class="ed-hint">A imagem é lida só neste aparelho, nada é enviado. Escolha um arquivo, cole com Ctrl+V ou solte aqui. As cores dominantes são calculadas e você escolhe quais guardar; depois clique na imagem para pegar a cor exata de um ponto.</p>
+          </div>
+
+          <div v-else-if="tab === 'paleta'" class="ed-group">
+            <div class="ed-row">
+              <button type="button" class="btn" :disabled="!state.palette.length" data-testid="clear-palette" @click="clearPalette">Esvaziar paleta</button>
+            </div>
+            <ul v-if="state.palette.length" class="plist" data-testid="palette-list">
+              <li v-for="(p, i) in state.palette" :key="p.id" :data-testid="'swatch-' + i">
+                <button type="button" class="dot" :style="{ background: p.hex }" :aria-label="'Editar a cor ' + p.hex" @click="useAsBase(p.hex)" />
+                <span class="pcode mono">{{ p.hex }}</span>
+                <input class="inp pname" :value="p.name" maxlength="40" placeholder="Nome" :aria-label="'Nome da cor ' + p.hex" @change="rename(p.id, $event)" />
+                <button type="button" class="btn" :disabled="i === 0" :aria-label="'Mover ' + p.hex + ' para cima'" @click="move(p.id, -1)">↑</button>
+                <button type="button" class="btn" :disabled="i === state.palette.length - 1" :aria-label="'Mover ' + p.hex + ' para baixo'" @click="move(p.id, 1)">↓</button>
+                <button type="button" class="btn" :aria-label="'Copiar ' + p.hex" @click="copy(p.hex)">Copiar</button>
+                <button type="button" class="btn" :aria-label="'Remover ' + p.hex" :data-testid="'remove-' + i" @click="drop(p.id, p.hex)">Remover</button>
+              </li>
+            </ul>
+            <p v-else class="ed-hint">A paleta está vazia. Adicione cores em Editar cor, Harmonias ou Imagem, ou cole códigos abaixo.</p>
+            <label class="ed-field"><span class="ed-label">Importar de um texto</span>
+              <textarea v-model="importText" class="inp" rows="3" maxlength="20000" placeholder="#FF8800, rgb(0, 128, 0), hsl(240, 100%, 50%)" aria-label="Texto com códigos de cor" data-testid="import-text" /></label>
+            <p v-if="importMsg" class="ed-error" role="alert" data-testid="import-error">{{ importMsg }}</p>
+            <div class="ed-row"><button type="button" class="btn btn-app" :disabled="!importText.trim()" data-testid="import-run" @click="doImport">Importar cores</button></div>
+          </div>
+
+          <FileTab v-else :templates="colorsTemplates" @new="doc.newFrom">
+            <button type="button" class="btn" :disabled="!state.palette.length" data-testid="export-css" @click="exportAs('css')">CSS (variáveis)</button>
+            <button type="button" class="btn" :disabled="!state.palette.length" data-testid="export-json" @click="exportAs('json')">JSON</button>
+            <button type="button" class="btn" :disabled="!state.palette.length" data-testid="export-svg" @click="exportAs('svg')">Imagem SVG</button>
+            <button type="button" class="btn" :disabled="!state.palette.length" data-testid="export-txt" @click="exportAs('txt')">Texto (TXT)</button>
+          </FileTab>
+        </div>
+      </section>
+
+      <section class="dock" aria-labelledby="pal-h">
         <h2 id="pal-h" class="sh">Paleta ({{ state.palette.length }}/{{ MAX_SWATCHES }})</h2>
         <ul v-if="state.palette.length" class="strip" data-testid="palette-strip">
-          <li v-for="p in state.palette" :key="p.id"><button type="button" class="chip" :style="{ background: p.hex, color: textOn(p.hex) }" :aria-label="'Editar a cor ' + (p.name || p.hex)" @click="useAsBase(p.hex)">{{ p.name || p.hex }}</button></li>
+          <li v-for="p in state.palette" :key="p.id"><button type="button" class="tile" :style="{ background: p.hex, color: textOn(p.hex) }" :aria-label="'Editar a cor ' + (p.name || p.hex)" @click="useAsBase(p.hex)">{{ p.name || p.hex }}</button></li>
         </ul>
         <p v-else class="ed-hint" data-testid="palette-empty">Nenhuma cor guardada ainda.</p>
       </section>
@@ -356,16 +370,30 @@ function exportAs(kind: 'css' | 'json' | 'txt' | 'svg'): void {
 </template>
 
 <style scoped>
-.stage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; width: min(100%, 640px); margin: 0 auto; padding: 14px max(14px, var(--sa-r)) 28px max(14px, var(--sa-l)); box-sizing: border-box; }
-.hero { display: grid; gap: 4px; align-content: end; min-height: 160px; padding: 16px; border-radius: 20px; border: 1px solid var(--border); font-weight: 650; }
-.hero-hex { font-size: clamp(28px, 8vw, 40px); font-weight: 800; letter-spacing: .02em; }
-.sh { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+/* A visualização da cor e a paleta são o centro; os controles de edição ficam ao lado (PC) ou logo abaixo (celular). */
+.cs { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; box-sizing: border-box; padding: 14px max(14px, var(--sa-r)) 0 max(14px, var(--sa-l)); grid-template-areas: 'hero' 'edit' 'bench' 'dock'; }
+.hero { grid-area: hero; display: grid; gap: 4px; align-content: end; min-height: clamp(150px, 26vh, 300px); padding: 18px 20px; border-radius: 22px; border: 1px solid var(--border); font-weight: 650; }
+.hero-hex { font-size: clamp(32px, 7vw, 56px); font-weight: 800; letter-spacing: .02em; line-height: 1.05; }
+.hero-hsl { font-size: 15px; }
+.hero-sample { font-size: 15px; opacity: .92; }
+.edit { grid-area: edit; display: grid; gap: 10px; align-content: start; padding: 14px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); min-width: 0; }
+.bench { grid-area: bench; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.panel { min-width: 0; padding: 4px 2px 8px; }
+.dock { grid-area: dock; margin: 0 calc(-1 * max(14px, var(--sa-r))) 0 calc(-1 * max(14px, var(--sa-l))); padding: 10px max(14px, var(--sa-r)) calc(10px + var(--sa-b)) max(14px, var(--sa-l)); background: var(--surface); border-top: 1px solid var(--border); box-shadow: 0 -6px 18px #0001; }
+.sh { margin: 0 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.vh { margin-top: 6px; }
+.sliders { display: grid; gap: 8px; }
 .vals { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .vals li { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 4px 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
 .vl { font-size: 12px; font-weight: 800; color: var(--muted); }
 .vv { overflow-wrap: anywhere; font-size: 14px; }
-.strip, .chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.chip { min-width: 44px; min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid #00000033; font-size: 13px; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.strip { list-style: none; margin: 0; padding: 0 0 2px; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: thin; }
+.tile { flex: none; min-width: 84px; min-height: 56px; padding: 0 12px; border-radius: 14px; border: 1px solid #00000033; font-size: 13px; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.bands { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 8px; }
+.band { width: 100%; min-height: 96px; padding: 0 10px; border-radius: 16px; border: 1px solid #00000033; font-size: 14px; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; display: grid; align-items: end; justify-items: start; padding-bottom: 8px; }
+.sel { max-width: 320px; }
+.sample { display: grid; gap: 6px; padding: 18px; border-radius: 16px; border: 1px solid var(--border); }
+.sample-big { font-size: 24px; }
 .picker { width: 52px; height: 44px; padding: 2px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
 .pair { display: flex; gap: 8px; align-items: center; }
 .grow { flex: 1 1 140px; }
@@ -377,11 +405,23 @@ function exportAs(kind: 'css' | 'json' | 'txt' | 'svg'): void {
 .checks li[data-ok="sim"] .mark { color: var(--ok); }
 .checks li[data-ok="nao"] .mark { color: var(--danger); }
 .pickable { cursor: crosshair; }
-.thumb { max-width: 100%; max-height: 160px; border-radius: 12px; border: 1px solid var(--border); object-fit: contain; justify-self: start; }
+.thumb { max-width: 100%; max-height: 260px; border-radius: 12px; border: 1px solid var(--border); object-fit: contain; justify-self: start; }
 .plist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-height: 50vh; overflow: auto; }
 .plist li { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
 .dot { width: 44px; height: 44px; border-radius: 10px; border: 1px solid #00000033; }
 .pcode { font-size: 13px; font-weight: 700; }
 .pname { flex: 1 1 100px; min-width: 0; }
 textarea.inp { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+/* Do tablet em diante a edição fica ao lado da cor; no celular tudo empilha. */
+@media (min-width: 700px) {
+  .cs { grid-template-columns: minmax(0, 1fr) clamp(300px, 38vw, 340px); grid-template-rows: auto auto 1fr; grid-template-areas: 'hero edit' 'bench edit' 'dock dock'; column-gap: 18px; padding-top: 18px; }
+  .edit { align-self: start; position: sticky; top: 0; }
+  .dock { grid-area: dock; }
+}
+@media (max-width: 699px) {
+  .strip { padding-bottom: 4px; }
+}
+@media (min-height: 700px) {
+  .dock { position: sticky; bottom: 0; z-index: 5; }
+}
 </style>
