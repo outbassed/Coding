@@ -4,7 +4,7 @@ Documento central do que **já está pronto**, do que **está em desenvolvimento
 
 > **Este arquivo só documenta.** Nada aqui altera o app, os documentos ou as configurações de quem usa o Coding, e nada aqui autoriza publicar. Regras que sempre valem: veja a [seção 9](#9-regras-permanentes).
 
-Conferido em **01/11/2026** contra o código da branch base de desenvolvimento (`feature/coding-v2-launcher-fixes-sonnet`, já com os PRs #14, #15 e #19 a #22), os PRs abertos (#23 a #25) e os documentos listados na [seção 10](#10-fontes-e-como-isto-foi-verificado).
+Conferido em **01/11/2026** contra o código da branch base de desenvolvimento (`feature/coding-v2-launcher-fixes-sonnet`, já com os PRs #14, #15 e #19 a #23 e #25), os PRs abertos (#24 e o do DIR-04) e os documentos listados na [seção 10](#10-fontes-e-como-isto-foi-verificado).
 
 ## Sumário
 1. [Como ler este documento](#1-como-ler-este-documento)
@@ -35,7 +35,7 @@ Conferido em **01/11/2026** contra o código da branch base de desenvolvimento (
 | 💡 Ideia | Sugestão registrada, **não aprovada**. Só entra em planejamento depois de o dono aprovar. |
 | 🔎 A reverificar | Registrado nos documentos, mas **não foi possível confirmar nesta rodada** (por exemplo, depende de ver a tela ou de aparelho real). |
 
-**Prioridade (proposta)**: sugestão de ordem para o dono confirmar ou mudar. **Não é decisão tomada.**
+**Prioridade (proposta)**: sugestão de ordem para o dono confirmar ou mudar. **Não é decisão tomada.** Todas as prioridades deste documento são provisórias; só valem as que o dono confirmar.
 
 | Prioridade | Critério |
 | --- | --- |
@@ -55,7 +55,7 @@ Cada item tem um **ID** (por exemplo `NEW-02`) para ser citado em dependências.
 | Aplicativos no catálogo | **16**: Etiquetas, Texto, Planilhas, Imagens, Editor PDF, QR / Barras, Sorteio, Racha-conta, Calculadora, Estúdio de Cores, Compactador ZIP, Comparador de Arquivos, Código, Visualizador, Pintar e Versos. Todos com editor real; o catálogo marca todos como *prévia*. |
 | Launcher | Versão **2.1.0** na base de desenvolvimento (Início em resumo, Catálogo em vitrine, Meus apps só com os instalados offline, Central de Versões, Ajustes em abas). |
 | Publicação | **Nada foi publicado oficialmente.** O Coding 1.0 (arquivos da raiz) continua sendo a versão publicada. Há um PR de release em rascunho (#18) **aguardando autorização do dono**. |
-| Em desenvolvimento | #23 (layouts do lote 1), #25 (layouts do lote 2) e #24 (este planejamento). |
+| Em desenvolvimento | `DIR-04` (contrato de edição direta e Etiquetas editável na folha, em PR próprio) e #24 (este planejamento). Os lotes 1 e 2 de layouts (#23 e #25) foram mesclados na base em 01/11/2026. |
 | Novos projetos pedidos | Coding Navegar, Coding Fontes, Editor SVG, edição direta e reformulação dos demais aplicativos. |
 | Limite de validação | Testes automáticos só em **Chromium** (CI). Safari/iOS, Firefox e aparelhos reais **não foram validados**. |
 
@@ -83,7 +83,7 @@ Tudo abaixo existe na branch base de desenvolvimento (ou no Coding 1.0, quando i
 | DONE-13 | Limites configuráveis de arquivos importados (áudio, vídeo, imagem) em Ajustes → Projetos | `src/workspace/importLimits.ts` | VERSOS.md |
 
 ### 3.2 Aplicativos
-Versões registradas na Central de Versões na base de desenvolvimento (os seis apps dos lotes 1 e 2 estão em 1.0.0 na base e passam a 1.1.0 nos PRs #23 e #25). Marca-se o que existe; o que falta está na [seção 6](#6-pendências-por-aplicativo).
+Versões registradas na Central de Versões na base de desenvolvimento (os seis apps dos lotes 1 e 2 foram mesclados na base em 01/11/2026 pelos PRs #23 e #25). Marca-se o que existe; o que falta está na [seção 6](#6-pendências-por-aplicativo).
 
 | App | Versão | Resumo do que já existe |
 | --- | --- | --- |
@@ -93,12 +93,12 @@ Versões registradas na Central de Versões na base de desenvolvimento (os seis 
 | Imagens | 1.0.0 | Camadas (imagem, texto, retângulo, elipse), recorte por campos numéricos, filtros, Ctrl+V, exportar PNG/JPG/WebP. |
 | Editor PDF | 1.0.0 | Juntar, reordenar, girar, extrair, dividir; anotações de texto, destaque, retângulo, elipse, linha, **desenho livre (serve para assinar)** e imagem; PDF exportado conferido nos testes. |
 | QR / Barras | 1.0.0 | QR, Code 128, EAN-13/8, UPC-A, Code 39; assistente de conteúdo; vários códigos; aparências salvas; PNG, SVG e folha A4. |
-| Sorteio | 1.0.0 (1.1.0 em #25) | Roleta, números, dados, equipes, listas salvas, histórico conferível. Tela própria no lote 2 (PR #25). |
-| Racha-conta | 1.0.0 (1.1.0 em #25) | Pessoas, despesas, divisão igual/porcentagem/valores em centavos, saldos e acertos, CSV/TXT. Tela própria no lote 2 (PR #25). |
-| Calculadora | 1.0.0 (1.1.0 em #23) | Básica e Pro, leitor de expressões sem `eval`, variáveis, histórico. Tela própria no lote 1 (PR #23). |
-| Estúdio de Cores | 1.0.0 (1.1.0 em #23) | Conversões, harmonias, contraste WCAG, extração de cores de imagem, paleta e exportações. Tela própria no lote 1 (PR #23). |
-| Compactador ZIP | 1.0.0 (1.1.0 em #23) | Cria e abre ZIP reais, extrai, testa integridade. Tela própria no lote 1 (PR #23). |
-| Comparador de Arquivos | 1.0.0 (1.1.0 em #23) | Diferença linha a linha com destaque por palavra, byte a byte, SHA-256, exporta `.diff`. Tela própria no lote 1 (PR #23). |
+| Sorteio | 1.1.1 | Roleta, números, dados, equipes, listas salvas, histórico conferível. Tela própria no lote 2 (PR #25, mesclado). |
+| Racha-conta | 1.1.0 | Pessoas, despesas, divisão igual/porcentagem/valores em centavos, saldos e acertos, CSV/TXT. Tela própria no lote 2 (PR #25, mesclado). |
+| Calculadora | 1.1.0 | Básica e Pro, leitor de expressões sem `eval`, variáveis, histórico. Tela própria no lote 1 (PR #23, mesclado). |
+| Estúdio de Cores | 1.1.0 | Conversões, harmonias, contraste WCAG, extração de cores de imagem, paleta e exportações. Tela própria no lote 1 (PR #23, mesclado). |
+| Compactador ZIP | 1.1.0 | Cria e abre ZIP reais, extrai, testa integridade. Tela própria no lote 1 (PR #23, mesclado). |
+| Comparador de Arquivos | 1.1.0 | Diferença linha a linha com destaque por palavra, byte a byte, SHA-256, exporta `.diff`. Tela própria no lote 1 (PR #23, mesclado). |
 | Código | 1.0.0 | Projeto com vários arquivos, explorador, realce, busca, quadro isolado com console, importar pasta/ZIP, exportar. |
 | Visualizador | 1.0.0 | Imagem, SVG saneado, vídeo, áudio, 3D (STL/OBJ/GLB), PDF e texto. |
 | Pintar | 1.0.0 | Camadas, pincéis, balde, formas, **texto e seleção** (mover, copiar, recortar, colar), pixel art, PNG/JPG/WebP. |
@@ -122,16 +122,17 @@ Itens que apareciam como pendentes em [`ROADMAP.md`](../ROADMAP.md) (que é do C
 ### 4.1 Pull Requests abertos que são trabalho atual
 | PR | Conteúdo | Base | Estado |
 | --- | --- | --- | --- |
-| **#23** | **Lote 1 de layouts**: Calculadora, Estúdio de Cores, Compactador ZIP e Comparador com tela própria; modo `layout="free"` da casca e `SegTabs` | `feature/coding-v2-launcher-fixes-sonnet` | 🛠 Rascunho, CI verde, capturas conferidas. Aguarda autorização para mesclar na base. |
-| **#25** | **Lote 2 de layouts**: Sorteio e Racha-conta | `feature/coding-apps-lote1-sonnet` (empilhado no #23) | 🛠 Rascunho, CI verde. Depende do #23; ao mesclar o #23, redirecionar para a base. |
+| **DIR-04** (PR próprio, número no próprio PR) | **Contrato de edição direta** ([EDICAO-DIRETA.md](./EDICAO-DIRETA.md)) e primeira aplicação: editar código e descrição direto na folha do Etiquetas | base de desenvolvimento | 🛠 Rascunho. |
 | **#24** | Este planejamento | base de desenvolvimento | 🛠 Rascunho. Somente documentação. |
 
-### 4.2 Pull Requests abertos que **não** são trabalho atual
+**Mesclados na base em 01/11/2026 (com autorização do dono):** #23 (lote 1 de layouts: Calculadora, Cores, ZIP, Comparador) e #25 (lote 2: Sorteio e Racha-conta; abas do Sorteio fixas e legíveis no celular). Antes: #15 (Versos), #19 (Meus apps), #22 (abas do Launcher).
+
+### 4.2 Outros Pull Requests
 | PR | O que é | Verificação feita | Decisão pendente |
 | --- | --- | --- | --- |
 | **#18** | `release: Coding Launcher 2.0.1 no domínio oficial` (libera PWA/offline em `codingtxt.vercel.app`) | Tem 4 commits próprios e está 25 atrás da base. **É um PR de publicação em produção.** | **Só o dono decide.** Não será mesclado nem implantado sem autorização explícita. |
 | #12 | Rodada "grande atualização" (a própria branch base de desenvolvimento, comparada com uma base antiga) | Branch já contém tudo; a base atual é a mesma | Fechar ou manter como PR guarda-chuva (dono decide). |
-| #1, #3, #9, #10, #11 | Etapas anteriores da linha que levou à base atual (Etiquetas 4A, integração de Preview, Prévia completa, offline experimental, layout unificado) | Verificado: **todos os commits já estão contidos na base** (comparação do GitHub: 0 à frente) | Podem ser fechados (dono decide). |
+| #1, #3, #9, #10, #11 (✅ **fechados em 01/11/2026**, com comentário de substituição; as branches não foram apagadas) | Etapas anteriores da linha que levou à base atual (Etiquetas 4A, integração de Preview, Prévia completa, offline experimental, layout unificado) | Verificado: **todos os commits já estão contidos na base** (comparação do GitHub: 0 à frente) | Concluído: fechados como substituídos, por autorização do dono. |
 | #2, #4, #5, #6, #7 | Ramos paralelos antigos: motor `.codingpack`, interface de backup, logos e visual de loja, editor de Texto real, atualização de Launcher e Biblioteca | Têm commits próprios que **não** estão na base. As funcionalidades equivalentes **existem** na base (`.codingpack` com UI, Texto real, Launcher e Biblioteca) por outros commits | Decidir se fecha; não mesclar sem revisão porque podem conflitar com a base. |
 
 ---
@@ -184,26 +185,26 @@ Todos abaixo são 📌 **Planejados** pedidos em 01/11/2026 e **ainda não foram
 
 | ID | Candidato | Status | Observação |
 | --- | --- | --- | --- |
-| DIR-01 | **Etiquetas**: editar código e descrição na própria etiqueta da folha; painel sincronizado | 📌 Planejado | Pedido do dono. A paginação é medida no DOM e cada etiqueta é indivisível: a edição direta não pode quebrar isso. Mobile precisa de um fluxo próprio (toque). |
+| DIR-01 | **Etiquetas**: editar código e descrição na própria etiqueta da folha; painel sincronizado | 🛠 Em desenvolvimento (primeira aplicação do contrato) | Pedido do dono. A paginação é medida no DOM e cada etiqueta é indivisível: a edição direta não pode quebrar isso. Mobile precisa de um fluxo próprio (toque). |
 | DIR-02 | **Imagens**: texto direto na tela e recorte arrastando | 📝 Pendência documentada | Registrado em POST-PREVIEW-BUGFIX.md. |
 | DIR-03 | Outras folhas, cenas, canvas e prévias (QR / Barras, Pintar, Calculadora, Racha-conta etc.) | 💡 Ideia | Avaliar se faz sentido app a app. |
-| DIR-04 | **Contrato comum de edição na superfície**: seleção, foco, atalhos, desfazer/refazer agrupado, acessibilidade (teclado e leitor de tela), sincronia com o painel, comportamento no toque | 📌 Necessário para DIR-01 e `NEW-03` | Definir antes de repetir app a app. |
+| DIR-04 | **Contrato comum de edição na superfície**: seleção, foco, atalhos, desfazer/refazer agrupado, acessibilidade (teclado e leitor de tela), sincronia com o painel, comportamento no toque | 🛠 Em desenvolvimento (documento do contrato: [EDICAO-DIRETA.md](./EDICAO-DIRETA.md)); necessário para DIR-01 e `NEW-03` | Definir antes de repetir app a app. |
 
 ### LAY-00 a LAY-xx · Reformulação dos aplicativos (layout próprio por função)
 | Campo | Conteúdo |
 | --- | --- |
-| Status / prioridade | 🛠 Em andamento (lotes 1 e 2) · P1 |
+| Status / prioridade | Lotes 1 e 2 ✅ concluídos na base; próximos lotes 📌 · P1 (proposta) |
 | Origem | Pedido do dono: "cada aplicativo deve ter um layout realmente pensado para sua função, no PC, tablet e celular; podem compartilhar componentes e identidade visual, mas não precisam usar a mesma organização" |
-| Base técnica | `LAY-00` ✅ Modo `layout="free"` da casca (`EditorShell`) e `SegTabs` (abas segmentadas acessíveis), em #23. Cada app define a própria tela; cabeçalho, abas de projeto, avisos e salvamento continuam da casca. |
+| Base técnica | `LAY-00` ✅ Modo `layout="free"` da casca (`EditorShell`) e `SegTabs` (abas segmentadas acessíveis), mesclados em #23. Cada app define a própria tela; cabeçalho, abas de projeto, avisos e salvamento continuam da casca. |
 
 | ID | Aplicativo | Status | Protagonistas pedidos / organização |
 | --- | --- | --- | --- |
-| LAY-01 | Calculadora | 🛠 #23 | Visor e teclado protagonistas; histórico/variáveis/arquivo numa coluna (PC) ou gaveta (celular) |
-| LAY-02 | Estúdio de Cores | 🛠 #23 | A cor e as paletas; edição ao lado; bancada por abas |
-| LAY-03 | Compactador ZIP | 🛠 #23 | Arquivos e operações lado a lado |
-| LAY-04 | Comparador de Arquivos | 🛠 #23 | Lados A/B e resultado; no celular, abas Lado A, Lado B e Resultado |
-| LAY-05 | Sorteio | 🛠 #25 | Palco (roleta, números, dados, equipes) como protagonista; participantes e histórico ao lado |
-| LAY-06 | Racha-conta | 🛠 #25 | Total no alto; pessoas e despesas; acertos e saldos sempre à vista |
+| LAY-01 | Calculadora | ✅ #23 mesclado | Visor e teclado protagonistas; histórico/variáveis/arquivo numa coluna (PC) ou gaveta (celular) |
+| LAY-02 | Estúdio de Cores | ✅ #23 mesclado | A cor e as paletas; edição ao lado; bancada por abas |
+| LAY-03 | Compactador ZIP | ✅ #23 mesclado | Arquivos e operações lado a lado |
+| LAY-04 | Comparador de Arquivos | ✅ #23 mesclado | Lados A/B e resultado; no celular, abas Lado A, Lado B e Resultado |
+| LAY-05 | Sorteio | ✅ #25 mesclado | Palco (roleta, números, dados, equipes) como protagonista; participantes e histórico ao lado |
+| LAY-06 | Racha-conta | ✅ #25 mesclado | Total no alto; pessoas e despesas; acertos e saldos sempre à vista |
 | LAY-07 | Etiquetas | 📌 Planejado | Casca própria hoje; combinar com `DIR-01` (folha editável) |
 | LAY-08 | Texto | 📌 Planejado | Casca própria hoje. POST-PREVIEW-BUGFIX.md anota que as barras de ferramentas longas no celular rolam bastante |
 | LAY-09 | Planilhas | 📌 Planejado | Casca padrão hoje |
@@ -230,7 +231,7 @@ Todas 📝 **Pendência documentada**, **verificadas no código em 01/11/2026 co
 | ID | Item | Origem | Status | Prioridade |
 | --- | --- | --- | --- | --- |
 | APP-LAB-01 | Tamanhos de papel adesivo prontos (Pimaco) | CAT | 📝 (nenhuma referência no código) | P2 |
-| APP-LAB-02 | Edição direta na etiqueta | Pedido do dono | 📌 ver `DIR-01` | P1 |
+| APP-LAB-02 | Edição direta na etiqueta | Pedido do dono | 🛠 ver `DIR-01` | P1 |
 | APP-LAB-03 | Sem guias nem ajuste magnético (a grade não é um canvas livre) | ATU | 📝 Limitação do modelo atual | P3 |
 | APP-LAB-04 | Limites do motor: 200 itens, 500 cópias por item, 2.000 etiquetas | POST | Limitação conhecida (não é bug) | P3 |
 
@@ -393,7 +394,7 @@ Valem para tudo neste documento.
 
 ```mermaid
 graph TD
-  LAY00[LAY-00 layout livre da casca - pronto em #23] --> LAY0[LAY-01..06 lotes 1 e 2 - em #23 e #25]
+  LAY00[LAY-00 layout livre da casca - pronto] --> LAY0[LAY-01..06 lotes 1 e 2 - prontos]
   LAY00 --> LAYN[LAY-07..16 demais apps]
   LAY00 --> NEW01[NEW-01 Navegar]
   LAY00 --> NEW03[NEW-03 Editor SVG]
@@ -416,7 +417,7 @@ graph TD
 ```
 
 Leitura rápida:
-- **Base de layout livre (`LAY-00`)** já existe no #23: destrava os lotes seguintes e os apps novos.
+- **Base de layout livre (`LAY-00`)** já existe na base: destrava os lotes seguintes e os apps novos.
 - **Contrato de edição direta (`DIR-04`)** vem antes de repetir a edição direta em vários apps.
 - **Coding Fontes (`NEW-02`)** é pré-requisito para o Editor SVG tratar texto, para o Versos receber mais fontes e para o Editor PDF sair do limite de Latin-1.
 - **Publicação (`PLT-10`)** depende de testes em aparelhos reais e navegadores e da autorização do dono.
