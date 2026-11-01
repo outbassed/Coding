@@ -69,7 +69,7 @@ test.describe('Sorteio: as cinco abas ficam sempre acessíveis no celular', () =
       await page.goto('/apps/sorteio/');
       const tabs = page.getByTestId('editor-tabs').getByRole('tab');
       await expect(tabs).toHaveCount(5);
-      const dims = await tabs.evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); const range = document.createRange(); range.selectNodeContents(e); const t = range.getBoundingClientRect(); return { label: e.textContent, w: r.width, h: r.height, clipped: t.left < r.left - 0.5 || t.right > r.right + 0.5, tw: Math.round(t.width * 10) / 10, right: r.right }; }));
+      const dims = await tabs.evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); const range = document.createRange(); range.selectNodeContents(e); const t = range.getBoundingClientRect(); return { label: e.textContent, w: r.width, h: r.height, clipped: t.width > r.width - 1, tw: Math.round(t.width * 10) / 10, right: r.right }; }));
       for (const d of dims) {
         expect(d.w, d.label + ' largura').toBeGreaterThanOrEqual(44);
         expect(d.h, d.label + ' altura').toBeGreaterThanOrEqual(44);

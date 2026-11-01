@@ -257,7 +257,7 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
 .names { width: 100%; min-height: 120px; resize: vertical; font-size: 16px; }
 .check { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; font-weight: 600; }
 .check input { width: 20px; height: 20px; }
-.dw { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; box-sizing: border-box; min-width: 0; padding: 14px max(10px, var(--sa-r)) 28px max(10px, var(--sa-l)); }
+.dw { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; box-sizing: border-box; min-width: 0; padding: 14px max(8px, var(--sa-r)) 28px max(8px, var(--sa-l)); }
 .dw-tabs { width: min(100%, 640px); margin: 0 auto; }
 .controls { display: grid; gap: 10px; align-content: start; min-width: 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
 /* Celular: listas longas (roleta, equipes) vêm depois do palco; formulários curtos (números, dados) vêm antes. */
