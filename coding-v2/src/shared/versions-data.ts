@@ -56,6 +56,26 @@ export const versionRecords: readonly VersionRecord[] = [
     novidades: ['Versão inicial registrada na Central de Versões.']
   },
   { target: 'split', version: '1.0.0', build: '24.10.26.112915', releaseDate: '2026-10-24', releaseTime: '11:29:15', commit: '8171e4d', novidades: ['Versão inicial registrada na Central de Versões.'] },
+  {
+    target: 'calculator', version: '1.1.0', build: '01.11.26.161520', releaseDate: '2026-11-01', releaseTime: '16:15:20',
+    melhorias: ['Calculadora com identidade própria: painel de modo e histórico à direita e fundo com brilho de aparelho, deixando o teclado no centro.'],
+    alteracoesTecnicas: ['Identidade por aplicativo na casca dos editores (lado do painel, cabeçalho e fundo); controles, atalhos, salvamento e documentos não mudaram.']
+  },
+  {
+    target: 'colors', version: '1.1.0', build: '01.11.26.161520', releaseDate: '2026-11-01', releaseTime: '16:15:20',
+    melhorias: ['Estúdio de Cores com identidade própria: painel à direita e fundo xadrez, que ajuda a avaliar cores e transparências.'],
+    alteracoesTecnicas: ['Identidade por aplicativo na casca dos editores (lado do painel, cabeçalho e fundo); controles, atalhos, salvamento e documentos não mudaram.']
+  },
+  {
+    target: 'zip', version: '1.1.0', build: '01.11.26.161520', releaseDate: '2026-11-01', releaseTime: '16:15:20',
+    melhorias: ['Compactador ZIP com identidade própria: área de trabalho pontilhada, como uma mesa para soltar arquivos.'],
+    alteracoesTecnicas: ['Identidade por aplicativo na casca dos editores (lado do painel, cabeçalho e fundo); controles, atalhos, salvamento e documentos não mudaram.']
+  },
+  {
+    target: 'compare', version: '1.1.0', build: '01.11.26.161520', releaseDate: '2026-11-01', releaseTime: '16:15:20',
+    melhorias: ['Comparador de Arquivos com identidade própria: fundo quadriculado e painel um pouco mais largo para os dois lados.'],
+    alteracoesTecnicas: ['Identidade por aplicativo na casca dos editores (lado do painel, cabeçalho e fundo); controles, atalhos, salvamento e documentos não mudaram.']
+  },
   { target: 'calculator', version: '1.0.0', build: '25.10.26.004528', releaseDate: '2026-10-25', releaseTime: '00:45:28', commit: '627ad2c', novidades: ['Versão inicial registrada na Central de Versões.'] },
   { target: 'colors', version: '1.0.0', build: '25.10.26.164408', releaseDate: '2026-10-25', releaseTime: '16:44:08', commit: '63add2d', novidades: ['Versão inicial registrada na Central de Versões.'] },
   { target: 'zip', version: '1.0.0', build: '25.10.26.010744', releaseDate: '2026-10-25', releaseTime: '01:07:44', commit: '6709855', novidades: ['Versão inicial registrada na Central de Versões.'] },
