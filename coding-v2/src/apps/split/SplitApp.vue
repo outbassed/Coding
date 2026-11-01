@@ -224,6 +224,11 @@ function printSummary(): void { window.print(); }
 .total strong { font-size: clamp(30px, 8vw, 44px); line-height: 1.1; letter-spacing: -.02em; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .mini { display: grid; gap: 2px; text-align: center; }
 .mini strong { font-size: 20px; }
+@media (max-width: 899px) {
+  .hero { padding: 12px 16px; gap: 4px 18px; }
+  .total { flex-basis: 100%; }
+  .mini { display: flex; gap: 8px; align-items: baseline; }
+}
 .filemenu { position: relative; margin-left: auto; }
 .filemenu > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; }
 .filemenu > summary::-webkit-details-marker { display: none; }
