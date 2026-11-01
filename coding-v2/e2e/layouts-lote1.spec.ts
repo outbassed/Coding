@@ -51,6 +51,7 @@ test.describe('Calculadora: visor e teclado são os protagonistas', () => {
       const zero = await box(page, 'key-0');
       expect(display.y).toBeLessThan(eq.y);
       expect(eq.y + eq.height, 'o "=" precisa estar visível sem rolar').toBeLessThanOrEqual(size.height);
+      expect(eq.x + eq.width).toBeLessThanOrEqual(size.width);
       expect(zero.height).toBeGreaterThanOrEqual(44);
       await expect(page.getByTestId('calc-rail')).toBeHidden();
       await page.getByTestId('open-rail').click();
@@ -70,8 +71,9 @@ test.describe('Estúdio de Cores: a cor e as paletas ficam à vista', () => {
       await page.goto('/apps/cores/');
       const hero = await box(page, 'hero-hex');
       expect(hero.y).toBeLessThan(size.height / 2);
-      await page.getByTestId('palette-strip').scrollIntoViewIfNeeded();
-      await expect(page.getByTestId('palette-strip')).toBeVisible();
+      const dock = page.locator('section.dock');
+      await dock.scrollIntoViewIfNeeded();
+      await expect(dock).toBeVisible();
       if (size.width >= 900) {
         // No PC a edição fica ao lado da cor, sem esconder a cor.
         const slider = await box(page, 'slider-h');

@@ -264,10 +264,10 @@ function listText(): void {
 </template>
 
 <style scoped>
-/* Os arquivos são o centro; as operações ficam ao lado (PC) ou antes da lista (celular), para o botão principal nunca ficar enterrado. */
+/* Os arquivos são o centro; as operações ficam ao lado (PC) ou logo abaixo da lista (tablet e celular). */
 .zx { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; box-sizing: border-box; padding: 14px max(14px, var(--sa-r)) 28px max(14px, var(--sa-l)); }
-.files { display: grid; gap: 10px; align-content: start; min-width: 0; order: 2; }
-.ops { display: grid; gap: 10px; align-content: start; min-width: 0; order: 1; padding: 12px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+.files { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.ops { display: grid; gap: 10px; align-content: start; min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
 .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .add { position: relative; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 16px; cursor: pointer; overflow: hidden; }
 .pick { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 0; }
@@ -292,7 +292,6 @@ input.nm { display: block; }
 .go { min-height: 48px; }
 @media (min-width: 900px) {
   .zx { grid-template-columns: minmax(0, 1fr) 360px; column-gap: 18px; padding-top: 18px; }
-  .files { order: 1; }
-  .ops { order: 2; position: sticky; top: 0; align-self: start; }
+  .ops { position: sticky; top: 0; align-self: start; }
 }
 </style>
