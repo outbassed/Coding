@@ -11,6 +11,7 @@ const list = (value: string | undefined, fallback: string[]): string[] => {
 };
 const filter = list(process.env.SHOTS_FILTER, []);
 const schemes = list(process.env.SHOTS_SCHEMES, ['light']) as Array<'light' | 'dark'>;
+mkdirSync(OUT, { recursive: true });
 const selected = routes.filter((r) => filter.length === 0 || filter.some((f) => r.name.includes(f)));
 
 for (const scheme of schemes) {

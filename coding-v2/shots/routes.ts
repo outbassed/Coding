@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { tools } from '../src/shared/catalog';
-import { seedInstalledApps } from '../e2e/helpers';
+import { seedInstalledApps } from './seed';
 
 /**
  * Telas que o robô de capturas fotografa. Para fotografar algo novo, basta acrescentar uma linha em `routes`

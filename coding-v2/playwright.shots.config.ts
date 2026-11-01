@@ -18,7 +18,7 @@ export default defineConfig({
   workers: process.env.CI ? 2 : undefined,
   retries: 0,
   timeout: 60_000,
-  reporter: [['list']],
+  reporter: process.env.CI ? [['github'], ['list']] : [['list']],
   use: { baseURL: 'http://127.0.0.1:4173', browserName: 'chromium', deviceScaleFactor: 1 },
   webServer: {
     command: 'npx vite preview --port 4173 --host 127.0.0.1 --strictPort',
