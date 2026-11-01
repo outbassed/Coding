@@ -18,13 +18,15 @@ async function overflow(page: Page): Promise<number> {
   return result.over;
 }
 /** Quantas colunas a maior grade de aplicativos da tela realmente desenha. */
-async function columns(page: Page): Promise<{ cols: number; cards: number; maxRight: number }> {
+async function columns(page: Page): Promise<{ cols: number; cards: number; total: number; maxRight: number }> {
   return page.evaluate(() => {
-    let best = { cols: 0, cards: 0, maxRight: 0 };
+    // O Catálogo é uma vitrine com uma grade por categoria: vale a maior grade; `total` soma todos os cartões da tela.
+    const best = { cols: 0, cards: 0, total: 0, maxRight: 0 };
     for (const grid of Array.from(document.querySelectorAll('[data-testid="app-grid"]'))) {
       const rects = Array.from(grid.querySelectorAll('article.card')).map((c) => c.getBoundingClientRect());
-      const xs = new Set(rects.map((r) => Math.round(r.left)));
-      if (rects.length > best.cards) best = { cols: xs.size, cards: rects.length, maxRight: Math.max(...rects.map((r) => r.right)) };
+      best.total += rects.length;
+      if (rects.length) best.maxRight = Math.max(best.maxRight, ...rects.map((r) => r.right));
+      if (rects.length > best.cards) { best.cols = new Set(rects.map((r) => Math.round(r.left))).size; best.cards = rects.length; }
     }
     return best;
   });
@@ -42,7 +44,7 @@ test.describe('Launcher · celulares', () => {
       }
       await page.goto('/launcher/#/catalogo');
       const grid = await columns(page);
-      expect(grid.cards).toBe(APP_COUNT);
+      expect(grid.total).toBe(APP_COUNT);
       expect(grid.cols).toBe(3);
       expect(grid.maxRight).toBeLessThanOrEqual(width);
       const nav = page.getByRole('navigation', { name: 'Navegação móvel' });

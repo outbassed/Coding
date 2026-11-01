@@ -41,42 +41,44 @@ test.describe('Identidade pública', () => {
 });
 
 test.describe('Início como acesso rápido', () => {
-  test('computador: identidade, busca e os 15 apps, sem estatísticas no topo nem botões repetidos', async ({ page }) => {
+  test('computador: identidade, busca e painéis de resumo, sem estatísticas no topo nem botões repetidos', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/launcher/');
     await expect(page.getByRole('searchbox', { name: 'Buscar aplicativos' })).toBeVisible();
-    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
+    await expect(page.getByTestId('home-panels')).toBeVisible();
     await expect(page.getByTestId('home-stats')).toHaveCount(0);
     await expect(page.getByTestId('home-actions')).toHaveCount(0);
     // cada destino aparece só uma vez na navegação lateral
     for (const name of ['Meus apps', 'Catálogo', 'Documentos', 'Ajustes']) await expect(page.locator('main').getByRole('link', { name, exact: true })).toHaveCount(0);
   });
 
-  test('a busca filtra e a grade volta ao limpar', async ({ page }) => {
+  test('a busca mostra os aplicativos e o resumo volta ao limpar', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/launcher/');
     const box = page.getByRole('searchbox', { name: 'Buscar aplicativos' });
     await box.fill('cores');
     await expect(page.locator('article.card h3')).toHaveText(['Estúdio de Cores']);
     await box.fill('');
-    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
+    await expect(page.locator('article.card')).toHaveCount(0);
+    await expect(page.getByTestId('home-panels')).toBeVisible();
   });
 
-  test('celular: os aplicativos começam logo abaixo da busca, dentro da primeira tela', async ({ page }) => {
+  test('celular: os painéis começam logo abaixo da busca, dentro da primeira tela', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 700 });
     await page.goto('/launcher/');
-    const firstCard = await page.locator('article.card').first().boundingBox();
-    expect(firstCard).not.toBeNull();
-    expect(firstCard!.y).toBeLessThan(420);
-    expect(firstCard!.y + 60).toBeLessThan(700);
+    const first = await page.getByTestId('home-favorites').boundingBox();
+    expect(first).not.toBeNull();
+    expect(first!.y).toBeLessThan(420);
+    expect(first!.y + 60).toBeLessThan(700);
   });
 
-  test('favoritos continuam no começo da grade depois de recarregar', async ({ page }) => {
+  test('favoritos aparecem no painel do Início, inclusive depois de recarregar', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto('/launcher/');
+    await page.goto('/launcher/#/catalogo');
     await page.locator('article.card[data-tool="paint"]').getByTestId('favorite').click();
+    await page.goto('/launcher/');
     await page.reload();
-    await expect(page.locator('article.card h3').first()).toHaveText('Pintar');
+    await expect(page.getByTestId('home-favorites').getByRole('link', { name: 'Abrir o editor de Pintar' })).toHaveAttribute('href', '/apps/pintar/');
   });
 });
 

@@ -23,6 +23,8 @@ export const useOfflineStore = defineStore('offline', () => {
   const errors = ref<Record<string, string>>({});
   const job = ref<Job | null>(null);
   const loaded = ref(false);
+  /** O registro do que está instalado já foi lido (`loaded` vira verdadeiro antes, ao começar a leitura). */
+  const ready = ref(false);
   let ports: Ports | null = null;
   let controller: AbortController | null = null;
   const getPorts = (): Ports => (ports ??= browserPorts());
@@ -62,6 +64,7 @@ export const useOfflineStore = defineStore('offline', () => {
     if (!supported.value || loaded.value) return;
     loaded.value = true;
     try { await refreshRecords(); } catch { reason.value = 'Não foi possível ler o registro de instalações deste navegador.'; supported.value = false; return; }
+    ready.value = true;
     await loadManifest();
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !job.value) void refreshRecords().catch(() => undefined); });
   }
@@ -129,6 +132,6 @@ export const useOfflineStore = defineStore('offline', () => {
     return install(id);
   }
 
-  return { supported, reason, manifest, manifestError, records, damaged, errors, job, loaded, installedIds, installedApps, anyUpdate, stateOf, plan, init, loadManifest, install, updateAll, cancel, uninstall, retry, entryOf, presentMap };
+  return { supported, reason, manifest, manifestError, records, damaged, errors, job, loaded, ready, installedIds, installedApps, anyUpdate, stateOf, plan, init, loadManifest, install, updateAll, cancel, uninstall, retry, entryOf, presentMap };
 });
 
