@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
 import { useOfflineStore } from '../stores/offline';
 import { mountLauncher, violations } from '../test/helpers';
-import { tools } from '../shared/catalog';
+import { categories, tools } from '../shared/catalog';
 import { latestOf } from '../shared/versions';
 import { versionRecords } from '../shared/versions-data';
 import { settingsTabs } from '../components/settings/tabs';
@@ -223,7 +223,7 @@ describe('Launcher · Meus apps só com os instalados offline', () => {
     const catalog = await mountLauncher('/catalogo');
     await withOffline([]);
     expect(catalog.wrapper.findAll('article.card')).toHaveLength(tools.length);
-    expect(catalog.wrapper.findAll('[data-testid="catalog-shelves"] section')).toHaveLength(5);
+    expect(catalog.wrapper.findAll('[data-testid="catalog-shelves"] section')).toHaveLength(categories.filter((c) => tools.some((t) => t.category === c.id)).length);
     catalog.wrapper.unmount();
     const home = await mountLauncher('/');
     await withOffline([]);

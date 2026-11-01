@@ -1,7 +1,7 @@
 import { tools, type ToolId } from './catalog';
 
 /**
- * Registro central e tipado de versões do Coding Launcher e dos 15 aplicativos.
+ * Registro central e tipado de versões do Coding Launcher e dos 16 aplicativos.
  *
  * - A versão principal (`MAJOR.MINOR.PATCH`, semver) só muda em um lançamento registrado em `versions-data.ts`.
  * - A compilação (`DD.MM.AA.HHMMSS`, fuso America/Sao_Paulo) identifica quando o pacote foi compilado.
@@ -19,7 +19,7 @@ export const VERSION_TIMEZONE = 'America/Sao_Paulo';
 /** Ordem do menu da Central de Versões. */
 export const TARGET_ORDER: readonly VersionTarget[] = [
   'launcher', 'labels', 'texts', 'calc', 'images', 'pdf', 'codes', 'draw', 'split',
-  'calculator', 'colors', 'zip', 'compare', 'code', 'paint', 'viewer'
+  'calculator', 'colors', 'zip', 'compare', 'code', 'paint', 'viewer', 'versos'
 ];
 
 export interface VersionRecord {

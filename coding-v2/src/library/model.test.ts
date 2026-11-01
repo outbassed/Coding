@@ -79,3 +79,12 @@ describe('modelo da biblioteca', () => {
     expect(openHref({ id: 'a', type: 'calc', legacyId: 'legado-calc' })).toBeNull();
   });
 });
+
+describe('Versos na Biblioteca', () => {
+  it('o tipo versos aponta para /apps/versos/ e tem nome no catálogo', () => {
+    expect(toolIdForType('versos')).toBe('versos');
+    expect(typeLabel('versos')).toBe('Versos');
+    expect(openHref({ id: 'z', type: 'versos', legacyId: 'v2-versos-1' })).toBe('/apps/versos/?doc=z');
+    expect(openHref({ id: 'z', type: 'versos', legacyId: 'outro-id' })).toBeNull();
+  });
+});

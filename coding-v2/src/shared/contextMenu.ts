@@ -106,6 +106,14 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
     { label: 'Próximo arquivo', selector: '[data-testid="viewer-next"]' },
     { label: 'Apresentação de imagens', selector: '[data-testid="slideshow"]', tab: 'Arquivos' },
     { label: 'Tela cheia', selector: '[data-testid="viewer-fullscreen"]' }
+  ],
+  versos: [
+    { label: 'Adicionar texto', selector: '[data-testid="add-text"]', tab: 'Textos', shortcut: 'Alt+Shift+N' },
+    { label: 'Nova cena', selector: '[data-testid="footer-add-scene"]' },
+    { label: 'Importar imagem de fundo', selector: '[data-testid="import-bg"]' },
+    { label: 'Exportar cena em PNG', selector: '[data-testid="export-scene"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
+    { label: 'Exportar todas as cenas (ZIP)', selector: '[data-testid="export-zip"]', tab: 'Arquivo' },
+    { label: 'Música de referência', selector: '[data-testid="media-open"]' }
   ]
 };
 
@@ -113,7 +121,12 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
 const NATIVE_KEYS: Partial<Record<ToolId, HelpKey[]>> = {
   labels: [['Desfazer', 'Ctrl+Z'], ['Refazer', 'Ctrl+Shift+Z / Ctrl+Y'], ['Salvar agora', 'Ctrl+S'], ['Imprimir', 'Ctrl+P']],
   texts: [['Desfazer documento', 'Ctrl+Z'], ['Refazer documento', 'Ctrl+Shift+Z / Ctrl+Y'], ['Salvar documento', 'Ctrl+S'], ['Negrito na seleção', 'Ctrl+B'], ['Itálico na seleção', 'Ctrl+I'], ['Sublinhar seleção', 'Ctrl+U']],
-  calc: [['Editar célula', 'F2'], ['Confirmar', 'Enter'], ['Navegar', 'Setas / Tab'], ['Negrito', 'Ctrl+B'], ['Preencher para baixo', 'Ctrl+D']]
+  calc: [['Editar célula', 'F2'], ['Confirmar', 'Enter'], ['Navegar', 'Setas / Tab'], ['Negrito', 'Ctrl+B'], ['Preencher para baixo', 'Ctrl+D']],
+  versos: [
+    ['Desfazer', 'Ctrl+Z'], ['Refazer', 'Ctrl+Shift+Z / Ctrl+Y'], ['Salvar agora', 'Ctrl+S'],
+    ['Copiar cena ou texto selecionado', 'Ctrl+C'], ['Recortar cena ou texto', 'Ctrl+X'], ['Colar como novo', 'Ctrl+V'], ['Duplicar cena ou texto', 'Ctrl+D'],
+    ['Excluir cena ou texto', 'Delete'], ['Mover o texto selecionado', 'Setas (Shift = 10 px)'], ['Cena anterior / próxima', 'Page Up / Page Down']
+  ]
 };
 
 /** Atalhos que o menu de contexto de cada aplicativo mostra em “Atalhos de …”. Ajustes → Atalhos usa a mesma lista. */
@@ -201,6 +214,45 @@ function contextualEntries(app: AppId, target?: Element): { title: string; actio
       if (remove && !remove.disabled) actions.push({ label: 'Excluir item', run: () => remove.click() });
       return actions.length ? { title: 'Item de etiqueta', actions } : null;
     }
+  }
+  if (app === 'versos') {
+    const act = (command: string, label: string, ids: { sceneId?: string; textId?: string } = {}, enabled = true): Action[] => enabled ? [{
+      label, run: () => window.dispatchEvent(new CustomEvent('coding:versos-action', { detail: { command, ...ids } }))
+    }] : [];
+    const root = document.querySelector<HTMLElement>('[data-versos-root]');
+    const clip = root?.dataset.clip ?? '';
+    const sceneEl = target.closest<HTMLElement>('[data-scene-id]');
+    if (sceneEl?.dataset.sceneId) {
+      const ids = { sceneId: sceneEl.dataset.sceneId };
+      const index = Number(sceneEl.dataset.index ?? -1);
+      const total = document.querySelectorAll('[data-testid="scene-item"]').length;
+      return { title: 'Cena', actions: [
+        ...act('scene-copy', 'Copiar cena', ids), ...act('scene-cut', 'Recortar cena', ids),
+        ...act('scene-paste', 'Colar como nova cena', ids, clip === 'scenes'),
+        ...act('scene-duplicate', 'Duplicar cena', ids),
+        ...act('scene-up', 'Mover para cima', ids, index > 0), ...act('scene-down', 'Mover para baixo', ids, index < total - 1),
+        ...act('scene-delete', 'Excluir cena', ids)
+      ] };
+    }
+    const textEl = target.closest<HTMLElement>('[data-text-id]');
+    const canvas = target.closest<HTMLElement>('[data-testid="versos-canvas"]');
+    const textId = textEl?.dataset.textId ?? (canvas?.dataset.hasSelection === 'true' ? '' : undefined);
+    if (textId !== undefined) {
+      const ids = textId ? { textId } : {};
+      return { title: 'Texto', actions: [
+        ...act('text-copy', 'Copiar texto', ids), ...act('text-cut', 'Recortar texto', ids),
+        ...act('text-paste', 'Colar como novo texto', ids, clip === 'texts'),
+        ...act('text-duplicate', 'Duplicar texto', ids),
+        ...act('text-copy-format', 'Copiar formatação', ids), ...act('text-paste-format', 'Colar formatação', ids, clip === 'format'),
+        ...act('text-up', 'Trazer para frente', ids), ...act('text-down', 'Enviar para trás', ids),
+        ...act('text-toggle', 'Mostrar ou ocultar', ids), ...act('text-delete', 'Excluir texto', ids)
+      ] };
+    }
+    if (canvas) return { title: 'Cena', actions: [
+      ...act('text-paste', 'Colar como novo texto', {}, clip === 'texts'), ...act('text-paste-format', 'Colar formatação', {}, clip === 'format'),
+      ...act('scene-paste', 'Colar como nova cena', {}, clip === 'scenes'), ...act('scene-duplicate', 'Duplicar cena')
+    ] };
+    return null;
   }
   return null;
 }
