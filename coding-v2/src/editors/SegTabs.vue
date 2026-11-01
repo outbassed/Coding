@@ -35,8 +35,8 @@ function onKey(event: KeyboardEvent): void {
 
 <style scoped>
 .seg-tabs { display: flex; gap: 2px; padding: 3px; border-radius: 14px; background: var(--panel); border: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; max-width: 100%; }
-.seg-tabs.fill .seg-tab { flex: 1 1 0; }
-.seg-tab { flex: 0 0 auto; min-height: 44px; padding: 0 14px; border: 0; border-radius: 11px; background: transparent; color: var(--muted); font-weight: 700; font-size: 13.5px; white-space: nowrap; }
+.seg-tabs.fill .seg-tab { flex: 1 1 0; min-width: 44px; padding: 0 clamp(1px, 1.2vw, 14px); font-size: clamp(11px, 3.1vw, 13.5px); letter-spacing: -0.01em; }
+.seg-tab { flex: 0 0 auto; min-height: 44px; padding: 0 clamp(9px, 2.6vw, 14px); border: 0; border-radius: 11px; background: transparent; color: var(--muted); font-weight: 700; font-size: 13.5px; white-space: nowrap; }
 .seg-tab:hover:not([aria-selected="true"]) { background: color-mix(in srgb, var(--text) 6%, transparent); color: var(--text); }
 .seg-tab[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px #0002, inset 0 -3px 0 var(--app, var(--accent)); }
 .seg-tab:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }

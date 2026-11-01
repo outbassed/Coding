@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import EditorShell from '../../editors/EditorShell.vue';
 import FileTab from '../../editors/FileTab.vue';
+import SegTabs from '../../editors/SegTabs.vue';
 import { useDocument } from '../../editors/useDocument';
 import { useMediaQuery } from '../../composables/useMediaQuery';
 import { useSettingsStore } from '../../stores/settings';
@@ -15,6 +16,8 @@ const tabs = [{ id: 'wheel', label: 'Roleta' }, { id: 'numbers', label: 'Número
 const tab = ref<string>(state.value.mode);
 watch(tab, (t) => { if (t !== 'arquivo' && t !== state.value.mode) state.value.mode = t as DrawMode; });
 watch(() => state.value.mode, (m) => { if (tab.value !== 'arquivo') tab.value = m; });
+/** Layout livre: o palco (roleta, números, dados, equipes) é o protagonista; as configurações ficam ao lado no PC e abaixo no celular. */
+const wide = useMediaQuery('(min-width: 900px)', true);
 const systemReduced = useMediaQuery('(prefers-reduced-motion: reduce)', false);
 const settings = useSettingsStore();
 const reduced = computed(() => systemReduced.value || settings.motion === 'reduce');
@@ -147,9 +150,11 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
 </script>
 
 <template>
-  <EditorShell v-model:tab="tab" app="draw" :doc="doc" :tabs="tabs">
-    <template #panel="{ tab: current }">
-      <div v-if="current === 'wheel' || current === 'teams'" class="ed-group">
+  <EditorShell app="draw" layout="free" :doc="doc">
+    <div class="dw" :data-mode="state.mode" :data-tab="tab" :data-wide="wide ? 'sim' : 'nao'" data-testid="draw-stage">
+      <SegTabs v-model="tab" :tabs="tabs" label="Tipo de sorteio" prefix="dw" panel-id="dw-controls" class="dw-tabs" fill />
+      <section id="dw-controls" class="controls" role="tabpanel" :aria-labelledby="'dw-tab-' + tab" data-testid="editor-panel">
+      <div v-if="tab === 'wheel' || tab === 'teams'" class="ed-group">
         <label class="ed-field"><span class="ed-label">Participantes (um por linha) · {{ total }}</span>
           <textarea v-model="namesText" class="inp names" rows="5" data-testid="names" @input="doc.setChangeKey('names')"></textarea></label>
         <details class="presets" data-testid="presets">
@@ -166,7 +171,7 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
           </div>
           <p v-else class="muted small">Guarde a lista de participantes com um nome para reutilizá-la depois.</p>
         </details>
-        <div v-if="current === 'wheel'" class="ed-row">
+        <div v-if="tab === 'wheel'" class="ed-row">
           <label class="check"><input v-model="state.excludeDrawn" type="checkbox" data-testid="exclude" /> Não repetir quem já saiu</label>
           <button type="button" class="btn" :disabled="!state.drawn.length" data-testid="reset-drawn" @click="resetDrawn">Recomeçar ({{ state.drawn.length }} já sorteados)</button>
         </div>
@@ -174,13 +179,13 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
           <label class="ed-field"><span class="ed-label">Número de equipes</span><input v-model.number="state.teams.count" class="inp inp-num" type="number" min="2" max="50" data-testid="team-count" /></label>
         </div>
       </div>
-      <div v-else-if="current === 'numbers'" class="ed-row">
+      <div v-else-if="tab === 'numbers'" class="ed-row">
         <label class="ed-field"><span class="ed-label">De</span><input v-model.number="state.numbers.min" class="inp inp-num" type="number" data-testid="num-min" /></label>
         <label class="ed-field"><span class="ed-label">Até</span><input v-model.number="state.numbers.max" class="inp inp-num" type="number" data-testid="num-max" /></label>
         <label class="ed-field"><span class="ed-label">Quantidade</span><input v-model.number="state.numbers.count" class="inp inp-num" type="number" min="1" max="100" data-testid="num-count" /></label>
         <label class="check"><input v-model="state.numbers.unique" type="checkbox" /> Sem repetir</label>
       </div>
-      <div v-else-if="current === 'dice'" class="ed-row">
+      <div v-else-if="tab === 'dice'" class="ed-row">
         <label class="ed-field"><span class="ed-label">Dados</span><input v-model.number="state.dice.count" class="inp inp-num" type="number" min="1" max="12" data-testid="dice-count" /></label>
         <label class="ed-field"><span class="ed-label">Faces</span>
           <select v-model.number="state.dice.sides" class="inp"><option v-for="f in [4, 6, 8, 10, 12, 20, 100]" :key="f" :value="f">d{{ f }}</option></select></label>
@@ -189,9 +194,8 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
         <button type="button" class="btn" :disabled="!state.history.length" data-testid="export-history" @click="exportHistory">Exportar histórico (TXT)</button>
         <button type="button" class="btn" :disabled="!state.history.length" @click="clearHistory">Limpar histórico</button>
       </FileTab>
-    </template>
+      </section>
 
-    <div class="stage" :data-mode="state.mode">
       <div class="play">
         <template v-if="state.mode === 'wheel'">
           <div class="wheel-wrap"><span class="pointer" aria-hidden="true">▼</span><div class="wheel-box">
@@ -253,8 +257,32 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
 .names { width: 100%; min-height: 120px; resize: vertical; font-size: 16px; }
 .check { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; font-weight: 600; }
 .check input { width: 20px; height: 20px; }
-.stage { display: grid; gap: 18px; max-width: 980px; margin: 0 auto; padding: 16px max(16px, var(--sa-r)) 28px max(16px, var(--sa-l)); }
-@media (min-width: 900px) { .stage { grid-template-columns: minmax(0, 1fr) 300px; align-items: start; } }
+.dw { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; box-sizing: border-box; min-width: 0; padding: 14px max(8px, var(--sa-r)) 28px max(8px, var(--sa-l)); }
+.dw-tabs { width: min(100%, 640px); margin: 0 auto; }
+.controls { display: grid; gap: 10px; align-content: start; min-width: 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+/* Celular: listas longas (roleta, equipes) vêm depois do palco; formulários curtos (números, dados) vêm antes. */
+.dw .dw-tabs { order: 0; }
+.dw .play { order: 1; }
+.dw .controls { order: 2; }
+.dw .history { order: 3; }
+.dw[data-tab="numbers"] .controls, .dw[data-tab="dice"] .controls { order: 1; }
+.dw[data-tab="numbers"] .play, .dw[data-tab="dice"] .play { order: 2; }
+.dw[data-tab="arquivo"] .controls { order: 1; }
+.dw[data-tab="arquivo"] .play { order: 2; }
+/* As cinco abas ficam sempre à mão: a barra acompanha a rolagem, com os rótulos inteiros e alvos de toque de 44 px. */
+@media (max-width: 899px) {
+  .dw-tabs { position: sticky; top: 0; z-index: 5; box-shadow: 0 6px 10px -6px #0004; }
+}
+@media (min-width: 900px) {
+  .dw { grid-template-columns: 300px minmax(0, 1fr) 280px; column-gap: 18px; align-items: start; padding-top: 18px; }
+  .dw-tabs { grid-column: 1 / -1; }
+  .dw .controls, .dw .play, .dw .history, .dw[data-tab] .controls, .dw[data-tab] .play { order: 0; }
+  .dw .controls { grid-column: 1; grid-row: 2; position: sticky; top: 0; }
+  .dw .play { grid-column: 2; grid-row: 2; align-content: start; padding-top: 8px; }
+  .dw .history { grid-column: 3; grid-row: 2; position: sticky; top: 0; }
+  .dw .wheel-wrap { width: min(100%, 54vh, 520px); }
+  .dw .wheel-box { width: 100%; }
+}
 .play { display: grid; justify-items: center; gap: 12px; text-align: center; }
 .wheel-box { position: relative; width: min(78vw, 46vh, 420px); aspect-ratio: 1; }
 .wheel { width: 100%; height: 100%; display: block; pointer-events: none; }
