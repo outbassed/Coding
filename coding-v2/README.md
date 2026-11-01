@@ -105,3 +105,6 @@ No Launcher, vá a **Ajustes → Offline** ou à página de **Detalhes** do app 
 
 ## Desenvolvimento
 Fluxo sem instalar nada (GitHub Actions, capturas de tela em vários aparelhos, pré-visualizações e regras de segurança): veja [DESENVOLVIMENTO.md](DESENVOLVIMENTO.md).
+
+## Planejamento futuro
+Ideias aprovadas e ainda não implementadas (por exemplo o Navegar / Coding Browser): veja [PLANEJAMENTO-FUTURO.md](PLANEJAMENTO-FUTURO.md).
