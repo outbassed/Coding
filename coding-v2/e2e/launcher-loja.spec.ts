@@ -15,13 +15,15 @@ const hasDb = (page: Page) => page.evaluate(async () => (await indexedDB.databas
 test.describe('Launcher · loja no computador', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
-  test('Início: acesso rápido com busca, todos os apps e nenhum documento inventado', async ({ page }) => {
+  test('Início: resumo do Coding com busca, painéis e nenhum documento inventado', async ({ page }) => {
     await page.goto('/launcher/');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Coding Launcher');
     await expect(page.getByTestId('home-stats')).toHaveCount(0);
     await expect(page.getByTestId('home-actions')).toHaveCount(0);
-    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
-    await expect(page.locator('article.card[data-tool="labels"]').getByRole('link', { name: 'Abrir o editor de Etiquetas' })).toHaveAttribute('href', '/apps/etiquetas/');
+    // o Início resume; a lista completa de aplicativos fica no Catálogo e em Meus apps
+    await expect(page.getByTestId('home-panels')).toBeVisible();
+    for (const id of ['home-favorites', 'home-device', 'home-discover', 'home-news']) await expect(page.getByTestId(id)).toBeVisible();
+    await expect(page.locator('article.card')).toHaveCount(0);
     await expect(page.getByTestId('recent-docs')).toHaveCount(0);
     expect(await hasDb(page)).toBe(false); // olhar o Início não cria banco algum
     await page.getByRole('searchbox', { name: 'Buscar aplicativos' }).fill('planilha');
@@ -83,11 +85,11 @@ test.describe('Launcher · loja no computador', () => {
     await expect(page.getByTestId('status-pill')).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Ativar|Desativar/ })).toHaveCount(0);
     await expect(page.getByTestId('available-to-activate')).toHaveCount(0);
-    // O Catálogo e o Início seguem com todos.
+    // O Catálogo segue com todos e o Início com o resumo.
     await page.goto('/launcher/#/catalogo');
     await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
     await page.goto('/launcher/');
-    await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
+    await expect(page.getByTestId('home-panels')).toBeVisible();
   });
 
   test('Meus apps: sem nada instalado mostra o estado vazio e leva ao Catálogo', async ({ page }) => {

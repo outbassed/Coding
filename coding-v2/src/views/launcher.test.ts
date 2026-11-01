@@ -11,12 +11,16 @@ beforeEach(() => { localStorage.clear(); sessionStorage.clear(); });
 afterEach(() => { document.body.innerHTML = ''; });
 
 describe('Launcher · telas', () => {
-  it('Início é um acesso rápido: identidade, busca, todos os aplicativos e um único h1', async () => {
+  it('Início é um resumo: identidade, busca, painéis (favoritos, offline, sugestões, novidades) e um único h1', async () => {
     const { wrapper } = await mountLauncher('/');
     expect(wrapper.findAll('h1')).toHaveLength(1);
     expect(wrapper.get('h1').text()).toBe('Coding Launcher');
     expect(wrapper.find('input[type="search"][aria-label="Buscar aplicativos"]').exists()).toBe(true);
-    expect(wrapper.findAll('article.card')).toHaveLength(tools.length);
+    // a lista completa fica no Catálogo e em Meus apps; o Início só resume
+    expect(wrapper.findAll('article.card')).toHaveLength(0);
+    for (const id of ['home-favorites', 'home-device', 'home-discover', 'home-news']) expect(wrapper.find(`[data-testid="${id}"]`).exists()).toBe(true);
+    expect(wrapper.findAll('[data-testid="home-discover"] li')).toHaveLength(3);
+    expect(wrapper.findAll('[data-testid="home-news"] li')).toHaveLength(3);
     // sem os números do topo nem os botões que repetem a navegação
     expect(wrapper.find('[data-testid="home-stats"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="home-actions"]').exists()).toBe(false);

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
-import { tools } from '../shared/catalog';
+import { categories, tools } from '../shared/catalog';
 import { useOfflineStore } from '../stores/offline';
 import { matchesQuery, usePageStateStore } from '../stores/pageState';
 import PageHeader from '../components/ui/PageHeader.vue';
@@ -26,6 +26,8 @@ const visible = computed(() => tools.filter((tool) => {
   if (page.offline === 'no' && offline.stateOf(tool.id) !== 'not-installed') return false;
   return true;
 }));
+/** Sem busca nem filtro o Catálogo é uma vitrine: um bloco por categoria, na ordem do catálogo. */
+const shelves = computed(() => categories.map((c) => ({ ...c, items: visible.value.filter((t) => t.category === c.id) })).filter((c) => c.items.length));
 </script>
 
 <template>
@@ -44,9 +46,17 @@ const visible = computed(() => tools.filter((tool) => {
     <button v-if="filtering" type="button" class="clear" data-testid="clear-filters" @click="page.resetCatalog()">Limpar busca e filtros</button>
   </p>
 
-  <section aria-labelledby="resultados">
-    <h2 id="resultados" class="sr-only">Resultados</h2>
-    <AppGrid v-if="visible.length">
+  <section aria-label="Aplicativos do Catálogo">
+    <h2 v-if="filtering" id="resultados" class="sr-only">Resultados</h2>
+    <div v-if="visible.length && !filtering" class="shelves" data-testid="catalog-shelves">
+      <section v-for="shelf in shelves" :key="shelf.id" class="shelf" :aria-labelledby="'cat-' + shelf.id" :data-category="shelf.id">
+        <h2 :id="'cat-' + shelf.id" class="shelf-title">{{ shelf.label }}<span class="n muted">{{ shelf.items.length }}</span></h2>
+        <AppGrid>
+          <AppCard v-for="tool in shelf.items" :key="tool.id" :tool="tool" />
+        </AppGrid>
+      </section>
+    </div>
+    <AppGrid v-else-if="visible.length">
       <AppCard v-for="tool in visible" :key="tool.id" :tool="tool" />
     </AppGrid>
     <EmptyState v-else title="Nada encontrado." text="Tente outro termo ou limpe o filtro.">
@@ -62,5 +72,8 @@ const visible = computed(() => tools.filter((tool) => {
 .f { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font-weight: 650; }
 .f[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 10px 0 12px; font-size: 13.5px; }
+.shelves { display: grid; gap: 26px; }
+.shelf-title { display: flex; align-items: baseline; gap: 8px; margin: 0 0 10px; font-size: 17px; letter-spacing: -.01em; }
+.shelf-title .n { font-size: 12.5px; font-weight: 650; }
 .clear { min-height: 44px; padding: 0 8px; background: none; border: 0; color: var(--accent); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
 </style>
