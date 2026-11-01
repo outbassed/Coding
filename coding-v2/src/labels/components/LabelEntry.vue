@@ -25,6 +25,7 @@ const emit = defineEmits<{
   end: [field: EntryField, info: { caret: number; settled: boolean }];
   undo: [];
   redo: [];
+  caret: [field: EntryField, offset: number];
 }>();
 /** QR ou barras do código do item (SVG local, textos escapados). Código inválido para o formato: sem gráfico. */
 const graphic = computed(() => {
@@ -57,9 +58,9 @@ function style(part: 'code' | 'desc'): Record<string, string> {
     </template>
     <template v-else>
       <p v-if="showCode" class="code" :style="style('code')"><span class="prefix" contenteditable="false">{{ state.prefix }}</span><InlineText :model-value="item.code" :label="'Código' + where" :max-length="160" placeholder="Código" :tabbable="edit.tabbable"
-        :edit-key="item.id + ':' + (edit.copy - 1) + '|code'" :described-by="edit.describedBy" @update:model-value="emit('change', 'code', $event)" @start="emit('start', 'code')" @end="emit('end', 'code', $event)" @undo="emit('undo')" @redo="emit('redo')" /></p>
+        :edit-key="item.id + ':' + (edit.copy - 1) + '|code'" :described-by="edit.describedBy" @update:model-value="emit('change', 'code', $event)" @start="emit('start', 'code')" @end="emit('end', 'code', $event)" @undo="emit('undo')" @redo="emit('redo')" @caret="emit('caret', 'code', $event)" /></p>
       <p v-if="showDesc" class="desc" :style="style('desc')"><InlineText :model-value="item.description" :label="'Descrição' + where" multiline :max-length="2000" placeholder="Descrição" :tabbable="edit.tabbable"
-        :edit-key="item.id + ':' + (edit.copy - 1) + '|desc'" :described-by="edit.describedBy" @update:model-value="emit('change', 'desc', $event)" @start="emit('start', 'desc')" @end="emit('end', 'desc', $event)" @undo="emit('undo')" @redo="emit('redo')" /></p>
+        :edit-key="item.id + ':' + (edit.copy - 1) + '|desc'" :described-by="edit.describedBy" @update:model-value="emit('change', 'desc', $event)" @start="emit('start', 'desc')" @end="emit('end', 'desc', $event)" @undo="emit('undo')" @redo="emit('redo')" @caret="emit('caret', 'desc', $event)" /></p>
     </template>
   </section>
 </template>

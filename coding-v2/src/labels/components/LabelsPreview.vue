@@ -5,7 +5,7 @@ import ZoomControl from '../../components/editor/ZoomControl.vue';
 import LabelEntry, { type EntryEdit, type EntryField } from './LabelEntry.vue';
 import { MARGIN_X_MM, MARGIN_Y_MM, MAX_BLOCKS, PAPER, activeItems, hasContent, type LabelsState } from '../model';
 import { paginate, type Pagination } from '../paginate';
-import { markIntentionalLeave, placeCaret } from '../../editors/surface/text';
+import { leftOnPurpose, markIntentionalLeave, placeCaret } from '../../editors/surface/text';
 
 const props = defineProps<{ state: LabelsState; roomy: boolean }>();
 const emit = defineEmits<{
@@ -30,7 +30,7 @@ const areaSize = ref({ w: 600, h: 600 });
 const scale = ref(0.5);
 
 /** Quem está sendo editado na folha. O item continua na folha mesmo que a edição o deixe vazio (ele só some se a pessoa sair assim). */
-const editing = ref<{ id: string; field: EntryField; key: string } | null>(null);
+const editing = ref<{ id: string; field: EntryField; key: string; caret: number } | null>(null);
 const active = computed(() => props.state.items.filter((item) => hasContent(item) || item.id === editing.value?.id));
 const paper = computed(() => PAPER[props.state.orientation]);
 const contentWidth = computed(() => paper.value.w - 2 * MARGIN_X_MM);
@@ -99,8 +99,11 @@ function onInput(cell: Cell, field: EntryField, value: string): void {
 function onStart(cell: Cell, field: EntryField): void {
   const item = active.value[cell.idx];
   if (!item) return;
-  editing.value = { id: item.id, field, key: cell.key + '|' + field };
+  editing.value = { id: item.id, field, key: cell.key + '|' + field, caret: 0 };
   emit('editing', item.id);
+}
+function onCaret(cell: Cell, field: EntryField, offset: number): void {
+  if (editing.value && editing.value.key === cell.key + '|' + field) editing.value.caret = offset;
 }
 let restores: number[] = [];
 function onEnd(cell: Cell, field: EntryField, info: { caret: number; settled: boolean }): void {
@@ -111,6 +114,14 @@ function onEnd(cell: Cell, field: EntryField, info: { caret: number; settled: bo
   }
   void restoreFocus(editing.value?.key ?? key, info.caret);
 }
+/** O Chromium nem sempre avisa (blur) quando o campo focado é removido ao mudar de folha: depois de cada redesenho, confere se o foco ficou para trás. */
+watch(view, async () => {
+  const target = editing.value;
+  if (!target) return;
+  await nextTick();
+  const active = document.activeElement;
+  if ((active === document.body || active === null) && !leftOnPurpose()) void restoreFocus(target.key, target.caret);
+}, { flush: 'post' });
 /** A folha foi redesenhada com o campo dentro (por exemplo, a etiqueta passou para a folha seguinte): devolve o foco e o cursor. */
 async function restoreFocus(key: string, caret: number): Promise<void> {
   const now = Date.now();
@@ -118,13 +129,13 @@ async function restoreFocus(key: string, caret: number): Promise<void> {
   if (restores.length >= 4) { editing.value = null; emit('editing', null); return; } // não insiste em loop
   restores.push(now);
   await nextTick();
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   const [cellKey = '', field = ''] = key.split('|');
   const found = view.value.flatMap((p) => p.rows.flatMap((row) => row.map((c) => ({ page: p.index, key: c.key })))).find((c) => c.key === cellKey);
   if (!found) { editing.value = null; emit('editing', null); return; }
   if (!wideStack.value && currentPage.value !== found.page) { currentPage.value = found.page; await nextTick(); }
   const el = pagesEl.value?.querySelector<HTMLElement>('[data-edit-key="' + CSS.escape(cellKey + '|' + field) + '"]');
   if (!el) { editing.value = null; emit('editing', null); return; }
+  if (document.activeElement === el) return;
   el.focus({ preventScroll: true });
   placeCaret(el, caret);
 }
@@ -186,7 +197,7 @@ defineExpose({ go });
             <div class="body" :style="{ gap: state.gap + 'mm' }">
               <div v-for="(row, r) in page.rows" :key="row[0]?.key ?? r" class="row" :style="{ gridTemplateColumns: 'repeat(' + state.cols + ', minmax(0, 1fr))', columnGap: state.gap + 'mm' }">
                 <template v-for="cell in row" :key="cell.key">
-                  <LabelEntry v-if="active[cell.idx]" :item="active[cell.idx]!" :state="state" :edit="editFor(cell)" @change="(f, v) => onInput(cell, f, v)" @start="(f) => onStart(cell, f)" @end="(f, i) => onEnd(cell, f, i)" @undo="emit('undo')" @redo="emit('redo')" />
+                  <LabelEntry v-if="active[cell.idx]" :item="active[cell.idx]!" :state="state" :edit="editFor(cell)" @change="(f, v) => onInput(cell, f, v)" @start="(f) => onStart(cell, f)" @end="(f, i) => onEnd(cell, f, i)" @undo="emit('undo')" @redo="emit('redo')" @caret="(f, n) => onCaret(cell, f, n)" />
                 </template>
               </div>
             </div>

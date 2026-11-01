@@ -27,6 +27,8 @@ const emit = defineEmits<{
   end: [info: { caret: number; settled: boolean }];
   undo: [];
   redo: [];
+  /** Posição do cursor, para o app devolver o foco no mesmo ponto se a superfície for redesenhada. */
+  caret: [offset: number];
 }>();
 
 const el = ref<HTMLElement | null>(null);
@@ -80,6 +82,7 @@ function commitFromDom(): void {
   // O texto passou do limite de caracteres: o campo passa a mostrar o que o modelo vai guardar.
   if (normalizeSurfaceText(raw, { multiline: props.multiline, maxLength: Number.MAX_SAFE_INTEGER }) !== text) { write(text); placeCaret(node, Math.min(caret, text.length)); }
   lastCaret = Math.min(caret, text.length);
+  emit('caret', lastCaret);
   if (text === lastEmitted || text === props.modelValue) return;
   lastEmitted = text;
   emit('update:modelValue', text);
@@ -141,7 +144,7 @@ function onPaste(event: ClipboardEvent): void {
   const text = pasteText(event.clipboardData?.getData('text/plain') ?? '', props.multiline);
   if (text) insertAtCursor(text);
 }
-function onCaretMove(): void { if (el.value) lastCaret = caretOffset(el.value); }
+function onCaretMove(): void { if (el.value) { lastCaret = caretOffset(el.value); emit('caret', lastCaret); } }
 function onCompositionEnd(): void { composing = false; commitFromDom(); }
 onBeforeUnmount(() => { composing = false; });
 </script>
