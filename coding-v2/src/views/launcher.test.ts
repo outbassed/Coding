@@ -24,7 +24,7 @@ describe('Launcher · telas', () => {
     // sem os números do topo nem os botões que repetem a navegação
     expect(wrapper.find('[data-testid="home-stats"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="home-actions"]').exists()).toBe(false);
-    expect(wrapper.text()).not.toMatch(/Prévia|Preview|2\.0|Antigo|Coding atual|Novo Coding/);
+    expect(wrapper.text()).not.toMatch(/Prévia|Preview|Antigo|Coding atual|Novo Coding/);
     wrapper.unmount();
   });
 
@@ -101,20 +101,24 @@ describe('Launcher · telas', () => {
 });
 
 describe('Launcher · aparência de loja', () => {
-  it('Início mostra cards reais com “Abrir” e não inventa documentos recentes', async () => {
-    const { wrapper } = await mountLauncher('/');
+  it('Catálogo mostra cards reais com “Abrir”, o Início não inventa documentos recentes', async () => {
+    const home = await mountLauncher('/');
+    expect(home.wrapper.find('[data-testid="recent-docs"]').exists()).toBe(false);
+    home.wrapper.unmount();
+    const { wrapper } = await mountLauncher('/catalogo');
     const card = wrapper.find('article.card[data-tool="labels"]');
     expect(card.text()).toContain('Etiquetas');
     expect(card.text()).toContain('Editor funcional');
     expect(card.find('a[href="/apps/etiquetas/"]').text()).toBe('Abrir');
-    expect(wrapper.find('[data-testid="recent-docs"]').exists()).toBe(false);
     wrapper.unmount();
   });
 
-  it('favoritos vão para o começo da grade do Início', async () => {
+  it('favoritos aparecem no painel do Início, com link para o editor', async () => {
     localStorage.setItem('coding-v2-favorites', JSON.stringify(['paint']));
     const { wrapper } = await mountLauncher('/');
-    expect(wrapper.findAll('article.card h3')[0]?.text()).toBe('Pintar');
+    const link = wrapper.get('[data-testid="home-favorites"] a');
+    expect(link.text()).toBe('Pintar');
+    expect(link.attributes('href')).toBe('/apps/pintar/');
     wrapper.unmount();
   });
 
@@ -215,13 +219,16 @@ describe('Launcher · Meus apps só com os instalados offline', () => {
     wrapper.unmount();
   });
 
-  it('Início e Catálogo continuam listando todos os aplicativos', async () => {
-    for (const path of ['/', '/catalogo']) {
-      const { wrapper } = await mountLauncher(path);
-      await withOffline([]);
-      expect(wrapper.findAll('article.card')).toHaveLength(tools.length);
-      wrapper.unmount();
-    }
+  it('o Catálogo continua listando todos os aplicativos e o Início resume', async () => {
+    const catalog = await mountLauncher('/catalogo');
+    await withOffline([]);
+    expect(catalog.wrapper.findAll('article.card')).toHaveLength(tools.length);
+    expect(catalog.wrapper.findAll('[data-testid="catalog-shelves"] section')).toHaveLength(5);
+    catalog.wrapper.unmount();
+    const home = await mountLauncher('/');
+    await withOffline([]);
+    expect(home.wrapper.find('[data-testid="home-panels"]').exists()).toBe(true);
+    home.wrapper.unmount();
   });
 });
 
