@@ -244,11 +244,11 @@ const inspector = useResizableSidebar(props.app + '-properties', 288, 240, 400, 
 .es-mobile-tab { flex: none; min-height: 44px; padding: 0 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); font-size: 12px; font-weight: 700; color: var(--text); scroll-snap-align: start; }
 .es-mobile-tab[aria-selected="true"]:not([aria-expanded="false"]) { background: var(--app); border-color: var(--app); color: var(--ink); }
 /* Identidade por app (veja identity.ts): lado do painel, cabeçalho e fundo da área de trabalho. */
-.es[data-side="right"] .es-workspace:not(.es-with-inspector) { grid-template-columns: minmax(0, 1fr) var(--es-sidebar-width, 356px); }
-.es[data-side="right"] .es-workspace.es-without-sidebar:not(.es-with-inspector) { grid-template-columns: minmax(0, 1fr); }
-.es[data-side="right"] .es-tools { order: 2; border-right: 0; border-left: 1px solid var(--border); }
-.es[data-side="right"] .es-canvas { order: 1; }
-.es[data-side="right"] .es-resizer { right: auto; left: -5px; }
+.es.is-wide[data-side="right"] .es-workspace:not(.es-with-inspector) { grid-template-columns: minmax(0, 1fr) var(--es-sidebar-width, 356px); }
+.es.is-wide[data-side="right"] .es-workspace.es-without-sidebar:not(.es-with-inspector) { grid-template-columns: minmax(0, 1fr); }
+.es.is-wide[data-side="right"] .es-tools { order: 2; border-right: 0; border-left: 1px solid var(--border); }
+.es.is-wide[data-side="right"] .es-canvas { order: 1; }
+.es.is-wide[data-side="right"] .es-resizer { right: auto; left: -5px; }
 .es[data-head="tint"] .es-head { background: linear-gradient(100deg, color-mix(in srgb, var(--app) 16%, var(--surface)), var(--surface) 70%); }
 .es[data-stage="device"] .es-stage { background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--app) 22%, var(--bg)), var(--bg) 70%); }
 .es[data-stage="checker"] .es-stage { background-color: var(--bg); background-image: conic-gradient(color-mix(in srgb, var(--text) 5%, var(--bg)) 25%, transparent 0 50%, color-mix(in srgb, var(--text) 5%, var(--bg)) 0 75%, transparent 0); background-size: 28px 28px; background-attachment: local; }
