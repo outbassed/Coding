@@ -3,7 +3,6 @@ import { defineConfig } from '@playwright/test';
 // Os testes de interface rodam contra o build real (vite preview).
 export default defineConfig({
   testDir: 'e2e',
-  testMatch: '**/zz-diag.spec.ts',
   fullyParallel: true,
   reporter: process.env.CI ? [['github'], ['list']] : 'list',
   retries: process.env.CI ? 1 : 0,
