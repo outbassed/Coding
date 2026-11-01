@@ -5,6 +5,8 @@ import { availabilityLabel, availabilityOf, categories, type CodingTool } from '
 import AppIcon from './AppIcon.vue';
 import { useFavoritesStore } from '../../stores/favorites';
 import { useOfflineStore } from '../../stores/offline';
+import { latestOf } from '../../shared/versions';
+import { versionRecords } from '../../shared/versions-data';
 
 /** Todo aplicativo está sempre disponível online: o cartão só abre, favorita e informa o uso offline. */
 const props = defineProps<{ tool: CodingTool; variant?: 'mine' }>();
@@ -13,7 +15,8 @@ const offline = useOfflineStore();
 const offlineReady = computed(() => offline.supported && ['installed', 'update-available'].includes(offline.stateOf(props.tool.id)));
 const fav = computed(() => favorites.isFavorite(props.tool.id));
 const avail = computed(() => availabilityOf(props.tool));
-const installedVersion = computed(() => offline.records[props.tool.id]?.version ?? '');
+/** Versão do aplicativo no registro de versões (o registro offline guarda só um identificador de conteúdo, que não serve para mostrar). */
+const installedVersion = computed(() => latestOf(props.tool.id, versionRecords)?.version ?? '');
 const updatable = computed(() => offline.supported && offline.stateOf(props.tool.id) === 'update-available');
 const category = computed(() => categories.find((c) => c.id === props.tool.category)?.label ?? '');
 </script>
@@ -28,7 +31,7 @@ const category = computed(() => categories.find((c) => c.id === props.tool.categ
       <span v-if="offlineReady" class="off-ok" data-testid="card-offline" title="Os arquivos deste app estão guardados neste navegador">Offline</span>
     </div>
     <h3><RouterLink :to="{ name: 'app', params: { id: tool.id } }" class="name">{{ tool.name }}</RouterLink></h3>
-    <p v-if="variant === 'mine' && offlineReady" class="inst" data-testid="card-installed"><template v-if="updatable">Atualização disponível</template><template v-else>Versão {{ installedVersion }}</template></p>
+    <p v-if="variant === 'mine' && offlineReady" class="inst" data-testid="card-installed"><template v-if="updatable">Atualização disponível</template><template v-else>Versão {{ installedVersion || '—' }}</template></p>
     <p v-if="variant !== 'mine'" class="meta" data-testid="card-meta"><span class="avail" :data-avail="avail">{{ availabilityLabel[avail] }}</span><span class="dot" aria-hidden="true">·</span><span>{{ category }}</span></p>
     <p v-if="variant !== 'mine'" class="muted desc">{{ tool.description }}</p>
     <div class="actions">
