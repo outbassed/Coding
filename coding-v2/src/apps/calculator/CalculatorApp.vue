@@ -332,6 +332,8 @@ const digitsRows = [['7', '8', '9'], ['4', '5', '6'], ['1', '2', '3']];
 @media (max-width: 599px) and (max-height: 720px) {
   .cx-bar { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
   .cx-bar > * { flex: 0 0 auto; }
+  .cx-main { gap: 6px; padding-bottom: 8px; }
+  .calc { gap: 6px; }
   .display { padding: 6px 14px 6px; gap: 2px; }
   .result { min-height: 44px; font-size: clamp(30px, 9vw, 44px); }
   .pad { grid-auto-rows: minmax(44px, 1fr); gap: 6px; }
