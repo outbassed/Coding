@@ -275,7 +275,8 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
   .dw .controls { grid-column: 1; grid-row: 2; position: sticky; top: 0; }
   .dw .play { grid-column: 2; grid-row: 2; align-content: start; padding-top: 8px; }
   .dw .history { grid-column: 3; grid-row: 2; position: sticky; top: 0; }
-  .dw .wheel-box { width: min(100%, 62vh, 520px); }
+  .dw .wheel-wrap { width: min(100%, 54vh, 520px); }
+  .dw .wheel-box { width: 100%; }
 }
 .play { display: grid; justify-items: center; gap: 12px; text-align: center; }
 .wheel-box { position: relative; width: min(78vw, 46vh, 420px); aspect-ratio: 1; }
