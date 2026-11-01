@@ -42,13 +42,14 @@ const list = computed(() => {
       </select>
     </label>
   </div>
+  <p v-if="!everything && !reading && mine.length" class="status" data-testid="myapps-status"><strong>{{ mine.length }}</strong> de {{ tools.length }} aplicativos instalados offline<template v-if="offline.anyUpdate"> · <span class="upd">há atualizações disponíveis</span></template></p>
   <p v-if="everything" class="muted note" data-testid="myapps-offline-unsupported">O uso offline não está disponível neste endereço ou navegador, então todos os aplicativos aparecem aqui.</p>
   <p class="sr-only" role="status">{{ reading ? 'Carregando os aplicativos instalados' : list.length + ' aplicativos mostrados' }}</p>
 
   <section aria-labelledby="todos" class="sec">
     <h2 id="todos" class="sr-only">Aplicativos</h2>
     <AppGrid v-if="list.length">
-      <AppCard v-for="tool in list" :key="tool.id" :tool="tool" />
+      <AppCard v-for="tool in list" :key="tool.id" :tool="tool" variant="mine" />
     </AppGrid>
     <EmptyState v-else-if="reading" title="Carregando…" />
     <EmptyState v-else-if="query && mine.length" title="Nenhum aplicativo combina com a busca." text="Tente outro termo ou limpe o campo.">
@@ -63,6 +64,9 @@ const list = computed(() => {
 <style scoped>
 .bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .sort { flex: 0 0 auto; }
+.status { margin: 0 0 12px; font-size: 14px; color: var(--muted); }
+.status strong { color: var(--text); font-size: 18px; }
+.upd { color: var(--accent); font-weight: 700; }
 .note { margin: 0 0 12px; font-size: 13.5px; }
 .sort select { min-height: 44px; padding: 0 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); color: var(--text); font-size: 15px; }
 </style>
