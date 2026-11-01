@@ -2,12 +2,20 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import NavIcon from '../../components/ui/NavIcon.vue';
 import ZoomControl from '../../components/editor/ZoomControl.vue';
-import LabelEntry from './LabelEntry.vue';
-import { MARGIN_X_MM, MARGIN_Y_MM, MAX_BLOCKS, PAPER, activeItems, type LabelsState } from '../model';
+import LabelEntry, { type EntryEdit, type EntryField } from './LabelEntry.vue';
+import { MARGIN_X_MM, MARGIN_Y_MM, MAX_BLOCKS, PAPER, activeItems, hasContent, type LabelsState } from '../model';
 import { paginate, type Pagination } from '../paginate';
+import { markIntentionalLeave, placeCaret } from '../../editors/surface/text';
 
 const props = defineProps<{ state: LabelsState; roomy: boolean }>();
-const emit = defineEmits<{ layout: [info: LayoutInfo]; pages: [pages: number[][][]] }>();
+const emit = defineEmits<{
+  layout: [info: LayoutInfo]; pages: [pages: number[][][]];
+  /** Edição direta: o campo do item mudou na folha. O app guarda, desfaz e salva como se fosse digitado no painel. */
+  edit: [id: string, field: 'code' | 'description', value: string];
+  /** Item cujo campo está em edição na folha (`null` quando a edição termina). */
+  editing: [id: string | null];
+  undo: []; redo: [];
+}>();
 export interface LayoutInfo { pageCount: number; labelCount: number; itemCount: number; rowsOnFirstPage: number; warning: string }
 
 const FALLBACK_PX_PER_MM = 96 / 25.4;
@@ -21,7 +29,9 @@ const currentPage = ref(0);
 const areaSize = ref({ w: 600, h: 600 });
 const scale = ref(0.5);
 
-const active = computed(() => activeItems(props.state));
+/** Quem está sendo editado na folha. O item continua na folha mesmo que a edição o deixe vazio (ele só some se a pessoa sair assim). */
+const editing = ref<{ id: string; field: EntryField; key: string } | null>(null);
+const active = computed(() => props.state.items.filter((item) => hasContent(item) || item.id === editing.value?.id));
 const paper = computed(() => PAPER[props.state.orientation]);
 const contentWidth = computed(() => paper.value.w - 2 * MARGIN_X_MM);
 const colWidthMm = computed(() => (props.state.cols === 1 ? contentWidth.value : (contentWidth.value - props.state.gap * (props.state.cols - 1)) / props.state.cols));
@@ -61,6 +71,69 @@ function emitLayout(): void {
   });
 }
 
+/** Cada etiqueta (item + número da cópia) tem uma chave estável: o campo em edição não troca de dono quando a folha é refeita. */
+interface Cell { key: string; idx: number; copy: number }
+const view = computed(() => {
+  const seen = new Map<number, number>();
+  return pagination.value.pages.map((rows, index) => ({
+    index,
+    rows: rows.map((row) => row.map((idx): Cell => {
+      const copy = (seen.get(idx) ?? 0) + 1;
+      seen.set(idx, copy);
+      return { key: (active.value[idx]?.id ?? 'x' + idx) + ':' + (copy - 1), idx, copy };
+    }))
+  }));
+});
+const HELP_ID = 'labels-edit-help';
+function editFor(cell: Cell): EntryEdit {
+  const item = active.value[cell.idx]!;
+  return {
+    number: props.state.items.indexOf(item) + 1, copy: cell.copy, copies: item.copies, tabbable: cell.copy === 1, describedBy: HELP_ID,
+    keep: editing.value && editing.value.id === item.id ? editing.value.field : null
+  };
+}
+function onInput(cell: Cell, field: EntryField, value: string): void {
+  const item = active.value[cell.idx];
+  if (item) emit('edit', item.id, field === 'code' ? 'code' : 'description', value);
+}
+function onStart(cell: Cell, field: EntryField): void {
+  const item = active.value[cell.idx];
+  if (!item) return;
+  editing.value = { id: item.id, field, key: cell.key + '|' + field };
+  emit('editing', item.id);
+}
+let restores: number[] = [];
+function onEnd(cell: Cell, field: EntryField, info: { caret: number; settled: boolean }): void {
+  const key = cell.key + '|' + field;
+  if (info.settled) {
+    if (editing.value?.key === key) { editing.value = null; emit('editing', null); }
+    return;
+  }
+  void restoreFocus(editing.value?.key ?? key, info.caret);
+}
+/** A folha foi redesenhada com o campo dentro (por exemplo, a etiqueta passou para a folha seguinte): devolve o foco e o cursor. */
+async function restoreFocus(key: string, caret: number): Promise<void> {
+  const now = Date.now();
+  restores = restores.filter((t) => now - t < 1500);
+  if (restores.length >= 4) { editing.value = null; emit('editing', null); return; } // não insiste em loop
+  restores.push(now);
+  await nextTick();
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  const [cellKey = '', field = ''] = key.split('|');
+  const found = view.value.flatMap((p) => p.rows.flatMap((row) => row.map((c) => ({ page: p.index, key: c.key })))).find((c) => c.key === cellKey);
+  if (!found) { editing.value = null; emit('editing', null); return; }
+  if (!wideStack.value && currentPage.value !== found.page) { currentPage.value = found.page; await nextTick(); }
+  const el = pagesEl.value?.querySelector<HTMLElement>('[data-edit-key="' + CSS.escape(cellKey + '|' + field) + '"]');
+  if (!el) { editing.value = null; emit('editing', null); return; }
+  el.focus({ preventScroll: true });
+  placeCaret(el, caret);
+}
+function finishEdit(): void {
+  markIntentionalLeave();
+  const focused = document.activeElement;
+  if (focused instanceof HTMLElement && pagesEl.value?.contains(focused)) focused.blur();
+}
+
 let raf = 0;
 function schedule(): void { cancelAnimationFrame(raf); raf = requestAnimationFrame(recompute); }
 watch(() => props.state, async () => { await nextTick(); recompute(); }, { deep: true, flush: 'post' });
@@ -92,7 +165,7 @@ onMounted(() => {
 onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(raf); });
 
 const wideStack = computed(() => props.roomy);
-const visiblePages = computed(() => pagination.value.pages.map((rows, index) => ({ rows, index })).filter((p) => wideStack.value || p.index === currentPage.value));
+const visiblePages = computed(() => view.value.filter((p) => wideStack.value || p.index === currentPage.value));
 function go(delta: number): void {
   currentPage.value = Math.max(0, Math.min(pageCount.value - 1, currentPage.value + delta));
   if (wideStack.value) void nextTick(() => pagesEl.value?.children[currentPage.value]?.scrollIntoView?.({ block: 'start' }));
@@ -111,8 +184,10 @@ defineExpose({ go });
         <div v-for="page in visiblePages" :key="page.index" class="frame" :style="frameStyle" :aria-label="'Folha ' + (page.index + 1)" role="group" :data-testid="page.index === 0 ? 'sheet' : undefined">
           <div class="paper" :style="paperStyle">
             <div class="body" :style="{ gap: state.gap + 'mm' }">
-              <div v-for="(row, r) in page.rows" :key="r" class="row" :style="{ gridTemplateColumns: 'repeat(' + state.cols + ', minmax(0, 1fr))', columnGap: state.gap + 'mm' }">
-                <template v-for="(idx, c) in row" :key="c"><LabelEntry v-if="active[idx]" :item="active[idx]!" :state="state" /></template>
+              <div v-for="(row, r) in page.rows" :key="row[0]?.key ?? r" class="row" :style="{ gridTemplateColumns: 'repeat(' + state.cols + ', minmax(0, 1fr))', columnGap: state.gap + 'mm' }">
+                <template v-for="cell in row" :key="cell.key">
+                  <LabelEntry v-if="active[cell.idx]" :item="active[cell.idx]!" :state="state" :edit="editFor(cell)" @change="(f, v) => onInput(cell, f, v)" @start="(f) => onStart(cell, f)" @end="(f, i) => onEnd(cell, f, i)" @undo="emit('undo')" @redo="emit('redo')" />
+                </template>
               </div>
             </div>
           </div>
@@ -125,8 +200,10 @@ defineExpose({ go });
         <span class="pi" data-testid="page-indicator">Folha {{ currentPage + 1 }} de {{ pageCount }}</span>
         <button type="button" class="pb" aria-label="Próxima folha" :disabled="currentPage >= pageCount - 1" @click="go(1)"><NavIcon name="chevron-down" /></button>
       </div>
+      <button v-if="editing" type="button" class="done" data-testid="finish-edit" @pointerdown.prevent @click="finishEdit">Concluir edição</button>
       <ZoomControl v-model="zoom" />
     </div>
+    <p :id="HELP_ID" class="sr-only">Você pode editar o código e a descrição direto na etiqueta. Em campos de uma linha, Enter confirma; na descrição, Enter quebra a linha e Ctrl+Enter confirma. Esc cancela a edição. Ctrl+Z desfaz.</p>
     <!-- Área de medição: fora da tela, com a largura real de uma coluna. -->
     <div class="measure" aria-hidden="true">
       <div ref="ruler" class="ruler"></div>
@@ -147,6 +224,7 @@ defineExpose({ go });
 .row { flex: none; display: grid; align-items: stretch; }
 .bar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px max(12px, var(--sa-r)) 6px max(12px, var(--sa-l)); background: var(--surface); border-top: 1px solid var(--border); }
 .pager { display: inline-flex; align-items: center; gap: 2px; }
+.done { margin-left: auto; min-height: 44px; padding: 0 14px; border: 1px solid var(--accent); border-radius: 12px; background: var(--accent); color: var(--accent-ink, #fff); font-weight: 700; font-size: 13px; }
 .pb { width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 12px; background: transparent; }
 .pb:hover:not(:disabled) { background: var(--panel); }
 .pb:disabled { opacity: .4; }

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { nextTick } from 'vue';
+import { nextTick, watch } from 'vue';
 import NavIcon from '../../components/ui/NavIcon.vue';
 import { MAX_COPIES, MAX_ITEMS, toInt, type LabelItem } from '../model';
 
-const props = defineProps<{ items: readonly LabelItem[] }>();
+const props = defineProps<{ items: readonly LabelItem[]; /** Item em edição direta na folha: o cartão correspondente é destacado. */ activeId?: string | null }>();
 const emit = defineEmits<{
   code: [id: string, value: string]; description: [id: string, value: string]; copies: [id: string, value: number];
   step: [id: string, delta: number]; add: []; bulk: []; import: []; duplicate: [id: string]; move: [id: string, delta: -1 | 1]; remove: [id: string];
@@ -15,6 +15,11 @@ async function focusCode(id: string | null): Promise<void> {
   document.getElementById('code-' + id)?.focus({ preventScroll: false });
 }
 defineExpose({ focusCode });
+watch(() => props.activeId, async (id) => {
+  if (!id) return;
+  await nextTick();
+  document.querySelector<HTMLElement>('[data-item="' + CSS.escape(id) + '"]')?.scrollIntoView?.({ block: 'nearest' });
+});
 
 function onCopies(item: LabelItem, event: Event): void {
   const input = event.target as HTMLInputElement;
@@ -27,7 +32,7 @@ function settle(item: LabelItem, event: Event): void { (event.target as HTMLInpu
 <template>
   <div class="items" data-testid="items-panel">
     <ul class="list">
-      <li v-for="(item, index) in items" :key="item.id" class="card" :data-item="item.id">
+      <li v-for="(item, index) in items" :key="item.id" class="card" :class="{ 'is-active': item.id === activeId }" :data-item="item.id" :data-active="item.id === activeId ? 'sim' : undefined">
         <div class="head">
           <span class="num">Item {{ index + 1 }}</span>
           <button type="button" class="ib" :aria-label="'Subir item ' + (index + 1)" :disabled="index === 0" @click="emit('move', item.id, -1)"><NavIcon name="chevron-up" /></button>
@@ -67,6 +72,7 @@ function settle(item: LabelItem, event: Event): void { (event.target as HTMLInpu
 <style scoped>
 .list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 10px; }
 .card { border: 1px solid var(--border); border-radius: 14px; background: var(--panel); padding: 10px 12px 12px; }
+.card.is-active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .head { display: flex; align-items: center; gap: 2px; margin-bottom: 6px; }
 .num { flex: 1; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .ib { width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 12px; background: transparent; }

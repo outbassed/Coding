@@ -196,6 +196,15 @@ function onKey(event: KeyboardEvent): void {
 onMounted(() => document.addEventListener('keydown', onKey));
 onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
 document.title = 'Etiquetas · Coding';
+/** Edição direta na folha: o texto entra no mesmo caminho do painel (mesmo histórico, mesmo salvamento, todas as cópias do item). */
+const surfaceItem = ref<string | null>(null);
+function onSurfaceEdit(id: string, fieldName: 'code' | 'description', value: string): void {
+  editor.setItem(id, fieldName === 'code' ? { code: value } : { description: value });
+}
+function onSurfaceEditing(id: string | null): void {
+  surfaceItem.value = id;
+  if (id && !showSide.value) sheetOpen.value = false; // no celular o painel dá lugar à folha e ao teclado
+}
 const copiesChange = (id: string, value: number): void => editor.setItem(id, { copies: toInt(value, 1, 1, MAX_COPIES) });
 const title = computed(() => state.value.name.trim() || 'Documento sem título');
 </script>
@@ -243,7 +252,7 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
           <button v-for="t in tabs" :id="'tab-' + t.id" :key="t.id" type="button" role="tab" class="tabbtn" :aria-selected="tab === t.id" :aria-controls="'tabpanel'" :tabindex="tab === t.id ? 0 : -1" @click="tab = t.id">{{ t.label }}</button>
         </div>
         <div id="tabpanel" class="panel" role="tabpanel" :aria-labelledby="'tab-' + tab">
-          <ItemsPanel v-if="tab === 'itens'" ref="itemsRef" :items="state.items" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @bulk="bulkOpen = true" @import="tableOpen = true" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
+          <ItemsPanel v-if="tab === 'itens'" ref="itemsRef" :items="state.items" :active-id="surfaceItem" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @bulk="bulkOpen = true" @import="tableOpen = true" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
           <FormatPanel v-else-if="tab === 'formato'" :state="state" @field="field" />
           <PagePanel v-else-if="tab === 'pagina'" :state="state" :layout="layout" @field="field" />
           <div v-else-if="tab === 'modelos'" class="tpls" data-testid="templates-panel">
@@ -258,7 +267,7 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
       </section>
 
       <div v-if="!editor.loadError.value" class="stage">
-        <LabelsPreview :state="state" :roomy="roomy" @layout="layout = $event" @pages="pages = $event" />
+        <LabelsPreview :state="state" :roomy="roomy" @layout="layout = $event" @pages="pages = $event" @edit="onSurfaceEdit" @editing="onSurfaceEditing" @undo="editor.undo()" @redo="editor.redo()" />
         <p v-if="roomy" class="summary" data-testid="summary">{{ layout.labelCount }} {{ layout.labelCount === 1 ? 'etiqueta' : 'etiquetas' }} · {{ layout.itemCount }} {{ layout.itemCount === 1 ? 'item' : 'itens' }}<template v-if="statusDetail"> · {{ statusDetail }}</template></p>
         <p v-if="layout.warning" class="warn" role="status" data-testid="layout-warning">{{ layout.warning }}</p>
       </div>
@@ -303,7 +312,7 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
 
     <template v-if="!showSide && !editor.loadError.value">
       <BottomSheet v-if="showSheet" v-model:snap="snap" :title="tabs.find((t) => t.id === tab)?.label ?? 'Editor'" :style="{ '--chrome': '233px', ...(snap === 'full' ? { maxHeight: '85dvh' } : {}) }" @close="sheetOpen = false">
-        <ItemsPanel v-if="tab === 'itens'" ref="itemsRef" :items="state.items" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @bulk="bulkOpen = true" @import="tableOpen = true" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
+        <ItemsPanel v-if="tab === 'itens'" ref="itemsRef" :items="state.items" :active-id="surfaceItem" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @bulk="bulkOpen = true" @import="tableOpen = true" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
         <FormatPanel v-else-if="tab === 'formato'" :state="state" @field="field" />
         <PagePanel v-else-if="tab === 'pagina'" :state="state" :layout="layout" @field="field" />
         <div v-else-if="tab === 'modelos'" class="tpls" data-testid="templates-panel">
