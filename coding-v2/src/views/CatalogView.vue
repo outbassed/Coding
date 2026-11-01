@@ -73,6 +73,8 @@ const shelves = computed(() => categories.map((c) => ({ ...c, items: visible.val
 .f[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 10px 0 12px; font-size: 13.5px; }
 .shelves { display: grid; gap: 26px; }
+/* Cada bloco tem no máximo 4 aplicativos: em telas largas a grade de 4 colunas preenche a linha em vez de deixar o canto vazio. */
+@media (min-width: 900px) { .shelf :deep(.grid) { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .shelf-title { display: flex; align-items: baseline; gap: 8px; margin: 0 0 10px; font-size: 17px; letter-spacing: -.01em; }
 .shelf-title .n { font-size: 12.5px; font-weight: 650; }
 .clear { min-height: 44px; padding: 0 8px; background: none; border: 0; color: var(--accent); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }

@@ -105,8 +105,9 @@ test.describe('Launcher · loja no computador', () => {
     await page.setViewportSize({ width: 1920, height: 1000 });
     await page.goto('/launcher/#/catalogo');
     const tops = await page.locator('article.card').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
-    const firstRow = tops.filter((t) => t === tops[0]).length;
-    expect(firstRow).toBeGreaterThanOrEqual(4);
+    // vitrine: cada categoria tem a sua grade; a maior linha deve ter pelo menos 4 aplicativos
+    const widestRow = Math.max(...tops.map((t) => tops.filter((other) => other === t).length));
+    expect(widestRow).toBeGreaterThanOrEqual(4);
   });
 
   for (const scheme of ['light', 'dark'] as const) {

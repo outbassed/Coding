@@ -49,7 +49,7 @@ const list = computed(() => {
   <section aria-labelledby="todos" class="sec">
     <h2 id="todos" class="sr-only">Aplicativos</h2>
     <AppGrid v-if="list.length">
-      <AppCard v-for="tool in list" :key="tool.id" :tool="tool" />
+      <AppCard v-for="tool in list" :key="tool.id" :tool="tool" variant="mine" />
     </AppGrid>
     <EmptyState v-else-if="reading" title="Carregando…" />
     <EmptyState v-else-if="query && mine.length" title="Nenhum aplicativo combina com a busca." text="Tente outro termo ou limpe o campo.">
