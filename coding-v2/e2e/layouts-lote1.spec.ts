@@ -135,6 +135,13 @@ test.describe('Comparador: lados e resultado', () => {
       await page.setViewportSize({ width: size.width, height: size.height });
       await page.goto('/apps/comparador/?modelo=versoes');
       await expect(tab(page, 'Lado A')).toHaveAttribute('aria-selected', 'true');
+      // As opções começam recolhidas para os lados aparecerem logo; "Opções" abre e fecha.
+      await expect(page.getByTestId('opt-case')).toBeHidden();
+      await page.getByTestId('toggle-opts').click();
+      await expect(page.getByTestId('opt-case')).toBeVisible();
+      await page.getByTestId('toggle-opts').click();
+      await expect(page.getByTestId('opt-case')).toBeHidden();
+      expect((await box(page, 'side-a-text')).y).toBeLessThan(size.height);
       await expect(page.getByTestId('side-a-text')).toBeVisible();
       await expect(page.getByTestId('side-b-text')).toBeHidden();
       await expect(page.getByTestId('diff-view')).toBeHidden();

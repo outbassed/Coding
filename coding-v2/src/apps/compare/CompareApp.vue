@@ -22,6 +22,8 @@ const wide = useMediaQuery('(min-width: 900px)', true);
 const sideTabs = [{ id: 'a', label: 'Lado A' }, { id: 'b', label: 'Lado B' }, { id: 'resultado', label: 'Resultado' }];
 const mobileView = ref('a');
 const inputsOpen = ref(true);
+/** No celular as opções ficam recolhidas, para os lados e o resultado aparecerem logo. */
+const optsOpen = ref(false);
 const problem = ref('');
 const info = ref('');
 function ok(text: string): void { info.value = text; problem.value = ''; doc.say(text); }
@@ -180,19 +182,20 @@ const rowText = (side: { n: number; text: string } | undefined): string => (side
   <EditorShell app="compare" layout="free" :doc="doc" :history="false">
     <div class="cp" data-testid="compare-stage" :data-wide="wide ? 'sim' : 'nao'">
       <div class="tools" role="group" aria-label="Opções da comparação">
-        <fieldset class="opts">
+        <fieldset v-show="wide || optsOpen" class="opts">
           <legend class="sr-only">Ao comparar texto</legend>
           <label class="check"><input v-model="state.options.ignoreCase" type="checkbox" data-testid="opt-case" /> Ignorar maiúsculas</label>
           <label class="check"><input v-model="state.options.ignoreSpace" type="checkbox" data-testid="opt-space" /> Ignorar espaços repetidos e nas pontas</label>
           <label class="check"><input v-model="state.options.ignoreBlank" type="checkbox" data-testid="opt-blank" /> Ignorar linhas em branco</label>
         </fieldset>
-        <fieldset class="opts">
+        <fieldset v-show="wide || optsOpen" class="opts">
           <legend class="sr-only">Exibição</legend>
           <label class="check"><input type="radio" name="cmp-view" :checked="state.view === 'side'" data-testid="view-side" @change="state.view = 'side'" /> Lado a lado</label>
           <label class="check"><input type="radio" name="cmp-view" :checked="state.view === 'unified'" data-testid="view-unified" @change="state.view = 'unified'" /> Unificada (como o diff)</label>
           <label class="check"><input v-model="state.onlyDiffs" type="checkbox" data-testid="only-diffs" /> Só as diferenças (com 3 linhas de contexto)</label>
         </fieldset>
         <div class="tool-btns">
+          <button v-if="!wide" type="button" class="btn" data-testid="toggle-opts" :aria-expanded="optsOpen" @click="optsOpen = !optsOpen">{{ optsOpen ? 'Ocultar opções' : 'Opções' }}</button>
           <button type="button" class="btn" data-testid="swap-sides" @click="swap">Trocar A e B</button>
           <button v-if="wide" type="button" class="btn" data-testid="toggle-inputs" :aria-expanded="inputsOpen" aria-controls="cp-panes" @click="inputsOpen = !inputsOpen">{{ inputsOpen ? 'Recolher entradas' : 'Mostrar entradas' }}</button>
           <details class="filemenu" data-testid="file-menu">
@@ -206,7 +209,7 @@ const rowText = (side: { n: number; text: string } | undefined): string => (side
             </div>
           </details>
         </div>
-        <p class="ed-hint note">Finais de linha diferentes (Windows e Linux) nunca contam como diferença. Arquivos que não são texto são comparados byte a byte.</p>
+        <p v-show="wide || optsOpen" class="ed-hint note">Finais de linha diferentes (Windows e Linux) nunca contam como diferença. Arquivos que não são texto são comparados byte a byte.</p>
       </div>
 
       <SegTabs v-if="!wide" v-model="mobileView" :tabs="sideTabs" label="Lados e resultado" prefix="cp" fill />
@@ -309,6 +312,7 @@ const rowText = (side: { n: number; text: string } | undefined): string => (side
 .cp { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-content: start; box-sizing: border-box; min-width: 0; padding: 12px max(14px, var(--sa-r)) 28px max(14px, var(--sa-l)); }
 .tools { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; padding: 8px 12px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
 .tool-btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
+@media (max-width: 899px) { .tools { gap: 2px 14px; } .tool-btns { margin-left: 0; width: 100%; } .opts { flex: 1 1 100%; } }
 .note { flex: 1 1 100%; }
 .filemenu { position: relative; }
 .filemenu > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; }
