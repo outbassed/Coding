@@ -412,12 +412,13 @@ function exportAs(kind: 'css' | 'json' | 'txt' | 'svg'): void {
 .pcode { font-size: 13px; font-weight: 700; }
 .pname { flex: 1 1 100px; min-width: 0; }
 textarea.inp { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-@media (min-width: 900px) {
-  .cs { grid-template-columns: minmax(0, 1fr) 340px; grid-template-rows: auto auto 1fr; grid-template-areas: 'hero edit' 'bench edit' 'dock dock'; column-gap: 18px; padding-top: 18px; }
+/* Do tablet em diante a edição fica ao lado da cor; no celular tudo empilha. */
+@media (min-width: 700px) {
+  .cs { grid-template-columns: minmax(0, 1fr) clamp(300px, 38vw, 340px); grid-template-rows: auto auto 1fr; grid-template-areas: 'hero edit' 'bench edit' 'dock dock'; column-gap: 18px; padding-top: 18px; }
   .edit { align-self: start; position: sticky; top: 0; }
   .dock { grid-area: dock; }
 }
-@media (max-width: 899px) {
+@media (max-width: 699px) {
   .strip { padding-bottom: 4px; }
 }
 @media (min-height: 700px) {
