@@ -4,7 +4,7 @@ Documento central do que **já está pronto**, do que **está em desenvolvimento
 
 > **Este arquivo só documenta.** Nada aqui altera o app, os documentos ou as configurações de quem usa o Coding, e nada aqui autoriza publicar. Regras que sempre valem: veja a [seção 9](#9-regras-permanentes).
 
-Conferido em **01/11/2026** contra o código da branch base de desenvolvimento (`feature/coding-v2-launcher-fixes-sonnet`, já com os PRs #14, #15 e #19 a #23 e #25), os PRs abertos (#24 e o do DIR-04) e os documentos listados na [seção 10](#10-fontes-e-como-isto-foi-verificado).
+Conferido em **01/11/2026** contra o código da branch base de desenvolvimento (`feature/coding-v2-launcher-fixes-sonnet`, já com os PRs #14, #15 e #19 a #23 e #25), o PR aberto #26 (DIR-04) e os documentos listados na [seção 10](#10-fontes-e-como-isto-foi-verificado).
 
 ## Sumário
 1. [Como ler este documento](#1-como-ler-este-documento)
@@ -55,7 +55,7 @@ Cada item tem um **ID** (por exemplo `NEW-02`) para ser citado em dependências.
 | Aplicativos no catálogo | **16**: Etiquetas, Texto, Planilhas, Imagens, Editor PDF, QR / Barras, Sorteio, Racha-conta, Calculadora, Estúdio de Cores, Compactador ZIP, Comparador de Arquivos, Código, Visualizador, Pintar e Versos. Todos com editor real; o catálogo marca todos como *prévia*. |
 | Launcher | Versão **2.1.0** na base de desenvolvimento (Início em resumo, Catálogo em vitrine, Meus apps só com os instalados offline, Central de Versões, Ajustes em abas). |
 | Publicação | **Nada foi publicado oficialmente.** O Coding 1.0 (arquivos da raiz) continua sendo a versão publicada. Há um PR de release em rascunho (#18) **aguardando autorização do dono**. |
-| Em desenvolvimento | `DIR-04` (contrato de edição direta e Etiquetas editável na folha, em PR próprio) e #24 (este planejamento). Os lotes 1 e 2 de layouts (#23 e #25) foram mesclados na base em 01/11/2026. |
+| Em desenvolvimento | `DIR-04` (contrato de edição direta e Etiquetas editável na folha, PR #26). Os lotes 1 e 2 de layouts (#23 e #25) foram mesclados na base em 01/11/2026. |
 | Novos projetos pedidos | Coding Navegar, Coding Fontes, Editor SVG, edição direta e reformulação dos demais aplicativos. |
 | Limite de validação | Testes automáticos só em **Chromium** (CI). Safari/iOS, Firefox e aparelhos reais **não foram validados**. |
 
@@ -87,7 +87,7 @@ Versões registradas na Central de Versões na base de desenvolvimento (os seis 
 
 | App | Versão | Resumo do que já existe |
 | --- | --- | --- |
-| Etiquetas | 1.0.1 | Itens (código, descrição, cópias), folha A4 ao vivo, colunas, tipografia, 5 modelos, importação CSV/XLSX com escolha de colunas, colar lista, imprimir/PDF. Correção da rolagem em #20. |
+| Etiquetas | 1.0.1 (1.1.0 no PR #26: edição direta na folha) | Itens (código, descrição, cópias), folha A4 ao vivo, colunas, tipografia, 5 modelos, importação CSV/XLSX com escolha de colunas, colar lista, imprimir/PDF. Correção da rolagem em #20. |
 | Texto | 1.0.0 | Formatação completa, tabelas, imagens, links, espaçamento, painel Estrutura, modelos, HTML/TXT/DOCX/PDF. |
 | Planilhas | 1.0.0 | Grade com abas, fórmulas em português/inglês, cor de fonte e preenchimento, importar CSV/XLSX, exportar XLSX/CSV, preencher para baixo/direita, ordenar. |
 | Imagens | 1.0.0 | Camadas (imagem, texto, retângulo, elipse), recorte por campos numéricos, filtros, Ctrl+V, exportar PNG/JPG/WebP. |
@@ -122,10 +122,9 @@ Itens que apareciam como pendentes em [`ROADMAP.md`](../ROADMAP.md) (que é do C
 ### 4.1 Pull Requests abertos que são trabalho atual
 | PR | Conteúdo | Base | Estado |
 | --- | --- | --- | --- |
-| **DIR-04** (PR próprio, número no próprio PR) | **Contrato de edição direta** (`EDICAO-DIRETA.md`, no PR do DIR-04; o link entra quando ele for mesclado) e primeira aplicação: editar código e descrição direto na folha do Etiquetas | base de desenvolvimento | 🛠 Rascunho. |
-| **#24** | Este planejamento | base de desenvolvimento | 🛠 Rascunho. Somente documentação. |
+| **#26** (DIR-04) | **Contrato de edição direta** ([EDICAO-DIRETA.md](./EDICAO-DIRETA.md)) e primeira aplicação: editar código e descrição direto na folha do Etiquetas | base de desenvolvimento | 🛠 Rascunho, CI verde (639 testes e2e), aguardando revisão e autorização para mesclar. |
 
-**Mesclados na base em 01/11/2026 (com autorização do dono):** #23 (lote 1 de layouts: Calculadora, Cores, ZIP, Comparador) e #25 (lote 2: Sorteio e Racha-conta; abas do Sorteio fixas e legíveis no celular). Antes: #15 (Versos), #19 (Meus apps), #22 (abas do Launcher).
+**Mesclados na base em 01/11/2026 (com autorização do dono):** #24 (este planejamento), #23 (lote 1 de layouts: Calculadora, Cores, ZIP, Comparador) e #25 (lote 2: Sorteio e Racha-conta; abas do Sorteio fixas e legíveis no celular). Antes: #15 (Versos), #19 (Meus apps), #22 (abas do Launcher).
 
 ### 4.2 Outros Pull Requests
 | PR | O que é | Verificação feita | Decisão pendente |
@@ -185,10 +184,10 @@ Todos abaixo são 📌 **Planejados** pedidos em 01/11/2026 e **ainda não foram
 
 | ID | Candidato | Status | Observação |
 | --- | --- | --- | --- |
-| DIR-01 | **Etiquetas**: editar código e descrição na própria etiqueta da folha; painel sincronizado | 🛠 Em desenvolvimento (primeira aplicação do contrato) | Pedido do dono. A paginação é medida no DOM e cada etiqueta é indivisível: a edição direta não pode quebrar isso. Mobile precisa de um fluxo próprio (toque). |
+| DIR-01 | **Etiquetas**: editar código e descrição na própria etiqueta da folha; painel sincronizado | 🛠 Implementado no PR #26 (Etiquetas 1.1.0), aguardando autorização para mesclar | Pedido do dono. A paginação é medida no DOM e cada etiqueta é indivisível: a edição direta não pode quebrar isso. Mobile precisa de um fluxo próprio (toque). |
 | DIR-02 | **Imagens**: texto direto na tela e recorte arrastando | 📝 Pendência documentada | Registrado em POST-PREVIEW-BUGFIX.md. |
 | DIR-03 | Outras folhas, cenas, canvas e prévias (QR / Barras, Pintar, Calculadora, Racha-conta etc.) | 💡 Ideia | Avaliar se faz sentido app a app. |
-| DIR-04 | **Contrato comum de edição na superfície**: seleção, foco, atalhos, desfazer/refazer agrupado, acessibilidade (teclado e leitor de tela), sincronia com o painel, comportamento no toque | 🛠 Em desenvolvimento (documento do contrato: `EDICAO-DIRETA.md`, no PR do DIR-04); necessário para DIR-01 e `NEW-03` | Definir antes de repetir app a app. |
+| DIR-04 | **Contrato comum de edição na superfície**: seleção, foco, atalhos, desfazer/refazer agrupado, acessibilidade (teclado e leitor de tela), sincronia com o painel, comportamento no toque | 🛠 Contrato escrito e aplicado no PR #26 ([EDICAO-DIRETA.md](./EDICAO-DIRETA.md)); necessário para DIR-01 e `NEW-03` | Definir antes de repetir app a app. |
 
 ### LAY-00 a LAY-xx · Reformulação dos aplicativos (layout próprio por função)
 | Campo | Conteúdo |
@@ -231,7 +230,8 @@ Todas 📝 **Pendência documentada**, **verificadas no código em 01/11/2026 co
 | ID | Item | Origem | Status | Prioridade |
 | --- | --- | --- | --- | --- |
 | APP-LAB-01 | Tamanhos de papel adesivo prontos (Pimaco) | CAT | 📝 (nenhuma referência no código) | P2 |
-| APP-LAB-02 | Edição direta na etiqueta | Pedido do dono | 🛠 ver `DIR-01` | P1 |
+| APP-LAB-02 | Edição direta na etiqueta | Pedido do dono | 🛠 ver `DIR-01` (PR #26) | P1 |
+| APP-LAB-05 | Adicionar pela folha um campo que está vazio (hoje só pelo painel); validar a edição direta em Safari/iOS e aparelhos reais | EDICAO-DIRETA.md §9 | 📝 | P2 |
 | APP-LAB-03 | Sem guias nem ajuste magnético (a grade não é um canvas livre) | ATU | 📝 Limitação do modelo atual | P3 |
 | APP-LAB-04 | Limites do motor: 200 itens, 500 cópias por item, 2.000 etiquetas | POST | Limitação conhecida (não é bug) | P3 |
 
