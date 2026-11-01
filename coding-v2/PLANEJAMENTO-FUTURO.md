@@ -122,7 +122,7 @@ Itens que apareciam como pendentes em [`ROADMAP.md`](../ROADMAP.md) (que é do C
 ### 4.1 Pull Requests abertos que são trabalho atual
 | PR | Conteúdo | Base | Estado |
 | --- | --- | --- | --- |
-| **DIR-04** (PR próprio, número no próprio PR) | **Contrato de edição direta** ([EDICAO-DIRETA.md](./EDICAO-DIRETA.md)) e primeira aplicação: editar código e descrição direto na folha do Etiquetas | base de desenvolvimento | 🛠 Rascunho. |
+| **DIR-04** (PR próprio, número no próprio PR) | **Contrato de edição direta** (`EDICAO-DIRETA.md`, no PR do DIR-04; o link entra quando ele for mesclado) e primeira aplicação: editar código e descrição direto na folha do Etiquetas | base de desenvolvimento | 🛠 Rascunho. |
 | **#24** | Este planejamento | base de desenvolvimento | 🛠 Rascunho. Somente documentação. |
 
 **Mesclados na base em 01/11/2026 (com autorização do dono):** #23 (lote 1 de layouts: Calculadora, Cores, ZIP, Comparador) e #25 (lote 2: Sorteio e Racha-conta; abas do Sorteio fixas e legíveis no celular). Antes: #15 (Versos), #19 (Meus apps), #22 (abas do Launcher).
@@ -188,7 +188,7 @@ Todos abaixo são 📌 **Planejados** pedidos em 01/11/2026 e **ainda não foram
 | DIR-01 | **Etiquetas**: editar código e descrição na própria etiqueta da folha; painel sincronizado | 🛠 Em desenvolvimento (primeira aplicação do contrato) | Pedido do dono. A paginação é medida no DOM e cada etiqueta é indivisível: a edição direta não pode quebrar isso. Mobile precisa de um fluxo próprio (toque). |
 | DIR-02 | **Imagens**: texto direto na tela e recorte arrastando | 📝 Pendência documentada | Registrado em POST-PREVIEW-BUGFIX.md. |
 | DIR-03 | Outras folhas, cenas, canvas e prévias (QR / Barras, Pintar, Calculadora, Racha-conta etc.) | 💡 Ideia | Avaliar se faz sentido app a app. |
-| DIR-04 | **Contrato comum de edição na superfície**: seleção, foco, atalhos, desfazer/refazer agrupado, acessibilidade (teclado e leitor de tela), sincronia com o painel, comportamento no toque | 🛠 Em desenvolvimento (documento do contrato: [EDICAO-DIRETA.md](./EDICAO-DIRETA.md)); necessário para DIR-01 e `NEW-03` | Definir antes de repetir app a app. |
+| DIR-04 | **Contrato comum de edição na superfície**: seleção, foco, atalhos, desfazer/refazer agrupado, acessibilidade (teclado e leitor de tela), sincronia com o painel, comportamento no toque | 🛠 Em desenvolvimento (documento do contrato: `EDICAO-DIRETA.md`, no PR do DIR-04); necessário para DIR-01 e `NEW-03` | Definir antes de repetir app a app. |
 
 ### LAY-00 a LAY-xx · Reformulação dos aplicativos (layout próprio por função)
 | Campo | Conteúdo |
