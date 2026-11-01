@@ -107,4 +107,4 @@ No Launcher, vá a **Ajustes → Offline** ou à página de **Detalhes** do app 
 Fluxo sem instalar nada (GitHub Actions, capturas de tela em vários aparelhos, pré-visualizações e regras de segurança): veja [DESENVOLVIMENTO.md](DESENVOLVIMENTO.md).
 
 ## Planejamento futuro
-Ideias aprovadas e ainda não implementadas (por exemplo o Navegar / Coding Browser): veja [PLANEJAMENTO-FUTURO.md](PLANEJAMENTO-FUTURO.md).
+Planejamento oficial e centralizado do Coding 2.0 (o que está concluído, em desenvolvimento, planejado e o que ainda são ideias não aprovadas; inclui Navegar / Coding Browser, Coding Fontes, Editor SVG, edição direta, reformulação dos aplicativos e as pendências conhecidas): veja [PLANEJAMENTO-FUTURO.md](PLANEJAMENTO-FUTURO.md).
