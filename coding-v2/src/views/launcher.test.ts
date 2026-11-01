@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
+import { useOfflineStore } from '../stores/offline';
 import { mountLauncher, violations } from '../test/helpers';
 import { tools } from '../shared/catalog';
 import { latestOf } from '../shared/versions';
@@ -10,16 +11,20 @@ beforeEach(() => { localStorage.clear(); sessionStorage.clear(); });
 afterEach(() => { document.body.innerHTML = ''; });
 
 describe('Launcher · telas', () => {
-  it('Início é um acesso rápido: identidade, busca, todos os aplicativos e um único h1', async () => {
+  it('Início é um resumo: identidade, busca, painéis (favoritos, offline, sugestões, novidades) e um único h1', async () => {
     const { wrapper } = await mountLauncher('/');
     expect(wrapper.findAll('h1')).toHaveLength(1);
     expect(wrapper.get('h1').text()).toBe('Coding Launcher');
     expect(wrapper.find('input[type="search"][aria-label="Buscar aplicativos"]').exists()).toBe(true);
-    expect(wrapper.findAll('article.card')).toHaveLength(tools.length);
+    // a lista completa fica no Catálogo e em Meus apps; o Início só resume
+    expect(wrapper.findAll('article.card')).toHaveLength(0);
+    for (const id of ['home-favorites', 'home-device', 'home-discover', 'home-news']) expect(wrapper.find(`[data-testid="${id}"]`).exists()).toBe(true);
+    expect(wrapper.findAll('[data-testid="home-discover"] li')).toHaveLength(3);
+    expect(wrapper.findAll('[data-testid="home-news"] li')).toHaveLength(3);
     // sem os números do topo nem os botões que repetem a navegação
     expect(wrapper.find('[data-testid="home-stats"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="home-actions"]').exists()).toBe(false);
-    expect(wrapper.text()).not.toMatch(/Prévia|Preview|2\.0|Antigo|Coding atual|Novo Coding/);
+    expect(wrapper.text()).not.toMatch(/Prévia|Preview|Antigo|Coding atual|Novo Coding/);
     wrapper.unmount();
   });
 
@@ -96,20 +101,24 @@ describe('Launcher · telas', () => {
 });
 
 describe('Launcher · aparência de loja', () => {
-  it('Início mostra cards reais com “Abrir” e não inventa documentos recentes', async () => {
-    const { wrapper } = await mountLauncher('/');
+  it('Catálogo mostra cards reais com “Abrir”, o Início não inventa documentos recentes', async () => {
+    const home = await mountLauncher('/');
+    expect(home.wrapper.find('[data-testid="recent-docs"]').exists()).toBe(false);
+    home.wrapper.unmount();
+    const { wrapper } = await mountLauncher('/catalogo');
     const card = wrapper.find('article.card[data-tool="labels"]');
     expect(card.text()).toContain('Etiquetas');
     expect(card.text()).toContain('Editor funcional');
     expect(card.find('a[href="/apps/etiquetas/"]').text()).toBe('Abrir');
-    expect(wrapper.find('[data-testid="recent-docs"]').exists()).toBe(false);
     wrapper.unmount();
   });
 
-  it('favoritos vão para o começo da grade do Início', async () => {
+  it('favoritos aparecem no painel do Início, com link para o editor', async () => {
     localStorage.setItem('coding-v2-favorites', JSON.stringify(['paint']));
     const { wrapper } = await mountLauncher('/');
-    expect(wrapper.findAll('article.card h3')[0]?.text()).toBe('Pintar');
+    const link = wrapper.get('[data-testid="home-favorites"] ul a');
+    expect(link.text()).toBe('Pintar');
+    expect(link.attributes('href')).toBe('/apps/pintar/');
     wrapper.unmount();
   });
 
@@ -149,12 +158,77 @@ describe('Launcher · aparência de loja', () => {
     b.wrapper.unmount();
   });
 
-  it('Meus apps mostra todos os aplicativos, sem ativar nem desativar nada', async () => {
+  it('Meus apps sem suporte offline mostra todos os aplicativos, com um aviso, e sem ativar nem desativar nada', async () => {
     const { wrapper } = await mountLauncher('/meus-apps');
     expect(wrapper.findAll('article.card')).toHaveLength(tools.length);
+    expect(wrapper.get('[data-testid="myapps-offline-unsupported"]').text()).toContain('uso offline não está disponível');
     expect(wrapper.find('[data-testid="available-to-activate"]').exists()).toBe(false);
     expect(wrapper.text()).not.toMatch(/ativar|ativado|desativ/i);
     wrapper.unmount();
+  });
+});
+
+/** Simula um navegador com uso offline disponível e o registro do que está instalado já lido. */
+async function withOffline(installed: string[], ready = true): Promise<void> {
+  const store = useOfflineStore();
+  store.supported = true;
+  store.ready = ready;
+  store.records = Object.fromEntries(installed.map((id) => [id, { id, name: id, version: 'v', files: [], bytes: 0, installedAt: 1 }]));
+  await flushPromises();
+}
+
+describe('Launcher · Meus apps só com os instalados offline', () => {
+  it('mostra apenas os instalados, ignora o Núcleo e não lista os demais', async () => {
+    const { wrapper } = await mountLauncher('/meus-apps');
+    await withOffline(['core', 'labels', 'calc']);
+    expect(wrapper.find('[data-testid="myapps-offline-unsupported"]').exists()).toBe(false);
+    expect(wrapper.findAll('article.card').map((c) => c.attributes('data-tool')).sort()).toEqual(['calc', 'labels']);
+    expect(wrapper.find('article.card[data-tool="texts"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('a busca e a ordem valem só dentro dos instalados', async () => {
+    const { wrapper } = await mountLauncher('/meus-apps');
+    await withOffline(['labels', 'calc', 'zip']);
+    await wrapper.get('#myapps-search').setValue('sorteio');
+    expect(wrapper.findAll('article.card')).toHaveLength(0);
+    expect(wrapper.text()).toContain('Nenhum aplicativo combina com a busca');
+    await wrapper.get('#myapps-search').setValue('etiquetas');
+    expect(wrapper.findAll('article.card').map((c) => c.attributes('data-tool'))).toEqual(['labels']);
+    wrapper.unmount();
+  });
+
+  it('sem nenhum instalado: estado vazio que leva ao Catálogo, sem cartões', async () => {
+    const { wrapper, router } = await mountLauncher('/meus-apps');
+    await withOffline([]);
+    expect(wrapper.findAll('article.card')).toHaveLength(0);
+    expect(wrapper.text()).toContain('Nenhum aplicativo instalado ainda');
+    const link = wrapper.get('[data-testid="myapps-empty-catalog"]');
+    expect(link.attributes('href')).toBe('/catalogo');
+    await link.trigger('click');
+    await flushPromises();
+    expect(router.currentRoute.value.name).toBe('catalog');
+    wrapper.unmount();
+  });
+
+  it('enquanto o registro ainda é lido não diz que não há nada instalado', async () => {
+    const { wrapper } = await mountLauncher('/meus-apps');
+    await withOffline([], false);
+    expect(wrapper.text()).toContain('Carregando');
+    expect(wrapper.text()).not.toContain('Nenhum aplicativo instalado ainda');
+    wrapper.unmount();
+  });
+
+  it('o Catálogo continua listando todos os aplicativos e o Início resume', async () => {
+    const catalog = await mountLauncher('/catalogo');
+    await withOffline([]);
+    expect(catalog.wrapper.findAll('article.card')).toHaveLength(tools.length);
+    expect(catalog.wrapper.findAll('[data-testid="catalog-shelves"] section')).toHaveLength(5);
+    catalog.wrapper.unmount();
+    const home = await mountLauncher('/');
+    await withOffline([]);
+    expect(home.wrapper.find('[data-testid="home-panels"]').exists()).toBe(true);
+    home.wrapper.unmount();
   });
 });
 

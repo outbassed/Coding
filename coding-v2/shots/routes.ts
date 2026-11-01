@@ -22,6 +22,14 @@ export interface ShotRoute {
 
 const launcher: ShotRoute[] = [
   { name: 'launcher-inicio', path: '/launcher/', fullPage: true },
+  {
+    name: 'launcher-inicio-cheio', path: '/launcher/', fullPage: true,
+    before: async (page) => {
+      await seedInstalledApps(page, ['labels', 'texts', 'calc', 'codes']);
+      await page.addInitScript(() => localStorage.setItem('coding-v2-favorites', JSON.stringify(['labels', 'texts', 'paint', 'calc'])));
+    }
+  },
+  { name: 'launcher-inicio-busca', path: '/launcher/', fullPage: true, after: async (page) => { await page.getByRole('searchbox', { name: 'Buscar aplicativos' }).fill('co'); } },
   { name: 'launcher-meus-apps', path: '/launcher/#/meus-apps', fullPage: true, before: (page) => seedInstalledApps(page, 'all') },
   { name: 'launcher-meus-apps-vazio', path: '/launcher/#/meus-apps', fullPage: true },
   { name: 'launcher-catalogo', path: '/launcher/#/catalogo', fullPage: true },

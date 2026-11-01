@@ -134,6 +134,9 @@ test.describe('Instalação offline por app (build real, sem rede simulada por m
     await page.getByTestId('offline-filter-no').click();
     await expect(page.locator('article.card', { hasText: 'Sorteio' })).toHaveCount(0);
     await expect(page.locator('article.card').first()).toBeVisible();
+    // Meus apps lista só o que foi instalado.
+    await page.goto('/launcher/#/meus-apps');
+    await expect(page.locator('article.card h3')).toHaveText(['Sorteio']);
   });
 
   test('desinstalar pelos Detalhes mantém documentos e deixa o app disponível online', async ({ page }) => {
@@ -150,6 +153,11 @@ test.describe('Instalação offline por app (build real, sem rede simulada por m
     await expect(state(page, 'labels')).toHaveAttribute('data-state', 'not-installed');
     // documentos intactos e o editor continua abrindo online
     expect((await readCopiesDb(page)).labels).toEqual(['Foto de teste']);
+    // Sem nada instalado, Meus apps fica vazio e leva ao Catálogo.
+    await page.goto('/launcher/#/meus-apps');
+    await expect(page.locator('article.card')).toHaveCount(0);
+    await expect(page.getByTestId('empty-state')).toContainText('Nenhum aplicativo instalado ainda');
+    await page.goto('/launcher/#/app/labels');
     await page.getByTestId('open-editor').click();
     await expect(page).toHaveURL(/\/apps\/etiquetas\//);
     await expect(page.getByLabel('Código do item 1')).toBeVisible();

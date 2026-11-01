@@ -5,19 +5,24 @@ import { availabilityLabel, availabilityOf, categories, type CodingTool } from '
 import AppIcon from './AppIcon.vue';
 import { useFavoritesStore } from '../../stores/favorites';
 import { useOfflineStore } from '../../stores/offline';
+import { latestOf } from '../../shared/versions';
+import { versionRecords } from '../../shared/versions-data';
 
 /** Todo aplicativo está sempre disponível online: o cartão só abre, favorita e informa o uso offline. */
-const props = defineProps<{ tool: CodingTool }>();
+const props = defineProps<{ tool: CodingTool; variant?: 'mine' }>();
 const favorites = useFavoritesStore();
 const offline = useOfflineStore();
 const offlineReady = computed(() => offline.supported && ['installed', 'update-available'].includes(offline.stateOf(props.tool.id)));
 const fav = computed(() => favorites.isFavorite(props.tool.id));
 const avail = computed(() => availabilityOf(props.tool));
+/** Versão do aplicativo no registro de versões (o registro offline guarda só um identificador de conteúdo, que não serve para mostrar). */
+const installedVersion = computed(() => latestOf(props.tool.id, versionRecords)?.version ?? '');
+const updatable = computed(() => offline.supported && offline.stateOf(props.tool.id) === 'update-available');
 const category = computed(() => categories.find((c) => c.id === props.tool.category)?.label ?? '');
 </script>
 
 <template>
-  <article class="card" :style="{ '--app': tool.color }" :data-tool="tool.id">
+  <article class="card" :class="{ mine: variant === 'mine' }" :style="{ '--app': tool.color }" :data-tool="tool.id">
     <button type="button" class="star" :aria-pressed="fav" :aria-label="(fav ? 'Remover ' : 'Favoritar ') + tool.name + (fav ? ' dos favoritos' : '')" data-testid="favorite" @click.stop="favorites.toggle(tool.id)">
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9 6.8 19.7l1-5.9L3.5 9.7l5.9-.8z" :fill="fav ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></svg>
     </button>
@@ -26,8 +31,9 @@ const category = computed(() => categories.find((c) => c.id === props.tool.categ
       <span v-if="offlineReady" class="off-ok" data-testid="card-offline" title="Os arquivos deste app estão guardados neste navegador">Offline</span>
     </div>
     <h3><RouterLink :to="{ name: 'app', params: { id: tool.id } }" class="name">{{ tool.name }}</RouterLink></h3>
-    <p class="meta" data-testid="card-meta"><span class="avail" :data-avail="avail">{{ availabilityLabel[avail] }}</span><span class="dot" aria-hidden="true">·</span><span>{{ category }}</span></p>
-    <p class="muted desc">{{ tool.description }}</p>
+    <p v-if="variant === 'mine' && offlineReady" class="inst" data-testid="card-installed"><template v-if="updatable">Atualização disponível</template><template v-else>Versão {{ installedVersion || '—' }}</template></p>
+    <p v-if="variant !== 'mine'" class="meta" data-testid="card-meta"><span class="avail" :data-avail="avail">{{ availabilityLabel[avail] }}</span><span class="dot" aria-hidden="true">·</span><span>{{ category }}</span></p>
+    <p v-if="variant !== 'mine'" class="muted desc">{{ tool.description }}</p>
     <div class="actions">
       <a v-if="tool.path" :href="tool.path" class="btn btn-app" :aria-label="'Abrir o editor de ' + tool.name">Abrir</a>
     </div>
@@ -54,13 +60,16 @@ h3 { font-size:15px; line-height:1.25; margin:0; max-width:100%; font-weight:760
 .desc { margin:0; font-size:12px; line-height:1.4; min-height:34px; max-width:100%; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .actions { display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; position:relative; z-index:1; margin-top:auto; }
 .actions .btn { font-size:12px; min-height:40px; padding:7px 10px; }
+.mine { padding:16px 10px 12px; gap:5px; }
+.mine .top :deep(.app-icon) { width:64px; height:64px; }
+.inst { margin:0; font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums; }
 @media(max-width:599px) {
   .card { padding:9px 3px 10px; border:0; background:transparent; border-radius:13px; gap:5px; }
   .card:hover { background:var(--panel); }
   .top { margin:0; }
   .top :deep(.app-icon) { width:clamp(58px,18vw,72px); height:clamp(58px,18vw,72px); }
   h3 { font-size:12px; font-weight:690; min-height:29px; max-width:100%; }
-  .meta,.desc,.actions { display:none; }
+  .meta,.desc,.actions,.inst { display:none; }
 }
 @media(min-width:600px) and (max-width:899px) {
   .card { padding:14px 6px; } .top { max-width:100%; min-width:0; } .top :deep(.app-icon) { width:68px;height:68px; }

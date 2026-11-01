@@ -50,6 +50,16 @@ export const versionRecords: readonly VersionRecord[] = [
       'A preferência antiga de ativação é lida uma única vez e ignorada; nenhum outro dado é apagado.'
     ]
   },
+  {
+    target: 'launcher', version: '2.1.0', build: '01.11.26.154342', releaseDate: '2026-11-01', releaseTime: '15:43:42',
+    novidades: [
+      'Início virou um resumo do Coding: continuar de onde parou, favoritos, o que há neste aparelho, sugestões do Catálogo e as últimas novidades da Central de Versões.',
+      'Catálogo em vitrine, com um bloco por categoria; ao buscar ou filtrar, volta a lista simples.',
+      'Meus apps mostra só os aplicativos instalados para uso offline neste navegador, com a contagem e o aviso de atualizações.'
+    ],
+    melhorias: ['A busca do Início mostra os aplicativos encontrados e some ao limpar o campo, devolvendo o resumo.'],
+    alteracoesTecnicas: ['Nenhum dado das pessoas é lido de outra forma ou alterado: favoritos, documentos e instalações offline continuam como estavam.']
+  },
   { target: 'labels', version: '1.0.0', build: '25.10.26.161502', releaseDate: '2026-10-25', releaseTime: '16:15:02', commit: 'eb7541c', novidades: ['Versão inicial registrada na Central de Versões.'] },
   {
     target: 'labels', version: '1.0.1', build: '01.11.26.150134', releaseDate: '2026-11-01', releaseTime: '15:01:34',
