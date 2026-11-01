@@ -86,6 +86,16 @@ export const versionRecords: readonly VersionRecord[] = [
   },
   { target: 'split', version: '1.0.0', build: '24.10.26.112915', releaseDate: '2026-10-24', releaseTime: '11:29:15', commit: '8171e4d', novidades: ['Versão inicial registrada na Central de Versões.'] },
   {
+    target: 'draw', version: '1.1.0', build: '01.11.26.183839', releaseDate: '2026-11-01', releaseTime: '18:38:39',
+    novidades: ['Nova tela pensada para sortear: a roleta (ou os números, dados e equipes) no centro, os participantes ao lado e o histórico sempre à vista no computador; no celular, o botão de girar fica na primeira tela.'],
+    alteracoesTecnicas: ['Layout livre da casca dos editores: o app organiza a própria tela; controles, atalhos, salvamento e documentos não mudaram.']
+  },
+  {
+    target: 'split', version: '1.1.0', build: '01.11.26.183839', releaseDate: '2026-11-01', releaseTime: '18:38:39',
+    novidades: ['Nova tela pensada para rachar a conta: o total no alto, pessoas e despesas à esquerda e os acertos e saldos sempre à vista à direita; no celular, abas Despesas, Pessoas, Acertos e Arquivo.'],
+    alteracoesTecnicas: ['Layout livre da casca dos editores: o app organiza a própria tela; controles, atalhos, salvamento e documentos não mudaram.']
+  },
+  {
     target: 'calculator', version: '1.1.0', build: '01.11.26.173757', releaseDate: '2026-11-01', releaseTime: '17:37:57',
     novidades: ['Nova tela pensada para calcular: visor e teclado ocupam a tela inteira, no computador, no tablet e no celular.'],
     melhorias: ['Histórico, variáveis e arquivo ficam numa coluna ao lado no computador e numa gaveta ("Histórico e mais") no tablet e no celular.'],
