@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { APP_COUNT } from './helpers';
+import { APP_COUNT, seedInstalledApps } from './helpers';
 
 const viewports = [
   { name: '320', width: 320, height: 640 }, { name: '360', width: 360, height: 740 }, { name: '390', width: 390, height: 844 },
@@ -78,10 +78,11 @@ test.describe('comportamento', () => {
     await expect(page.locator('#page-title')).toBeFocused();
   });
 
-  test('sem ativação: os 15 apps aparecem em Meus apps e a preferência antiga é ignorada sem ser apagada', async ({ page }) => {
+  test('sem ativação: com todos instalados, os 15 apps aparecem em Meus apps e a preferência antiga é ignorada sem ser apagada', async ({ page }) => {
     await page.addInitScript(() => {
       if (!localStorage.getItem('coding-v2-apps')) localStorage.setItem('coding-v2-apps', JSON.stringify({ v: 2, known: ['labels'], enabled: ['labels'] }));
     });
+    await seedInstalledApps(page, 'all');
     await page.goto('/launcher/#/meus-apps');
     await expect(page.locator('article.card')).toHaveCount(APP_COUNT);
     await expect(page.getByRole('button', { name: /Ativar|Desativar/ })).toHaveCount(0);

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
+import { useOfflineStore } from '../stores/offline';
 import { mountLauncher, violations } from '../test/helpers';
 import { tools } from '../shared/catalog';
 import { latestOf } from '../shared/versions';
@@ -149,12 +150,74 @@ describe('Launcher · aparência de loja', () => {
     b.wrapper.unmount();
   });
 
-  it('Meus apps mostra todos os aplicativos, sem ativar nem desativar nada', async () => {
+  it('Meus apps sem suporte offline mostra todos os aplicativos, com um aviso, e sem ativar nem desativar nada', async () => {
     const { wrapper } = await mountLauncher('/meus-apps');
     expect(wrapper.findAll('article.card')).toHaveLength(tools.length);
+    expect(wrapper.get('[data-testid="myapps-offline-unsupported"]').text()).toContain('uso offline não está disponível');
     expect(wrapper.find('[data-testid="available-to-activate"]').exists()).toBe(false);
     expect(wrapper.text()).not.toMatch(/ativar|ativado|desativ/i);
     wrapper.unmount();
+  });
+});
+
+/** Simula um navegador com uso offline disponível e o registro do que está instalado já lido. */
+async function withOffline(installed: string[], ready = true): Promise<void> {
+  const store = useOfflineStore();
+  store.supported = true;
+  store.ready = ready;
+  store.records = Object.fromEntries(installed.map((id) => [id, { id, name: id, version: 'v', files: [], bytes: 0, installedAt: 1 }]));
+  await flushPromises();
+}
+
+describe('Launcher · Meus apps só com os instalados offline', () => {
+  it('mostra apenas os instalados, ignora o Núcleo e não lista os demais', async () => {
+    const { wrapper } = await mountLauncher('/meus-apps');
+    await withOffline(['core', 'labels', 'calc']);
+    expect(wrapper.find('[data-testid="myapps-offline-unsupported"]').exists()).toBe(false);
+    expect(wrapper.findAll('article.card').map((c) => c.attributes('data-tool')).sort()).toEqual(['calc', 'labels']);
+    expect(wrapper.find('article.card[data-tool="texts"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('a busca e a ordem valem só dentro dos instalados', async () => {
+    const { wrapper } = await mountLauncher('/meus-apps');
+    await withOffline(['labels', 'calc', 'zip']);
+    await wrapper.get('#myapps-search').setValue('sorteio');
+    expect(wrapper.findAll('article.card')).toHaveLength(0);
+    expect(wrapper.text()).toContain('Nenhum aplicativo combina com a busca');
+    await wrapper.get('#myapps-search').setValue('etiquetas');
+    expect(wrapper.findAll('article.card').map((c) => c.attributes('data-tool'))).toEqual(['labels']);
+    wrapper.unmount();
+  });
+
+  it('sem nenhum instalado: estado vazio que leva ao Catálogo, sem cartões', async () => {
+    const { wrapper, router } = await mountLauncher('/meus-apps');
+    await withOffline([]);
+    expect(wrapper.findAll('article.card')).toHaveLength(0);
+    expect(wrapper.text()).toContain('Nenhum aplicativo instalado ainda');
+    const link = wrapper.get('[data-testid="myapps-empty-catalog"]');
+    expect(link.attributes('href')).toBe('/catalogo');
+    await link.trigger('click');
+    await flushPromises();
+    expect(router.currentRoute.value.name).toBe('catalog');
+    wrapper.unmount();
+  });
+
+  it('enquanto o registro ainda é lido não diz que não há nada instalado', async () => {
+    const { wrapper } = await mountLauncher('/meus-apps');
+    await withOffline([], false);
+    expect(wrapper.text()).toContain('Carregando');
+    expect(wrapper.text()).not.toContain('Nenhum aplicativo instalado ainda');
+    wrapper.unmount();
+  });
+
+  it('Início e Catálogo continuam listando todos os aplicativos', async () => {
+    for (const path of ['/', '/catalogo']) {
+      const { wrapper } = await mountLauncher(path);
+      await withOffline([]);
+      expect(wrapper.findAll('article.card')).toHaveLength(tools.length);
+      wrapper.unmount();
+    }
   });
 });
 

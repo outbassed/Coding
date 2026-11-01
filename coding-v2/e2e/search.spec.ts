@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { APP_COUNT } from './helpers';
+import { APP_COUNT, seedInstalledApps } from './helpers';
 
 const catalogBox = (page: Page) => page.getByRole('searchbox', { name: 'Buscar no catálogo' });
 const myBox = (page: Page) => page.getByRole('searchbox', { name: 'Buscar nos meus apps' });
@@ -22,6 +22,7 @@ test.describe('Busca por tela do Launcher', () => {
   });
 
   test('Meus apps tem busca própria e não mistura com o Catálogo', async ({ page }) => {
+    await seedInstalledApps(page, 'all');
     await page.goto('/launcher/#/meus-apps');
     await myBox(page).click();
     await page.keyboard.type('planilhas', { delay: 40 });
@@ -154,6 +155,7 @@ test.describe('Favoritos', () => {
     await page.reload();
     await expect(page.locator('article.card').first()).toHaveAttribute('data-tool', 'split');
     await expect(page.locator('article.card[data-tool="split"]').getByTestId('favorite')).toHaveAttribute('aria-pressed', 'true');
+    await seedInstalledApps(page, 'all');
     await page.goto('/launcher/#/meus-apps');
     await page.getByTestId('myapps-sort').selectOption('favorites');
     await expect(page.locator('article.card').first()).toHaveAttribute('data-tool', 'split');
