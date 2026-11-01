@@ -151,7 +151,9 @@ defineExpose({ go });
 .pb:hover:not(:disabled) { background: var(--panel); }
 .pb:disabled { opacity: .4; }
 .pi { font-size: 13px; font-weight: 700; min-width: 92px; text-align: center; }
-.measure { position: absolute; left: -99999px; top: 0; visibility: hidden; pointer-events: none; }
+/* Fora da tela e FORA do fluxo de rolagem: com `absolute` os itens medidos (uma linha por item) aumentavam a altura rolável
+   da página, e a rolagem do mouse empurrava o editor inteiro para cima, deixando um fundo vazio embaixo. */
+.measure { position: fixed; left: -99999px; top: 0; visibility: hidden; pointer-events: none; contain: layout style; }
 .ruler { height: 100mm; width: 1mm; }
 @media (max-width: 599px) { .area { padding: 16px 12px; } }
 </style>

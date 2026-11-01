@@ -29,6 +29,31 @@ async function readDocs(page: Page) {
 }
 const stateOf = (copy: { doc: Record<string, unknown> }) => copy.doc.state as { name: string; items: Array<{ code: string; description: string; copies: number }>; cols: number; orientation: string; prefix: string };
 
+test.describe('Etiquetas · a página não rola por baixo do editor', () => {
+  for (const vp of [{ width: 1920, height: 1000 }, { width: 1280, height: 720 }, { width: 1024, height: 700 }]) {
+    test('com 5 itens e muitas folhas, a rolagem do mouse não desloca o editor (' + vp.width + 'x' + vp.height + ')', async ({ page }) => {
+      await page.setViewportSize(vp);
+      await page.goto(EDITOR);
+      for (let i = 2; i <= 5; i++) await page.getByRole('button', { name: 'Adicionar item' }).click();
+      for (let i = 1; i <= 5; i++) {
+        await page.getByLabel('Código do item ' + i, { exact: true }).fill('10000' + i);
+        await page.getByLabel('Descrição do item ' + i, { exact: true }).fill('POTE PREMIUM 10L ITEM ' + i + ' UZ');
+        const copies = page.getByLabel('Cópias do item ' + i, { exact: true });
+        await copies.fill(String(i < 4 ? 10 : 14));
+        await copies.blur();
+      }
+      await expect(page.getByTestId('summary')).toContainText('5 itens');
+      const sizes = await page.evaluate(() => ({ doc: document.documentElement.scrollHeight - document.documentElement.clientHeight, ed: (document.querySelector('.ed') as HTMLElement).scrollHeight - (document.querySelector('.ed') as HTMLElement).clientHeight }));
+      expect(sizes.doc, 'a página não pode ser mais alta que a janela').toBeLessThanOrEqual(0);
+      expect(sizes.ed, 'o editor não pode transbordar a janela').toBeLessThanOrEqual(0);
+      await page.mouse.move(Math.min(150, vp.width / 2), Math.round(vp.height * 0.6));
+      for (let k = 0; k < 6; k++) { await page.mouse.wheel(0, 1500); await page.waitForTimeout(80); }
+      expect(await page.evaluate(() => window.scrollY), 'nenhuma rolagem da página').toBe(0);
+      await expect(page.getByRole('heading', { level: 1, name: 'Etiquetas' })).toBeInViewport();
+    });
+  }
+});
+
 test.describe('Etiquetas · editar e pré-visualizar', () => {
   test('abre com o modelo inicial editável, sem gravar nada até haver alteração', async ({ page }) => {
     await page.goto(EDITOR);

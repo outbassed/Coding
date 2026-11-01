@@ -33,6 +33,11 @@ export const versionRecords: readonly VersionRecord[] = [
   },
   { target: 'labels', version: '1.0.0', build: '25.10.26.161502', releaseDate: '2026-10-25', releaseTime: '16:15:02', commit: 'eb7541c', novidades: ['Versão inicial registrada na Central de Versões.'] },
   {
+    target: 'labels', version: '1.0.1', build: '01.11.26.150134', releaseDate: '2026-11-01', releaseTime: '15:01:34',
+    correcoes: ['Corrigido o fundo vazio que aparecia embaixo do editor ao rolar com o mouse quando havia vários itens: a página não rola mais por baixo do editor.'],
+    alteracoesTecnicas: ['A área de medição das etiquetas, que fica fora da tela, deixou de aumentar a altura rolável da página, e o editor passou a recortar o que excede a janela.']
+  },
+  {
     target: 'texts', version: '1.0.0', build: '25.10.26.180914', releaseDate: '2026-10-25', releaseTime: '18:09:14', commit: '600c643',
     novidades: ['Versão inicial registrada na Central de Versões.', 'Links em documentos e estrutura de títulos.']
   },
