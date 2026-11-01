@@ -3,13 +3,13 @@ import AxeBuilder from '@axe-core/playwright';
 
 const saved = (page: Page) => expect(page.getByTestId('save-status')).toHaveText('Salvo neste aparelho', { timeout: 10000 });
 const tab = (page: Page, name: string) => page.getByTestId('editor-tabs').getByRole('tab', { name, exact: true });
+const openFileMenu = (page: Page) => page.getByTestId('file-menu').locator('summary').click();
 async function axeClean(page: Page, label: string): Promise<void> {
   const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'best-practice']).analyze();
   expect(result.violations.map((v) => v.id + ': ' + v.nodes.slice(0, 4).map((n) => n.target.join(' ')).join(' | ')), label).toEqual([]);
 }
 const status = (page: Page) => page.getByTestId('compare-status');
 async function paste(page: Page, a: string, b: string): Promise<void> {
-  await tab(page, 'Arquivos').click();
   await page.getByTestId('side-a-text').fill(a);
   await page.getByTestId('side-b-text').fill(b);
 }
@@ -47,7 +47,6 @@ test.describe('Comparador de Arquivos', () => {
     await page.goto('/apps/comparador/');
     await paste(page, 'Olá  Mundo\n\n\nFim', 'olá mundo\nfim');
     await expect(status(page)).toHaveAttribute('data-state', 'diferentes');
-    await tab(page, 'Opções').click();
     await page.getByTestId('opt-case').check();
     await page.getByTestId('opt-space').check();
     await page.getByTestId('opt-blank').check();
@@ -100,7 +99,6 @@ test.describe('Comparador de Arquivos', () => {
     await expect(page.getByTestId('diff-position')).toHaveText('1 de 2');
     await page.getByTestId('prev-diff').click();
     await expect(page.getByTestId('diff-position')).toHaveText('2 de 2');
-    await tab(page, 'Opções').click();
     await page.getByTestId('only-diffs').check();
     await expect(page.locator('[data-testid="diff-view"] .skip')).toHaveCount(3);
     await expect(page.locator('[data-testid="diff-view"]')).not.toContainText('linha 15');
@@ -111,11 +109,10 @@ test.describe('Comparador de Arquivos', () => {
     await page.goto('/apps/comparador/');
     await file(page, 'a', 'a.txt', Buffer.from('um\ndois\ntres\n'));
     await file(page, 'b', 'b.txt', Buffer.from('um\n2\ntres\nquatro\n'));
-    await tab(page, 'Opções').click();
     await page.getByTestId('view-unified').check();
     await expect(page.locator('[data-testid="diff-view"] [data-kind="del"]')).toContainText('dois');
     await expect(page.locator('[data-testid="diff-view"] [data-kind="add"]').first()).toContainText('2');
-    await tab(page, 'Arquivo').click();
+    await openFileMenu(page);
     const out = await download(page, () => page.getByTestId('export-diff').click());
     expect(out.name).toBe('Comparação de arquivos.diff');
     expect(out.text).toBe('--- a.txt\n+++ b.txt\n@@ -1,3 +1,4 @@\n um\n-dois\n+2\n tres\n+quatro\n');
@@ -127,13 +124,11 @@ test.describe('Comparador de Arquivos', () => {
   test('tudo fica salvo: textos, opções e arquivo binário voltam depois de recarregar', async ({ page }) => {
     await page.goto('/apps/comparador/');
     await paste(page, 'alfa\nbeta', 'alfa\nBETA');
-    await tab(page, 'Opções').click();
     await page.getByTestId('opt-case').check();
     await expect(status(page)).toHaveAttribute('data-state', 'iguais-no-conteudo');
     await saved(page);
     await page.reload();
     await expect(status(page)).toHaveAttribute('data-state', 'iguais-no-conteudo');
-    await tab(page, 'Arquivos').click();
     await expect(page.getByTestId('side-b-text')).toHaveValue('alfa\nBETA');
     await file(page, 'a', 'a.bin', BIN_A);
     await file(page, 'b', 'b.bin', BIN_B);
@@ -167,12 +162,14 @@ test.describe('Comparador de Arquivos', () => {
       await page.emulateMedia({ colorScheme: scheme });
       await page.goto('/apps/comparador/?modelo=versoes');
       await expect(page.getByTestId('diff-view')).toBeVisible();
-      for (const name of ['Arquivos', 'Opções', 'Arquivo']) { await tab(page, name).click(); await axeClean(page, name + ' ' + scheme); }
-      await tab(page, 'Opções').click();
-      await page.getByTestId('view-unified').check();
+      await axeClean(page, 'tela inteira ' + scheme);
+      await openFileMenu(page);
+      await expect(page.getByTestId('export-diff')).toBeVisible();
+      await axeClean(page, 'menu Arquivo ' + scheme);
+      await openFileMenu(page);
+        await page.getByTestId('view-unified').check();
       await axeClean(page, 'unificada ' + scheme);
-      await tab(page, 'Arquivos').click();
-      await file(page, 'a', 'a.bin', BIN_A);
+        await file(page, 'a', 'a.bin', BIN_A);
       await file(page, 'b', 'b.bin', BIN_B);
       await expect(page.getByTestId('hex-view')).toBeVisible();
       await axeClean(page, 'binário ' + scheme);
@@ -182,12 +179,15 @@ test.describe('Comparador de Arquivos', () => {
   test('celular 320 px: sem rolagem horizontal na página', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 640 });
     await page.goto('/apps/comparador/?modelo=versoes');
+    await tab(page, 'Resultado').click();
     await expect(page.getByTestId('diff-view')).toBeVisible();
     // Se estourar, o erro aponta quais elementos passam da largura da tela.
     const wide = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth ? [] : Array.from(document.querySelectorAll('body *')).filter((el) => el.getBoundingClientRect().right > window.innerWidth + 1 && el.getBoundingClientRect().width > 0).slice(0, 6).map((el) => el.tagName.toLowerCase() + '.' + String(el.className).slice(0, 30) + ' ' + Math.round(el.getBoundingClientRect().right)));
     expect(await wide()).toEqual([]);
-    // A aba Arquivos já vem aberta; clicar nela de novo recolheria a gaveta no celular.
-    await expect(page.getByTestId('side-a-file')).toBeVisible();
-    expect(await wide()).toEqual([]);
+    for (const name of ['Lado A', 'Lado B']) {
+      await tab(page, name).click();
+      await expect(page.getByTestId('side-' + name.slice(-1).toLowerCase() + '-file')).toBeVisible();
+      expect(await wide()).toEqual([]);
+    }
   });
 });

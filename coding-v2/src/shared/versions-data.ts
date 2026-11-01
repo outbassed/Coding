@@ -67,24 +67,25 @@ export const versionRecords: readonly VersionRecord[] = [
   },
   { target: 'split', version: '1.0.0', build: '24.10.26.112915', releaseDate: '2026-10-24', releaseTime: '11:29:15', commit: '8171e4d', novidades: ['Versão inicial registrada na Central de Versões.'] },
   {
-    target: 'calculator', version: '1.1.0', build: '01.11.26.161520', releaseDate: '2026-11-01', releaseTime: '16:15:20',
-    melhorias: ['Calculadora com identidade própria: painel de modo e histórico à direita e fundo com brilho de aparelho, deixando o teclado no centro.'],
-    alteracoesTecnicas: ['Identidade por aplicativo na casca dos editores (lado do painel, cabeçalho e fundo); controles, atalhos, salvamento e documentos não mudaram.']
+    target: 'calculator', version: '1.1.0', build: '01.11.26.173757', releaseDate: '2026-11-01', releaseTime: '17:37:57',
+    novidades: ['Nova tela pensada para calcular: visor e teclado ocupam a tela inteira, no computador, no tablet e no celular.'],
+    melhorias: ['Histórico, variáveis e arquivo ficam numa coluna ao lado no computador e numa gaveta ("Histórico e mais") no tablet e no celular.'],
+    alteracoesTecnicas: ['A casca dos editores ganhou o modo de layout livre, em que cada aplicativo organiza a própria tela; controles, atalhos, salvamento e documentos não mudaram.']
   },
   {
-    target: 'colors', version: '1.1.0', build: '01.11.26.161520', releaseDate: '2026-11-01', releaseTime: '16:15:20',
-    melhorias: ['Estúdio de Cores com identidade própria: painel à direita e fundo xadrez, que ajuda a avaliar cores e transparências.'],
-    alteracoesTecnicas: ['Identidade por aplicativo na casca dos editores (lado do painel, cabeçalho e fundo); controles, atalhos, salvamento e documentos não mudaram.']
+    target: 'colors', version: '1.1.0', build: '01.11.26.173757', releaseDate: '2026-11-01', releaseTime: '17:37:57',
+    novidades: ['Nova tela pensada para cores: a cor atual em destaque, a edição ao lado, a bancada de ferramentas por abas e a paleta sempre à mão.'],
+    alteracoesTecnicas: ['A casca dos editores ganhou o modo de layout livre, em que cada aplicativo organiza a própria tela; controles, atalhos, salvamento e documentos não mudaram.']
   },
   {
-    target: 'zip', version: '1.1.0', build: '01.11.26.161520', releaseDate: '2026-11-01', releaseTime: '16:15:20',
-    melhorias: ['Compactador ZIP com identidade própria: área de trabalho pontilhada, como uma mesa para soltar arquivos.'],
-    alteracoesTecnicas: ['Identidade por aplicativo na casca dos editores (lado do painel, cabeçalho e fundo); controles, atalhos, salvamento e documentos não mudaram.']
+    target: 'zip', version: '1.1.0', build: '01.11.26.173757', releaseDate: '2026-11-01', releaseTime: '17:37:57',
+    novidades: ['Nova tela pensada para arquivos: a lista de arquivos e as operações (compactar, abrir ZIP, arquivo) ficam lado a lado, sem trocar de aba para ver o que foi adicionado.'],
+    alteracoesTecnicas: ['A casca dos editores ganhou o modo de layout livre, em que cada aplicativo organiza a própria tela; controles, atalhos, salvamento e documentos não mudaram.']
   },
   {
-    target: 'compare', version: '1.1.0', build: '01.11.26.161520', releaseDate: '2026-11-01', releaseTime: '16:15:20',
-    melhorias: ['Comparador de Arquivos com identidade própria: fundo quadriculado e painel um pouco mais largo para os dois lados.'],
-    alteracoesTecnicas: ['Identidade por aplicativo na casca dos editores (lado do painel, cabeçalho e fundo); controles, atalhos, salvamento e documentos não mudaram.']
+    target: 'compare', version: '1.1.0', build: '01.11.26.173757', releaseDate: '2026-11-01', releaseTime: '17:37:57',
+    novidades: ['Nova tela pensada para comparar: os lados A e B lado a lado, as opções numa barra e o resultado logo abaixo; no celular, abas Lado A, Lado B e Resultado.'],
+    alteracoesTecnicas: ['A casca dos editores ganhou o modo de layout livre, em que cada aplicativo organiza a própria tela; controles, atalhos, salvamento e documentos não mudaram.']
   },
   { target: 'calculator', version: '1.0.0', build: '25.10.26.004528', releaseDate: '2026-10-25', releaseTime: '00:45:28', commit: '627ad2c', novidades: ['Versão inicial registrada na Central de Versões.'] },
   { target: 'colors', version: '1.0.0', build: '25.10.26.164408', releaseDate: '2026-10-25', releaseTime: '16:44:08', commit: '63add2d', novidades: ['Versão inicial registrada na Central de Versões.'] },

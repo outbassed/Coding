@@ -11,7 +11,7 @@ describe('identidade dos editores', () => {
   it('os quatro apps do lote 1 têm identidade própria e diferente entre si', () => {
     const lot = (['calculator', 'colors', 'zip', 'compare'] as const).map(identityOf);
     for (const id of lot) expect(id).not.toEqual(defaultIdentity);
-    expect(new Set(lot.map((i) => i.stage)).size).toBe(4);
+    expect(new Set(lot.map((i) => i.head + '/' + i.stage)).size).toBe(4);
   });
 
   it('larguras do painel ficam dentro dos limites da alça (296–460)', () => {

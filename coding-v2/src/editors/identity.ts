@@ -15,12 +15,15 @@ export interface EditorIdentity { side: SideStyle; sidebar: number; head: HeadSt
 
 export const defaultIdentity: EditorIdentity = { side: 'left', sidebar: 356, head: 'line', stage: 'plain' };
 
-/** Lote 1: Calculadora, Estúdio de Cores, Compactador ZIP e Comparador de Arquivos. */
+/**
+ * Lote 1: Calculadora, Estúdio de Cores, Compactador ZIP e Comparador de Arquivos organizam a própria tela
+ * (EditorShell `layout="free"`), então aqui só entram o clima do cabeçalho e o fundo da área de trabalho.
+ */
 const identities: Partial<Record<ToolId, Partial<EditorIdentity>>> = {
-  calculator: { side: 'right', sidebar: 320, head: 'tint', stage: 'device' },
-  colors: { side: 'right', sidebar: 340, head: 'tint', stage: 'checker' },
-  zip: { side: 'left', sidebar: 320, head: 'line', stage: 'dots' },
-  compare: { side: 'left', sidebar: 340, head: 'line', stage: 'grid' }
+  calculator: { head: 'tint', stage: 'device' },
+  colors: { head: 'tint', stage: 'plain' },
+  zip: { head: 'line', stage: 'dots' },
+  compare: { head: 'line', stage: 'grid' }
 };
 
 export const identityOf = (app: ToolId): EditorIdentity => ({ ...defaultIdentity, ...identities[app] });

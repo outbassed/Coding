@@ -9,7 +9,7 @@ async function axeClean(page: Page, label: string): Promise<void> {
 }
 const baseHex = (page: Page) => page.getByTestId('base-hex');
 async function setBase(page: Page, hex: string): Promise<void> {
-  await tab(page, 'Cor').click();
+  // os controles da cor atual ficam sempre à vista (coluna "Editar cor"): não há mais aba Cor
   await baseHex(page).fill(hex);
 }
 
@@ -148,7 +148,7 @@ test.describe('Estúdio de Cores', () => {
     // clicar no lado direito da imagem (azul) leva #0000FF para o editor
     const box = (await page.getByTestId('image-preview').boundingBox())!;
     await page.mouse.click(box.x + box.width * 0.85, box.y + box.height * 0.5);
-    await expect(tab(page, 'Cor')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('hero-hex')).toHaveText('#0000FF');
     await expect(page.getByText('#0000FF').first()).toBeVisible();
   });
 
@@ -181,7 +181,8 @@ test.describe('Estúdio de Cores', () => {
       await page.emulateMedia({ colorScheme: scheme });
       await page.goto('/apps/cores/?modelo=marca');
       await expect(page.getByTestId('colors-stage')).toBeVisible();
-      for (const name of ['Cor', 'Harmonias', 'Contraste', 'Imagem', 'Paleta', 'Arquivo']) {
+      await axeClean(page, 'Editar cor ' + scheme);
+      for (const name of ['Harmonias', 'Contraste', 'Imagem', 'Paleta', 'Arquivo']) {
         await tab(page, name).click();
         await axeClean(page, name + ' ' + scheme);
       }
@@ -192,7 +193,7 @@ test.describe('Estúdio de Cores', () => {
     await page.setViewportSize({ width: 320, height: 640 });
     await page.goto('/apps/cores/?modelo=marca');
     await expect(page.getByTestId('colors-stage')).toBeVisible();
-    for (const name of ['Cor', 'Contraste', 'Paleta']) {
+    for (const name of ['Harmonias', 'Contraste', 'Paleta']) {
       await tab(page, name).click();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     }

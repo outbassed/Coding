@@ -90,7 +90,6 @@ test.describe('Compactador ZIP', () => {
     await tab(page, 'Compactar').click();
     await expect(page.getByTestId('create-zip')).toBeDisabled();
     await page.getByTestId('mode-store').check();
-    await tab(page, 'Arquivos').click();
     await addFiles(page, [{ name: 'texto.txt', buffer: TEXT }]);
     await tab(page, 'Compactar').click();
     const zip = await download(page, () => page.getByTestId('create-zip').click());
@@ -164,7 +163,7 @@ test.describe('Compactador ZIP', () => {
       await tab(page, 'Abrir ZIP').click();
       await openZip(page, craftZip([{ name: 'x.txt', data: Buffer.from('x') }]));
       await expect(page.getByTestId('opened-zip')).toBeVisible();
-      for (const name of ['Arquivos', 'Compactar', 'Abrir ZIP', 'Arquivo']) {
+      for (const name of ['Compactar', 'Abrir ZIP', 'Arquivo']) {
         await tab(page, name).click();
         await axeClean(page, name + ' ' + scheme);
       }
@@ -177,7 +176,7 @@ test.describe('Compactador ZIP', () => {
     await addFiles(page, [{ name: 'um-nome-de-arquivo-bem-comprido-para-testar-a-quebra-de-linha.txt', buffer: TEXT }]);
     await tab(page, 'Abrir ZIP').click();
     await openZip(page, craftZip([{ name: 'pasta/subpasta/outro-nome-bem-comprido-para-testar.txt', data: Buffer.from('x') }]));
-    for (const name of ['Arquivos', 'Compactar', 'Abrir ZIP']) {
+    for (const name of ['Compactar', 'Abrir ZIP']) {
       await tab(page, name).click();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     }
