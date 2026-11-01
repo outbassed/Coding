@@ -35,7 +35,7 @@ test.describe('Central de Versões · rotas', () => {
       await page.goto(url);
       await expect(page.getByTestId('versions-title'), url).toHaveText(t.name);
       await expect(page.getByTestId('menu-' + t.id)).toHaveAttribute('aria-current', 'page');
-      await expect(page.getByTestId('version-list').getByRole('button').first()).toContainText(t.name + ' — 1.0.0 — ');
+      await expect(page.getByTestId('version-list').getByRole('button').first()).toContainText(t.name + ' — ' + recordsFor(t.id, versionRecords)[0]!.version + ' — ');
       await page.reload();
       await expect(page.getByTestId('versions-title'), 'recarregado ' + url).toHaveText(t.name);
       expect(new URL(page.url()).pathname).toBe(url);

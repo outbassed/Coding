@@ -320,7 +320,7 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
 </template>
 
 <style scoped>
-.ed { height: 100dvh; display: flex; flex-direction: column; background: var(--bg); }
+.ed { height: 100dvh; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; overflow: clip; }
 .bar { display: flex; align-items: center; gap: 10px; min-height: calc(56px + var(--sa-t)); padding: var(--sa-t) max(12px, var(--sa-r)) 0 max(8px, var(--sa-l)); background: var(--surface); border-bottom: 3px solid var(--app); }
 .back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; min-width: 44px; justify-content: center; padding: 0 8px; border-radius: 12px; color: var(--accent); font-weight: 700; text-decoration: none; }
 .back:hover { background: var(--panel); }
