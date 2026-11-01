@@ -62,6 +62,47 @@ test.describe('Sorteio: o palco é o protagonista', () => {
   }
 });
 
+test.describe('Sorteio: as cinco abas ficam sempre acessíveis no celular', () => {
+  for (const size of NARROW) {
+    test(size.name + ': rótulos inteiros, alvos de 44 px, barra fixa ao rolar e nenhuma função escondida', async ({ page }) => {
+      await page.setViewportSize({ width: size.width, height: size.height });
+      await page.goto('/apps/sorteio/');
+      const tabs = page.getByTestId('editor-tabs').getByRole('tab');
+      await expect(tabs).toHaveCount(5);
+      const dims = await tabs.evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return { label: e.textContent, w: r.width, h: r.height, clipped: e.scrollWidth > e.clientWidth, right: r.right }; }));
+      for (const d of dims) {
+        expect(d.w, d.label + ' largura').toBeGreaterThanOrEqual(44);
+        expect(d.h, d.label + ' altura').toBeGreaterThanOrEqual(44);
+        expect(d.clipped, d.label + ' cortado').toBe(false);
+        expect(d.right, d.label + ' dentro da tela').toBeLessThanOrEqual(size.width);
+      }
+      const list = await page.getByTestId('editor-tabs').evaluate((e) => e.scrollWidth - e.clientWidth);
+      expect(list, 'a barra de abas não precisa rolar para o lado').toBeLessThanOrEqual(0);
+      // rola até o fim: as abas continuam visíveis e clicáveis
+      await page.getByTestId('names').fill(Array.from({ length: 40 }, (_, i) => 'Pessoa ' + (i + 1)).join('\n'));
+      await page.locator('.es-stage').evaluate((e) => { e.scrollTop = e.scrollHeight; });
+      const bar = await box(page, 'editor-tabs');
+      expect(bar.y, 'a barra fica no topo da área de trabalho ao rolar').toBeLessThan(160);
+      expect(bar.y + bar.height).toBeLessThanOrEqual(size.height);
+      await tab(page, 'Arquivo').click();
+      await expect(tab(page, 'Arquivo')).toHaveAttribute('aria-selected', 'true');
+      const exportBtn = page.getByTestId('export-history');
+      await expect(exportBtn).toBeVisible();
+      await page.locator('.es-stage').evaluate((e) => { e.scrollTop = 0; });
+      expect((await box(page, 'export-history')).y, 'Arquivo mostra as funções logo abaixo das abas').toBeLessThan(size.height);
+      for (const name of ['Roleta', 'Números', 'Dados', 'Equipes']) {
+        await tab(page, name).click();
+        await expect(tab(page, name)).toHaveAttribute('aria-selected', 'true');
+      }
+      await expect(page.getByTestId('make-teams')).toBeVisible();
+      await tab(page, 'Roleta').click();
+      await expect(page.getByTestId('presets')).toBeAttached();
+      await expect(page.getByTestId('exclude')).toBeAttached();
+      expect(await hOverflow(page)).toBeLessThanOrEqual(0);
+    });
+  }
+});
+
 test.describe('Racha-conta: o total e os acertos ficam à vista', () => {
   test('computador: pessoas e despesas à esquerda e o resultado sempre à direita, sem abas', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });

@@ -91,6 +91,11 @@ export const versionRecords: readonly VersionRecord[] = [
     alteracoesTecnicas: ['Layout livre da casca dos editores: o app organiza a própria tela; controles, atalhos, salvamento e documentos não mudaram.']
   },
   {
+    target: 'draw', version: '1.1.1', build: '01.11.26.194630', releaseDate: '2026-11-01', releaseTime: '19:46:30',
+    novidades: ['No celular, as cinco abas (Roleta, Números, Dados, Equipes e Arquivo) ficam fixas no topo ao rolar, com os nomes inteiros e botões grandes; a aba Arquivo mostra suas funções logo abaixo.'],
+    alteracoesTecnicas: ['Abas segmentadas de largura total ficam mais compactas em telas estreitas (mesma barra usada por outros aplicativos de layout livre); nenhum dado ou função mudou.']
+  },
+  {
     target: 'split', version: '1.1.0', build: '01.11.26.183839', releaseDate: '2026-11-01', releaseTime: '18:38:39',
     novidades: ['Nova tela pensada para rachar a conta: o total no alto, pessoas e despesas à esquerda e os acertos e saldos sempre à vista à direita; no celular, abas Despesas, Pessoas, Acertos e Arquivo.'],
     alteracoesTecnicas: ['Layout livre da casca dos editores: o app organiza a própria tela; controles, atalhos, salvamento e documentos não mudaram.']

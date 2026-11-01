@@ -257,7 +257,7 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
 .names { width: 100%; min-height: 120px; resize: vertical; font-size: 16px; }
 .check { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; font-weight: 600; }
 .check input { width: 20px; height: 20px; }
-.dw { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; box-sizing: border-box; min-width: 0; padding: 14px max(14px, var(--sa-r)) 28px max(14px, var(--sa-l)); }
+.dw { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; box-sizing: border-box; min-width: 0; padding: 14px max(10px, var(--sa-r)) 28px max(10px, var(--sa-l)); }
 .dw-tabs { width: min(100%, 640px); margin: 0 auto; }
 .controls { display: grid; gap: 10px; align-content: start; min-width: 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
 /* Celular: listas longas (roleta, equipes) vêm depois do palco; formulários curtos (números, dados) vêm antes. */
@@ -267,7 +267,12 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
 .dw .history { order: 3; }
 .dw[data-tab="numbers"] .controls, .dw[data-tab="dice"] .controls { order: 1; }
 .dw[data-tab="numbers"] .play, .dw[data-tab="dice"] .play { order: 2; }
-.dw[data-tab="arquivo"] .controls { order: 4; }
+.dw[data-tab="arquivo"] .controls { order: 1; }
+.dw[data-tab="arquivo"] .play { order: 2; }
+/* As cinco abas ficam sempre à mão: a barra acompanha a rolagem, com os rótulos inteiros e alvos de toque de 44 px. */
+@media (max-width: 899px) {
+  .dw-tabs { position: sticky; top: 0; z-index: 5; box-shadow: 0 6px 10px -6px #0004; }
+}
 @media (min-width: 900px) {
   .dw { grid-template-columns: 300px minmax(0, 1fr) 280px; column-gap: 18px; align-items: start; padding-top: 18px; }
   .dw-tabs { grid-column: 1 / -1; }
