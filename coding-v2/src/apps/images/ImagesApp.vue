@@ -543,7 +543,7 @@ void nextTick;
 .checker { background: repeating-conic-gradient(#d9dde5 0% 25%, #fff 0% 50%) 0 0 / 20px 20px; }
 .cv { display: block; touch-action: none; cursor: default; }
 .text-edit { position: absolute; box-sizing: border-box; transform-origin: center; white-space: pre-wrap; overflow-wrap: normal; cursor: text; }
-.act { min-height: 44px; }
+.btn.small.act { min-height: 44px; }
 .frame.crop { border-style: dashed; }
 .frame.crop .handle { border-radius: 4px; background: var(--accent); border-color: #fff; }
 .handle::before { content: ""; position: absolute; inset: -11px; } /* área de toque de 44 px */
