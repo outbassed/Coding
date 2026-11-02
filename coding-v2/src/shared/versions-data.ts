@@ -67,6 +67,14 @@ export const versionRecords: readonly VersionRecord[] = [
     alteracoesTecnicas: ['A área de medição das etiquetas, que fica fora da tela, deixou de aumentar a altura rolável da página, e o editor passou a recortar o que excede a janela.']
   },
   {
+    target: 'labels', version: '1.1.0', build: '01.11.26.202745', releaseDate: '2026-11-01', releaseTime: '20:27:45',
+    novidades: [
+      'Edição direta: clique ou toque no código ou na descrição de qualquer etiqueta da folha e edite ali mesmo. O painel, o desfazer e todas as cópias do item acompanham na hora.',
+      'Enter confirma o código; na descrição, Enter quebra a linha e Ctrl+Enter confirma. Esc cancela a edição. No celular, o botão Concluir edição fecha o teclado e o painel dá lugar à folha enquanto você edita.'
+    ],
+    alteracoesTecnicas: ['Primeiro app a usar o contrato de edição direta (EDICAO-DIRETA.md). A edição só existe na prévia: a medição, a impressão e o PDF continuam usando a etiqueta somente leitura, e o documento salvo não mudou de formato.']
+  },
+  {
     target: 'texts', version: '1.0.0', build: '25.10.26.180914', releaseDate: '2026-10-25', releaseTime: '18:09:14', commit: '600c643',
     novidades: ['Versão inicial registrada na Central de Versões.', 'Links em documentos e estrutura de títulos.']
   },
