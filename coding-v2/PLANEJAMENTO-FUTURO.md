@@ -90,7 +90,7 @@ Versões registradas na Central de Versões na base de desenvolvimento (os seis 
 | Etiquetas | 1.0.1 (1.1.0 no PR #26: edição direta na folha) | Itens (código, descrição, cópias), folha A4 ao vivo, colunas, tipografia, 5 modelos, importação CSV/XLSX com escolha de colunas, colar lista, imprimir/PDF. Correção da rolagem em #20. |
 | Texto | 1.0.0 | Formatação completa, tabelas, imagens, links, espaçamento, painel Estrutura, modelos, HTML/TXT/DOCX/PDF. |
 | Planilhas | 1.0.0 | Grade com abas, fórmulas em português/inglês, cor de fonte e preenchimento, importar CSV/XLSX, exportar XLSX/CSV, preencher para baixo/direita, ordenar. |
-| Imagens | 1.0.0 | Camadas (imagem, texto, retângulo, elipse), recorte por campos numéricos, filtros, Ctrl+V, exportar PNG/JPG/WebP. |
+| Imagens | 1.0.0 (1.1.0 no PR de DIR-02) | Camadas (imagem, texto, retângulo, elipse), recorte por campos numéricos e agora também arrastando no canvas, texto editável no lugar, alças de canto e de borda, filtros, Ctrl+V, exportar PNG/JPG/WebP. |
 | Editor PDF | 1.0.0 | Juntar, reordenar, girar, extrair, dividir; anotações de texto, destaque, retângulo, elipse, linha, **desenho livre (serve para assinar)** e imagem; PDF exportado conferido nos testes. |
 | QR / Barras | 1.0.0 | QR, Code 128, EAN-13/8, UPC-A, Code 39; assistente de conteúdo; vários códigos; aparências salvas; PNG, SVG e folha A4. |
 | Sorteio | 1.1.1 | Roleta, números, dados, equipes, listas salvas, histórico conferível. Tela própria no lote 2 (PR #25, mesclado). |
@@ -179,13 +179,13 @@ Todos abaixo são 📌 **Planejados** pedidos em 01/11/2026 e **ainda não foram
 | Status / prioridade | 📌 Planejado · P1 (proposta; é um padrão que vários apps reaproveitam) |
 | Origem | Pedido do dono (01/11/2026) |
 | Ideia | Permitir **editar elementos diretamente na folha, cena, canvas ou prévia, quando fizer sentido**, mantendo o painel de ferramentas **sincronizado**. Exemplo do dono: no **Etiquetas**, editar código e descrição **na própria etiqueta**. |
-| Como estão os apps hoje (verificado) | <ul><li>**Já editam direto:** Texto (a folha é editável), Planilhas (células), Editor PDF (anotações se movem e redimensionam na página), **Versos** (texto da cena se move, redimensiona e gira na prévia).</li><li>**Não editam direto:** **Etiquetas** (a prévia da folha não é editável; edição só pelo painel de itens), Imagens (texto e recorte só por painel e campos numéricos).</li><li>Os demais apps não foram avaliados.</li></ul> |
+| Como estão os apps hoje (verificado) | <ul><li>**Já editam direto:** Texto (a folha é editável), Planilhas (células), Editor PDF (anotações se movem e redimensionam na página), **Versos** (texto da cena se move, redimensiona e gira na prévia).</li><li>**Passaram a editar direto (em PR, aguardando mesclagem):** **Etiquetas** (PR #26, já mesclado na base) e **Imagens** (texto no lugar e recorte arrastando).</li><li>Os demais apps não foram avaliados.</li></ul> |
 | Candidatos | Cada item abaixo é 📌 apenas no caso do Etiquetas (pedido do dono). **Os outros são 💡 a avaliar caso a caso, sem aprovação.** |
 
 | ID | Candidato | Status | Observação |
 | --- | --- | --- | --- |
 | DIR-01 | **Etiquetas**: editar código e descrição na própria etiqueta da folha; painel sincronizado | 🛠 Implementado no PR #26 (Etiquetas 1.1.0), aguardando autorização para mesclar | Pedido do dono. A paginação é medida no DOM e cada etiqueta é indivisível: a edição direta não pode quebrar isso. Mobile precisa de um fluxo próprio (toque). |
-| DIR-02 | **Imagens**: texto direto na tela e recorte arrastando | 📝 Pendência documentada | Registrado em POST-PREVIEW-BUGFIX.md. |
+| DIR-02 | **Imagens**: texto direto na tela e recorte arrastando | 🛠 Implementado no PR do Imagens 1.1.0 (branch `feature/edicao-direta-imagens-sonnet`), aguardando CI e autorização para mesclar | Reaproveita `InlineText`, o histórico e o painel existentes; acrescenta alças de meio de borda e recorte por arraste. Adoção descrita em EDICAO-DIRETA.md §8.1. Ainda **não** há guias/alinhamento magnético, multisseleção nem edição de formatação parcial (negrito só em parte do texto). |
 | DIR-03 | Outras folhas, cenas, canvas e prévias (QR / Barras, Pintar, Calculadora, Racha-conta etc.) | 💡 Ideia | Avaliar se faz sentido app a app. |
 | DIR-04 | **Contrato comum de edição na superfície**: seleção, foco, atalhos, desfazer/refazer agrupado, acessibilidade (teclado e leitor de tela), sincronia com o painel, comportamento no toque | 🛠 Contrato escrito e aplicado no PR #26 ([EDICAO-DIRETA.md](./EDICAO-DIRETA.md)); necessário para DIR-01 e `NEW-03` | Definir antes de repetir app a app. |
 
@@ -263,7 +263,7 @@ Todas 📝 **Pendência documentada**, **verificadas no código em 01/11/2026 co
 | --- | --- | --- | --- | --- |
 | APP-IMG-01 | Pincel e borracha | CAT, POST | 📝 Não há no Imagens (o **Pintar** já desenha com pincel e borracha) | P3 |
 | APP-IMG-02 | Remover fundo automaticamente | CAT, POST | 📝 | P3 |
-| APP-IMG-03 | Recorte arrastando na tela; texto direto na tela | POST | 📝 Ver `DIR-02`. Hoje o recorte é por campos numéricos | P2 |
+| APP-IMG-03 | Recorte arrastando na tela; texto direto na tela | POST | 🛠 Implementado no PR do Imagens 1.1.0 (ver `DIR-02`); pendente: guias de alinhamento, multisseleção | P2 |
 | APP-IMG-04 | Zoom por pinça | POST | 📝 | P3 |
 | APP-IMG-05 | Filtros no Safari antigo (sem `ctx.filter`): desfoque e matiz não aplicados | POST | 🔎 Não verificável sem Safari | P3 |
 

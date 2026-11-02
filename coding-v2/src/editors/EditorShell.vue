@@ -78,6 +78,8 @@ function onTabKey(event: KeyboardEvent): void {
   requestAnimationFrame(() => document.getElementById('es-tab-' + next.id)?.focus());
 }
 function focusStage(): void { document.getElementById('es-stage')?.focus(); }
+/** Para apps com edição direta: no celular a gaveta de ferramentas se recolhe para dar lugar à tela e ao teclado virtual. */
+defineExpose({ collapseTools: (): void => { if (!wide.value) panelOpen.value = false; } });
 const name = computed({
   get: () => props.doc.state.value.name,
   set: (value: string) => { props.doc.state.value.name = value.slice(0, 250); }

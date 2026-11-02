@@ -64,16 +64,17 @@ function pixelFilter(canvas: HTMLCanvasElement | OffscreenCanvas, f: Filters): v
   }
   ctx.putImageData(img, 0, 0);
 }
-function drawContent(ctx: CanvasRenderingContext2D, l: Layer, bitmaps: Bitmaps): void {
+function drawContent(ctx: CanvasRenderingContext2D, l: Layer, bitmaps: Bitmaps, hideText = false): void {
   if (l.kind === 'image') {
     const bmp = l.imageId ? bitmaps.get(l.imageId) : undefined;
     if (!bmp) { ctx.fillStyle = '#d3dae6'; ctx.fillRect(-l.w / 2, -l.h / 2, l.w, l.h); return; }
     const c = l.crop ?? { x: 0, y: 0, w: 1, h: 1 };
     ctx.drawImage(bmp, c.x * bmp.width, c.y * bmp.height, c.w * bmp.width, c.h * bmp.height, -l.w / 2, -l.h / 2, l.w, l.h);
-  } else if (l.kind === 'text') drawText(ctx, l);
+  } else if (l.kind === 'text') { if (!hideText) drawText(ctx, l); }
   else drawShape(ctx, l);
 }
-export function renderComposition(ctx: CanvasRenderingContext2D, state: ImagesState, bitmaps: Bitmaps, scale = 1, forExport: 'png' | 'jpeg' | 'webp' | null = null): void {
+/** `hideTextOf`: camada de texto que está sendo editada na tela (o campo editável a mostra no lugar); nunca usado na exportação. */
+export function renderComposition(ctx: CanvasRenderingContext2D, state: ImagesState, bitmaps: Bitmaps, scale = 1, forExport: 'png' | 'jpeg' | 'webp' | null = null, hideTextOf: string | null = null): void {
   const W = state.width * scale, H = state.height * scale;
   ctx.save();
   ctx.clearRect(0, 0, W, H);
@@ -93,7 +94,7 @@ export function renderComposition(ctx: CanvasRenderingContext2D, state: ImagesSt
       if (!a) continue;
       a.scale(scale, scale);
       a.translate(l.x + l.w / 2, l.y + l.h / 2); a.rotate((l.rotation * Math.PI) / 180); a.scale(l.flipX ? -1 : 1, l.flipY ? -1 : 1);
-      drawContent(a, l, bitmaps);
+      drawContent(a, l, bitmaps, l.id === hideTextOf);
       pixelFilter(aux, l.filters);
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = l.opacity; ctx.drawImage(aux, 0, 0); ctx.restore();
       continue;
@@ -104,7 +105,7 @@ export function renderComposition(ctx: CanvasRenderingContext2D, state: ImagesSt
     ctx.translate(l.x + l.w / 2, l.y + l.h / 2);
     ctx.rotate((l.rotation * Math.PI) / 180);
     ctx.scale(l.flipX ? -1 : 1, l.flipY ? -1 : 1);
-    drawContent(ctx, l, bitmaps);
+    drawContent(ctx, l, bitmaps, l.id === hideTextOf);
     ctx.restore();
   }
   ctx.restore();

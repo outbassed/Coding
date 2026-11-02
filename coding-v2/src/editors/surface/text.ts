@@ -74,6 +74,16 @@ export function placeCaret(el: HTMLElement, offset: number): void {
   sel.addRange(range);
 }
 
+/** Seleciona todo o texto do campo (ao começar a editar um texto que a pessoa provavelmente quer trocar). */
+export function selectContents(el: HTMLElement): void {
+  const sel = window.getSelection();
+  if (!sel) return;
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
 /**
  * Saber se a saída do campo foi desejada (Tab, Esc, Enter, clique ou toque fora, botão "Concluir") ou se o campo
  * perdeu o foco porque a folha foi redesenhada com ele dentro. No segundo caso o app devolve o foco.
