@@ -19,7 +19,7 @@ import { usePrint } from '../../shared/print/usePrint';
 import PrintButton from '../../shared/print/PrintButton.vue';
 import type { PrintJob, PrintPage } from '../../shared/print/print';
 import { meshPage, videoFramePage } from './print';
-import { imagePage, pdfPages, textPage } from '../../shared/print/pages';
+import { imagePage, pdfPages as printPdfPages, textPage } from '../../shared/print/pages';
 
 const doc = useDocument({
   kind: viewerKind, templates: viewerTemplates, path: '/apps/visualizador/', withImages: true,
@@ -359,7 +359,7 @@ async function viewerPrintJob(): Promise<PrintJob | null> {
     case 'pdf': {
       const pdf = await viewDoc(f.blobId, async () => new Uint8Array(await blob.arrayBuffer()));
       if (pdf.numPages > 20) doc.say('Preparando ' + Math.min(pdf.numPages, 150) + ' páginas para imprimir…');
-      const r = await pdfPages(pdf);
+      const r = await printPdfPages(pdf);
       pages = r.pages;
       if (r.skipped) doc.say('A impressão leva as primeiras ' + r.pages.length + ' páginas; o PDF tem ' + (r.pages.length + r.skipped) + '. Imprima o arquivo original para ter todas.');
       break;
