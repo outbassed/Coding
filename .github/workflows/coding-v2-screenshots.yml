@@ -1,0 +1,135 @@
+name: Coding 2.0 capturas de tela
+# Fotografa o site compilado em vários aparelhos e guarda as imagens como artifact (14 dias).
+# Também espelha as imagens na branch `ci-capturas` (pasta pr-<número>), para quem não consegue baixar artifacts.
+# Não publica o site nem toca nas branches de desenvolvimento ou na produção.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    paths: ['coding-v2/**', '.github/workflows/coding-v2-screenshots.yml']
+  workflow_dispatch:
+    inputs:
+      filter:
+        description: 'Só telas cujo nome contém (separe por vírgula). Vazio = todas'
+        required: false
+        default: ''
+      schemes:
+        description: 'Temas: light, dark ou light,dark'
+        required: false
+        default: 'light'
+      devices:
+        description: 'Aparelhos (desktop,notebook,tablet-retrato,tablet-paisagem,celular,celular-pequeno). Vazio = todos'
+        required: false
+        default: ''
+permissions:
+  contents: read
+concurrency:
+  group: coding-v2-shots-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  shots:
+    if: github.event_name != 'pull_request' || github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: coding-v2
+    env:
+      VITE_CODING_PREVIEW_PWA: '1'
+      SHOTS_FILTER: ${{ inputs.filter }}
+      SHOTS_SCHEMES: ${{ inputs.schemes }}
+      SHOTS_DEVICES: ${{ inputs.devices }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: coding-v2/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npx vite build
+      - run: node scripts/generate-offline-manifest.mjs
+      - name: Fotografar
+        run: npx playwright test -c playwright.shots.config.ts
+      - name: Resumo
+        if: always()
+        run: node scripts/dev/shots-summary.mjs shots-out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: capturas-${{ github.event.pull_request.head.sha || github.sha }}
+          path: coding-v2/shots-out
+          retention-days: 14
+          if-no-files-found: error
+
+  # Espelho das imagens numa branch própria (sempre 1 commit só, regravado: o histórico não cresce).
+  publicar:
+    needs: shots
+    if: always() && github.event_name == 'pull_request' && github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository && needs.shots.result != 'cancelled' && needs.shots.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency:
+      group: ci-capturas-publicar
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+      SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: capturas-${{ github.event.pull_request.head.sha }}
+          path: shots-out
+      - name: Publicar na branch ci-capturas
+        run: |
+          set -euo pipefail
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -rf /tmp/pub
+          if git ls-remote --exit-code --heads "$REMOTE" ci-capturas >/dev/null 2>&1; then
+            git clone --quiet --depth 1 --branch ci-capturas "$REMOTE" /tmp/pub
+          else
+            mkdir /tmp/pub && git -C /tmp/pub init --quiet
+          fi
+          cd /tmp/pub
+          rm -rf "pr-$PR" && mkdir -p "pr-$PR"
+          cp -r "$GITHUB_WORKSPACE/shots-out/." "pr-$PR/"
+          echo "$SHA" > "pr-$PR/COMMIT"
+          printf '%s\n' '# Capturas de tela da CI' '' 'Espelho automático das imagens do workflow "Coding 2.0 capturas de tela". Uma pasta por PR aberto: `pr-<número>/<aparelho>/<tema>/<tela>.png`.' 'Esta branch não contém código e é regravada a cada execução (1 commit só).' > README.md
+          git symbolic-ref HEAD refs/heads/snapshot
+          git add -A
+          git commit --quiet -m "Capturas do PR #$PR ($SHA)"
+          git push --quiet --force "$REMOTE" snapshot:refs/heads/ci-capturas
+
+  # Ao fechar o PR, apaga as imagens dele da branch ci-capturas.
+  limpar:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency:
+      group: ci-capturas-publicar
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Remover pasta do PR
+        run: |
+          set -euo pipefail
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git ls-remote --exit-code --heads "$REMOTE" ci-capturas >/dev/null 2>&1 || exit 0
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git clone --quiet --depth 1 --branch ci-capturas "$REMOTE" /tmp/pub
+          cd /tmp/pub
+          [ -d "pr-$PR" ] || exit 0
+          rm -rf "pr-$PR"
+          git symbolic-ref HEAD refs/heads/snapshot
+          git add -A
+          git commit --quiet -m "Remove capturas do PR #$PR"
+          git push --quiet --force "$REMOTE" snapshot:refs/heads/ci-capturas

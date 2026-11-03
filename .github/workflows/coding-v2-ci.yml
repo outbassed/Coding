@@ -1,0 +1,32 @@
+name: Coding 2.0 foundation
+on:
+  push:
+    branches: [coding-v2]
+  pull_request:
+    paths: ['coding-v2/**', '.github/workflows/coding-v2-ci.yml']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: coding-v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: coding-v2/package-lock.json
+      # Instalação reproduzível: falha se package.json e package-lock.json divergirem.
+      - run: npm ci --no-audit --no-fund
+      - run: npm run test:structure
+      - run: npm run typecheck
+      - run: npm run test:unit
+      - run: npm run build
+        env:
+          # CI exercita a PWA somente no Preview isolado do vite preview.
+          VITE_CODING_PREVIEW_PWA: '1'
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
