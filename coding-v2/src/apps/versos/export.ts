@@ -57,6 +57,29 @@ export async function renderScenePng(scene: Scene, kind: ExportKind, loadImage: 
   }
 }
 
+/** Cena como canvas para a impressão: reduzida a no máximo `maxSide` px no lado maior (nunca ampliada). O fundo transparente fica sobre o papel branco. */
+export async function renderSceneCanvas(scene: Scene, loadImage: ImageLoader, maxSide = 3508): Promise<{ canvas: HTMLCanvasElement; missingImages: string[] }> {
+  const k = Math.min(1, maxSide / Math.max(scene.width, scene.height));
+  const { width, height } = canvasSize(scene, k);
+  const problem = canvasProblem(width, height);
+  if (problem) throw new ExportError(problem);
+  const images = new Map<string, ImageSourceLike | null>();
+  if (scene.background.mode === 'image' && scene.background.image) {
+    const id = scene.background.image.imageId;
+    images.set(id, await loadImage(id));
+  }
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new ExportError('Não foi possível preparar a cena para imprimir (memória insuficiente).');
+    const result = renderScene(ctx, scene, { getImage: (id) => images.get(id) ?? null, makeCanvas: defaultMakeCanvas }, { scale: k, textOnly: false });
+    return { canvas, missingImages: result.missingImages };
+  } finally {
+    for (const img of images.values()) { const src = img?.source as { close?: () => void } | undefined; if (src && typeof src.close === 'function') src.close(); }
+  }
+}
+
 export function fontsOf(scenes: readonly Scene[], kind: ExportKind = 'full'): FontRef[] {
   void kind;
   const out: FontRef[] = [];

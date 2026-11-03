@@ -12,6 +12,10 @@ import {
   addColors, hexOf, importFromText, MAX_SWATCHES, moveSwatch, paletteCss, paletteJson, paletteSvg, paletteText, removeSwatch, renameSwatch, schemeHexes, type ColorsState
 } from './model';
 import { colorsKind, colorsTemplates } from './kind';
+import { usePrint } from '../../shared/print/usePrint';
+import { imagePage } from '../../shared/print/pages';
+import type { PrintJob } from '../../shared/print/print';
+import PrintButton from '../../shared/print/PrintButton.vue';
 
 const doc = useDocument({ kind: colorsKind, templates: colorsTemplates, path: '/apps/cores/' });
 const { state } = doc;
@@ -222,6 +226,14 @@ function drop(id: string, label: string): void { set({ palette: removeSwatch(sta
 function clearPalette(): void { set({ palette: [] }); doc.say('Paleta esvaziada.'); }
 const textOn = (hex: string): string => toHex(bestText(parseColor(hex) ?? baseRgb.value));
 
+// ---- imprimir: a paleta (o mesmo SVG da exportação), com as cores de verdade e os códigos
+async function palettePrint(): Promise<PrintJob | null> {
+  const url = URL.createObjectURL(new Blob([paletteSvg(state.value)], { type: 'image/svg+xml' }));
+  try { return { title: state.value.name || 'Paleta', pages: [await imagePage(url, 0, true)] }; }
+  finally { URL.revokeObjectURL(url); }
+}
+usePrint({ kind: 'built', build: palettePrint, enabled: () => state.value.palette.length > 0, reason: () => 'Adicione cores à paleta para imprimir.', notify: (m) => doc.say(m) });
+
 // ---- exportar
 function exportAs(kind: 'css' | 'json' | 'txt' | 'svg'): void {
   const file = safeFileName(state.value.name, 'paleta');
@@ -350,6 +362,7 @@ function exportAs(kind: 'css' | 'json' | 'txt' | 'svg'): void {
           </div>
 
           <FileTab v-else :templates="colorsTemplates" @new="doc.newFrom">
+        <PrintButton />
             <button type="button" class="btn" :disabled="!state.palette.length" data-testid="export-css" @click="exportAs('css')">CSS (variáveis)</button>
             <button type="button" class="btn" :disabled="!state.palette.length" data-testid="export-json" @click="exportAs('json')">JSON</button>
             <button type="button" class="btn" :disabled="!state.palette.length" data-testid="export-svg" @click="exportAs('svg')">Imagem SVG</button>

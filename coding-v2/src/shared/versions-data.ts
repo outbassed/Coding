@@ -15,6 +15,111 @@ import type { VersionRecord } from './versions';
  */
 export const versionRecords: readonly VersionRecord[] = [
   {
+    target: 'versos', version: '1.0.2', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
+    melhorias: [
+      'Imprimir cena atual ou todas as cenas, uma cena por página, com a composição final e sem a interface (Arquivo → Imprimir, Ctrl+P).',
+      'Orientação da página escolhida automaticamente pela proporção da cena; margens e proporções preservadas.'
+    ]
+  },
+  {
+    target: 'images', version: '1.0.1', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
+    melhorias: [
+      'Imprimir a composição final (Arquivo → Imprimir, Ctrl+P), sem a interface do editor nem áreas vazias, com orientação e proporção respeitadas.',
+      'Exportações e PDF continuam como antes.'
+    ]
+  },
+  {
+    target: 'paint', version: '1.0.1', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
+    melhorias: [
+      'Imprimir a composição final da tela (Arquivo → Imprimir, Ctrl+P), sem a interface, com fundo branco e proporção preservada.'
+    ]
+  },
+  {
+    target: 'viewer', version: '1.0.1', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
+    melhorias: [
+      'Imprimir o arquivo atual por formato: imagem, PDF (todas as páginas), texto e código, quadro do vídeo, capa de áudio e vista atual do 3D — nunca os controles de vídeo, áudio ou 3D.'
+    ]
+  },
+  {
+    target: 'pdf', version: '1.0.1', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
+    melhorias: [
+      'Imprimir o PDF aberto, página a página, com o tamanho de cada página respeitado e sem a interface (Arquivo → Imprimir, Ctrl+P).'
+    ]
+  },
+  {
+    target: 'labels', version: '1.1.1', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
+    melhorias: [
+      'Ctrl+P e Imprimir agora usam a infraestrutura de impressão compartilhada; a folha impressa continua apenas com as etiquetas.'
+    ]
+  },
+  {
+    target: 'texts', version: '1.0.1', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
+    melhorias: [
+      'Imprimir só o texto, sem menus ou painéis (Arquivo → Imprimir, Ctrl+P).'
+    ]
+  },
+  {
+    target: 'calc', version: '1.0.1', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
+    melhorias: [
+      'Imprimir só a planilha, sem a interface (Arquivo → Imprimir, Ctrl+P).'
+    ]
+  },
+  {
+    target: 'codes', version: '1.0.1', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
+    melhorias: [
+      'Imprimir só o código gerado, sem a interface (Arquivo → Imprimir, Ctrl+P).'
+    ]
+  },
+  {
+    target: 'split', version: '1.1.1', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
+    melhorias: [
+      'Imprimir o resumo da divisão em página própria, sem a interface; Ctrl+P e menu integrados.'
+    ]
+  },
+  {
+    target: 'draw', version: '1.1.2', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
+    melhorias: [
+      'Imprimir o desenho em escala, sem a interface (Arquivo → Imprimir, Ctrl+P).'
+    ]
+  },
+  {
+    target: 'calculator', version: '1.1.1', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
+    melhorias: [
+      'Imprimir o histórico de cálculos, sem a interface (Arquivo → Imprimir, Ctrl+P).'
+    ]
+  },
+  {
+    target: 'colors', version: '1.1.1', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
+    melhorias: [
+      'Imprimir a paleta de cores, sem a interface (Arquivo → Imprimir, Ctrl+P).'
+    ]
+  },
+  {
+    target: 'zip', version: '1.1.1', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
+    melhorias: [
+      'Imprimir a lista de conteúdo do pacote, sem a interface (Arquivo → Imprimir, Ctrl+P).'
+    ]
+  },
+  {
+    target: 'compare', version: '1.1.1', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
+    melhorias: [
+      'Imprimir o resultado da comparação, sem a interface (Arquivo → Imprimir, Ctrl+P).'
+    ]
+  },
+  {
+    target: 'code', version: '1.0.1', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
+    melhorias: [
+      'Imprimir o código, sem a interface (Arquivo → Imprimir, Ctrl+P).'
+    ]
+  },
+  {
+    target: 'launcher', version: '2.2.0', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
+    melhorias: [
+      'Item Imprimir no menu de contexto e Ctrl+P na lista de atalhos dos apps com conteúdo imprimível.',
+      'Infraestrutura compartilhada de impressão nativa: só o conteúdo escolhido é impresso, nunca a interface.'
+    ]
+  },
+  {
     target: 'versos', version: '1.0.1', build: '28.10.26.235345', releaseDate: '2026-10-28', releaseTime: '23:53:45',
     melhorias: [
       'No celular, o player musical fica compacto depois da importação: a prévia volta a ocupar o espaço principal.',

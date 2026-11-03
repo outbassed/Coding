@@ -26,6 +26,7 @@ import PrintSheets from './components/PrintSheets.vue';
 import { downloadBytes, exportSheetsToPdf, pdfFileName } from './raster';
 import type { BulkRow } from './bulk';
 import { useLabelsEditor } from './useLabelsEditor';
+import { usePrint } from '../shared/print/usePrint';
 import { MAX_COPIES, PAPER, toInt, type LabelItem, type LabelsState } from './model';
 
 useSettingsStore();
@@ -165,6 +166,8 @@ async function printSheets(): Promise<void> {
   await settled();
   window.print();
 }
+// Imprimir pelo menu do app e por Ctrl+P (a infraestrutura compartilhada cuida do atalho): a folha da tela tem CSS de impressão próprio (PrintSheets).
+usePrint({ kind: 'dom', print: printSheets, enabled: () => !blocked.value, reason: () => layout.value.warning || 'Preencha ao menos um item para imprimir.', notify: (m) => announce(m) });
 async function downloadPdf(): Promise<void> {
   exportError.value = ''; exportMessage.value = '';
   if (blocked.value) { announce(layout.value.warning || 'Preencha ao menos um item para exportar.'); return; }
@@ -191,7 +194,6 @@ function onKey(event: KeyboardEvent): void {
   if (key === 'z' && !event.shiftKey) { event.preventDefault(); editor.undo(); }
   else if ((key === 'z' && event.shiftKey) || key === 'y') { event.preventDefault(); editor.redo(); }
   else if (key === 's') { event.preventDefault(); void editor.saveNow(); }
-  else if (key === 'p' && !event.shiftKey && !event.altKey) { event.preventDefault(); void printSheets(); }
 }
 onMounted(() => document.addEventListener('keydown', onKey));
 onBeforeUnmount(() => document.removeEventListener('keydown', onKey));

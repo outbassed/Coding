@@ -9,6 +9,9 @@ import type { LegacyImage } from '../../storage/documents';
 import { FONTS, MAX_LAYERS, MAX_SIDE, PRESETS, lid, noFilters, usedImageIds, type Filters, type Layer, type LayerKind } from './model';
 import { exportComposition, hitTest, renderComposition, type Bitmaps } from './render';
 import { imagesKind, imagesTemplates } from './kind';
+import { usePrint } from '../../shared/print/usePrint';
+import PrintButton from '../../shared/print/PrintButton.vue';
+import type { PrintJob } from '../../shared/print/print';
 
 const doc = useDocument({
   kind: imagesKind, templates: imagesTemplates, path: '/apps/imagens/', withImages: true,
@@ -326,6 +329,20 @@ async function exportAs(type: 'png' | 'jpeg' | 'webp'): Promise<void> {
   } catch (e) { note((e as Error).message); }
   finally { busy.value = false; }
 }
+
+// ---- imprimir: só a composição final, na proporção da imagem (sem interface, seleção ou áreas vazias) ----
+const PRINT_MAX_SIDE = 3508; // ~300 dpi em A4: não vale gerar mais que isso para a impressora
+function printJob(): PrintJob | null {
+  const s = state.value;
+  const k = Math.min(1, PRINT_MAX_SIDE / Math.max(s.width, s.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(s.width * k)); canvas.height = Math.max(1, Math.round(s.height * k));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  renderComposition(ctx, s, bitmaps.value, canvas.width / s.width, 'jpeg'); // 'jpeg': fundo transparente sai branco no papel
+  return { title: s.name || 'Imagem', pages: [{ el: canvas, aspect: s.width / s.height }] };
+}
+usePrint({ kind: 'built', build: printJob, buildSync: printJob, notify: note });
 void nextTick;
 </script>
 
@@ -415,6 +432,7 @@ void nextTick;
         <button type="button" class="btn" :disabled="busy" data-testid="export-png" @click="exportAs('png')">Baixar PNG</button>
         <button type="button" class="btn" :disabled="busy" data-testid="export-jpg" @click="exportAs('jpeg')">Baixar JPG</button>
         <button type="button" class="btn" :disabled="busy" data-testid="export-webp" @click="exportAs('webp')">Baixar WebP</button>
+        <PrintButton />
         <label class="ed-field"><span class="ed-label">Qualidade JPG/WebP ({{ quality }}%)</span><input v-model.number="quality" type="range" min="40" max="100" class="range" /></label>
       </FileTab>
     </template>

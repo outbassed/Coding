@@ -23,6 +23,7 @@ import { htmlToBlocks } from './blocks';
 import { buildDocx } from './docx';
 import { textToPdf } from './pdfExport';
 import { downloadBytes } from '../labels/raster';
+import { usePrint } from '../shared/print/usePrint';
 
 useSettingsStore();
 const root = ref<HTMLElement | null>(null);
@@ -620,6 +621,8 @@ function exportTxt(): void {
   message('Texto exportado.');
 }
 function printDocument(): void { window.print(); }
+// Ctrl+P e o menu do app usam a mesma impressão da folha (CSS @media print abaixo: só o texto, sem barras nem painéis).
+usePrint({ kind: 'dom', print: printDocument });
 
 // --- tabelas, quebra de página e posição de imagem ---
 function currentCell(): HTMLTableCellElement | null {

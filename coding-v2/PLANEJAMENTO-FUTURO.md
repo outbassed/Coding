@@ -55,7 +55,7 @@ Cada item tem um **ID** (por exemplo `NEW-02`) para ser citado em dependências.
 | Aplicativos no catálogo | **16**: Etiquetas, Texto, Planilhas, Imagens, Editor PDF, QR / Barras, Sorteio, Racha-conta, Calculadora, Estúdio de Cores, Compactador ZIP, Comparador de Arquivos, Código, Visualizador, Pintar e Versos. Todos com editor real; o catálogo marca todos como *prévia*. |
 | Launcher | Versão **2.1.0** na base de desenvolvimento (Início em resumo, Catálogo em vitrine, Meus apps só com os instalados offline, Central de Versões, Ajustes em abas). |
 | Publicação | **Nada foi publicado oficialmente.** O Coding 1.0 (arquivos da raiz) continua sendo a versão publicada. Há um PR de release em rascunho (#18) **aguardando autorização do dono**. |
-| Em desenvolvimento | `DIR-04` (contrato de edição direta e Etiquetas editável na folha, PR #26). Os lotes 1 e 2 de layouts (#23 e #25) foram mesclados na base em 01/11/2026. |
+| Em desenvolvimento | `PRT-01` (impressão nativa padronizada, **prioridade alta**, PR separado — ver [IMPRESSAO.md](./IMPRESSAO.md)); `DIR-04` (contrato de edição direta e Etiquetas editável na folha, PR #26). Os lotes 1 e 2 de layouts (#23 e #25) foram mesclados na base em 01/11/2026. |
 | Novos projetos pedidos | Coding Navegar, Coding Fontes, Editor SVG, edição direta e reformulação dos demais aplicativos. |
 | Limite de validação | Testes automáticos só em **Chromium** (CI). Safari/iOS, Firefox e aparelhos reais **não foram validados**. |
 
@@ -341,6 +341,15 @@ Todas 📝 **Pendência documentada**, **verificadas no código em 01/11/2026 co
 | PLT-12 | Páginas de `/versoes/` não fazem parte do pacote offline | LAUNCHER-REFORMULADO.md | Limitação conhecida | P3 | — |
 | PLT-13 | Instalar como aplicativo PWA em aparelhos reais; dois apps instalados da mesma origem; não garantir compartilhamento de dados no iOS antes de comprovar | TECHNICAL-PLAN.md | 📝 | P2 | PLT-01 |
 | PLT-14 | Sem capturas de tela de aparelhos **reais**; o CI fotografa Chromium em tamanhos de aparelhos | POST | Parcial: ver DONE-11 | P2 | PLT-08 |
+
+
+### Impressão nativa (pedido do dono, prioridade alta)
+
+| ID | Item | Origem | Status | Prioridade | Dependências |
+| --- | --- | --- | --- | --- | --- |
+| PRT-01 | **Impressão nativa padronizada em todos os apps com conteúdo imprimível**: janela de impressão do navegador, só o conteúdo (sem interface), orientação/proporção/margens/várias páginas, composição final em Imagens e Pintar, cada formato do Visualizador tratado individualmente, Ctrl+P e item no menu, e teste do PDF real. Infraestrutura em `src/shared/print/`; auditoria app a app em [IMPRESSAO.md](./IMPRESSAO.md) | Pedido do dono (03/11/2026) | 🛠 Em PR separado | **P0 (alta)** | — |
+| PRT-02 | Papel configurável pelo usuário (A3/Carta/A5), margens ajustáveis e cabeçalho/rodapé opcionais | IMPRESSAO.md | 💡 | P3 | PRT-01 |
+| PRT-03 | Validar a janela de impressão em Safari/iOS e Firefox e em impressoras reais | IMPRESSAO.md | 📝 | P1 | PRT-01, PLT-08 |
 
 ---
 

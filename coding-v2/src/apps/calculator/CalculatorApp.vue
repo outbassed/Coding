@@ -10,6 +10,10 @@ import { backspace, clearAll, clearEntry, defineVariable, equals, historyText, i
 import { plainNumber } from './format';
 import { calculatorKind, calculatorTemplates } from './kind';
 import type { AngleUnit } from './parser';
+import { usePrint } from '../../shared/print/usePrint';
+import { textPage } from '../../shared/print/pages';
+import type { PrintJob } from '../../shared/print/print';
+import PrintButton from '../../shared/print/PrintButton.vue';
 
 const doc = useDocument({ kind: calculatorKind, templates: calculatorTemplates, path: '/apps/calculadora/' });
 const { state } = doc;
@@ -134,6 +138,9 @@ function reuseValue(index: number): void {
   doc.say('Resultado inserido na expressão.');
 }
 function clearHistory(): void { state.value.history = []; doc.say('Histórico apagado.'); }
+// Imprimir: o histórico de contas (o mesmo texto da exportação).
+function calcPrint(): PrintJob | null { const t = textPage(state.value.name || 'Calculadora', historyText(state.value)); return { title: state.value.name || 'Calculadora', pages: [t.page] }; }
+usePrint({ kind: 'built', build: calcPrint, enabled: () => state.value.history.length > 0, reason: () => 'O histórico está vazio: faça uma conta para imprimir.', notify: (m) => doc.say(m) });
 function exportHistory(): void { downloadText(historyText(state.value), safeFileName(state.value.name, 'calculadora') + '.txt'); doc.say('Histórico exportado.'); }
 const varName = ref('');
 const varValue = ref('');
@@ -265,6 +272,7 @@ const digitsRows = [['7', '8', '9'], ['4', '5', '6'], ['1', '2', '3']];
           </div>
 
           <FileTab v-else :templates="calculatorTemplates" @new="doc.newFrom">
+        <PrintButton />
             <button type="button" class="btn" :disabled="!state.history.length" data-testid="export-history" @click="exportHistory">Exportar histórico (TXT)</button>
           </FileTab>
         </div>

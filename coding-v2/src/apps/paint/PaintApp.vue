@@ -11,6 +11,9 @@ import { hexToRgba, layerId, MAX_LAYERS, MAX_SIDE, MIN_SIDE, type PaintLayer } f
 import { boxFrom, constrainLine, stamps, type Pt } from './shapes';
 import { UndoStack } from './undo';
 import { paintKind, paintTemplates } from './kind';
+import { usePrint } from '../../shared/print/usePrint';
+import PrintButton from '../../shared/print/PrintButton.vue';
+import type { PrintJob } from '../../shared/print/print';
 
 const doc = useDocument({
   kind: paintKind, templates: paintTemplates, path: '/apps/pintar/', withImages: true,
@@ -678,6 +681,29 @@ async function exportAs(type: 'png' | 'jpeg' | 'webp'): Promise<void> {
   } catch (e) { note((e as Error).message); }
   finally { busy.value = false; }
 }
+
+// ---- imprimir: só o desenho final (todas as camadas visíveis sobre o fundo), na proporção da tela ----
+const PRINT_MAX_SIDE = 3508;
+function printJob(): PrintJob | null {
+  const w = state.value.width, h = state.value.height;
+  const full = makeCanvas();
+  const g = full.getContext('2d');
+  if (!g) return null;
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h); // fundo transparente sai branco no papel
+  composeInto(g, w, h, true, true);
+  g.globalAlpha = 1;
+  const k = Math.min(1, PRINT_MAX_SIDE / Math.max(w, h));
+  let out = full;
+  if (k < 1) {
+    out = makeCanvas(Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k)));
+    const og = out.getContext('2d');
+    if (!og) return null;
+    og.imageSmoothingQuality = 'high';
+    og.drawImage(full, 0, 0, out.width, out.height);
+  }
+  return { title: state.value.name || 'Desenho', pages: [{ el: out, aspect: w / h }] };
+}
+usePrint({ kind: 'built', build: printJob, buildSync: printJob, notify: note });
 void nextTick;
 </script>
 
@@ -768,6 +794,7 @@ void nextTick;
         <button type="button" class="btn" :disabled="busy" data-testid="export-png" @click="exportAs('png')">Baixar PNG</button>
         <button type="button" class="btn" :disabled="busy" data-testid="export-jpg" @click="exportAs('jpeg')">Baixar JPG</button>
         <button type="button" class="btn" :disabled="busy" data-testid="export-webp" @click="exportAs('webp')">Baixar WebP</button>
+        <PrintButton />
         <label class="ed-field"><span class="ed-label">Qualidade JPG/WebP ({{ quality }}%)</span><input v-model.number="quality" type="range" min="40" max="100" class="range" /></label>
         <template #after><p v-if="message" class="ed-hint" role="status" data-testid="paint-message">{{ message }}</p></template>
       </FileTab>

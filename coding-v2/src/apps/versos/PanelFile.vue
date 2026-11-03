@@ -5,6 +5,8 @@ import type { DocTemplate } from '../../editors/templates';
 import type { VersosView } from './controller';
 import type { ExportKind } from './model';
 import { versosTemplates } from './kind';
+import { printScope } from './print';
+import { requestPrint } from '../../shared/print/print';
 
 /** Aba "Arquivo": exportação (PNG e ZIP) e novo projeto a partir de modelos. Cada cena sai na própria resolução. */
 const props = defineProps<{ v: VersosView }>();
@@ -17,6 +19,7 @@ const percent = computed(() => (props.v.progress && props.v.progress.total ? Mat
 const templates = versosTemplates as readonly DocTemplate<unknown>[];
 function clampInt(n: number, max: number): number { return Math.min(max, Math.max(1, Math.round(Number.isFinite(n) ? n : 1))); }
 function range(): { from: number; to: number } { return { from: clampInt(from.value, total.value), to: clampInt(to.value || total.value, total.value) }; }
+function printScenes(scope: 'current' | 'all'): void { printScope.value = scope; void requestPrint(); }
 const run = (scope: 'current' | 'all' | 'range', as: 'png' | 'zip'): Promise<boolean> => props.v.runExport({ kind: kind.value, scope, as, ...(scope === 'range' ? range() : {}) });
 </script>
 
@@ -33,6 +36,11 @@ const run = (scope: 'current' | 'all' | 'range', as: 'png' | 'zip'): Promise<boo
         <button type="button" class="btn btn-app" :disabled="v.exporting" data-testid="export-scene" @click="run('current', 'png')">Exportar cena {{ v.sceneIndex + 1 }} (PNG)</button>
         <button type="button" class="btn" :disabled="v.exporting || total < 2" data-testid="export-zip" @click="run('all', 'zip')">Todas as cenas em ZIP</button>
         <button type="button" class="btn" :disabled="v.exporting || total < 2" data-testid="export-all-png" @click="run('all', 'png')">Todas em PNGs separados</button>
+      </div>
+
+      <div class="ed-row">
+        <button type="button" class="btn" data-testid="print-app" title="Ctrl+P" @click="printScenes('current')">Imprimir cena {{ v.sceneIndex + 1 }}</button>
+        <button type="button" class="btn" :disabled="total < 2" data-testid="print-all" @click="printScenes('all')">Imprimir todas as cenas</button>
       </div>
 
       <div v-if="total > 1" class="range">

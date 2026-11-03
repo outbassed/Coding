@@ -10,6 +10,10 @@ import type { LegacyImage } from '../../storage/documents';
 import { savingsText, totalSize, zipFileName, type ZipState } from './model';
 import { zipKind, zipTemplates } from './kind';
 import { buildZip, canCompress, canDecompress, extractEntry, listZip, MAX_ENTRIES, MAX_ENTRY_BYTES, MAX_TOTAL_BYTES, safeEntryName, uniqueName, ZipError, type ZipEntry, type ZipListing } from './zip';
+import { usePrint } from '../../shared/print/usePrint';
+import { textPage } from '../../shared/print/pages';
+import type { PrintJob } from '../../shared/print/print';
+import PrintButton from '../../shared/print/PrintButton.vue';
 
 const doc = useDocument<ZipState>({
   kind: zipKind, templates: zipTemplates, path: '/apps/zip/', withImages: true,
@@ -161,8 +165,11 @@ async function verify(): Promise<void> {
 }
 function closeZip(): void { opened.value = null; verified.value = null; }
 const dateFmt = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+function listLines(): string[] { return [state.value.name, '', ...state.value.files.map((f) => f.path + '\t' + f.size + ' bytes')]; }
+// Imprimir: a lista de arquivos do projeto (o mesmo texto da exportação).
+usePrint({ kind: 'built', build: () => ({ title: state.value.name || 'Arquivos', pages: [textPage(state.value.name || 'Arquivos', listLines().join('\n')).page] }), enabled: () => state.value.files.length > 0, reason: () => 'Adicione arquivos ao projeto para imprimir a lista.', notify: (m) => doc.say(m) });
 function listText(): void {
-  const lines = [state.value.name, '', ...state.value.files.map((f) => f.path + '\t' + f.size + ' bytes')];
+  const lines = listLines();
   downloadText(lines.join('\n') + '\n', safeFileName(state.value.name, 'arquivos') + '.txt');
   doc.say('Lista de arquivos exportada.');
 }
@@ -255,6 +262,7 @@ function listText(): void {
           </div>
 
           <FileTab v-else :templates="zipTemplates" @new="doc.newFrom">
+        <PrintButton />
             <button type="button" class="btn" :disabled="!state.files.length" data-testid="export-list" @click="listText">Lista de arquivos (TXT)</button>
           </FileTab>
         </div>
