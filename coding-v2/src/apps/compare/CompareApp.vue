@@ -215,7 +215,7 @@ const rowText = (side: { n: number; text: string } | undefined): string => (side
             <summary class="btn">Arquivo</summary>
             <div class="filemenu-body">
               <FileTab :templates="compareTemplates" @new="doc.newFrom">
-        <PrintButton />
+                <PrintButton />
                 <button type="button" class="btn" :disabled="!result || result.identical" data-testid="export-diff" @click="exportDiff">Diferenças (.diff)</button>
                 <button type="button" class="btn" :disabled="!result || result.identical" data-testid="copy-diff" @click="copyDiff">Copiar diferenças</button>
                 <button type="button" class="btn" :disabled="status === 'vazio'" data-testid="export-report" @click="exportReport">Relatório (TXT)</button>

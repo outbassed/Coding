@@ -114,9 +114,15 @@ export const versionRecords: readonly VersionRecord[] = [
   },
   {
     target: 'launcher', version: '2.2.0', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
+    novidades: [
+      'Impressão nativa padronizada: todos os apps com conteúdo imprimível têm Arquivo → Imprimir e Ctrl+P, e imprimem só o conteúdo, nunca a interface.'
+    ],
     melhorias: [
-      'Item Imprimir no menu de contexto e Ctrl+P na lista de atalhos dos apps com conteúdo imprimível.',
-      'Infraestrutura compartilhada de impressão nativa: só o conteúdo escolhido é impresso, nunca a interface.'
+      'Item Imprimir no menu de contexto e Ctrl+P na lista de atalhos dos apps com conteúdo imprimível.'
+    ],
+    alteracoesTecnicas: [
+      'Infraestrutura compartilhada de impressão em src/shared/print (provedores built e dom, @page por tamanho e orientação).',
+      'Testes automatizados geram o PDF real e conferem páginas, tamanho, conteúdo e ausência de elementos da interface.'
     ]
   },
   {

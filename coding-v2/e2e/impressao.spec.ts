@@ -212,7 +212,7 @@ test.describe('Impressão · Visualizador (cada formato)', () => {
     const pages = await analyze(page, await printPdf(page));
     expect(pages.length).toBeGreaterThanOrEqual(2); // 140 linhas não cabem numa folha
     pages.forEach((p) => { near(p.w, A4.w); near(p.h, A4.h); });
-    const all = pages.map((p) => p.text).join(' ');
+    const all = pages.map((p) => p.text).join(' ').replace(/\s+/g, ' '); // o pdf.js separa as palavras por espaços variáveis
     expect(all).toContain('notas.txt');
     expect(all).toContain('linha 1 de teste');
     expect(all).toContain('linha 140 de teste');
@@ -284,7 +284,9 @@ test.describe('Impressão · demais aplicativos', () => {
 
   test('Comparador: relatório e diferenças como texto', async ({ page }) => {
     await openApp(page, '/apps/comparador/?modelo=versoes');
-    await printFromFileTab(page);
+    await page.getByTestId('file-menu').locator('summary').click(); // o Comparador tem o menu Arquivo próprio, sem abas
+    await page.getByTestId('print-app').first().click();
+    await expect.poll(() => printed(page)).toBe(1);
     const pages = await analyze(page, await printPdf(page));
     expect(pages.length).toBeGreaterThanOrEqual(1);
     expect(pages[0]!.text).toContain('Resultado');
