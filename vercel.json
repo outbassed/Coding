@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm ci --prefix coding-v2 --no-audit --no-fund",
+  "buildCommand": "npm run build --prefix coding-v2",
+  "outputDirectory": "coding-v2/dist"
+}
