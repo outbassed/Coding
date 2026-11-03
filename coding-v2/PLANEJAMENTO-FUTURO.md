@@ -53,8 +53,8 @@ Cada item tem um **ID** (por exemplo `NEW-02`) para ser citado em dependências.
 | Área | Situação |
 | --- | --- |
 | Aplicativos no catálogo | **16**: Etiquetas, Texto, Planilhas, Imagens, Editor PDF, QR / Barras, Sorteio, Racha-conta, Calculadora, Estúdio de Cores, Compactador ZIP, Comparador de Arquivos, Código, Visualizador, Pintar e Versos. Todos com editor real; o catálogo marca todos como *prévia*. |
-| Launcher | Versão **2.1.0** na base de desenvolvimento (Início em resumo, Catálogo em vitrine, Meus apps só com os instalados offline, Central de Versões, Ajustes em abas). |
-| Publicação | **Nada foi publicado oficialmente.** O Coding 1.0 (arquivos da raiz) continua sendo a versão publicada. Há um PR de release em rascunho (#18) **aguardando autorização do dono**. |
+| Launcher | Versão **2.2.0** (publicada) (Início em resumo, Catálogo em vitrine, Meus apps só com os instalados offline, Central de Versões, Ajustes em abas). |
+| Publicação | **O Coding 2.0 está publicado em https://codingtxt.vercel.app/ desde 03/11/2026** (Launcher 2.2.0, compilação 03.11.26.110835), com autorização do dono para publicar versões concluídas e validadas. A Vercel usa o `vercel.json` da raiz (`coding-v2/dist`). O PR #18 (release antigo) não foi usado como fonte. |
 | Em desenvolvimento | `PRT-01` (impressão nativa padronizada, **prioridade alta**, PR separado — ver [IMPRESSAO.md](./IMPRESSAO.md)); `DIR-04` (contrato de edição direta e Etiquetas editável na folha, PR #26). Os lotes 1 e 2 de layouts (#23 e #25) foram mesclados na base em 01/11/2026. |
 | Novos projetos pedidos | Coding Navegar, Coding Fontes, Editor SVG, edição direta e reformulação dos demais aplicativos. |
 | Limite de validação | Testes automáticos só em **Chromium** (CI). Safari/iOS, Firefox e aparelhos reais **não foram validados**. |
@@ -336,7 +336,7 @@ Todas 📝 **Pendência documentada**, **verificadas no código em 01/11/2026 co
 | PLT-07 | Documentos de formatos antigos do 1.0: conversões aproximadas (molduras, balões, adesivos de imagem e alguns filtros do Imagens do 1.0 não são convertidos) | POST | Limitação conhecida | P3 | — |
 | PLT-08 | **Testes em outros navegadores e aparelhos reais**: Safari/iOS, Firefox, teclados virtuais reais, simulação real de cota cheia (hoje o teste usa um erro simulado) | README, ATU | 📝 | P1 | — |
 | PLT-09 | **Risco de voltar atrás de versão**: abrir e salvar um documento criado com campos novos em um build anterior descarta esses campos; recomendado backup antes de alternar versões | ATU | Aviso conhecido; mitigar com testes de migração em toda mudança de formato | P0 (regra) | — |
-| PLT-10 | **Publicação em produção do Coding 2.0 (PR #18, Launcher 2.0.1 com PWA/offline no domínio oficial)** | PR #18 | **Aguarda autorização explícita do dono.** Nada será publicado por conta própria. | P0 | PLT-01, PLT-08 |
+| PLT-10 | **Publicação em produção do Coding 2.0** | Dono | ✅ Publicado em 03/11/2026 a partir da base validada (merge em `main`). O PWA/offline segue **desligado** no domínio oficial. | P0 | PLT-01, PLT-08 |
 | PLT-11 | Datas de lançamento do registro inicial de versões vêm dos commits reais e **devem ser revistas na publicação oficial** | LAUNCHER-REFORMULADO.md | 📝 | P1 (na publicação) | PLT-10 |
 | PLT-12 | Páginas de `/versoes/` não fazem parte do pacote offline | LAUNCHER-REFORMULADO.md | Limitação conhecida | P3 | — |
 | PLT-13 | Instalar como aplicativo PWA em aparelhos reais; dois apps instalados da mesma origem; não garantir compartilhamento de dados no iOS antes de comprovar | TECHNICAL-PLAN.md | 📝 | P2 | PLT-01 |
