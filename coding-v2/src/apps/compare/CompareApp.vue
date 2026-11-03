@@ -11,6 +11,10 @@ import type { LegacyImage } from '../../storage/documents';
 import { compareBytes, compareText, decodeText, hexWindow, sha256Hex, unifiedDiff, type BinaryResult, type Row } from './diff';
 import { bothTextual, collapseRows, MAX_BINARY_BYTES, MAX_TEXT_CHARS, textSource, type CompareState, type Source } from './model';
 import { compareKind, compareTemplates } from './kind';
+import { usePrint } from '../../shared/print/usePrint';
+import { textPage } from '../../shared/print/pages';
+import type { PrintJob } from '../../shared/print/print';
+import PrintButton from '../../shared/print/PrintButton.vue';
 
 const doc = useDocument<CompareState>({
   kind: compareKind, templates: compareTemplates, path: '/apps/comparador/', withImages: true,
@@ -165,15 +169,24 @@ async function copyDiff(): Promise<void> {
   try { await navigator.clipboard.writeText(diffText()); doc.say('Diferenças copiadas.'); }
   catch { doc.say('Não foi possível copiar automaticamente. Use Exportar.'); }
 }
-function exportReport(): void {
+function reportText(): string {
   const s = state.value, d = digest.value, r = result.value;
   const lines = [s.name, '', 'A: ' + s.a.name + ' (' + formatBytes(s.a.size) + ')', 'B: ' + s.b.name + ' (' + formatBytes(s.b.size) + ')', ''];
   lines.push('Resultado: ' + statusText.value);
   if (r) lines.push('Linhas: A ' + r.stats.linesA + ', B ' + r.stats.linesB + ' · iguais ' + r.stats.same + ', trocadas ' + r.stats.changed + ', removidas ' + r.stats.removed + ', acrescentadas ' + r.stats.added + ' · semelhança ' + r.stats.similarity + '%');
   if (d?.binary && !d.binary.identical) lines.push('Primeira diferença no byte ' + d.binary.firstDifference + ' · ' + d.binary.differentBytes + ' bytes diferentes');
   if (d) lines.push('', 'SHA-256 A: ' + d.shaA, 'SHA-256 B: ' + d.shaB);
-  downloadText(lines.join('\n') + '\n', safeFileName(s.name, 'comparacao') + '-relatorio.txt');
+  return lines.join('\n') + '\n';
+}
+function exportReport(): void {
+  downloadText(reportText(), safeFileName(state.value.name, 'comparacao') + '-relatorio.txt');
   doc.say('Relatório exportado.');
+}
+// Imprimir: o relatório (arquivos, resultado, somas) e as diferenças, só como texto.
+usePrint({ kind: 'built', build: () => comparePrint(), enabled: () => !!(state.value.a.name || state.value.b.name), reason: () => 'Escolha os dois lados para imprimir a comparação.', notify: (m) => doc.say(m) });
+function comparePrint(): PrintJob | null {
+  const t = textPage(state.value.name || 'Comparação', reportText() + '\n' + diffText());
+  return { title: state.value.name || 'Comparação', pages: [t.page] };
 }
 const rowText = (side: { n: number; text: string } | undefined): string => (side ? side.text : '');
 </script>
@@ -202,6 +215,7 @@ const rowText = (side: { n: number; text: string } | undefined): string => (side
             <summary class="btn">Arquivo</summary>
             <div class="filemenu-body">
               <FileTab :templates="compareTemplates" @new="doc.newFrom">
+                <PrintButton />
                 <button type="button" class="btn" :disabled="!result || result.identical" data-testid="export-diff" @click="exportDiff">Diferenças (.diff)</button>
                 <button type="button" class="btn" :disabled="!result || result.identical" data-testid="copy-diff" @click="copyDiff">Copiar diferenças</button>
                 <button type="button" class="btn" :disabled="status === 'vazio'" data-testid="export-report" @click="exportReport">Relatório (TXT)</button>

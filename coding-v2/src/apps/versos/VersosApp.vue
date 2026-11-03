@@ -13,6 +13,12 @@ import PlayerBar from './PlayerBar.vue';
 import SceneList from './SceneList.vue';
 import StageView from './StageView.vue';
 import TextProps from './TextProps.vue';
+import { ensureFonts } from './fonts';
+import { fontsOf, renderSceneCanvas } from './export';
+import { printScope } from './print';
+import { canvasPage } from '../../shared/print/pages';
+import { usePrint } from '../../shared/print/usePrint';
+import type { PrintJob } from '../../shared/print/print';
 
 /**
  * Versos: composição tipográfica para imagens (letras de música, frases, citações, títulos).
@@ -23,6 +29,22 @@ const doc = useDocument({
   imagesFor: (state, images) => { const used = usedImageIds(state); return images.filter((i) => used.has(i.id)); }
 });
 const v = createVersos(doc);
+// Imprimir: a composição final de cada cena (fundo e textos), na proporção da cena, uma cena por página. Sem painéis, lista de cenas ou alças.
+async function versosPrintJob(): Promise<PrintJob | null> {
+  const all = printScope.value === 'all';
+  printScope.value = 'current'; // o escopo vale para um pedido só; Ctrl+P volta a imprimir a cena aberta
+  const scenes = all ? [...v.state.scenes] : [v.scene];
+  if (!scenes.length) return null;
+  await ensureFonts(fontsOf(scenes));
+  const pages = [];
+  for (const scene of scenes) {
+    const { canvas } = await renderSceneCanvas(scene, async (id) => v.cache.loadFull(id));
+    pages.push(canvasPage(canvas));
+    if (all) await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
+  return { title: v.state.name || 'Versos', pages };
+}
+usePrint({ kind: 'built', build: versosPrintJob, notify: (m) => doc.say(m) });
 const tab = ref('cena');
 const tabs = [{ id: 'cena', label: 'Cena' }, { id: 'textos', label: 'Textos' }, { id: 'estilos', label: 'Estilos' }, { id: 'arquivo', label: 'Arquivo' }];
 const fileInput = ref<HTMLInputElement | null>(null);

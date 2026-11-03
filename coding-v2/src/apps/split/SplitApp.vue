@@ -11,6 +11,9 @@ import MoneyInput from './MoneyInput.vue';
 import { formatMoney } from './money';
 import { MAX_EXPENSES, MAX_PEOPLE, owedFor, settle, sid, summarize, summaryText, type Expense, type SplitMode } from './model';
 import { splitKind, splitTemplates } from './kind';
+import { usePrint } from '../../shared/print/usePrint';
+import { requestPrint } from '../../shared/print/print';
+import { splitPrintPage } from './print';
 
 const doc = useDocument({ kind: splitKind, templates: splitTemplates, path: '/apps/racha-conta/' });
 const { state } = doc;
@@ -90,7 +93,9 @@ function exportCsv(): void {
   downloadText(toCsv(rows), safeFileName(state.value.name, 'racha-conta') + '.csv', 'text/csv;charset=utf-8');
   doc.say('Planilha CSV exportada.');
 }
-function printSummary(): void { window.print(); }
+// Imprimir: um resumo próprio (total, saldo por pessoa, quem paga a quem e despesas), sem a interface do app.
+usePrint({ kind: 'built', build: () => ({ title: state.value.name || 'Racha-conta', pages: [splitPrintPage(state.value)] }), buildSync: () => ({ title: state.value.name || 'Racha-conta', pages: [splitPrintPage(state.value)] }), enabled: () => state.value.people.length > 0, reason: () => 'Adicione pessoas e despesas para imprimir o resumo.', notify: (m) => doc.say(m) });
+function printSummary(): void { void requestPrint(); }
 </script>
 
 <template>
@@ -106,7 +111,7 @@ function printSummary(): void { window.print(); }
             <FileTab :templates="splitTemplates" @new="doc.newFrom">
               <button type="button" class="btn" data-testid="export-csv" @click="exportCsv">Exportar CSV</button>
               <button type="button" class="btn" data-testid="export-txt" @click="exportTxt">Exportar resumo (TXT)</button>
-              <button type="button" class="btn" @click="printSummary">Imprimir / PDF</button>
+              <button type="button" class="btn" data-testid="print-app" @click="printSummary">Imprimir / PDF</button>
             </FileTab>
           </div>
         </details>
@@ -176,7 +181,7 @@ function printSummary(): void { window.print(); }
           <FileTab :templates="splitTemplates" @new="doc.newFrom">
             <button type="button" class="btn" data-testid="export-csv" @click="exportCsv">Exportar CSV</button>
             <button type="button" class="btn" data-testid="export-txt" @click="exportTxt">Exportar resumo (TXT)</button>
-            <button type="button" class="btn" @click="printSummary">Imprimir / PDF</button>
+            <button type="button" class="btn" data-testid="print-app" @click="printSummary">Imprimir / PDF</button>
           </FileTab>
         </section>
       </div>
@@ -256,5 +261,4 @@ function printSummary(): void { window.print(); }
   .people { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
   .md { grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); align-items: start; }
 }
-@media print { .rc { display: block; padding: 0; } .exp { border: 0; } .filemenu, .ed-row { display: none; } }
 </style>

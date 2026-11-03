@@ -9,6 +9,7 @@ import { renderCode, svgToPng, SYMBOLOGIES, type Rendered } from './render';
 import { cid, MAX_ITEMS, MAX_STYLE_PRESETS, normalizeStyle, type CodeItem } from './model';
 import { buildEmail, buildPhone, buildSms, buildUrl, buildVcard, buildWifi, type Built, type WifiSecurity } from './content';
 import { codesKind, codesTemplates } from './kind';
+import { usePrint } from '../../shared/print/usePrint';
 
 const doc = useDocument({ kind: codesKind, templates: codesTemplates, path: '/apps/qr/' });
 const { state } = doc;
@@ -57,6 +58,7 @@ function printSheet(): void {
   if (!sheet.value.length) { doc.say('Nenhum código válido para imprimir.'); return; }
   window.print();
 }
+usePrint({ kind: 'dom', print: printSheet, enabled: () => sheet.value.length > 0, reason: () => 'Nenhum código válido para imprimir.', notify: (m) => doc.say(m) });
 // assistente: monta o conteúdo de um QR a partir de campos
 type AssistKind = 'url' | 'wifi' | 'email' | 'phone' | 'sms' | 'vcard';
 const ASSIST_KINDS: { id: AssistKind; name: string }[] = [{ id: 'url', name: 'Site' }, { id: 'wifi', name: 'Wi-Fi' }, { id: 'email', name: 'E-mail' }, { id: 'phone', name: 'Telefone' }, { id: 'sms', name: 'SMS' }, { id: 'vcard', name: 'Contato (vCard)' }];

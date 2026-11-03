@@ -12,6 +12,10 @@ import { samplePdf } from './sample';
 import PdfThumb from './PdfThumb.vue';
 import { MAX_ANNOTATIONS, MAX_ANNOTATION_IMAGE_BYTES, MAX_IMAGE_ANNOTATIONS, MAX_NEW_PAGES, MAX_PAGES, MAX_PDF_BYTES, MAX_SOURCES, PAGE_FORMATS, blankSize, parseRanges, pid, thinPoints, type Annotation, type AnnotationKind, type BlankSize, type PageFormat, type PdfPage, type Rotation } from './model';
 import { pdfKind, pdfTemplates } from './kind';
+import { usePrint } from '../../shared/print/usePrint';
+import PrintButton from '../../shared/print/PrintButton.vue';
+import type { PrintJob } from '../../shared/print/print';
+import { pdfPages } from '../../shared/print/pages';
 
 const doc = useDocument({
   kind: pdfKind, templates: pdfTemplates, path: '/apps/pdf/', withImages: true,
@@ -311,6 +315,21 @@ onMounted(() => { window.addEventListener('pointermove', onMove); window.addEven
 onBeforeUnmount(() => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', stop); });
 const scalePt = computed(() => parseFloat(pageCss.value.width) / pageBox.value.w);
 
+// ---- imprimir: o documento como está no editor (páginas na ordem atual, giros e anotações), página por página ----
+async function pdfPrintJob(): Promise<PrintJob | null> {
+  if (!state.value.pages.length) return null;
+  const bytes = await buildPdf(state.value.pages, state.value.annotations, bytesOf, state.value.name);
+  const id = 'print-' + Date.now();
+  const pdf = await viewDoc(id, async () => bytes);
+  try {
+    if (pdf.numPages > 20) note('Preparando ' + Math.min(pdf.numPages, 150) + ' páginas para imprimir…');
+    const r = await pdfPages(pdf);
+    if (r.skipped) note('A impressão leva as primeiras ' + r.pages.length + ' páginas de ' + (r.pages.length + r.skipped) + '. Baixe o PDF para ter todas.');
+    return { title: state.value.name || 'Documento', pages: r.pages };
+  } finally { forgetDoc(id); }
+}
+usePrint({ kind: 'built', build: pdfPrintJob, enabled: () => state.value.pages.length > 0, reason: () => 'Abra ou crie um PDF para imprimir.', notify: note });
+
 // ---- exportar ----
 async function download(pages: PdfPage[], name: string): Promise<Uint8Array | null> {
   if (!pages.length) { fail('Nenhuma página para exportar.'); return null; }
@@ -414,6 +433,7 @@ function sourceName(src: string): string { return state.value.sources.find((s) =
       <FileTab v-else :templates="pdfTemplates" @new="doc.newFrom">
         <button type="button" class="btn btn-app" :disabled="busy || !state.pages.length" data-testid="export-pdf" @click="exportAll">{{ busy ? 'Gerando…' : 'Baixar PDF' }}</button>
         <button type="button" class="btn" :disabled="busy" @click="fileInput?.click()">Juntar outro PDF</button>
+        <PrintButton />
       </FileTab>
     </template>
 

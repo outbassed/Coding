@@ -17,6 +17,10 @@ import { highlight } from './highlight';
 import { findHits, replaceAllIn, type Hit } from './search';
 import { readProjectZip, stripCommonRoot } from './projectio';
 import { codeKind, codeTemplates } from './kind';
+import { usePrint } from '../../shared/print/usePrint';
+import { textPage } from '../../shared/print/pages';
+import type { PrintJob } from '../../shared/print/print';
+import PrintButton from '../../shared/print/PrintButton.vue';
 
 const doc = useDocument<CodeState>({
   kind: codeKind, templates: codeTemplates, path: '/apps/codigo/', withImages: true,
@@ -474,6 +478,8 @@ async function exportHtml(): Promise<void> {
   info.value = 'Página única baixada, com CSS, JavaScript e imagens usadas dentro do HTML.';
   doc.say(info.value);
 }
+// Imprimir: o arquivo aberto no editor (caminho e conteúdo), sem explorador, abas nem console.
+usePrint({ kind: 'built', build: () => { const f = current.value; return f ? { title: baseName(f.path), pages: [textPage(f.path, f.text).page] } : null; }, enabled: () => !!current.value, reason: () => 'Abra um arquivo para imprimir.', notify: (m) => doc.say(m) });
 function exportCurrent(): void {
   const f = current.value; if (!f) return;
   downloadText(f.text, baseName(f.path), 'text/plain;charset=utf-8');
@@ -569,6 +575,7 @@ const statsText = computed(() => fileCount(state.value) + ' de ' + MAX_FILES + '
       </div>
 
       <FileTab v-else :templates="codeTemplates" @new="doc.newFrom">
+        <PrintButton />
         <button type="button" class="btn" :disabled="busy" data-testid="download-zip" @click="exportZip">Baixar ZIP do projeto</button>
         <button type="button" class="btn" data-testid="download-html" @click="exportHtml">Baixar página única (.html)</button>
         <button type="button" class="btn" :disabled="!current" data-testid="download-file" @click="exportCurrent">Baixar o arquivo aberto</button>

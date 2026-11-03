@@ -42,21 +42,24 @@ test.describe('Central de Versões · rotas', () => {
     }
   });
 
-  test('Versos 1.0.1 mostra compilação nova, preserva o 1.0.0 e concorda com Detalhes', async ({ page }) => {
+  test('Versos 1.0.2 mostra compilação nova, preserva o 1.0.1 e o 1.0.0 e concorda com Detalhes', async ({ page }) => {
     const releases = recordsFor('versos', versionRecords);
-    expect(releases.map((r) => r.version).slice(0, 2)).toEqual(['1.0.1', '1.0.0']);
+    expect(releases.map((r) => r.version).slice(0, 3)).toEqual(['1.0.2', '1.0.1', '1.0.0']);
     expect(releases[0]!.build).not.toBe(releases[1]!.build);
     await page.goto('/versoes/versos/');
-    const latest = page.getByTestId('version-1.0.1');
-    await expect(latest).toContainText('Versos — 1.0.1 — ' + releases[0]!.build);
+    const latest = page.getByTestId('version-1.0.2');
+    await expect(latest).toContainText('Versos — 1.0.2 — ' + releases[0]!.build);
     await expect(page.getByTestId('version-1.0.0')).toBeVisible();
     await latest.click();
-    await expect(page.getByTestId('modal-version')).toHaveText('1.0.1');
+    await expect(page.getByTestId('modal-version')).toHaveText('1.0.2');
     await expect(page.getByTestId('modal-build')).toHaveText(releases[0]!.build);
+    await expect(page.getByTestId('modal-sec-melhorias')).toContainText('Imprimir');
+    await page.getByTestId('modal-close').click();
+    await page.getByTestId('version-1.0.1').click();
     await expect(page.getByTestId('modal-sec-correcoes')).toContainText('zoom automático');
     await page.getByTestId('modal-close').click();
     await page.goto('/launcher/#/app/versos');
-    await expect(page.getByTestId('app-version')).toHaveText('1.0.1');
+    await expect(page.getByTestId('app-version')).toHaveText('1.0.2');
     await expect(page.getByTestId('app-build')).toHaveText(releases[0]!.build);
   });
 

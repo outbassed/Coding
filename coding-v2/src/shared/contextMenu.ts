@@ -1,4 +1,6 @@
 import { findTool, type ToolId } from './catalog';
+import { PRINTABLE_APPS } from './print/apps';
+import { canPrint, installPrint, requestPrint } from './print/print';
 
 export type AppId = ToolId | 'launcher';
 export type HelpKey = readonly [description: string, shortcut: string];
@@ -137,6 +139,7 @@ export function shortcutsOf(app: AppId): HelpKey[] {
       if (action.shortcut && !keys.some((k) => k[1] === action.shortcut)) keys.push([action.label, action.shortcut]);
     }
   }
+  if (app !== 'launcher' && PRINTABLE_APPS.has(app) && !keys.some((k) => k[1] === 'Ctrl+P')) keys.push(['Imprimir', 'Ctrl+P']);
   keys.push(['Abrir menu de contexto', 'Shift+F10']);
   keys.push(['Mostrar estes atalhos', '?']);
   keys.push(['Menu original do navegador', 'Shift + botão direito']);
@@ -264,11 +267,14 @@ function menuEntries(app: AppId): Action[] {
     { label: 'Biblioteca de documentos', run: () => { location.hash = '#/documentos'; } },
     { label: 'Ajustes', run: () => { location.hash = '#/ajustes'; } }
   ];
-  return APP_ACTIONS[app].filter(action => available(action, true));
+  const actions = APP_ACTIONS[app].filter(action => available(action, true));
+  if (canPrint()) actions.push({ label: 'Imprimir', shortcut: 'Ctrl+P', run: () => { void requestPrint(); } });
+  return actions;
 }
 
 /** Menu local ao aplicativo. Mantém inputs, seleção de texto e Shift+clique direito nativos. */
 export function installContextMenu(app: AppId): void {
+  if (app !== 'launcher') installPrint(app);
   const name = app === 'launcher' ? 'Launcher' : findTool(app)?.name ?? app;
   const menu = document.createElement('div');
   menu.className = 'coding-context-menu';

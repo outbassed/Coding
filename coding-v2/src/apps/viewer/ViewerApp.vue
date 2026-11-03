@@ -15,6 +15,11 @@ import { viewerKind, viewerTemplates } from './kind';
 import { createDoc } from '../../editors/docs';
 import { codeKind } from '../code/kind';
 import { cleanPath, isTextPath, normalizeCode } from '../code/model';
+import { usePrint } from '../../shared/print/usePrint';
+import PrintButton from '../../shared/print/PrintButton.vue';
+import type { PrintJob, PrintPage } from '../../shared/print/print';
+import { meshPage, videoFramePage } from './print';
+import { imagePage, pdfPages as printPdfPages, textPage } from '../../shared/print/pages';
 
 const doc = useDocument({
   kind: viewerKind, templates: viewerTemplates, path: '/apps/visualizador/', withImages: true,
@@ -324,6 +329,47 @@ async function renderPdf(): Promise<void> {
 function goPage(n: number): void { pdfPage.value = Math.min(Math.max(1, Math.floor(n) || 1), Math.max(1, pdfPages.value)); void renderPdf(); }
 watch(pdfZoom, () => { void renderPdf(); });
 
+// ---------------------------------------------------------------- imprimir (cada formato do seu jeito; veja print.ts)
+const PRINTABLE: ReadonlySet<ViewKind> = new Set<ViewKind>(['image', 'svg', 'text', 'pdf', 'video', 'model']);
+function printReason(): string {
+  const f = current.value;
+  if (!f) return 'Abra um arquivo para imprimir.';
+  if (f.kind === 'audio') return 'Áudio não tem conteúdo visual para imprimir.';
+  if (!PRINTABLE.has(f.kind)) return 'Este tipo de arquivo não tem uma visualização para imprimir.';
+  if (loading.value) return 'Espere o arquivo terminar de abrir.';
+  if (problem.value) return 'Este arquivo não abriu, então não há o que imprimir.';
+  if (f.kind === 'video' && !stage.value?.querySelector('video')?.videoWidth) return 'Reproduza ou avance o vídeo até aparecer um quadro para imprimir.';
+  return '';
+}
+async function viewerPrintJob(): Promise<PrintJob | null> {
+  const f = current.value, blob = currentBlob.value;
+  if (!f || !blob || printReason()) return null;
+  const title = f.name.replace(/\.[^.]+$/, '') || 'Arquivo';
+  let pages: PrintPage[] = [];
+  switch (f.kind) {
+    case 'image': case 'svg': pages = [await imagePage(url.value, turn.value, f.kind === 'svg')]; break;
+    case 'video': { const p = videoFramePage(stage.value!.querySelector('video')!); if (p) pages = [p]; break; }
+    case 'model': {
+      if (!mesh.value || !bounds.value) return null;
+      const c = canvas3d.value;
+      pages = [meshPage(mesh.value, bounds.value, camera.value, COLORS[modelColor.value] ?? COLORS.azul!, wire.value, c ? c.width / c.height : 4 / 3)];
+      break;
+    }
+    case 'text': { const t = textPage(f.name, textBody.value); pages = [t.page]; if (t.truncated) doc.say('Impressão limitada aos primeiros caracteres do arquivo.'); break; }
+    case 'pdf': {
+      const pdf = await viewDoc(f.blobId, async () => new Uint8Array(await blob.arrayBuffer()));
+      if (pdf.numPages > 20) doc.say('Preparando ' + Math.min(pdf.numPages, 150) + ' páginas para imprimir…');
+      const r = await printPdfPages(pdf);
+      pages = r.pages;
+      if (r.skipped) doc.say('A impressão leva as primeiras ' + r.pages.length + ' páginas; o PDF tem ' + (r.pages.length + r.skipped) + '. Imprima o arquivo original para ter todas.');
+      break;
+    }
+    default: return null;
+  }
+  return pages.length ? { title, pages } : null;
+}
+usePrint({ kind: 'built', build: viewerPrintJob, enabled: () => !printReason(), reason: printReason, notify: ok });
+
 // ---------------------------------------------------------------- imagem, texto e mídia
 const imgScale = computed(() => zoom.value);
 const imgStyle = computed(() => {
@@ -440,6 +486,7 @@ const title = computed(() => current.value ? current.value.name : '');
       </div>
       <FileTab v-else :templates="viewerTemplates" @new="doc.newFrom">
         <button type="button" class="btn" :disabled="!current" data-testid="download-original" @click="downloadCurrent">Baixar o arquivo atual</button>
+        <PrintButton label="Imprimir o arquivo atual" />
         <button v-if="canOpenInCode" type="button" class="btn" data-testid="open-in-code" @click="openInCode">Abrir uma cópia no Código</button>
         <template #after><p v-if="message" class="ed-hint" role="status" data-testid="viewer-message">{{ message }}</p></template>
       </FileTab>

@@ -9,6 +9,10 @@ import { useSettingsStore } from '../../stores/settings';
 import { downloadText, safeFileName } from '../../shared/files/download';
 import { MAX_HISTORY, MAX_PRESETS, available, cleanNames, drawNumbers, makeTeams, pickName, rollDice, wheelAngle, type DrawMode } from './model';
 import { drawKind, drawTemplates } from './kind';
+import { usePrint } from '../../shared/print/usePrint';
+import { textPage } from '../../shared/print/pages';
+import type { PrintJob } from '../../shared/print/print';
+import PrintButton from '../../shared/print/PrintButton.vue';
 
 const doc = useDocument({ kind: drawKind, templates: drawTemplates, path: '/apps/sorteio/' });
 const { state } = doc;
@@ -141,8 +145,11 @@ const recent = computed(() => state.value.history.map((h, index) => ({ h, index 
 function clearHistory(): void { if (confirm('Apagar o histórico de resultados deste sorteio?')) { state.value.history = []; result.value = null; inspected.value = null; } }
 const dateFmt = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 const modeName: Record<DrawMode, string> = { wheel: 'Roleta', numbers: 'Números', dice: 'Dados', teams: 'Equipes' };
+function historyLines(): string[] { return [state.value.name, '', ...state.value.history.map((h) => dateFmt.format(h.at) + ' · ' + modeName[h.mode] + ' · ' + h.text)]; }
+// Imprimir: o histórico de sorteios (o mesmo texto da exportação), sem a roleta nem os controles.
+usePrint({ kind: 'built', build: () => ({ title: state.value.name || 'Sorteio', pages: [textPage(state.value.name || 'Sorteio', historyLines().join('\n')).page] }), enabled: () => state.value.history.length > 0, reason: () => 'Ainda não há resultados no histórico para imprimir.', notify: (m) => doc.say(m) });
 function exportHistory(): void {
-  const lines = [state.value.name, '', ...state.value.history.map((h) => dateFmt.format(h.at) + ' · ' + modeName[h.mode] + ' · ' + h.text)];
+  const lines = historyLines();
   downloadText(lines.join('\n') + '\n', safeFileName(state.value.name, 'sorteio') + '.txt');
   doc.say('Histórico exportado.');
 }
@@ -191,6 +198,7 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
           <select v-model.number="state.dice.sides" class="inp"><option v-for="f in [4, 6, 8, 10, 12, 20, 100]" :key="f" :value="f">d{{ f }}</option></select></label>
       </div>
       <FileTab v-else :templates="drawTemplates" @new="doc.newFrom">
+        <PrintButton />
         <button type="button" class="btn" :disabled="!state.history.length" data-testid="export-history" @click="exportHistory">Exportar histórico (TXT)</button>
         <button type="button" class="btn" :disabled="!state.history.length" @click="clearHistory">Limpar histórico</button>
       </FileTab>

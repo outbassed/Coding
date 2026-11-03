@@ -9,6 +9,7 @@ import { FUNCTION_NAMES, cellName, indexToCol, isError } from './formula';
 import { applyColor, clearColors, deleteCols, deleteRows, display, effectiveColor, Evaluator, fillRange, insertCols, insertRows, key, MAX_SHEETS, parseKey, rangeName, renameSheet, sheetId, shownColors, sortRows, type Align, type Cell, type CellFormat, type StyleProp } from './model';
 import { exportCsv, exportXlsx, importFile } from './io';
 import { calcKind, calcTemplates } from './kind';
+import { usePrint } from '../../shared/print/usePrint';
 
 const doc = useDocument({ kind: calcKind, templates: calcTemplates, path: '/apps/planilhas/' });
 const { state } = doc;
@@ -450,6 +451,7 @@ async function onExportXlsx(): Promise<void> {
   finally { busy.value = false; }
 }
 function printSheet(): void { window.print(); }
+usePrint({ kind: 'dom', print: printSheet });
 function onExportCsv(): void { downloadText(exportCsv(state.value, si.value), safeFileName(state.value.name + ' - ' + sheet.value.name, 'planilha') + '.csv', 'text/csv;charset=utf-8'); doc.say('CSV da aba “' + sheet.value.name + '” exportado.'); }
 const printRange = computed(() => {
   let rows = 0, cols = 0;
