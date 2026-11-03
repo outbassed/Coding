@@ -1,100 +1,159 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { tools, getTool, availabilityOf, availabilityLabel } from '../shared/catalog';
-import { useAppsStore } from '../stores/apps';
+import { tools, type CodingTool } from '../shared/catalog';
+import { useFavoritesStore } from '../stores/favorites';
+import { useOfflineStore } from '../stores/offline';
+import { matchesQuery } from '../stores/pageState';
+import { VERSIONS_BASE, formatRelease, historyPath, latestOf, newestFirst, targetName } from '../shared/versions';
+import { versionRecords } from '../shared/versions-data';
 import PageHeader from '../components/ui/PageHeader.vue';
+import PageSearch from '../components/ui/PageSearch.vue';
 import AppGrid from '../components/ui/AppGrid.vue';
 import AppCard from '../components/ui/AppCard.vue';
 import AppIcon from '../components/ui/AppIcon.vue';
-import ActivateButton from '../components/ui/ActivateButton.vue';
 import EmptyState from '../components/ui/EmptyState.vue';
 import RecentDocs from '../components/ui/RecentDocs.vue';
 
-const apps = useAppsStore();
-const featured = getTool('labels');
-const textTool = getTool('texts');
-const textOn = computed(() => apps.isEnabled(textTool.id));
-const featuredOn = computed(() => apps.isEnabled(featured.id));
-const counts = computed(() => ({
-  functional: tools.filter((t) => availabilityOf(t) === 'functional').length,
-  preview: tools.filter((t) => availabilityOf(t) === 'preview').length,
-  planned: tools.filter((t) => availabilityOf(t) === 'planned').length
-}));
+/**
+ * Início: um resumo do Coding. Continuar de onde parou, favoritos, o que há neste aparelho (offline),
+ * novidades da Central de Versões e sugestões do Catálogo. A lista completa de aplicativos fica no Catálogo
+ * e os instalados em Meus apps; aqui a busca só mostra os resultados quando alguém digita.
+ */
+const favorites = useFavoritesStore();
+const offline = useOfflineStore();
+onMounted(() => { void offline.init(); });
+const query = ref('');
+const searching = computed(() => query.value.trim() !== '');
+const found = computed(() => tools.filter((t) => matchesQuery(query.value, t.name, t.description)));
+
+const favoriteTools = computed<CodingTool[]>(() => favorites.ids.map((id) => tools.find((t) => t.id === id)).filter((t): t is CodingTool => !!t));
+const installedCount = computed(() => offline.installedApps.length);
+
+/** Sugestões: três aplicativos que a pessoa ainda não favoritou nem instalou, trocando uma vez por dia (sem aleatoriedade, para os testes). */
+const suggestions = computed<CodingTool[]>(() => {
+  const pool = tools.filter((t) => t.path && !favorites.isFavorite(t.id) && !offline.installedApps.includes(t.id));
+  const base = pool.length >= 3 ? pool : tools.filter((t) => t.path);
+  const day = Math.floor(Date.now() / 86_400_000);
+  return [0, 1, 2].map((i) => base[(day + i) % base.length]).filter((t, i, all) => all.indexOf(t) === i);
+});
+
+/** As três últimas versões registradas (Launcher ou aplicativos), da mais nova para a mais antiga. */
+const news = computed(() => [...versionRecords].sort(newestFirst).slice(0, 3).map((r) => ({
+  key: r.target + r.version,
+  name: targetName(r.target),
+  version: r.version,
+  when: formatRelease(r),
+  note: r.novidades?.[0] ?? r.melhorias?.[0] ?? r.correcoes?.[0] ?? r.alteracoesTecnicas?.[0] ?? '',
+  href: historyPath(r.target)
+})));
+const launcherVersion = computed(() => latestOf('launcher', versionRecords)?.version ?? '');
 </script>
 
 <template>
-  <PageHeader eyebrow="Coding 2.0 · Prévia" title="Seu espaço de criação." lead="Seus aplicativos em um só lugar." />
+  <PageHeader compact title="Coding Launcher" logo="/legacy-icons/coding.svg" lead="Seu resumo do Coding: continue de onde parou ou abra um aplicativo." />
 
-  <section class="hero" aria-labelledby="destaque" :style="{ '--app': featured.color }" data-testid="featured">
-    <AppIcon :id="featured.id" size="xl" />
-    <div class="hero-txt">
-      <p class="tag">{{ availabilityLabel[availabilityOf(featured)] }} · já disponível</p>
-      <h2 id="destaque">{{ featured.name }}</h2>
-      <p class="muted">Crie, organize e imprima etiquetas A4.</p>
-      <div class="hero-actions">
-        <a v-if="featuredOn && featured.path" :href="featured.path" class="btn btn-app" aria-label="Abrir o editor de Etiquetas">Abrir Etiquetas</a>
-        <ActivateButton v-else :tool="featured" :enabled="featuredOn" />
-        <RouterLink :to="{ name: 'app', params: { id: featured.id } }" class="btn btn-ghost">Ver detalhes</RouterLink>
-      </div>
-    </div>
-  </section>
+  <div class="bar">
+    <PageSearch v-model="query" input-id="home-search" label="Buscar aplicativos" placeholder="Buscar aplicativos…" />
+  </div>
 
-  <section aria-labelledby="meus">
-    <div class="head"><h2 id="meus">Meus aplicativos</h2><RouterLink :to="{ name: 'my-apps' }" class="more">Gerenciar</RouterLink></div>
-    <AppGrid v-if="apps.activeTools.length">
-      <AppCard v-for="tool in apps.activeTools" :key="tool.id" :tool="tool" :enabled="true" />
+  <section v-if="searching" aria-labelledby="aplicativos" class="apps" data-testid="home-apps">
+    <h2 id="aplicativos" class="sr-only">Resultados da busca</h2>
+    <AppGrid v-if="found.length">
+      <AppCard v-for="tool in found" :key="tool.id" :tool="tool" />
     </AppGrid>
-    <EmptyState v-else title="Nenhum app ativado ainda." text="Escolha uma ferramenta no catálogo para ela aparecer aqui.">
-      <RouterLink :to="{ name: 'catalog' }" class="btn btn-primary">Abrir catálogo</RouterLink>
+    <EmptyState v-else title="Nenhum aplicativo combina com a busca." text="Tente outro termo ou limpe o campo.">
+      <button type="button" class="btn btn-primary" @click="query = ''">Limpar busca</button>
     </EmptyState>
+    <p class="sr-only" role="status">{{ found.length }} aplicativos mostrados</p>
   </section>
 
-  <section class="store" aria-labelledby="textos">
-    <AppIcon id="texts" size="lg" />
-    <div>
-      <h2 id="textos">Escreva e formate no Texto</h2>
-      <p class="muted">Documentos A4 com formatação e salvamento automático.</p>
+  <template v-else>
+    <RecentDocs compact />
+
+    <div class="panels" data-testid="home-panels">
+      <section class="panel favs" aria-labelledby="favoritos" data-testid="home-favorites">
+        <header><h2 id="favoritos">Favoritos</h2><RouterLink :to="{ name: 'catalog' }" class="more">Escolher no Catálogo</RouterLink></header>
+        <ul v-if="favoriteTools.length" class="chips">
+          <li v-for="tool in favoriteTools" :key="tool.id">
+            <a v-if="tool.path" :href="tool.path" class="chip" :style="{ '--app': tool.color }" :aria-label="'Abrir o editor de ' + tool.name"><AppIcon :id="tool.id" size="sm" /><span>{{ tool.name }}</span></a>
+          </li>
+        </ul>
+        <p v-else class="muted empty">Toque na estrela de um aplicativo para deixá-lo aqui, a um toque de distância.</p>
+      </section>
+
+      <section class="panel device" aria-labelledby="neste-aparelho" data-testid="home-device">
+        <header><h2 id="neste-aparelho">Neste aparelho</h2><RouterLink :to="{ name: 'my-apps' }" class="more">Ver meus apps</RouterLink></header>
+        <p v-if="offline.supported" class="big"><strong>{{ installedCount }}</strong> <span>de {{ tools.length }} aplicativos instalados para uso offline</span></p>
+        <p v-else class="muted">O uso offline não está disponível neste endereço ou navegador. Todos os aplicativos funcionam online.</p>
+        <p v-if="offline.supported && offline.anyUpdate" class="update" data-testid="home-update">Há atualizações para os aplicativos instalados.</p>
+        <p class="links"><RouterLink :to="{ name: 'docs' }">Biblioteca de documentos</RouterLink><RouterLink :to="{ name: 'settings' }">Ajustes do Launcher</RouterLink></p>
+      </section>
+
+      <section class="panel discover" aria-labelledby="descubra" data-testid="home-discover">
+        <header><h2 id="descubra">Descubra no Catálogo</h2><RouterLink :to="{ name: 'catalog' }" class="more">Ver todos</RouterLink></header>
+        <ul class="suggest">
+          <li v-for="tool in suggestions" :key="tool.id" :style="{ '--app': tool.color }">
+            <AppIcon :id="tool.id" size="md" />
+            <span class="txt"><RouterLink :to="{ name: 'app', params: { id: tool.id } }" class="name">{{ tool.name }}</RouterLink><small class="muted">{{ tool.description }}</small></span>
+          </li>
+        </ul>
+      </section>
+
+      <section class="panel news" aria-labelledby="novidades" data-testid="home-news">
+        <header><h2 id="novidades">Novidades</h2><a :href="VERSIONS_BASE" class="more">Central de Versões</a></header>
+        <ul class="log">
+          <li v-for="item in news" :key="item.key">
+            <a :href="item.href" class="rel"><strong>{{ item.name }}</strong> <span class="ver">{{ item.version }}</span></a>
+            <small class="muted">{{ item.when }}</small>
+            <span v-if="item.note" class="note">{{ item.note }}</span>
+          </li>
+        </ul>
+        <p class="muted foot">Coding Launcher {{ launcherVersion }}</p>
+      </section>
     </div>
-    <a v-if="textOn && textTool.path" class="btn btn-primary" :href="textTool.path">Abrir Texto</a>
-    <ActivateButton v-else :tool="textTool" :enabled="textOn" />
-  </section>
-
-  <RecentDocs />
-
-  <section class="store" aria-labelledby="loja">
-    <div>
-      <h2 id="loja">Explorar o catálogo</h2>
-      <p class="muted">{{ counts.functional }} editores disponíveis<template v-if="counts.planned"> · {{ counts.planned }} em breve</template>.</p>
-    </div>
-    <RouterLink :to="{ name: 'catalog' }" class="btn btn-primary">Abrir catálogo</RouterLink>
-  </section>
-
+  </template>
 </template>
 
 <style scoped>
-section { margin-top: 36px; }
-.head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-h2 { font-size: 20px; margin: 0; }
-.more { color: var(--accent); font-weight: 700; text-decoration: none; padding: 10px 4px; }
-.more:hover { text-decoration: underline; }
-.hero { display: flex; align-items: center; gap: 24px; padding: 24px; border-radius: 24px; border: 1px solid var(--border); background: linear-gradient(135deg, color-mix(in srgb, var(--app) 22%, var(--surface)), var(--surface) 70%); }
-.hero-txt { min-width: 0; }
-.hero h2 { font-size: clamp(24px, 3vw, 32px); margin: 0 0 6px; }
-.hero p { max-width: 60ch; }
-.tag { margin: 0 0 6px; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ok); }
-.hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-.store { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 22px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); }
-.store h2 { margin-bottom: 4px; }
-.store p { margin: 0; max-width: 60ch; }
-.soon { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
-.chip { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 14px 10px 10px; border: 1px solid var(--border); background: var(--surface); border-radius: 14px; text-decoration: none; font-weight: 650; }
-.chip:hover { background: var(--panel); }
-.ct { display: grid; min-width: 0; }
-.ct small { font-size: 12.5px; }
-@media (max-width: 599px) {
-  .hero { flex-direction: column; align-items: flex-start; gap: 14px; padding: 18px; }
-  .hero-actions .btn { flex: 1 1 100%; }
-  .store { flex-direction: column; align-items: stretch; }
+.bar { display: flex; margin-bottom: 16px; }
+.apps { margin-top: 4px; }
+.panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin-top: 22px; }
+.panel { min-width: 0; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; }
+.panel header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.panel h2 { font-size: 16px; margin: 0; }
+.more { display: inline-flex; align-items: center; min-height: 44px; font-size: 13px; font-weight: 700; color: var(--accent); }
+.empty, .foot { font-size: 13px; margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.chip { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 14px 4px 6px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel); color: var(--text); font-weight: 650; text-decoration: none; }
+.chip:hover { border-color: var(--app); }
+.chip :deep(.app-icon) { width: 32px; height: 32px; min-width: 32px; }
+.big { margin: 0 0 8px; display: flex; align-items: baseline; gap: 8px; }
+.big strong { font-size: 34px; line-height: 1; letter-spacing: -.03em; }
+.big span { color: var(--muted); font-size: 14px; }
+.update { margin: 0 0 8px; font-size: 13.5px; font-weight: 700; color: var(--accent); }
+.links { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 6px 0 0; }
+.links a { display: inline-flex; align-items: center; font-weight: 650; font-size: 14px; color: var(--accent); min-height: 44px; }
+.suggest, .log { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.suggest li { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.suggest .txt { display: grid; min-width: 0; }
+.suggest .name { font-weight: 700; color: var(--text); text-decoration: none; min-height: 24px; }
+.suggest small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log li { display: grid; gap: 2px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.log li:last-child { padding-bottom: 0; border-bottom: 0; }
+.rel { color: var(--text); text-decoration: none; min-height: 24px; }
+.ver { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+.log small { font-size: 12px; }
+.note { font-size: 13px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.foot { margin-top: 10px; }
+@media (min-width: 700px) {
+  .panels { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1100px) {
+  .panels { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  .favs { grid-column: span 7; }
+  .device { grid-column: span 5; }
+  .discover { grid-column: span 6; }
+  .news { grid-column: span 6; }
 }
 </style>

@@ -7,33 +7,39 @@ const apps = [
   { id: 'images', url: '/apps/imagens/' },
   { id: 'pdf', url: '/apps/pdf/' },
   { id: 'codes', url: '/apps/qr/' },
-  { id: 'sheet-labels', url: '/apps/planilha-etiquetas/' },
   { id: 'draw', url: '/apps/sorteio/' },
-  { id: 'split', url: '/apps/racha-conta/' }
+  { id: 'split', url: '/apps/racha-conta/' },
+  { id: 'calculator', url: '/apps/calculadora/' },
+  { id: 'colors', url: '/apps/cores/' },
+  { id: 'zip', url: '/apps/zip/' },
+  { id: 'compare', url: '/apps/comparador/' },
+  { id: 'code', url: '/apps/codigo/' },
+  { id: 'viewer', url: '/apps/visualizador/' },
+  { id: 'paint', url: '/apps/pintar/' }
 ];
 
 for (const tool of apps) {
-  test('App desativado bloqueia URL direta e permite reativar: ' + tool.id, async ({ page }) => {
+  test('Preferência antiga de ativação não bloqueia o app (sempre disponível): ' + tool.id, async ({ page }) => {
     await page.addInitScript((id: string) => {
-      const ids = ['labels','texts','calc','images','pdf','codes','sheet-labels','draw','split'];
+      const ids = ['labels','texts','calc','images','pdf','codes','sheet-labels','draw','split','calculator','colors','zip','compare','code','viewer','paint'];
       if (localStorage.getItem('coding-v2-apps') === null) localStorage.setItem('coding-v2-apps', JSON.stringify({ v: 2, known: ids, enabled: ids.filter(item => item !== id) }));
     }, tool.id);
     await page.goto(tool.url);
-    await expect(page.getByTestId('app-disabled')).toBeVisible();
-    await expect(page.getByTestId('editor-stage')).toHaveCount(0);
-    await page.getByTestId('enable-app').click();
-    await expect(page.getByTestId('app-disabled')).toHaveCount(0);
     await expect(page.locator('#app')).not.toBeEmpty();
+    await expect(page.getByTestId('app-disabled')).toHaveCount(0);
+    await expect(page.getByTestId('app-live-off')).toHaveCount(0);
+    await expect(page.getByText('desativado', { exact: false })).toHaveCount(0);
   });
 }
 
 test('Paletas dos ícones seguem as cores de cada aplicativo', async ({ request }) => {
   const images = await (await request.get('/legacy-icons/images.svg')).text();
   const sheets = await (await request.get('/legacy-icons/sheet.svg')).text();
-  expect(images).toContain('#ff8fc8');
-  expect(images).toContain('#d1308f');
-  expect(sheets).toContain('#4fe0d6');
-  expect(sheets).toContain('#0b8fb8');
+  // Imagens volta ao azul original; o ícone legado de Planilha→Etiquetas (app removido) mantém o rosa original.
+  expect(images).toContain('#4fe0d6');
+  expect(images).toContain('#0b8fb8');
+  expect(sheets).toContain('#ff8fc8');
+  expect(sheets).toContain('#d1308f');
 });
 
 test('PC: Etiquetas e Texto redimensionam, persistem e restauram a largura padrão', async ({ page }) => {
@@ -111,4 +117,22 @@ test('Atalho do QR cria um novo código, não abre ações de outros apps', asyn
   await page.locator('[data-testid="editor-stage"]').focus();
   await page.keyboard.press('Alt+Shift+N');
   await expect(select.locator('option')).toHaveCount(before + 1);
+});
+
+test.describe('Sem ativação: mudanças no armazenamento não afetam o editor aberto', () => {
+  test('gravar a chave antiga de ativação em outra aba não mostra aviso nem perde o que foi digitado', async ({ context }) => {
+    const launcher = await context.newPage();
+    await launcher.goto('/launcher/#/meus-apps');
+    const editor = await context.newPage();
+    await editor.goto('/apps/sorteio/');
+    await expect(editor.locator('#app')).not.toBeEmpty();
+    await editor.getByTestId('save-status').waitFor();
+    const title = editor.getByTestId('doc-name');
+    await title.click();
+    await title.fill('Rascunho que não pode se perder');
+    await launcher.evaluate(() => localStorage.setItem('coding-v2-apps', JSON.stringify({ v: 2, known: ['draw'], enabled: [] })));
+    await launcher.evaluate(() => localStorage.setItem('chave-qualquer', '1'));
+    await expect(editor.getByTestId('app-live-off')).toHaveCount(0);
+    await expect(title).toHaveValue('Rascunho que não pode se perder');
+  });
 });

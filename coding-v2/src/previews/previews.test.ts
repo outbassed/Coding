@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { LruCache, TaskQueue } from './cache';
-import { buildPreview, labelsPreview, textPreview, previewable, MAX_PREVIEW_BLOCKS } from './model';
+import { buildPreview, labelsPreview, textPreview, previewable, versosPreview, MAX_PREVIEW_BLOCKS } from './model';
 import { budgetTemplate } from '../apps/calc/model';
 import { demoSplit } from '../apps/split/model';
 import { demoCodes } from '../apps/codes/model';
@@ -86,5 +86,25 @@ describe('modelos de prévia', () => {
     expect(codes.kind === 'codes' && codes.svgs.length).toBe(3);
     expect(buildPreview('draw', demoDraw()).kind).toBe('summary');
     expect(buildPreview('images', demoImages()).kind).toBe('summary');
+  });
+});
+
+describe('prévia do Versos', () => {
+  it('resume cenas, textos e o começo do texto, sem ler imagens', () => {
+    const state = { v: 1, name: 'Minha letra', styles: [], scenes: [
+      { id: 'a', width: 1920, height: 1080, texts: [{ id: 't1', text: 'Primeiro verso\ncom quebra' }, { id: 't2', text: 'Segundo' }] },
+      { id: 'b', width: 1080, height: 1080, texts: [] }
+    ] };
+    const p = versosPreview(state);
+    expect(p.kind).toBe('summary');
+    if (p.kind !== 'summary') return;
+    expect(p.title).toBe('Minha letra');
+    expect(p.lines).toContainEqual(['Cenas', '2']);
+    expect(p.lines).toContainEqual(['Textos', '2']);
+    expect(p.lines).toContainEqual(['Primeira cena', '1920 × 1080 px']);
+    expect(p.lines).toContainEqual(['Começa com', 'Primeiro verso com quebra']);
+    expect(previewable('versos')).toBe(true);
+    expect(buildPreview('versos', state).kind).toBe('summary');
+    expect(() => versosPreview({ nome: 'sem cenas' })).toThrow();
   });
 });

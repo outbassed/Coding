@@ -3,7 +3,8 @@ import { calcKind } from '../apps/calc/kind';
 import { codesKind } from '../apps/codes/kind';
 import { drawKind } from '../apps/draw/kind';
 import { splitKind } from '../apps/split/kind';
-import { sheetLabelsKind } from '../apps/sheet-labels/model';
+import { normalizeSheetLabels, toLabels } from '../apps/sheet-labels/model';
+import type { LabelsState } from '../labels/model';
 import { sid } from '../apps/split/model';
 import { parseMoney } from '../apps/split/money';
 import { cid, defaultStyle } from '../apps/codes/model';
@@ -134,10 +135,18 @@ export function convertImages(raw: unknown): unknown {
 }
 
 export interface Converter { kind: DocKind<unknown>; path: string; convert(raw: unknown): unknown; /** Arquivos binários que acompanham o documento convertido. */ files?(state: unknown, images: LegacyImage[]): LegacyImage[] }
+/**
+ * App “Planilha → Etiquetas” removido: seus documentos (do 1.0 ou criados na v2) viram um documento NOVO de Etiquetas.
+ * O original não é alterado nem apagado.
+ */
+export function sheetToLabels(state: unknown, legacyId: string): { labels: LabelsState; rows: number; truncated: boolean } {
+  const sheet = normalizeSheetLabels(legacyId.startsWith('v2-sheet-') ? state : convertSheet(state));
+  const { labels, conv } = toLabels(sheet);
+  return { labels, rows: conv.items.length, truncated: conv.overBlocks };
+}
 export const CONVERTERS: Record<string, Converter> = {
   calc: { kind: calcKind as DocKind<unknown>, path: '/apps/planilhas/', convert: convertCalc },
   codes: { kind: codesKind as DocKind<unknown>, path: '/apps/qr/', convert: convertCodes },
-  sheet: { kind: sheetLabelsKind as DocKind<unknown>, path: '/apps/planilha-etiquetas/', convert: convertSheet },
   draw: { kind: drawKind as DocKind<unknown>, path: '/apps/sorteio/', convert: convertDraw },
   split: { kind: splitKind as DocKind<unknown>, path: '/apps/racha-conta/', convert: convertSplit },
   pdf: { kind: pdfKind as DocKind<unknown>, path: '/apps/pdf/', convert: convertPdf, files: (state, images) => { const ids = new Set(((state as { sources?: { id: string }[] }).sources ?? []).map((x) => x.id)); return images.filter((i) => ids.has(i.id)).map((i) => ({ ...i, mime: 'application/pdf' })); } },

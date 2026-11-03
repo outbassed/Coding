@@ -1,5 +1,5 @@
 import type { DBlock, DImage, DInline, DPara, DRun } from './docx';
-import { cleanColor, cleanFont, cleanSize } from './model';
+import { cleanColor, cleanFont, cleanHref, cleanLineHeight, cleanSize } from './model';
 
 /** Converte o HTML já saneado do editor no modelo do DOCX (navegador). */
 type Fmt = Omit<DRun, 'text' | 'br'>;
@@ -38,6 +38,7 @@ async function inlines(node: Node, fmt: Fmt, out: DInline[]): Promise<void> {
   if (tag === 'I' || tag === 'EM') next.i = true;
   if (tag === 'U') next.u = true;
   if (tag === 'S') next.s = true;
+  if (tag === 'A') { const href = cleanHref(el.getAttribute('href') ?? ''); if (href) next.href = href; }
   const font = el.style.fontFamily ? cleanFont(el.style.fontFamily) : null; if (font) next.font = font;
   const size = el.style.fontSize ? cleanSize(el.style.fontSize) : null; if (size) next.sizePx = size;
   const color = el.style.color ? cleanColor(el.style.color) : null; if (color) next.color = color;
@@ -45,6 +46,7 @@ async function inlines(node: Node, fmt: Fmt, out: DInline[]): Promise<void> {
   for (const child of Array.from(el.childNodes)) await inlines(child, next, out);
 }
 const alignOf = (el: HTMLElement): DPara['align'] => { const a = el.style.textAlign; return a === 'center' || a === 'right' || a === 'justify' || a === 'left' ? a : undefined; };
+const lineOf = (el: HTMLElement): number | undefined => cleanLineHeight(el.style.lineHeight) ?? undefined;
 const STYLE: Record<string, DPara['style']> = { H1: 'Heading1', H2: 'Heading2', H3: 'Heading3', BLOCKQUOTE: 'Quote' };
 const trimRuns = (runs: DInline[]): DInline[] => {
   const first = runs[0]; if (first && !('image' in first) && !first.br) first.text = first.text.replace(/^\s+/, '');
@@ -61,7 +63,7 @@ export async function htmlToBlocks(root: HTMLElement): Promise<DBlock[]> {
   async function cellParas(cell: HTMLElement): Promise<DPara[]> {
     const runs: DInline[] = [];
     for (const child of Array.from(cell.childNodes)) await inlines(child, {}, runs);
-    return [{ kind: 'p', style: 'Normal', align: alignOf(cell), runs: trimRuns(runs) }];
+    return [{ kind: 'p', style: 'Normal', align: alignOf(cell), lineHeight: lineOf(cell), runs: trimRuns(runs) }];
   }
   for (const node of Array.from(root.childNodes)) {
     if (node.nodeType !== Node.ELEMENT_NODE) { await inlines(node, {}, loose); continue; }
@@ -71,14 +73,14 @@ export async function htmlToBlocks(root: HTMLElement): Promise<DBlock[]> {
       flush();
       const runs: DInline[] = [];
       for (const c of Array.from(el.childNodes)) await inlines(c, {}, runs);
-      push({ kind: 'p', style: STYLE[tag] ?? 'Normal', align: alignOf(el), runs: trimRuns(runs) });
+      push({ kind: 'p', style: STYLE[tag] ?? 'Normal', align: alignOf(el), lineHeight: lineOf(el), runs: trimRuns(runs) });
     } else if (tag === 'UL' || tag === 'OL') {
       flush();
       const id = ++listId;
       for (const li of Array.from(el.querySelectorAll(':scope > li'))) {
         const runs: DInline[] = [];
         for (const c of Array.from(li.childNodes)) { if ((c as HTMLElement).tagName === 'UL' || (c as HTMLElement).tagName === 'OL') { for (const sub of Array.from((c as HTMLElement).children)) { runs.push({ text: '', br: true }); await inlines(sub, {}, runs); } } else await inlines(c, {}, runs); }
-        push({ kind: 'p', style: 'Normal', align: alignOf(li as HTMLElement), list: { type: tag === 'UL' ? 'ul' : 'ol', id }, runs: trimRuns(runs) });
+        push({ kind: 'p', style: 'Normal', align: alignOf(li as HTMLElement), lineHeight: lineOf(li as HTMLElement), list: { type: tag === 'UL' ? 'ul' : 'ol', id }, runs: trimRuns(runs) });
       }
     } else if (tag === 'TABLE') {
       flush();

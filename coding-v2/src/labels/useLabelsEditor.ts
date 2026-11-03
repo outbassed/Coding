@@ -245,14 +245,17 @@ export function useLabelsEditor(options: EditorOptions = {}) {
     if (saveState.value === 'pending' || saveState.value === 'saving' || saveState.value === 'error' || saveState.value === 'conflict') { event.preventDefault(); event.returnValue = ''; }
   }
   function onHide(): void { if (document.visibilityState === 'hidden' && saveState.value === 'pending') void saveNow(); }
+  function onPageHide(): void { if (saveState.value === 'pending') void saveNow(); }
   if (typeof window !== 'undefined') {
     window.addEventListener('beforeunload', onBeforeUnload);
     document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onPageHide);
   }
   onBeforeUnmount(() => {
     stop(); clearTimeout(timer);
     window.removeEventListener('beforeunload', onBeforeUnload);
     document.removeEventListener('visibilitychange', onHide);
+    window.removeEventListener('pagehide', onPageHide);
   });
 
   return {

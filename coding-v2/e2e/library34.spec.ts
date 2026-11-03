@@ -87,7 +87,7 @@ test.describe('Fase 3.4 · importação em lote atômica', () => {
     await page.goto(URL);
     await seedLegacy(page);
     await page.getByTestId('open-import').click();
-    await page.getByRole('button', { name: 'Examinar documentos antigos' }).click();
+    await page.getByRole('button', { name: 'Examinar documentos anteriores' }).click();
     await page.getByRole('button', { name: 'Marcar todos os disponíveis' }).click();
     await page.getByRole('button', { name: /^Continuar \(2\)/ }).click();
     await expect(page.getByTestId('import-size')).toContainText('6 B');
@@ -107,7 +107,7 @@ test.describe('Fase 3.4 · importação em lote atômica', () => {
       await a.goto(URL); await seedLegacy(a);
       await b.goto(URL);
       await a.getByTestId('open-import').click();
-      await a.getByRole('button', { name: 'Examinar documentos antigos' }).click();
+      await a.getByRole('button', { name: 'Examinar documentos anteriores' }).click();
       await a.getByRole('button', { name: 'Marcar todos os disponíveis' }).click();
       await a.getByRole('button', { name: /^Continuar \(2\)/ }).click();
       await importFromLegacy(b, ['Foto de teste']);
@@ -129,7 +129,7 @@ test.describe('Fase 3.4 · importação em lote atômica', () => {
     await page.goto(URL);
     await seedLegacy(page);
     await page.getByTestId('open-import').click();
-    await page.getByRole('button', { name: 'Examinar documentos antigos' }).click();
+    await page.getByRole('button', { name: 'Examinar documentos anteriores' }).click();
     await page.getByRole('checkbox', { name: 'Foto de teste' }).check();
     await page.getByRole('button', { name: /^Continuar/ }).click();
     await expect(page.getByTestId('space-warning')).toContainText('mais de 80% do espaço livre');

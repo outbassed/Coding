@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 
 /** Preferências de largura independentes por aplicativo; somente usado em layout desktop. */
-export function useResizableSidebar(app: string, defaultWidth: number, min = 296, max = 460) {
+export function useResizableSidebar(app: string, defaultWidth: number, min = 296, max = 460, edge: 'left' | 'right' = 'right') {
   const key = 'coding-v2-sidebar-' + app;
   function read(): number {
     try {
@@ -25,7 +25,7 @@ export function useResizableSidebar(app: string, defaultWidth: number, min = 296
   }
   function move(event: PointerEvent): void {
     if (!dragging.value) return;
-    width.value = Math.max(min, Math.min(max, startWidth + event.clientX - startX));
+    width.value = Math.max(min, Math.min(max, startWidth + (edge === 'left' ? startX - event.clientX : event.clientX - startX)));
   }
   function end(event: PointerEvent): void {
     if (!dragging.value) return;
@@ -37,7 +37,7 @@ export function useResizableSidebar(app: string, defaultWidth: number, min = 296
   function keys(event: KeyboardEvent): void {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
     event.preventDefault();
-    width.value = Math.max(min, Math.min(max, width.value + (event.key === 'ArrowRight' ? 16 : -16)));
+    width.value = Math.max(min, Math.min(max, width.value + (event.key === (edge === 'left' ? 'ArrowLeft' : 'ArrowRight') ? 16 : -16)));
     persist();
   }
   function reset(): void { width.value = defaultWidth; persist(); }

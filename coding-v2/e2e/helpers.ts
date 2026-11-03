@@ -1,5 +1,8 @@
 import { expect, type Page } from '@playwright/test';
 
+/** Quantidade de aplicativos do catálogo (cartões no Catálogo e no Início). */
+export const APP_COUNT = 16;
+
 export const SCHEMA = 'coding-v2-safe-backup';
 export function backupDoc(id: string, name: string, opts: { type?: string; image?: boolean; updatedAt?: number } = {}) {
   return {
@@ -62,7 +65,7 @@ export async function readCopiesDb(page: Page): Promise<{ labels: string[]; revi
 /** Fluxo completo do assistente: examinar, selecionar pelos nomes e confirmar. */
 export async function importFromLegacy(page: Page, names: string[]): Promise<void> {
   await page.getByTestId('open-import').click();
-  await page.getByRole('button', { name: 'Examinar documentos antigos' }).click();
+  await page.getByRole('button', { name: 'Examinar documentos anteriores' }).click();
   for (const name of names) await page.getByRole('checkbox', { name: name }).check();
   await page.getByRole('button', { name: /^Continuar/ }).click();
   await page.getByTestId('confirm-import').click();
@@ -72,4 +75,32 @@ export async function importFromLegacy(page: Page, names: string[]): Promise<voi
 
 export async function openCard(page: Page, name: string): Promise<void> {
   await page.locator('[data-copy-card]', { hasText: name }).click();
+}
+
+/**
+ * Registra apps como "instalados offline" (só o registro no banco `coding-v2-offline`; nenhum arquivo é baixado)
+ * e deixa a página no Launcher já com esse registro lido. O Meus apps só lista apps instalados.
+ */
+export async function seedInstalledApps(page: Page, ids: string[] | 'all' = 'all'): Promise<void> {
+  await page.goto('/launcher/');
+  await page.evaluate(async (wanted) => {
+    const manifest = (await (await fetch('/offline-manifest.json', { cache: 'no-store' })).json()) as { apps: Record<string, { name: string; version: string }> };
+    const list = wanted === 'all' ? Object.keys(manifest.apps) : wanted;
+    await new Promise<void>((resolve, reject) => {
+      const open = indexedDB.open('coding-v2-offline', 1);
+      open.onupgradeneeded = () => { if (!open.result.objectStoreNames.contains('records')) open.result.createObjectStore('records', { keyPath: 'id' }); };
+      open.onerror = () => reject(open.error);
+      open.onsuccess = () => {
+        const db = open.result;
+        const tx = db.transaction('records', 'readwrite');
+        for (const id of list) {
+          const entry = manifest.apps[id];
+          if (entry) tx.objectStore('records').put({ id, name: entry.name, version: entry.version, files: [], bytes: 0, installedAt: Date.now() });
+        }
+        tx.oncomplete = () => { db.close(); resolve(); };
+        tx.onerror = tx.onabort = () => reject(tx.error);
+      };
+    });
+  }, ids);
+  await page.reload();
 }

@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { renderPage, viewDoc } from './engine';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { renderBlank, renderPage, viewDoc } from './engine';
+import type { BlankSize } from './model';
 
 /** Miniatura de página: desenhada só quando aparece na tela. */
-const props = defineProps<{ src: string; index: number; rotate: number; bytes: (src: string) => Promise<Uint8Array>; width?: number }>();
+const props = defineProps<{ src: string; index: number; rotate: number; bytes: (src: string) => Promise<Uint8Array>; width?: number; blank?: BlankSize }>();
+const ratio = computed(() => { const b = props.blank; if (!b) return 1.414; return props.rotate % 180 ? b.w / b.h : b.h / b.w; });
 const canvas = ref<HTMLCanvasElement | null>(null);
 const state = ref<'idle' | 'ready' | 'error'>('idle');
 let io: IntersectionObserver | undefined;
 let seen = false;
 async function draw(): Promise<void> {
   if (!canvas.value || !seen) return;
+  if (props.blank) { renderBlank(props.blank, props.rotate, canvas.value, props.width ?? 96); state.value = 'ready'; return; }
   try { const doc = await viewDoc(props.src, () => props.bytes(props.src)); await renderPage(doc, props.index, props.rotate, canvas.value, props.width ?? 96); state.value = 'ready'; }
   catch { state.value = 'error'; }
 }
@@ -18,12 +21,12 @@ onMounted(() => {
   io = new IntersectionObserver((e) => { if (e.some((x) => x.isIntersecting)) { seen = true; io?.disconnect(); void draw(); } }, { rootMargin: '200px' });
   if (canvas.value) io.observe(canvas.value);
 });
-watch(() => [props.src, props.index, props.rotate], () => { void draw(); });
+watch(() => [props.src, props.index, props.rotate, props.blank?.w, props.blank?.h], () => { void draw(); });
 onBeforeUnmount(() => io?.disconnect());
 </script>
 
 <template>
-  <span class="thumb" :data-state="state"><canvas ref="canvas" :width="width ?? 96" :height="Math.round((width ?? 96) * 1.414)" aria-hidden="true"></canvas><span v-if="state === 'error'" class="bad">!</span></span>
+  <span class="thumb" :data-state="state"><canvas ref="canvas" :width="width ?? 96" :height="Math.round((width ?? 96) * ratio)" aria-hidden="true"></canvas><span v-if="state === 'error'" class="bad">!</span></span>
 </template>
 
 <style scoped>

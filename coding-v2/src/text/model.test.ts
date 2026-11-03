@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { cleanColor, cleanFont, cleanPercent, cleanSize, initialTextState, normalizedTextState, sanitizeTextHtml } from './model';
+import { cleanColor, cleanFont, cleanHref, cleanLineHeight, linkFromInput, cleanPercent, cleanSize, initialTextState, normalizedTextState, sanitizeTextHtml } from './model';
 
 describe('Texto: HTML confiável e modelo inicial', () => {
   beforeEach(() => { document.body.innerHTML = ''; });
@@ -56,5 +56,37 @@ describe('Texto: HTML confiável e modelo inicial', () => {
     const once = sanitizeTextHtml(old);
     expect(sanitizeTextHtml(once)).toBe(once);
     expect(once).toContain('<h1>Carta</h1>');
+  });
+
+  it('links: só http, https e mailto; guarda rel seguro e remove esquemas perigosos', () => {
+    const html = sanitizeTextHtml('<p><a href="https://exemplo.com/a?b=1" onclick="x()" style="color:red">ok</a> <a href="javascript:alert(1)">ruim</a> <a href="data:text/html,x">dados</a> <a href="mailto:oi@exemplo.com">mail</a> <a href="  ">vazio</a></p>');
+    expect(html).toContain('<a href="https://exemplo.com/a?b=1" rel="noopener noreferrer" target="_blank">ok</a>');
+    expect(html).toContain('<a href="mailto:oi@exemplo.com"');
+    expect(html).toContain('ruim');
+    expect(html).toContain('dados');
+    expect(html).not.toMatch(/javascript:|data:text|onclick|style=/i);
+    expect((html.match(/<a /g) ?? []).length).toBe(2);
+  });
+  it('espaçamento entre linhas: só valores da lista e só em blocos', () => {
+    const html = sanitizeTextHtml('<p style="line-height: 1.5">a</p><p style="line-height: 7">b</p><h2 style="line-height:2">c</h2><p><span style="line-height:2">d</span></p><li style="line-height: 1.15">e</li>');
+    expect(html).toContain('<p style="line-height: 1.5;">a</p>');
+    expect(html).toContain('<p>b</p>');
+    expect(html).toContain('<h2 style="line-height: 2;">c</h2>');
+    expect(html).toContain('<span>d</span>');
+    expect(cleanLineHeight('1.150')).toBe(1.15);
+    expect(cleanLineHeight('normal')).toBeNull();
+    expect(cleanLineHeight('20px')).toBeNull();
+  });
+  it('links: normaliza o que a pessoa digita', () => {
+    expect(linkFromInput('exemplo.com')).toBe('https://exemplo.com/');
+    expect(linkFromInput('www.exemplo.com/pagina')).toBe('https://www.exemplo.com/pagina');
+    expect(linkFromInput('exemplo.com:8080/x')).toBe('https://exemplo.com:8080/x');
+    expect(linkFromInput('nome@site.com')).toBe('mailto:nome@site.com');
+    expect(linkFromInput('http://a.b')).toBe('http://a.b/');
+    expect(linkFromInput('javascript:alert(1)')).toBeNull();
+    expect(linkFromInput('')).toBeNull();
+    expect(linkFromInput('dois espaços.com')).toBeNull();
+    expect(cleanHref('ftp://x.com')).toBeNull();
+    expect(cleanHref('https://')).toBeNull();
   });
 });

@@ -2,12 +2,17 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import EditorShell from '../../editors/EditorShell.vue';
 import FileTab from '../../editors/FileTab.vue';
+import SegTabs from '../../editors/SegTabs.vue';
 import { useDocument } from '../../editors/useDocument';
 import { useMediaQuery } from '../../composables/useMediaQuery';
 import { useSettingsStore } from '../../stores/settings';
 import { downloadText, safeFileName } from '../../shared/files/download';
-import { MAX_HISTORY, available, cleanNames, drawNumbers, makeTeams, pickName, rollDice, wheelAngle, type DrawMode } from './model';
+import { MAX_HISTORY, MAX_PRESETS, available, cleanNames, drawNumbers, makeTeams, pickName, rollDice, wheelAngle, type DrawMode } from './model';
 import { drawKind, drawTemplates } from './kind';
+import { usePrint } from '../../shared/print/usePrint';
+import { textPage } from '../../shared/print/pages';
+import type { PrintJob } from '../../shared/print/print';
+import PrintButton from '../../shared/print/PrintButton.vue';
 
 const doc = useDocument({ kind: drawKind, templates: drawTemplates, path: '/apps/sorteio/' });
 const { state } = doc;
@@ -15,6 +20,8 @@ const tabs = [{ id: 'wheel', label: 'Roleta' }, { id: 'numbers', label: 'Número
 const tab = ref<string>(state.value.mode);
 watch(tab, (t) => { if (t !== 'arquivo' && t !== state.value.mode) state.value.mode = t as DrawMode; });
 watch(() => state.value.mode, (m) => { if (tab.value !== 'arquivo') tab.value = m; });
+/** Layout livre: o palco (roleta, números, dados, equipes) é o protagonista; as configurações ficam ao lado no PC e abaixo no celular. */
+const wide = useMediaQuery('(min-width: 900px)', true);
 const systemReduced = useMediaQuery('(prefers-reduced-motion: reduce)', false);
 const settings = useSettingsStore();
 const reduced = computed(() => systemReduced.value || settings.motion === 'reduce');
@@ -94,11 +101,55 @@ function runTeams(): void {
     record('teams', text); doc.say('Equipes geradas. ' + text);
   } catch (e) { error.value = (e as Error).message; }
 }
-function clearHistory(): void { if (confirm('Apagar o histórico de resultados deste sorteio?')) { state.value.history = []; result.value = null; } }
+// listas de participantes guardadas
+const presetName = ref('');
+const presetPick = ref('');
+function savePreset(): void {
+  error.value = '';
+  const name = presetName.value.trim().slice(0, 60);
+  const names = cleanNames(state.value.participants);
+  if (!name) { error.value = 'Dê um nome à lista antes de salvar.'; return; }
+  if (!names.length) { error.value = 'Escreva pelo menos um participante antes de salvar a lista.'; return; }
+  const same = state.value.presets.find((p) => p.name.toLowerCase() === name.toLowerCase());
+  if (same) { same.participants = names; same.name = name; presetPick.value = same.id; doc.say('Lista “' + name + '” atualizada com ' + names.length + ' nomes.'); }
+  else {
+    if (state.value.presets.length >= MAX_PRESETS) { error.value = 'Limite de ' + MAX_PRESETS + ' listas salvas. Exclua uma para guardar outra.'; return; }
+    const id = 'lista-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    state.value.presets.push({ id, name, participants: names });
+    presetPick.value = id;
+    doc.say('Lista “' + name + '” salva com ' + names.length + ' nomes.');
+  }
+  presetName.value = '';
+}
+function loadPreset(): void {
+  error.value = '';
+  const p = state.value.presets.find((x) => x.id === presetPick.value);
+  if (!p) { error.value = 'Escolha uma lista salva para carregar.'; return; }
+  state.value.participants = [...p.participants];
+  state.value.drawn = [];
+  result.value = null;
+  doc.say('Lista “' + p.name + '” carregada com ' + p.participants.length + ' nomes. Quem já tinha sido sorteado foi liberado.');
+}
+function deletePreset(): void {
+  const i = state.value.presets.findIndex((x) => x.id === presetPick.value);
+  if (i < 0) return;
+  const [gone] = state.value.presets.splice(i, 1);
+  presetPick.value = '';
+  doc.say('Lista “' + gone!.name + '” excluída. Os participantes atuais não mudaram.');
+}
+// ver um resultado antigo sem sortear de novo
+const inspected = ref<number | null>(null);
+const inspectedEntry = computed(() => (inspected.value === null ? null : state.value.history[inspected.value] ?? null));
+const inspectedLines = computed(() => (inspectedEntry.value ? inspectedEntry.value.text.split(' | ') : []));
+const recent = computed(() => state.value.history.map((h, index) => ({ h, index })).reverse().slice(0, 30));
+function clearHistory(): void { if (confirm('Apagar o histórico de resultados deste sorteio?')) { state.value.history = []; result.value = null; inspected.value = null; } }
 const dateFmt = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 const modeName: Record<DrawMode, string> = { wheel: 'Roleta', numbers: 'Números', dice: 'Dados', teams: 'Equipes' };
+function historyLines(): string[] { return [state.value.name, '', ...state.value.history.map((h) => dateFmt.format(h.at) + ' · ' + modeName[h.mode] + ' · ' + h.text)]; }
+// Imprimir: o histórico de sorteios (o mesmo texto da exportação), sem a roleta nem os controles.
+usePrint({ kind: 'built', build: () => ({ title: state.value.name || 'Sorteio', pages: [textPage(state.value.name || 'Sorteio', historyLines().join('\n')).page] }), enabled: () => state.value.history.length > 0, reason: () => 'Ainda não há resultados no histórico para imprimir.', notify: (m) => doc.say(m) });
 function exportHistory(): void {
-  const lines = [state.value.name, '', ...state.value.history.map((h) => dateFmt.format(h.at) + ' · ' + modeName[h.mode] + ' · ' + h.text)];
+  const lines = historyLines();
   downloadText(lines.join('\n') + '\n', safeFileName(state.value.name, 'sorteio') + '.txt');
   doc.say('Histórico exportado.');
 }
@@ -106,12 +157,28 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
 </script>
 
 <template>
-  <EditorShell v-model:tab="tab" app="draw" :doc="doc" :tabs="tabs">
-    <template #panel="{ tab: current }">
-      <div v-if="current === 'wheel' || current === 'teams'" class="ed-group">
+  <EditorShell app="draw" layout="free" :doc="doc">
+    <div class="dw" :data-mode="state.mode" :data-tab="tab" :data-wide="wide ? 'sim' : 'nao'" data-testid="draw-stage">
+      <SegTabs v-model="tab" :tabs="tabs" label="Tipo de sorteio" prefix="dw" panel-id="dw-controls" class="dw-tabs" fill />
+      <section id="dw-controls" class="controls" role="tabpanel" :aria-labelledby="'dw-tab-' + tab" data-testid="editor-panel">
+      <div v-if="tab === 'wheel' || tab === 'teams'" class="ed-group">
         <label class="ed-field"><span class="ed-label">Participantes (um por linha) · {{ total }}</span>
           <textarea v-model="namesText" class="inp names" rows="5" data-testid="names" @input="doc.setChangeKey('names')"></textarea></label>
-        <div v-if="current === 'wheel'" class="ed-row">
+        <details class="presets" data-testid="presets">
+          <summary>Listas salvas ({{ state.presets.length }})</summary>
+          <div class="ed-row">
+            <label class="ed-field"><span class="ed-label">Nome da lista</span><input v-model="presetName" class="inp" maxlength="60" placeholder="Ex.: Turma A" data-testid="preset-name" @keydown.enter.prevent="savePreset" /></label>
+            <button type="button" class="btn" data-testid="preset-save" @click="savePreset">Salvar lista atual</button>
+          </div>
+          <div v-if="state.presets.length" class="ed-row">
+            <label class="ed-field"><span class="ed-label">Listas guardadas</span>
+              <select v-model="presetPick" class="inp" data-testid="preset-select"><option value="">Escolha…</option><option v-for="p in state.presets" :key="p.id" :value="p.id">{{ p.name }} ({{ p.participants.length }})</option></select></label>
+            <button type="button" class="btn" :disabled="!presetPick" data-testid="preset-load" @click="loadPreset">Carregar</button>
+            <button type="button" class="btn" :disabled="!presetPick" data-testid="preset-delete" @click="deletePreset">Excluir</button>
+          </div>
+          <p v-else class="muted small">Guarde a lista de participantes com um nome para reutilizá-la depois.</p>
+        </details>
+        <div v-if="tab === 'wheel'" class="ed-row">
           <label class="check"><input v-model="state.excludeDrawn" type="checkbox" data-testid="exclude" /> Não repetir quem já saiu</label>
           <button type="button" class="btn" :disabled="!state.drawn.length" data-testid="reset-drawn" @click="resetDrawn">Recomeçar ({{ state.drawn.length }} já sorteados)</button>
         </div>
@@ -119,24 +186,24 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
           <label class="ed-field"><span class="ed-label">Número de equipes</span><input v-model.number="state.teams.count" class="inp inp-num" type="number" min="2" max="50" data-testid="team-count" /></label>
         </div>
       </div>
-      <div v-else-if="current === 'numbers'" class="ed-row">
+      <div v-else-if="tab === 'numbers'" class="ed-row">
         <label class="ed-field"><span class="ed-label">De</span><input v-model.number="state.numbers.min" class="inp inp-num" type="number" data-testid="num-min" /></label>
         <label class="ed-field"><span class="ed-label">Até</span><input v-model.number="state.numbers.max" class="inp inp-num" type="number" data-testid="num-max" /></label>
         <label class="ed-field"><span class="ed-label">Quantidade</span><input v-model.number="state.numbers.count" class="inp inp-num" type="number" min="1" max="100" data-testid="num-count" /></label>
         <label class="check"><input v-model="state.numbers.unique" type="checkbox" /> Sem repetir</label>
       </div>
-      <div v-else-if="current === 'dice'" class="ed-row">
+      <div v-else-if="tab === 'dice'" class="ed-row">
         <label class="ed-field"><span class="ed-label">Dados</span><input v-model.number="state.dice.count" class="inp inp-num" type="number" min="1" max="12" data-testid="dice-count" /></label>
         <label class="ed-field"><span class="ed-label">Faces</span>
           <select v-model.number="state.dice.sides" class="inp"><option v-for="f in [4, 6, 8, 10, 12, 20, 100]" :key="f" :value="f">d{{ f }}</option></select></label>
       </div>
       <FileTab v-else :templates="drawTemplates" @new="doc.newFrom">
+        <PrintButton />
         <button type="button" class="btn" :disabled="!state.history.length" data-testid="export-history" @click="exportHistory">Exportar histórico (TXT)</button>
         <button type="button" class="btn" :disabled="!state.history.length" @click="clearHistory">Limpar histórico</button>
       </FileTab>
-    </template>
+      </section>
 
-    <div class="stage" :data-mode="state.mode">
       <div class="play">
         <template v-if="state.mode === 'wheel'">
           <div class="wheel-wrap"><span class="pointer" aria-hidden="true">▼</span><div class="wheel-box">
@@ -181,8 +248,13 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
       <section class="history" aria-labelledby="hist-h">
         <h2 id="hist-h">Histórico ({{ state.history.length }})</h2>
         <ol v-if="state.history.length" reversed data-testid="history">
-          <li v-for="(h, i) in [...state.history].reverse().slice(0, 30)" :key="i"><small class="muted">{{ dateFmt.format(h.at) }} · {{ modeName[h.mode] }}</small> {{ h.text }}</li>
+          <li v-for="r in recent" :key="r.index"><button type="button" class="hist-item" :aria-pressed="inspected === r.index" data-testid="history-item" @click="inspected = inspected === r.index ? null : r.index"><small class="muted">{{ dateFmt.format(r.h.at) }} · {{ modeName[r.h.mode] }}</small> {{ r.h.text }}</button></li>
         </ol>
+        <div v-if="inspectedEntry" class="inspect" role="region" aria-label="Resultado do histórico" data-testid="history-detail">
+          <p class="muted small">{{ modeName[inspectedEntry.mode] }} · {{ dateFmt.format(inspectedEntry.at) }} — registro salvo; nada foi sorteado de novo.</p>
+          <ul><li v-for="(line, k) in inspectedLines" :key="k">{{ line }}</li></ul>
+          <button type="button" class="btn" @click="inspected = null">Fechar</button>
+        </div>
         <p v-else class="muted small">Os resultados aparecem aqui e ficam salvos no documento.</p>
       </section>
     </div>
@@ -193,8 +265,32 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
 .names { width: 100%; min-height: 120px; resize: vertical; font-size: 16px; }
 .check { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; font-weight: 600; }
 .check input { width: 20px; height: 20px; }
-.stage { display: grid; gap: 18px; max-width: 980px; margin: 0 auto; padding: 16px max(16px, var(--sa-r)) 28px max(16px, var(--sa-l)); }
-@media (min-width: 900px) { .stage { grid-template-columns: minmax(0, 1fr) 300px; align-items: start; } }
+.dw { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; box-sizing: border-box; min-width: 0; padding: 14px max(8px, var(--sa-r)) 28px max(8px, var(--sa-l)); }
+.dw-tabs { width: min(100%, 640px); margin: 0 auto; }
+.controls { display: grid; gap: 10px; align-content: start; min-width: 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+/* Celular: listas longas (roleta, equipes) vêm depois do palco; formulários curtos (números, dados) vêm antes. */
+.dw .dw-tabs { order: 0; }
+.dw .play { order: 1; }
+.dw .controls { order: 2; }
+.dw .history { order: 3; }
+.dw[data-tab="numbers"] .controls, .dw[data-tab="dice"] .controls { order: 1; }
+.dw[data-tab="numbers"] .play, .dw[data-tab="dice"] .play { order: 2; }
+.dw[data-tab="arquivo"] .controls { order: 1; }
+.dw[data-tab="arquivo"] .play { order: 2; }
+/* As cinco abas ficam sempre à mão: a barra acompanha a rolagem, com os rótulos inteiros e alvos de toque de 44 px. */
+@media (max-width: 899px) {
+  .dw-tabs { position: sticky; top: 0; z-index: 5; box-shadow: 0 6px 10px -6px #0004; }
+}
+@media (min-width: 900px) {
+  .dw { grid-template-columns: 300px minmax(0, 1fr) 280px; column-gap: 18px; align-items: start; padding-top: 18px; }
+  .dw-tabs { grid-column: 1 / -1; }
+  .dw .controls, .dw .play, .dw .history, .dw[data-tab] .controls, .dw[data-tab] .play { order: 0; }
+  .dw .controls { grid-column: 1; grid-row: 2; position: sticky; top: 0; }
+  .dw .play { grid-column: 2; grid-row: 2; align-content: start; padding-top: 8px; }
+  .dw .history { grid-column: 3; grid-row: 2; position: sticky; top: 0; }
+  .dw .wheel-wrap { width: min(100%, 54vh, 520px); }
+  .dw .wheel-box { width: 100%; }
+}
 .play { display: grid; justify-items: center; gap: 12px; text-align: center; }
 .wheel-box { position: relative; width: min(78vw, 46vh, 420px); aspect-ratio: 1; }
 .wheel { width: 100%; height: 100%; display: block; pointer-events: none; }
@@ -216,5 +312,11 @@ const dicePips: Record<number, number[][]> = { 1: [[50, 50]], 2: [[28, 28], [72,
 .team ol { margin: 0; padding-left: 20px; }
 .history { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; }
 .history h2 { font-size: 16px; margin: 0 0 8px; }
+.presets { border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; }
+.presets summary { cursor: pointer; font-weight: 600; min-height: 36px; display: flex; align-items: center; }
+.hist-item { display: block; width: 100%; text-align: left; background: transparent; border: 0; border-radius: 8px; padding: 4px 6px; color: inherit; font: inherit; cursor: pointer; }
+.hist-item:hover, .hist-item[aria-pressed="true"] { background: var(--bg); outline: 1px solid var(--border); }
+.inspect { margin-top: 10px; padding: 10px 12px; border: 2px solid var(--app); border-radius: 12px; display: grid; gap: 6px; }
+.inspect ul { margin: 0; padding-left: 20px; overflow-wrap: anywhere; }
 .history ol { margin: 0; padding-left: 22px; display: grid; gap: 4px; max-height: 40vh; overflow: auto; }
 </style>

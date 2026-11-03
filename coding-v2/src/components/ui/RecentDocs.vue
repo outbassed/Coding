@@ -11,7 +11,7 @@ import PageNavigator from '../library/PageNavigator.vue';
 import { PAGE_SIZE, boundedPage, pageCount } from '../../library/pagination';
 
 /** Read-only metadata only: never creates sample documents or loads every file's image Blobs. */
-const props = defineProps<{ toolId?: ToolId }>();
+const props = defineProps<{ toolId?: ToolId; compact?: boolean }>();
 const all = ref<CopySummary[]>([]);
 const expanded = ref(false);
 const query = ref('');
@@ -56,10 +56,10 @@ onBeforeUnmount(() => { alive = false; stop?.(); });
 </script>
 
 <template>
-  <section v-if="recent.length || toolId" class="recent" aria-labelledby="recentes" data-testid="recent-docs">
+  <section v-if="recent.length || toolId" class="recent" :class="{ compact }" aria-labelledby="recentes" data-testid="recent-docs">
     <div class="head">
       <button type="button" class="all" data-testid="open-history" @click="expanded = true">☰ <span>Ver histórico</span></button>
-      <h2 id="recentes">{{ toolId ? 'Arquivos recentes' : 'Documentos recentes' }}</h2>
+      <h2 id="recentes">{{ toolId ? 'Arquivos recentes' : 'Continuar de onde parou' }}</h2>
       <span v-if="recent.length" class="count muted">{{ recent.length }} recentes</span>
     </div>
     <div v-if="recent.length" class="scroller" role="list" aria-label="Últimos oito arquivos editados">
@@ -103,6 +103,13 @@ onBeforeUnmount(() => { alive = false; stop?.(); });
 
 <style scoped>
 .recent { margin-top:30px; min-width:0; }
+.recent.compact { margin-top:22px; }
+.compact .head { margin-bottom:6px; }
+.compact .head h2 { font-size:16px; }
+.compact .tile { flex-basis:clamp(92px,15vw,118px); }
+.compact .tile-link { gap:3px; }
+.compact .scroller { gap:10px; padding-bottom:8px; }
+.compact .count { display:none; }
 .head { display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
 .head h2 { font-size:19px; margin:0; flex:1; }
 .all { min-height:44px; background:var(--panel); border:1px solid var(--border); color:var(--accent); font-weight:750; border-radius:12px; padding:0 10px; white-space:nowrap; }
@@ -129,5 +136,5 @@ onBeforeUnmount(() => { alive = false; stop?.(); });
 .row-thumb { flex:0 0 40px; width:40px; }
 .controls { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,190px); gap:10px; }
 @media(max-width:480px) { .controls { grid-template-columns:minmax(0,1fr); } }
-@media(max-width:599px) { .scroller { margin-right:-12px; } .tile { flex-basis:118px; } .head { gap:8px; } .count { display:none; } }
+@media(max-width:599px) { .scroller { margin-right:-12px; } .tile { flex-basis:118px; } .compact .tile { flex-basis:96px; } .head { gap:8px; } .count { display:none; } }
 </style>

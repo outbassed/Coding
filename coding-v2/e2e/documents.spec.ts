@@ -6,9 +6,9 @@ test.describe('Fase 3.2 · importação guiada sem alterar o legado', () => {
     await page.goto('/launcher/#/documentos');
     await expect(page.getByText('Você ainda não tem cópias')).toBeVisible();
     await page.getByTestId('open-import').click();
-    await expect(page.getByRole('dialog', { name: 'Importar do Coding antigo' })).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Importar documentos anteriores' })).toBeVisible();
     await expect(page.locator('[data-wizard-heading]')).toBeFocused();
-    await page.getByRole('button', { name: 'Examinar documentos antigos' }).click();
+    await page.getByRole('button', { name: 'Examinar documentos anteriores' }).click();
     await expect(page.getByTestId('wizard-none')).toBeVisible();
     await expect(page.getByText(/Nenhum documento encontrado nesta origem/)).toBeVisible();
     const after = await page.evaluate(async () => (await indexedDB.databases()).map((x) => x.name));
@@ -19,7 +19,7 @@ test.describe('Fase 3.2 · importação guiada sem alterar o legado', () => {
     await page.goto('/launcher/#/documentos');
     await seedLegacy(page);
     await page.getByTestId('open-import').click();
-    await page.getByRole('button', { name: 'Examinar documentos antigos' }).click();
+    await page.getByRole('button', { name: 'Examinar documentos anteriores' }).click();
     await expect(page.getByTestId('legacy-docs').locator('li')).toHaveCount(2);
     await expect(page.getByRole('button', { name: /^Continuar/ })).toBeDisabled();
     await page.getByRole('checkbox', { name: 'Foto de teste' }).check();
@@ -51,7 +51,7 @@ test.describe('Fase 3.2 · importação guiada sem alterar o legado', () => {
 
     // O documento já copiado aparece indisponível, sem permitir duplicar.
     await page.getByTestId('open-import').click();
-    await page.getByRole('button', { name: 'Examinar documentos antigos' }).click();
+    await page.getByRole('button', { name: 'Examinar documentos anteriores' }).click();
     await expect(page.getByRole('checkbox', { name: 'Foto de teste' })).toBeDisabled();
     await expect(page.getByText('Indisponível: já existe uma cópia')).toBeVisible();
     await expect(page.getByRole('checkbox', { name: 'Caixas do estoque' })).toBeEnabled();

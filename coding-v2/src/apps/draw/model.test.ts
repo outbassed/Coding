@@ -1,7 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { available, demoDraw, drawNumbers, makeTeams, randomBelow, rollDice, wheelAngle } from './model';
+import { available, demoDraw, normalizeDraw, normalizePresets, drawNumbers, makeTeams, randomBelow, rollDice, wheelAngle } from './model';
 
 describe('sorteio', () => {
+  it('listas salvas: saneia, limita e mantém ids únicos', () => {
+    const list = normalizePresets([
+      { id: 'a', name: '  Turma A  ', participants: ['Ana', 3, 'Bia'] },
+      { id: 'a', name: 'Turma B', participants: ['Caio'] },
+      { id: 'x', name: '   ', participants: ['Sem nome'] },
+      { name: 'Sem lista' },
+      'lixo',
+      null
+    ]);
+    expect(list.map((p) => p.name)).toEqual(['Turma A', 'Turma B']);
+    expect(list[0]!.participants).toEqual(['Ana', 'Bia']);
+    expect(new Set(list.map((p) => p.id)).size).toBe(2);
+    expect(normalizePresets(Array.from({ length: 40 }, (_, i) => ({ id: 'p' + i, name: 'L' + i, participants: [] })))).toHaveLength(20);
+    expect(normalizePresets('x')).toEqual([]);
+    expect(normalizeDraw({}).presets).toEqual([]);
+    expect(normalizeDraw({ presets: [{ id: 'k', name: 'Lista', participants: ['A'] }] }).presets[0]!.name).toBe('Lista');
+  });
   it('aleatoriedade sem viés e dentro do intervalo', () => {
     const counts = [0, 0, 0];
     for (let i = 0; i < 6000; i++) counts[randomBelow(3)]!++;

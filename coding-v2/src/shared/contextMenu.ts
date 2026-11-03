@@ -1,9 +1,10 @@
 import { findTool, type ToolId } from './catalog';
-import { LAUNCHER_PATH } from './links';
+import { PRINTABLE_APPS } from './print/apps';
+import { canPrint, installPrint, requestPrint } from './print/print';
 
-type AppId = ToolId | 'launcher';
+export type AppId = ToolId | 'launcher';
+export type HelpKey = readonly [description: string, shortcut: string];
 type Action = { label: string; shortcut?: string; selector?: string; tab?: string; run?: () => void; id?: string };
-type HelpKey = readonly [description: string, shortcut: string];
 
 const APP_ACTIONS: Record<ToolId, Action[]> = {
   labels: [
@@ -20,27 +21,33 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
   calc: [
     { label: 'Nova aba', selector: '[data-testid="add-sheet"]', tab: 'Linhas e abas', shortcut: 'Alt+Shift+N' },
     { label: 'Preencher para baixo', selector: '[data-testid="fill-down"]', tab: 'Início' },
+    { label: 'Selecionar coluna', selector: '[data-testid="select-column"]', tab: 'Início' },
+    { label: 'Selecionar linha', selector: '[data-testid="select-row"]', tab: 'Início' },
     { label: 'Exportar XLSX', selector: '[data-testid="export-xlsx"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' }
   ],
   images: [
     { label: 'Adicionar imagem', selector: '[data-testid="add-image"]', tab: 'Camadas', shortcut: 'Alt+Shift+N' },
     { label: 'Adicionar texto', selector: '[data-testid="add-text"]', tab: 'Camadas' },
-    { label: 'Adicionar retângulo', selector: '[data-testid="add-rect"]', tab: 'Camadas' }
+    { label: 'Adicionar retângulo', selector: '[data-testid="add-rect"]', tab: 'Camadas' },
+    { label: 'Colar imagem', selector: '[data-testid="paste-image"]', tab: 'Camadas' },
+    { label: 'Girar camada 90°', selector: '[data-testid="rotate90"]', tab: 'Ajustar' },
+    { label: 'Exportar PNG', selector: '[data-testid="export-png"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
+    { label: 'Exportar WebP', selector: '[data-testid="export-webp"]', tab: 'Arquivo' }
   ],
   pdf: [
     { label: 'Abrir ou juntar PDF', selector: '[data-testid="open-pdf"]', tab: 'Arquivo', shortcut: 'Alt+Shift+N' },
     { label: 'Girar página', selector: '[data-testid="rotate-page"]', tab: 'Páginas' },
-    { label: 'Duplicar página', selector: '[data-testid="duplicate-page"]', tab: 'Páginas' }
+    { label: 'Duplicar página', selector: '[data-testid="duplicate-page"]', tab: 'Páginas' },
+    { label: 'Adicionar texto', selector: '[data-testid="add-note-text"]', tab: 'Anotar' },
+    { label: 'Adicionar linha', selector: '[data-testid="add-line"]', tab: 'Anotar' },
+    { label: 'Desenhar assinatura', selector: '[data-testid="ink-toggle"]', tab: 'Anotar' },
+    { label: 'Inserir imagem', selector: '[data-testid="add-image"]', tab: 'Anotar' },
+    { label: 'Exportar PDF', selector: '[data-testid="export-pdf"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' }
   ],
   codes: [
     { label: 'Novo código', selector: '[data-testid="add-code"]', tab: 'Código', shortcut: 'Alt+Shift+N' },
     { label: 'Baixar PNG', selector: '[data-testid="export-png"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
     { label: 'Baixar SVG', selector: '[data-testid="export-svg"]', tab: 'Arquivo' }
-  ],
-  'sheet-labels': [
-    { label: 'Adicionar linha', selector: '[data-testid="add-row"]', tab: 'Dados', shortcut: 'Alt+Shift+N' },
-    { label: 'Importar CSV ou XLSX', selector: '[data-testid="import-table"]', tab: 'Dados' },
-    { label: 'Criar documento de Etiquetas', selector: '[data-testid="create-labels"]', tab: 'Gerar', shortcut: 'Alt+Shift+E' }
   ],
   draw: [
     { label: 'Girar roleta', selector: '[data-testid="spin"]', tab: 'Roleta', shortcut: 'Alt+Shift+N' },
@@ -51,6 +58,64 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
     { label: 'Nova despesa', selector: '[data-testid="add-expense"]', tab: 'Despesas', shortcut: 'Alt+Shift+N' },
     { label: 'Adicionar pessoa', selector: '[data-testid="add-person"]', tab: 'Pessoas' },
     { label: 'Exportar CSV', selector: '[data-testid="export-csv"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' }
+  ],
+  calculator: [
+    { label: 'Limpar entrada', selector: '[data-testid="key-clear"]', shortcut: 'Esc' },
+    { label: 'Copiar resultado', selector: '[data-testid="copy-result"]' },
+    { label: 'Exportar histórico', selector: '[data-testid="export-history"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' }
+  ],
+  colors: [
+    { label: 'Adicionar cor à paleta', selector: '[data-testid="add-base"]', tab: 'Cor' },
+    { label: 'Ver contraste', selector: '[data-testid="contrast-ratio"]', tab: 'Contraste' },
+    { label: 'Exportar CSS', selector: '[data-testid="export-css"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
+    { label: 'Exportar JSON', selector: '[data-testid="export-json"]', tab: 'Arquivo' },
+    { label: 'Importar imagem para extrair cores', selector: '[data-testid="image-input"]', tab: 'Imagem' }
+  ],
+  zip: [
+    { label: 'Criar e baixar o ZIP', selector: '[data-testid="create-zip"]', tab: 'Compactar' },
+    { label: 'Abrir um ZIP', selector: '[data-testid="zip-open-input"]', tab: 'Abrir ZIP' },
+    { label: 'Verificar ZIP', selector: '[data-testid="verify-zip"]', tab: 'Abrir ZIP' },
+    { label: 'Esvaziar projeto', selector: '[data-testid="clear-project"]', tab: 'Arquivos' }
+  ],
+  compare: [
+    { label: 'Próxima diferença', selector: '[data-testid="next-diff"]' },
+    { label: 'Trocar A e B', selector: '[data-testid="swap-sides"]', tab: 'Arquivos' },
+    { label: 'Diferença anterior', selector: '[data-testid="prev-diff"]' },
+    { label: 'Copiar diferenças', selector: '[data-testid="copy-diff"]', tab: 'Arquivo' },
+    { label: 'Exportar diferenças', selector: '[data-testid="export-diff"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' }
+  ],
+  code: [
+    { label: 'Novo arquivo', selector: '[data-testid="new-file"]', tab: 'Explorador', shortcut: 'Alt+Shift+N' },
+    { label: 'Nova pasta', selector: '[data-testid="new-folder"]', tab: 'Explorador' },
+    { label: 'Executar', selector: '[data-testid="run-code"]', tab: 'Executar', shortcut: 'Ctrl+Enter' },
+    { label: 'Baixar ZIP do projeto', selector: '[data-testid="download-zip"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
+    { label: 'Baixar página única', selector: '[data-testid="download-html"]', tab: 'Arquivo' }
+  ],
+  paint: [
+    { label: 'Nova camada', selector: '[data-testid="add-layer"]', tab: 'Camadas' },
+    { label: 'Baixar PNG', selector: '[data-testid="export-png"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
+    { label: 'Importar imagem como camada', selector: '[data-testid="import-layer"]', tab: 'Tela' },
+    { label: 'Copiar seleção', selector: '[data-testid="sel-copy"]', tab: 'Ferramentas' },
+    { label: 'Colar seleção', selector: '[data-testid="sel-paste"]', tab: 'Ferramentas' },
+    { label: 'Mesclar camada abaixo', selector: '[data-testid="merge-down"]', tab: 'Camadas' },
+    { label: 'Exportar WebP', selector: '[data-testid="export-webp"]', tab: 'Arquivo' }
+  ],
+  viewer: [
+    { label: 'Abrir arquivos', selector: '[data-testid="open-files"]', tab: 'Arquivos', shortcut: 'Alt+Shift+N' },
+    { label: 'Baixar o arquivo atual', selector: '[data-testid="download-original"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
+    { label: 'Redefinir vista 3D', selector: '[data-testid="reset-3d"]', tab: 'Exibição' },
+    { label: 'Arquivo anterior', selector: '[data-testid="viewer-prev"]' },
+    { label: 'Próximo arquivo', selector: '[data-testid="viewer-next"]' },
+    { label: 'Apresentação de imagens', selector: '[data-testid="slideshow"]', tab: 'Arquivos' },
+    { label: 'Tela cheia', selector: '[data-testid="viewer-fullscreen"]' }
+  ],
+  versos: [
+    { label: 'Adicionar texto', selector: '[data-testid="add-text"]', tab: 'Textos', shortcut: 'Alt+Shift+N' },
+    { label: 'Nova cena', selector: '[data-testid="footer-add-scene"]' },
+    { label: 'Importar imagem de fundo', selector: '[data-testid="import-bg"]' },
+    { label: 'Exportar cena em PNG', selector: '[data-testid="export-scene"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
+    { label: 'Exportar todas as cenas (ZIP)', selector: '[data-testid="export-zip"]', tab: 'Arquivo' },
+    { label: 'Música de referência', selector: '[data-testid="media-open"]' }
   ]
 };
 
@@ -58,8 +123,28 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
 const NATIVE_KEYS: Partial<Record<ToolId, HelpKey[]>> = {
   labels: [['Desfazer', 'Ctrl+Z'], ['Refazer', 'Ctrl+Shift+Z / Ctrl+Y'], ['Salvar agora', 'Ctrl+S'], ['Imprimir', 'Ctrl+P']],
   texts: [['Desfazer documento', 'Ctrl+Z'], ['Refazer documento', 'Ctrl+Shift+Z / Ctrl+Y'], ['Salvar documento', 'Ctrl+S'], ['Negrito na seleção', 'Ctrl+B'], ['Itálico na seleção', 'Ctrl+I'], ['Sublinhar seleção', 'Ctrl+U']],
-  calc: [['Editar célula', 'F2'], ['Confirmar', 'Enter'], ['Navegar', 'Setas / Tab'], ['Negrito', 'Ctrl+B'], ['Preencher para baixo', 'Ctrl+D']]
+  calc: [['Editar célula', 'F2'], ['Confirmar', 'Enter'], ['Navegar', 'Setas / Tab'], ['Negrito', 'Ctrl+B'], ['Preencher para baixo', 'Ctrl+D']],
+  versos: [
+    ['Desfazer', 'Ctrl+Z'], ['Refazer', 'Ctrl+Shift+Z / Ctrl+Y'], ['Salvar agora', 'Ctrl+S'],
+    ['Copiar cena ou texto selecionado', 'Ctrl+C'], ['Recortar cena ou texto', 'Ctrl+X'], ['Colar como novo', 'Ctrl+V'], ['Duplicar cena ou texto', 'Ctrl+D'],
+    ['Excluir cena ou texto', 'Delete'], ['Mover o texto selecionado', 'Setas (Shift = 10 px)'], ['Cena anterior / próxima', 'Page Up / Page Down']
+  ]
 };
+
+/** Atalhos que o menu de contexto de cada aplicativo mostra em “Atalhos de …”. Ajustes → Atalhos usa a mesma lista. */
+export function shortcutsOf(app: AppId): HelpKey[] {
+  const keys: HelpKey[] = app === 'launcher' ? [['Abrir o menu', 'Shift+F10']] : [...(NATIVE_KEYS[app] ?? [['Salvar projeto', 'Ctrl+S'], ['Desfazer', 'Ctrl+Z'], ['Refazer', 'Ctrl+Shift+Z / Ctrl+Y']])];
+  if (app !== 'launcher') {
+    for (const action of APP_ACTIONS[app]) {
+      if (action.shortcut && !keys.some((k) => k[1] === action.shortcut)) keys.push([action.label, action.shortcut]);
+    }
+  }
+  if (app !== 'launcher' && PRINTABLE_APPS.has(app) && !keys.some((k) => k[1] === 'Ctrl+P')) keys.push(['Imprimir', 'Ctrl+P']);
+  keys.push(['Abrir menu de contexto', 'Shift+F10']);
+  keys.push(['Mostrar estes atalhos', '?']);
+  keys.push(['Menu original do navegador', 'Shift + botão direito']);
+  return keys;
+}
 
 function isTyping(el: Element): boolean {
   return !!el.closest('input,textarea,select,[contenteditable="true"],[contenteditable=""],[role="textbox"],[role="combobox"]');
@@ -74,7 +159,8 @@ function findControl(action: Action): HTMLButtonElement | null {
 function available(action: Action, allowSwitchTab = false): boolean {
   if (!action.selector) return true;
   const button = findControl(action);
-  if (button && !button.disabled && button.getClientRects().length > 0) return true;
+  if (button?.disabled) return false;
+  if (button && button.getClientRects().length > 0) return true;
   return !!(allowSwitchTab && action.tab && getTab(action.tab));
 }
 function runControl(action: Action): void {
@@ -94,6 +180,85 @@ function runControl(action: Action): void {
   requestAnimationFrame(click);
 }
 
+/** Operações específicas do elemento, sem misturar navegação com edição. */
+function contextualEntries(app: AppId, target?: Element): { title: string; actions: Action[] } | null {
+  if (!target || app === 'launcher') return null;
+  if (app === 'calc') {
+    const el = target.closest<HTMLElement>('[data-col],[data-row],[data-cell]');
+    if (!el) return null;
+    const col = el.dataset.col;
+    const row = el.dataset.row;
+    const cell = el.dataset.cell;
+    const act = (command: string, label: string): Action => ({
+      label, run: () => document.dispatchEvent(new CustomEvent('coding:sheet-context-action', { detail: { command } }))
+    });
+    if (col) return { title: 'Coluna ' + col, actions: [
+      act('copy', 'Copiar coluna ' + col), act('cut', 'Recortar coluna ' + col), act('paste', 'Colar na coluna ' + col),
+      act('duplicate-column', 'Duplicar coluna'), act('insert-column-left', 'Inserir coluna à esquerda'),
+      act('insert-column-right', 'Inserir coluna à direita'), act('delete-column', 'Excluir coluna')
+    ] };
+    if (row) return { title: 'Linha ' + row, actions: [
+      act('copy', 'Copiar linha ' + row), act('cut', 'Recortar linha ' + row), act('paste', 'Colar na linha ' + row),
+      act('duplicate-row', 'Duplicar linha'), act('insert-row-above', 'Inserir linha acima'),
+      act('insert-row-below', 'Inserir linha abaixo'), act('delete-row', 'Excluir linha')
+    ] };
+    if (cell) return { title: 'Célula ' + cell, actions: [
+      act('copy', 'Copiar seleção'), act('cut', 'Recortar seleção'), act('paste', 'Colar na seleção'),
+      act('clear', 'Limpar conteúdo')
+    ] };
+  }
+  if (app === 'labels') {
+    const itemElement = target.closest<HTMLElement>('[data-item]');
+    if (itemElement) {
+      const duplicate = itemElement.querySelector<HTMLButtonElement>('button[aria-label^="Duplicar item"]');
+      const remove = itemElement.querySelector<HTMLButtonElement>('button[aria-label^="Excluir item"]');
+      const actions: Action[] = [];
+      if (duplicate && !duplicate.disabled) actions.push({ label: 'Duplicar item', run: () => duplicate.click() });
+      if (remove && !remove.disabled) actions.push({ label: 'Excluir item', run: () => remove.click() });
+      return actions.length ? { title: 'Item de etiqueta', actions } : null;
+    }
+  }
+  if (app === 'versos') {
+    const act = (command: string, label: string, ids: { sceneId?: string; textId?: string } = {}, enabled = true): Action[] => enabled ? [{
+      label, run: () => window.dispatchEvent(new CustomEvent('coding:versos-action', { detail: { command, ...ids } }))
+    }] : [];
+    const root = document.querySelector<HTMLElement>('[data-versos-root]');
+    const clip = root?.dataset.clip ?? '';
+    const sceneEl = target.closest<HTMLElement>('[data-scene-id]');
+    if (sceneEl?.dataset.sceneId) {
+      const ids = { sceneId: sceneEl.dataset.sceneId };
+      const index = Number(sceneEl.dataset.index ?? -1);
+      const total = document.querySelectorAll('[data-testid="scene-item"]').length;
+      return { title: 'Cena', actions: [
+        ...act('scene-copy', 'Copiar cena', ids), ...act('scene-cut', 'Recortar cena', ids),
+        ...act('scene-paste', 'Colar como nova cena', ids, clip === 'scenes'),
+        ...act('scene-duplicate', 'Duplicar cena', ids),
+        ...act('scene-up', 'Mover para cima', ids, index > 0), ...act('scene-down', 'Mover para baixo', ids, index < total - 1),
+        ...act('scene-delete', 'Excluir cena', ids)
+      ] };
+    }
+    const textEl = target.closest<HTMLElement>('[data-text-id]');
+    const canvas = target.closest<HTMLElement>('[data-testid="versos-canvas"]');
+    const textId = textEl?.dataset.textId ?? (canvas?.dataset.hasSelection === 'true' ? '' : undefined);
+    if (textId !== undefined) {
+      const ids = textId ? { textId } : {};
+      return { title: 'Texto', actions: [
+        ...act('text-copy', 'Copiar texto', ids), ...act('text-cut', 'Recortar texto', ids),
+        ...act('text-paste', 'Colar como novo texto', ids, clip === 'texts'),
+        ...act('text-duplicate', 'Duplicar texto', ids),
+        ...act('text-copy-format', 'Copiar formatação', ids), ...act('text-paste-format', 'Colar formatação', ids, clip === 'format'),
+        ...act('text-up', 'Trazer para frente', ids), ...act('text-down', 'Enviar para trás', ids),
+        ...act('text-toggle', 'Mostrar ou ocultar', ids), ...act('text-delete', 'Excluir texto', ids)
+      ] };
+    }
+    if (canvas) return { title: 'Cena', actions: [
+      ...act('text-paste', 'Colar como novo texto', {}, clip === 'texts'), ...act('text-paste-format', 'Colar formatação', {}, clip === 'format'),
+      ...act('scene-paste', 'Colar como nova cena', {}, clip === 'scenes'), ...act('scene-duplicate', 'Duplicar cena')
+    ] };
+    return null;
+  }
+  return null;
+}
 function menuEntries(app: AppId): Action[] {
   if (app === 'launcher') return [
     { label: 'Início', run: () => { location.hash = '#/'; } },
@@ -102,11 +267,14 @@ function menuEntries(app: AppId): Action[] {
     { label: 'Biblioteca de documentos', run: () => { location.hash = '#/documentos'; } },
     { label: 'Ajustes', run: () => { location.hash = '#/ajustes'; } }
   ];
-  return APP_ACTIONS[app].filter(action => available(action));
+  const actions = APP_ACTIONS[app].filter(action => available(action, true));
+  if (canPrint()) actions.push({ label: 'Imprimir', shortcut: 'Ctrl+P', run: () => { void requestPrint(); } });
+  return actions;
 }
 
 /** Menu local ao aplicativo. Mantém inputs, seleção de texto e Shift+clique direito nativos. */
 export function installContextMenu(app: AppId): void {
+  if (app !== 'launcher') installPrint(app);
   const name = app === 'launcher' ? 'Launcher' : findTool(app)?.name ?? app;
   const menu = document.createElement('div');
   menu.className = 'coding-context-menu';
@@ -148,18 +316,7 @@ export function installContextMenu(app: AppId): void {
     button.addEventListener('click', () => { close(); runControl(action); });
     menu.append(button);
   }
-  function shortcuts(): HelpKey[] {
-    const keys: HelpKey[] = app === 'launcher' ? [['Abrir o menu', 'Shift+F10']] : [...(NATIVE_KEYS[app] ?? [['Salvar projeto', 'Ctrl+S'], ['Desfazer', 'Ctrl+Z'], ['Refazer', 'Ctrl+Shift+Z / Ctrl+Y']])];
-    if (app !== 'launcher') {
-      for (const action of APP_ACTIONS[app]) {
-        if (action.shortcut && !keys.some((k) => k[1] === action.shortcut)) keys.push([action.label, action.shortcut]);
-      }
-    }
-    keys.push(['Abrir menu de contexto', 'Shift+F10']);
-    keys.push(['Mostrar estes atalhos', '?']);
-    keys.push(['Menu original do navegador', 'Shift + botão direito']);
-    return keys;
-  }
+  function shortcuts(): HelpKey[] { return shortcutsOf(app); }
   function help(): void {
     close();
     const backdrop = document.createElement('div');
@@ -196,15 +353,23 @@ export function installContextMenu(app: AppId): void {
     document.addEventListener('keydown', onKey, true);
     dialog.append(h, list, done); backdrop.append(dialog); document.body.append(backdrop); done.focus();
   }
-  function open(x: number, y: number, fromTouch = false): void {
+  function open(x: number, y: number, fromTouch = false, target?: Element): void {
     close();
     opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const actions = menuEntries(app);
-    if (actions.length) { header('Ferramentas · ' + name); actions.forEach(item); }
-    if (app !== 'launcher') {
-      const sep = document.createElement('div'); sep.className = 'coding-context-separator'; sep.setAttribute('role', 'separator'); menu.append(sep);
-      item({ label: 'Voltar ao Launcher', run: () => { location.assign(LAUNCHER_PATH); } });
+    const focused = contextualEntries(app, target);
+    if (focused?.actions.length) {
+      header(focused.title);
+      focused.actions.forEach(item);
     }
+    const actions = menuEntries(app);
+    if (actions.length) {
+      if (focused?.actions.length) {
+        const sep = document.createElement('div'); sep.className = 'coding-context-separator'; sep.setAttribute('role', 'separator'); menu.append(sep);
+      }
+      header('Ferramentas · ' + name);
+      actions.forEach(item);
+    }
+    if (!actions.length && !focused?.actions.length) header('Ações · ' + name);
     item({ label: 'Atalhos de ' + name, shortcut: '?', run: help });
     menu.hidden = false;
     const width = menu.offsetWidth, height = menu.offsetHeight;
@@ -227,7 +392,7 @@ export function installContextMenu(app: AppId): void {
     if (e.shiftKey) return;
     e.preventDefault();
     if (Date.now() - lastTouchOpen < 850) return;
-    open(e.clientX, e.clientY);
+    open(e.clientX, e.clientY, false, target);
   });
   document.addEventListener('pointerdown', e => {
     if (!menu.hidden && !menu.contains(e.target as Node)) close();
@@ -239,7 +404,7 @@ export function installContextMenu(app: AppId): void {
     press = { x, y, timer: setTimeout(() => {
       press = null;
       lastTouchOpen = Date.now();
-      open(x, y, true);
+      open(x, y, true, target);
     }, 550) };
   }, true);
   document.addEventListener('pointermove', e => { if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) cancelPress(); }, true);
@@ -260,7 +425,7 @@ export function installContextMenu(app: AppId): void {
       e.preventDefault();
       const target = document.activeElement instanceof HTMLElement ? document.activeElement : document.body;
       const rect = target.getBoundingClientRect();
-      open(rect.left + 12, rect.bottom + 4);
+      open(rect.left + 12, rect.bottom + 4, false, target);
       return;
     }
     if (e.key === '?' && !e.ctrlKey && !e.altKey && !e.metaKey && !active.closest('[data-testid="grid"]')) { e.preventDefault(); help(); return; }

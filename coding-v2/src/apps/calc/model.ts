@@ -2,8 +2,17 @@ import { cellName, evaluate, formatGeneral, isError, offsetFormula, parse, parse
 
 export type CellFormat = 'general' | 'number' | 'integer' | 'currency' | 'percent' | 'text';
 export type Align = 'left' | 'center' | 'right' | '';
-export interface Cell { v: string; f?: CellFormat; b?: boolean; a?: Align }
-export interface Sheet { id: string; name: string; rows: number; cols: number; cells: Record<string, Cell>; widths: Record<string, number> }
+/** Cor em #rrggbb, ou 'none' para "sem cor" explícito (tira a cor herdada da coluna). */
+export type CellColor = string;
+export interface CellStyle { fg?: CellColor; bg?: CellColor }
+export interface Cell { v: string; f?: CellFormat; b?: boolean; a?: Align; /** cor da fonte */ fg?: CellColor; /** preenchimento */ bg?: CellColor }
+export interface Sheet {
+  id: string; name: string; rows: number; cols: number; cells: Record<string, Cell>; widths: Record<string, number>;
+  /** Estilo de coluna inteira (índice da coluna → cores). A célula tem prioridade sobre a coluna. */
+  colStyle?: Record<string, CellStyle>;
+}
+export const isHexColor = (value: unknown): value is string => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
+const cleanColor = (value: unknown): CellColor | undefined => (isHexColor(value) ? value.toLowerCase() : value === 'none' ? 'none' : undefined);
 export interface CalcState { name: string; sheets: Sheet[]; active: number }
 export const MAX_ROWS = 1000, MAX_COLS = 52, MAX_SHEETS = 20, MAX_CELLS = 60_000, MAX_CELL_CHARS = 5000;
 const FORMATS: CellFormat[] = ['general', 'number', 'integer', 'currency', 'percent', 'text'];
@@ -34,14 +43,25 @@ export function normalizeCalc(raw: unknown): CalcState {
         if (cell.f && FORMATS.includes(cell.f) && cell.f !== 'general') out.f = cell.f;
         if (cell.b === true) out.b = true;
         if (cell.a === 'left' || cell.a === 'center' || cell.a === 'right') out.a = cell.a;
-        if (!v && !out.f && !out.b && !out.a) continue;
+        const fg = cleanColor(cell.fg), bg = cleanColor(cell.bg);
+        if (fg) out.fg = fg;
+        if (bg) out.bg = bg;
+        if (!v && !out.f && !out.b && !out.a && !out.fg && !out.bg) continue;
         if (++total > MAX_CELLS) break;
         cells[k] = out;
       }
     }
     const widths: Record<string, number> = {};
     if (s.widths && typeof s.widths === 'object') for (const [k, w] of Object.entries(s.widths)) if (/^\d{1,2}$/.test(k) && Number(k) < cols) widths[k] = Math.min(600, Math.max(40, Math.round(Number(w)) || 100));
-    sheets.push({ id: typeof s.id === 'string' && s.id ? s.id.slice(0, 20) : sheetId(), name, rows, cols, cells, widths });
+    const colStyle: Record<string, CellStyle> = {};
+    if (s.colStyle && typeof s.colStyle === 'object') {
+      for (const [k, st] of Object.entries(s.colStyle)) {
+        if (!/^\d{1,2}$/.test(k) || Number(k) >= cols || !st || typeof st !== 'object') continue;
+        const fg = cleanColor(st.fg), bg = cleanColor(st.bg);
+        if (fg || bg) colStyle[k] = { ...(fg ? { fg } : {}), ...(bg ? { bg } : {}) };
+      }
+    }
+    sheets.push({ id: typeof s.id === 'string' && s.id ? s.id.slice(0, 20) : sheetId(), name, rows, cols, cells, widths, ...(Object.keys(colStyle).length ? { colStyle } : {}) });
   }
   if (!sheets.length) sheets.push({ id: sheetId(), name: 'Planilha 1', rows: 50, cols: 12, cells: {}, widths: {} });
   const active = Math.min(sheets.length - 1, Math.max(0, Math.round(Number(src.active)) || 0));
@@ -161,6 +181,11 @@ export function insertCols(state: CalcState, si: number, at: number, count = 1):
   const widths: Record<string, number> = {};
   for (const [k, w] of Object.entries(s.widths)) { const c = Number(k); widths[String(c >= at ? c + count : c)] = w; }
   s.widths = widths;
+  if (s.colStyle) {
+    const moved: Record<string, CellStyle> = {};
+    for (const [k, st] of Object.entries(s.colStyle)) { const c = Number(k); moved[String(c >= at ? c + count : c)] = st; }
+    s.colStyle = moved;
+  }
   rewriteAll(state, { axis: 'col', at, delta: count, sheet: s.name });
   return true;
 }
@@ -170,6 +195,11 @@ export function deleteCols(state: CalcState, si: number, at: number, count = 1):
   const widths: Record<string, number> = {};
   for (const [k, w] of Object.entries(s.widths)) { const c = Number(k); if (c < at) widths[k] = w; else if (c >= at + count) widths[String(c - count)] = w; }
   s.widths = widths;
+  if (s.colStyle) {
+    const kept: Record<string, CellStyle> = {};
+    for (const [k, st] of Object.entries(s.colStyle)) { const c = Number(k); if (c < at) kept[k] = st; else if (c >= at + count) kept[String(c - count)] = st; }
+    s.colStyle = kept;
+  }
   s.cols -= count;
   rewriteAll(state, { axis: 'col', at, delta: -count, sheet: s.name });
   return true;
@@ -278,4 +308,88 @@ export function sortRows(state: CalcState, si: number, r1: number, r2: number, c
   });
   for (let r = r1; r <= r2; r++) for (let c = 0; c < s.cols; c++) delete s.cells[key(r, c)];
   rows.forEach((row, i) => { for (const [c, cell] of Object.entries(row.cells)) s.cells[key(r1 + i, Number(c))] = cell; });
+}
+
+// ---------- cores (fonte e preenchimento) ----------
+export type StyleProp = 'fg' | 'bg';
+export interface Rect { r1: number; c1: number; r2: number; c2: number }
+/** A seleção cobre colunas inteiras (da primeira à última linha)? */
+export const wholeColumns = (s: Sheet, g: Rect): boolean => g.r1 === 0 && g.r2 >= s.rows - 1;
+/** A seleção cobre linhas inteiras (da primeira à última coluna)? */
+export const wholeRows = (s: Sheet, g: Rect): boolean => g.c1 === 0 && g.c2 >= s.cols - 1;
+
+/** Cor efetiva de uma célula: a da própria célula, senão a da coluna. 'none' (ou nada) = sem cor. */
+export function effectiveColor(s: Sheet, r: number, c: number, prop: StyleProp): string | undefined {
+  const own = s.cells[key(r, c)]?.[prop];
+  const value = own ?? s.colStyle?.[String(c)]?.[prop];
+  return value && value !== 'none' ? value : undefined;
+}
+/** Escolhe preto ou branco para o texto sobre um fundo, pela luminância (WCAG). */
+export function readableOn(background: string): string {
+  const n = parseInt(background.slice(1), 16);
+  const lin = (v: number): number => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+  const lum = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  return lum > 0.179 ? '#000000' : '#ffffff';
+}
+/** Cor da fonte exibida: a escolhida; se só há preenchimento, preto/branco legível sobre ele. */
+export function shownColors(s: Sheet, r: number, c: number): { fg?: string; bg?: string } {
+  const bg = effectiveColor(s, r, c, 'bg');
+  const fg = effectiveColor(s, r, c, 'fg') ?? (bg ? readableOn(bg) : undefined);
+  return { ...(fg ? { fg } : {}), ...(bg ? { bg } : {}) };
+}
+function dropEmpty(sheet: Sheet, k: string): void {
+  const cell = sheet.cells[k];
+  if (cell && !cell.v && !cell.f && !cell.b && !cell.a && !cell.fg && !cell.bg) delete sheet.cells[k];
+}
+/**
+ * Aplica (ou, com null, remove) uma cor na seleção.
+ * Colunas inteiras guardam a cor na própria coluna (vale também para células novas) e limpam as exceções das células;
+ * o restante grava nas células. Devolve quantas células/colunas foram afetadas.
+ */
+export function applyColor(sheet: Sheet, g: Rect, prop: StyleProp, color: string | null): number {
+  const value = color === null ? null : isHexColor(color) ? color.toLowerCase() : null;
+  if (color !== null && value === null) return 0;
+  const r1 = Math.max(0, g.r1), c1 = Math.max(0, g.c1), r2 = Math.min(sheet.rows - 1, g.r2), c2 = Math.min(sheet.cols - 1, g.c2);
+  if (r1 > r2 || c1 > c2) return 0;
+  if (wholeColumns(sheet, { r1, c1, r2, c2 })) {
+    const styles = (sheet.colStyle ??= {});
+    for (let c = c1; c <= c2; c++) {
+      const st = (styles[String(c)] ??= {});
+      if (value) st[prop] = value; else delete st[prop];
+      if (!st.fg && !st.bg) delete styles[String(c)];
+    }
+    for (const k of Object.keys(sheet.cells)) {
+      const [, c] = parseKey(k);
+      if (c < c1 || c > c2) continue;
+      delete sheet.cells[k]![prop];
+      dropEmpty(sheet, k);
+    }
+    if (!Object.keys(styles).length) delete sheet.colStyle;
+    return c2 - c1 + 1;
+  }
+  let n = 0;
+  for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) {
+    const k = key(r, c);
+    const inherited = sheet.colStyle?.[String(c)]?.[prop];
+    const cell = sheet.cells[k] ?? { v: '' };
+    if (value) cell[prop] = value;
+    else if (inherited && inherited !== 'none') cell[prop] = 'none'; // sem cor aqui, mesmo com a coluna colorida
+    else delete cell[prop];
+    sheet.cells[k] = cell;
+    dropEmpty(sheet, k);
+    n++;
+  }
+  return n;
+}
+/** Tira todas as cores da seleção (usado por "Limpar formatação"). */
+export function clearColors(sheet: Sheet, g: Rect): void {
+  applyColor(sheet, g, 'fg', null);
+  applyColor(sheet, g, 'bg', null);
+  // "none" explícito que sobrou numa célula não faz sentido sem cor de coluna
+  for (const [k, cell] of Object.entries(sheet.cells)) {
+    const [r, c] = parseKey(k);
+    if (r < g.r1 || r > g.r2 || c < g.c1 || c > g.c2) continue;
+    for (const prop of ['fg', 'bg'] as const) if (cell[prop] === 'none' && !sheet.colStyle?.[String(c)]?.[prop]) delete cell[prop];
+    dropEmpty(sheet, k);
+  }
 }

@@ -11,6 +11,7 @@ const CSS = `
 .txp-page img[data-align=left]{float:left;margin:0 1em .5em 0}.txp-page img[data-align=right]{float:right;margin:0 0 .5em 1em}
 .txp-page blockquote{border-left:3px solid #8da5d9;padding-left:15px;margin:0 0 .8em;color:#36475c}
 .txp-page table{border-collapse:collapse;width:100%;margin:0 0 .8em;table-layout:fixed}.txp-page td,.txp-page th{border:1px solid #9aa4b4;padding:4px 8px;vertical-align:top;overflow-wrap:anywhere}.txp-page th{background:#eef1f6;font-weight:700;text-align:left}
+.txp-page a{color:#1155cc;text-decoration:underline}
 .txp-page hr{display:none}`;
 
 /** Pagina o documento em folhas A4 (respeitando quebras de página) e gera um PDF de imagens das folhas. */

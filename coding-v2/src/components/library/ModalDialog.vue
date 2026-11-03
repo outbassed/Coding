@@ -44,7 +44,7 @@ watch(() => props.open, async (isOpen) => {
 </template>
 
 <style scoped>
-.modal { border: 1px solid var(--border); border-radius: 20px; padding: 0; background: var(--surface); color: var(--text); width: min(520px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); box-shadow: 0 24px 60px rgb(0 0 0 / 35%); overflow: auto; }
+.modal { margin: auto; border: 1px solid var(--border); border-radius: 20px; padding: 0; background: var(--surface); color: var(--text); width: min(520px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); box-shadow: 0 24px 60px rgb(0 0 0 / 35%); overflow: auto; }
 .modal::backdrop { background: rgb(8 12 20 / 60%); }
 .inner { padding: 20px 22px 22px; }
 /* No celular a janela de renomear fica no alto da tela, longe do teclado virtual. */

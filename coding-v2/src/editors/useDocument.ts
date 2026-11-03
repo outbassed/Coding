@@ -1,10 +1,13 @@
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref } from 'vue';
-import { RevisionConflict, type CopyRecord, type LegacyImage } from '../storage/documents';
+import { MissingCopy, RevisionConflict, type CopyRecord, type LegacyImage } from '../storage/documents';
 import type { SaveState } from '../components/editor/SaveStatus.vue';
 import { friendlyError } from '../library/errors';
 import { createDoc, openDoc, saveDoc, type DocKind } from './docs';
 import { StateHistory } from './history';
 import { findTemplate, type DocTemplate } from './templates';
+import { useProjectTabs, newProjectUrl } from './projectTabs';
+import { appKeyForType } from '../workspace/limits';
+import { forgetDocument, restoreTarget } from '../workspace/prefs';
 
 export interface UseDocumentOptions<S> {
   kind: DocKind<S>;
@@ -17,6 +20,8 @@ export interface UseDocumentOptions<S> {
   delay?: number;
   /** Filtra os arquivos gravados (ex.: só imagens ainda usadas). Na memória ficam todos, para o desfazer funcionar. */
   imagesFor?: (state: S, images: LegacyImage[]) => LegacyImage[];
+  /** O que conta como alteração para o desfazer: mudar só o que fica de fora (ex.: aba aberta) não cria passo. */
+  historyView?: (state: S) => unknown;
 }
 
 /**
@@ -26,7 +31,10 @@ export interface UseDocumentOptions<S> {
  */
 export function useDocument<S>(options: UseDocumentOptions<S>) {
   const params = new URLSearchParams(location.search);
-  const docId = params.get('doc');
+  const explicitDoc = params.get('doc');
+  // Sem ?doc, ?modelo ou ?novo o app volta ao último projeto aberto (se a preferência "Continuar de onde parei" estiver ligada).
+  const restored = !explicitDoc && !params.has('modelo') && !params.has('novo') ? restoreTarget(appKeyForType(options.kind.type)) : null;
+  const docId = explicitDoc ?? restored;
   const template = findTemplate(options.templates, params.get('modelo')) ?? options.templates[0];
   if (!template) throw new Error('App sem modelo inicial.');
   const state = ref(template.create()) as Ref<S>;
@@ -37,10 +45,27 @@ export function useDocument<S>(options: UseDocumentOptions<S>) {
   const loadError = ref('');
   const loading = ref(Boolean(docId));
   const note = ref('');
-  const history = new StateHistory<S>(state.value);
+  const history = new StateHistory<S>(state.value, 100, 800, 20_000_000, options.historyView);
   const historyTick = ref(0);
   const canUndo = computed(() => { void historyTick.value; return history.canUndo; });
   const canRedo = computed(() => { void historyTick.value; return history.canRedo; });
+
+  let leaving = false;
+  const projects = useProjectTabs({
+    type: options.kind.type,
+    path: options.path,
+    currentId: () => record.value?.id ?? null,
+    canLeave: async () => {
+      await saveNow();
+      if (dirty() || status.value === 'conflict' || status.value === 'error') {
+        if (!confirm('Há alterações que podem não ter sido salvas. Sair deste projeto mesmo assim?')) return false;
+      }
+      leaving = true;
+      return true;
+    },
+    renameCurrent: (name) => { (state.value as { name?: string }).name = name.slice(0, 250); }
+  });
+  let lastTitle = '';
 
   const signature = (): string => {
     const data = options.kind.normalize(state.value);
@@ -85,6 +110,7 @@ export function useDocument<S>(options: UseDocumentOptions<S>) {
           record.value = saved;
           committed = value;
           if (first) { try { window.history.replaceState(null, '', options.path + '?doc=' + encodeURIComponent(saved.id)); } catch { /* sem URL */ } }
+          trackProject(saved, first);
           status.value = dirty() ? 'pending' : 'saved';
           if (status.value === 'saved') say('Salvo neste aparelho.');
         } catch (err) {
@@ -99,6 +125,13 @@ export function useDocument<S>(options: UseDocumentOptions<S>) {
     try { await saving; } finally { saving = null; }
   }
 
+  function trackProject(saved: CopyRecord, first: boolean): void {
+    const title = saved.label;
+    if (first) { projects.register(saved.id, title); void projects.refreshCount(); }
+    else if (title !== lastTitle) projects.retitle(saved.id, title);
+    lastTitle = title;
+  }
+
   /** Conflito: grava o que está na tela como um documento novo, sem tocar no original. */
   async function saveAsCopy(): Promise<void> {
     try {
@@ -110,6 +143,7 @@ export function useDocument<S>(options: UseDocumentOptions<S>) {
       record.value = created;
       committed = safeSignature();
       window.history.replaceState(null, '', options.path + '?doc=' + encodeURIComponent(created.id));
+      trackProject(created, true);
       status.value = 'saved'; error.value = '';
       say('Nova cópia salva. A versão da outra janela ficou intacta.');
     } catch (err) { status.value = 'error'; error.value = friendlyError(err); }
@@ -149,9 +183,11 @@ export function useDocument<S>(options: UseDocumentOptions<S>) {
 
   function newFrom(templateId: string): void {
     if ((dirty() || saving || status.value === 'conflict' || status.value === 'error') && !confirm('Há alterações que podem não ter sido salvas. Abrir outro documento mesmo assim?')) return;
+    leaving = true;
     location.assign(options.path + '?modelo=' + encodeURIComponent(templateId));
   }
   function beforeUnload(event: BeforeUnloadEvent): void {
+    if (leaving) return;
     if (dirty() || saving || status.value === 'conflict') { event.preventDefault(); event.returnValue = ''; }
   }
   function keys(event: KeyboardEvent): void {
@@ -164,8 +200,15 @@ export function useDocument<S>(options: UseDocumentOptions<S>) {
     if (key === 'z' && !event.shiftKey) { event.preventDefault(); undo(); }
     else if ((key === 'z' && event.shiftKey) || key === 'y') { event.preventDefault(); redo(); }
   }
+  /** Ao esconder a aba ou sair da página, grava na hora o que estiver pendente (o navegador pode não dar outra chance). */
+  function flushOnHide(): void {
+    if (document.visibilityState === 'hidden' && status.value === 'pending') void saveNow();
+  }
+  function flushOnPageHide(): void { if (status.value === 'pending') void saveNow(); }
   onMounted(async () => {
     window.addEventListener('beforeunload', beforeUnload);
+    document.addEventListener('visibilitychange', flushOnHide);
+    window.addEventListener('pagehide', flushOnPageHide);
     window.addEventListener('keydown', keys);
     if (!docId) return;
     try {
@@ -175,18 +218,31 @@ export function useDocument<S>(options: UseDocumentOptions<S>) {
       record.value = opened.record; state.value = opened.state; images.value = opened.record.snapshot.images ?? [];
       committed = safeSignature(); history.reset(state.value); historyTick.value++;
       status.value = 'saved';
-    } catch (err) { loadError.value = friendlyError(err); status.value = 'unavailable'; }
+      lastTitle = opened.record.label;
+      projects.register(opened.record.id, opened.record.label);
+      if (restored) { try { window.history.replaceState(null, '', options.path + '?doc=' + encodeURIComponent(docId)); } catch { /* sem URL */ } }
+    } catch (err) {
+      if (err instanceof MissingCopy || (err as Error)?.name === 'MissingCopy') { forgetDocument(docId); projects.reload(); }
+      if (restored && !explicitDoc && ((err as Error)?.name === 'MissingCopy' || (err as Error)?.name === 'WrongDocument')) {
+        // O último projeto não existe mais: abre um em branco, sem alarme.
+        status.value = 'new';
+        try { window.history.replaceState(null, '', newProjectUrl(options.path)); } catch { /* sem URL */ }
+        say('O último projeto não está mais neste aparelho. Abri um projeto novo.');
+      } else { loadError.value = friendlyError(err); status.value = 'unavailable'; }
+    }
     finally { loading.value = false; queueMicrotask(() => { applyingHistory = false; }); }
   });
   onBeforeUnmount(() => {
     alive = false; clearTimeout(timer);
     window.removeEventListener('beforeunload', beforeUnload);
+    document.removeEventListener('visibilitychange', flushOnHide);
+    window.removeEventListener('pagehide', flushOnPageHide);
     window.removeEventListener('keydown', keys);
   });
 
   return {
     state, images, record, status, error, loadError, loading, note, canUndo, canRedo,
-    saveNow, saveAsCopy, reloadSaved, undo, redo, newFrom, setChangeKey, say, template,
+    saveNow, saveAsCopy, reloadSaved, undo, redo, newFrom, setChangeKey, say, template, projects,
     isDirty: dirty
   };
 }

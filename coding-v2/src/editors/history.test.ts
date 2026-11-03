@@ -14,6 +14,20 @@ describe('desfazer genérico', () => {
     expect(h.record({ v: 2 })).toBe(false);
   });
 });
+describe('desfazer genérico · projeção', () => {
+  type S = { text: string; tab: string };
+  const view = (s: S): unknown => ({ text: s.text });
+  it('mudar só o que fica de fora não cria passo, mas o estado atual é guardado', () => {
+    const h = new StateHistory<S>({ text: 'a', tab: '1' }, 100, 800, 20_000_000, view);
+    expect(h.record({ text: 'a', tab: '2' })).toBe(false);
+    expect(h.canUndo).toBe(false);
+    expect(h.record({ text: 'ab', tab: '2' }, '', 10_000)).toBe(true);
+    expect(h.undo()).toEqual({ text: 'a', tab: '2' }); // o passo anterior já levava a aba atual
+    expect(h.redo()).toEqual({ text: 'ab', tab: '2' });
+    expect(h.record({ text: 'ab', tab: '3' })).toBe(false);
+    expect(h.undo()).toEqual({ text: 'a', tab: '2' });
+  });
+});
 describe('datas de importação', () => {
   it('preserva datas plausíveis e troca as impossíveis', () => {
     const now = 1_800_000_000_000;

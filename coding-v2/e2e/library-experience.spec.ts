@@ -64,7 +64,9 @@ test('cada aplicativo lembra a própria página e a posição volta depois de ab
   // abre um editor de verdade e volta pelo link do próprio editor
   await page.getByTestId('v2-copies').getByRole('link', { name: /^Abrir .* no editor$/ }).first().click();
   await expect(page).toHaveURL(/\/apps\/etiquetas\/\?doc=/);
-  await page.getByRole('link', { name: 'Voltar à biblioteca' }).first().click();
+  await page.getByRole('link', { name: 'Voltar ao início' }).first().click();
+  await expect(page).toHaveURL(/\/launcher\/#\/$/);
+  await page.locator('nav a:visible', { hasText: 'Documentos' }).first().click();
   await expect(page).toHaveURL(/ferramenta=labels/);
   await expect(tab(page, /Etiquetas/)).toHaveAttribute('aria-pressed', 'true');
   await expect(summary(page)).toContainText('Página 3 de 3');

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { convertCalc, convertCodes, convertDraw, convertImages, convertPdf, convertSheet, convertSplit, converterFor } from './convert';
+import { convertCalc, convertCodes, convertDraw, convertImages, convertPdf, convertSheet, convertSplit, converterFor, sheetToLabels } from './convert';
 import { normalizePdf } from '../apps/pdf/model';
 import { normalizeImages } from '../apps/images/model';
 import { normalizeCalc, Evaluator, display } from '../apps/calc/model';
@@ -34,6 +34,15 @@ describe('conversão de documentos do Coding 1.0', () => {
     const sl = normalizeSheetLabels(convertSheet({ rows: [['A', 'B'], ['1', 'x']], header: true, colCode: 0, colDesc: 1, colCopies: -1, defCopies: 2 }));
     expect(sl.map).toEqual({ code: 0, desc: 1, qty: -1 });
     expect(sl.defaultQty).toBe(2);
+  });
+  it('planilha→etiquetas descontinuado: vira estado de Etiquetas (do 1.0 e da v2) sem apagar nada', () => {
+    const old = sheetToLabels({ name: 'Antigo', rows: [['Cód', 'Desc', 'Qtd'], ['A1', 'Um', '2'], ['A2', 'Dois', '1']], header: true, colCode: 0, colDesc: 1, colCopies: 2, defCopies: 1 }, 'antigo-1');
+    expect(old.rows).toBe(2);
+    expect(old.labels.name).toBe('Antigo');
+    expect(old.labels.items.map((i) => [i.code, i.copies])).toEqual([['A1', 2], ['A2', 1]]);
+    const v2 = sheetToLabels({ name: 'Nova', rows: [['Cód', 'Desc'], ['Z', 'zz']], hasHeader: true, map: { code: 0, desc: 1, qty: -1 }, defaultQty: 3 }, 'v2-sheet-9');
+    expect(v2.labels.items[0]).toMatchObject({ code: 'Z', copies: 3 });
+    expect(converterFor({ type: 'sheet', legacyId: 'antigo-1' })).toBeNull();
   });
   it('só documentos do 1.0 precisam de conversão', () => {
     expect(converterFor({ type: 'calc', legacyId: 'antigo-1' })).not.toBeNull();

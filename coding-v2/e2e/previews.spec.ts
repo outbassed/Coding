@@ -77,6 +77,8 @@ test('miniaturas: responsivas em 320–430 px, sem rolagem horizontal e acessív
     await page.setViewportSize({ width, height: 800 });
     await page.goto('/launcher/#/app/labels');
     const thumb = page.getByTestId('history-tile').first().getByTestId('doc-thumb');
+    // as miniaturas só carregam quando entram na área visível; a seção offline dos Detalhes fica acima delas
+    await thumb.scrollIntoViewIfNeeded();
     await expect(thumb).toHaveAttribute('data-state', 'ready');
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow, 'largura ' + width).toBeLessThanOrEqual(0);
