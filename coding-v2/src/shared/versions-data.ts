@@ -192,6 +192,16 @@ export const versionRecords: readonly VersionRecord[] = [
   { target: 'calc', version: '1.0.0', build: '25.10.26.162157', releaseDate: '2026-10-25', releaseTime: '16:21:57', commit: 'd63a665', novidades: ['Versão inicial registrada na Central de Versões.'] },
   { target: 'images', version: '1.0.0', build: '25.10.26.162323', releaseDate: '2026-10-25', releaseTime: '16:23:23', commit: '61668ed', novidades: ['Versão inicial registrada na Central de Versões.'] },
   {
+    target: 'images', version: '1.1.0', build: '01.11.26.211229', releaseDate: '2026-11-01', releaseTime: '21:12:29',
+    novidades: [
+      'Edição direta no canvas: dê dois cliques (ou dois toques) em um texto para editar ali mesmo, com o painel, o desfazer e o salvamento acompanhando. Enter confirma com Ctrl+Enter, Esc cancela.',
+      'Alças também nas bordas: arraste o meio de cada lado para mudar só a largura ou só a altura da camada.',
+      'Recorte arrastando: dê dois cliques em uma imagem (ou use Recortar) e arraste as bordas; os campos de recorte do painel acompanham. Esc ou Concluir recorte termina.',
+      'No celular, a gaveta de ferramentas dá lugar à imagem e ao teclado enquanto você edita um texto.'
+    ],
+    alteracoesTecnicas: ['Segundo app a usar o contrato de edição direta (EDICAO-DIRETA.md). O texto continua desenhado só no canvas; durante a edição ele é escondido ali e o campo editável ocupa o mesmo lugar. Exportação e documento salvo não mudaram de formato. Geometria de redimensionar/recortar em src/apps/images/direct.ts, com testes unitários.']
+  },
+  {
     target: 'pdf', version: '1.0.0', build: '25.10.26.175018', releaseDate: '2026-10-25', releaseTime: '17:50:18', commit: 'badc025',
     novidades: ['Versão inicial registrada na Central de Versões.', 'Anotações no PDF: desenho à mão livre e imagens.']
   },

@@ -3,11 +3,14 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch 
 import EditorShell from '../../editors/EditorShell.vue';
 import NavIcon from '../../components/ui/NavIcon.vue';
 import FileTab from '../../editors/FileTab.vue';
+import InlineText from '../../editors/surface/InlineText.vue';
+import { selectContents } from '../../editors/surface/text';
 import { useDocument } from '../../editors/useDocument';
 import { downloadBlob, safeFileName } from '../../shared/files/download';
 import type { LegacyImage } from '../../storage/documents';
 import { FONTS, MAX_LAYERS, MAX_SIDE, PRESETS, lid, noFilters, usedImageIds, type Filters, type Layer, type LayerKind } from './model';
 import { exportComposition, hitTest, renderComposition, type Bitmaps } from './render';
+import { cropByEdges, resizeByHandle, toLocal, type Side } from './direct';
 import { imagesKind, imagesTemplates } from './kind';
 import { usePrint } from '../../shared/print/usePrint';
 import PrintButton from '../../shared/print/PrintButton.vue';
@@ -23,6 +26,12 @@ const tabs = [{ id: 'camadas', label: 'Camadas' }, { id: 'ajustar', label: 'Ajus
 const selectedId = ref<string | null>(null);
 const selected = computed<Layer | null>(() => state.value.layers.find((l) => l.id === selectedId.value) ?? null);
 const message = ref('');
+const shell = ref<InstanceType<typeof EditorShell> | null>(null);
+/** Edição direta no canvas (EDICAO-DIRETA.md): texto no lugar e recorte arrastando. Um de cada vez, sempre da camada selecionada. */
+const editingId = ref<string | null>(null);
+const cropId = ref<string | null>(null);
+const editingLayer = computed<Layer | null>(() => (editingId.value ? state.value.layers.find((l) => l.id === editingId.value && l.kind === 'text') ?? null : null));
+watch(selectedId, (id) => { if (editingId.value && editingId.value !== id) editingId.value = null; if (cropId.value && cropId.value !== id) cropId.value = null; });
 function note(text: string): void { message.value = text; doc.say(text); }
 
 // ---- imagens (Blobs) decodificadas ----
@@ -58,16 +67,17 @@ function draw(): void {
     if (c.width !== w) c.width = w;
     if (c.height !== h) c.height = h;
     const ctx = c.getContext('2d'); if (!ctx) return;
-    renderComposition(ctx, state.value, bitmaps.value, scale.value * dpr);
+    renderComposition(ctx, state.value, bitmaps.value, scale.value * dpr, null, editingLayer.value?.id ?? null);
   });
 }
-watch([state, scale, bitmapTick], draw, { deep: true });
+watch([state, scale, bitmapTick, editingId], draw, { deep: true });
 onMounted(draw);
 function setZoom(v: number): void { zoom.value = Math.max(0.05, Math.min(4, v)); }
 
 // ---- seleção e arraste ----
-type Drag = { mode: 'move' | 'resize' | 'rotate'; id: string; sx: number; sy: number; ox: number; oy: number; corner?: [number, number]; start?: Layer };
+type Drag = { mode: 'move' | 'resize' | 'rotate' | 'crop'; id: string; sx: number; sy: number; ox: number; oy: number; corner?: [Side, Side]; start?: Layer };
 let drag: Drag | null = null;
+let movedSinceDown = false;
 const keepRatio = ref(true);
 function toDoc(event: PointerEvent): { x: number; y: number } {
   const r = canvasEl.value!.getBoundingClientRect();
@@ -77,14 +87,16 @@ function onCanvasDown(event: PointerEvent): void {
   if (!canvasEl.value) return;
   const p = toDoc(event);
   const hit = hitTest(state.value, p.x, p.y);
+  movedSinceDown = false;
   selectedId.value = hit?.id ?? null;
   if (hit) {
     drag = { mode: 'move', id: hit.id, sx: p.x, sy: p.y, ox: hit.x, oy: hit.y };
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
   }
 }
-function onHandleDown(event: PointerEvent, mode: 'resize' | 'rotate', corner?: [number, number]): void {
+function onHandleDown(event: PointerEvent, mode: 'resize' | 'rotate' | 'crop', corner?: [Side, Side]): void {
   const l = selected.value; if (!l) return;
+  movedSinceDown = true;
   event.stopPropagation(); event.preventDefault();
   const p = toDoc(event);
   drag = { mode, id: l.id, sx: p.x, sy: p.y, ox: l.x, oy: l.y, corner, start: JSON.parse(JSON.stringify(l)) as Layer };
@@ -95,7 +107,7 @@ function onMove(event: PointerEvent): void {
   const l = state.value.layers.find((x) => x.id === drag!.id); if (!l) return;
   const p = toDoc(event);
   doc.setChangeKey('drag-' + l.id);
-  if (drag.mode === 'move') { l.x = Math.round(drag.ox + p.x - drag.sx); l.y = Math.round(drag.oy + p.y - drag.sy); return; }
+  if (drag.mode === 'move') { if (Math.abs(p.x - drag.sx) + Math.abs(p.y - drag.sy) > 3 / scale.value) movedSinceDown = true; l.x = Math.round(drag.ox + p.x - drag.sx); l.y = Math.round(drag.oy + p.y - drag.sy); return; }
   const s = drag.start!;
   const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
   if (drag.mode === 'rotate') {
@@ -105,15 +117,14 @@ function onMove(event: PointerEvent): void {
     return;
   }
   const [sx, sy] = drag.corner!;
-  const a = (s.rotation * Math.PI) / 180, cos = Math.cos(a), sin = Math.sin(a);
-  const ox = -sx * s.w / 2, oy = -sy * s.h / 2; // canto oposto (fixo), no referencial da camada
-  const fx = cx + ox * cos - oy * sin, fy = cy + ox * sin + oy * cos;
-  const dx = p.x - fx, dy = p.y - fy;
-  let w = Math.max(8, sx * (dx * cos + dy * sin)), h = Math.max(8, sy * (-dx * sin + dy * cos));
-  if ((keepRatio.value && s.kind !== 'text') !== event.shiftKey) { const ratio = s.w / s.h; if (w / h > ratio) h = w / ratio; else w = h * ratio; }
-  const hx = sx * w / 2, hy = sy * h / 2;
-  const ncx = fx + hx * cos - hy * sin, ncy = fy + hx * sin + hy * cos;
-  l.w = Math.round(w); l.h = Math.round(h); l.x = Math.round(ncx - w / 2); l.y = Math.round(ncy - h / 2);
+  if (drag.mode === 'crop') {
+    const local = toLocal(s.rotation, p.x - drag.sx, p.y - drag.sy);
+    const patch = cropByEdges(s, sx, sy, -sx * local.x, -sy * local.y);
+    if (patch) Object.assign(l, patch);
+    return;
+  }
+  const ratio = (keepRatio.value && s.kind !== 'text') !== event.shiftKey;
+  Object.assign(l, resizeByHandle(s, sx, sy, p, ratio));
 }
 function onUp(): void { drag = null; }
 onMounted(() => { window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp); });
@@ -125,13 +136,74 @@ const frameStyle = computed(() => {
 function onStageKey(event: KeyboardEvent): void {
   const l = selected.value; if (!l) return;
   const t = event.target as HTMLElement;
-  if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return;
+  if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable) return;
+  if (event.key === 'Escape' && cropId.value) { event.preventDefault(); cropId.value = null; return; }
+  if (event.key === 'Enter' && event.target === event.currentTarget) {
+    if (l.kind === 'text') { event.preventDefault(); void startTextEdit(l.id); } else if (l.kind === 'image') { event.preventDefault(); enterCrop(l.id); }
+    return;
+  }
   const step = event.shiftKey ? 10 : 1;
   const moves: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
   const m = moves[event.key];
   if (m) { event.preventDefault(); doc.setChangeKey('key-' + l.id); l.x += m[0]; l.y += m[1]; }
   else if (event.key === 'Delete') { event.preventDefault(); removeLayer(l.id); }
 }
+
+// ---- edição direta: texto no lugar, recorte arrastando ----
+function enterCrop(id: string): void {
+  const l = state.value.layers.find((x) => x.id === id);
+  if (!l || l.kind !== 'image' || !l.crop) return;
+  editingId.value = null; selectedId.value = id; cropId.value = id;
+  note('Recorte: arraste as bordas da imagem. Esc ou Concluir recorte termina.');
+}
+async function startTextEdit(id: string): Promise<void> {
+  const l = state.value.layers.find((x) => x.id === id);
+  if (!l || l.kind !== 'text') return;
+  cropId.value = null; selectedId.value = id; editingId.value = id;
+  shell.value?.collapseTools(); // no celular a gaveta dá lugar à tela e ao teclado
+  await nextTick();
+  const el = document.querySelector<HTMLElement>('[data-edit-key="text-edit"]');
+  if (el) { el.focus({ preventScroll: true }); selectContents(el); }
+}
+function onTextInput(value: string): void {
+  const l = editingLayer.value; if (!l) return;
+  doc.setChangeKey('t' + l.id); // mesma chave do painel: digitar nos dois lugares é um passo só de desfazer
+  l.text = value;
+}
+function onTextEnd(): void {
+  editingId.value = null;
+  void nextTick(() => { if (document.activeElement === document.body) stageEl.value?.focus({ preventScroll: true }); });
+}
+function onCropDown(event: PointerEvent, corner: [Side, Side]): void { onHandleDown(event, 'crop', corner); }
+let lastClick: { id: string; t: number; x: number; y: number } | null = null;
+/** Dois cliques (ou dois toques) seguidos na mesma camada: texto abre a edição no lugar, imagem abre o recorte. */
+function onCanvasClick(event: MouseEvent): void {
+  if (movedSinceDown || !canvasEl.value) { lastClick = null; return; }
+  const r = canvasEl.value.getBoundingClientRect();
+  const hit = hitTest(state.value, (event.clientX - r.left) / scale.value, (event.clientY - r.top) / scale.value);
+  const now = performance.now();
+  if (hit && lastClick && lastClick.id === hit.id && now - lastClick.t < 450 && Math.hypot(event.clientX - lastClick.x, event.clientY - lastClick.y) < 16) {
+    lastClick = null;
+    if (hit.kind === 'text') void startTextEdit(hit.id); else if (hit.kind === 'image') enterCrop(hit.id);
+    return;
+  }
+  lastClick = hit ? { id: hit.id, t: now, x: event.clientX, y: event.clientY } : null;
+}
+const textEditStyle = computed(() => {
+  const l = editingLayer.value; if (!l) return null;
+  const k = scale.value;
+  return {
+    left: l.x * k + 'px', top: l.y * k + 'px', width: l.w * k + 'px', minHeight: l.h * k + 'px', transform: 'rotate(' + l.rotation + 'deg)',
+    fontFamily: '"' + (l.font ?? 'Arial') + '", sans-serif', fontSize: (l.size ?? 48) * k + 'px', lineHeight: '1.18',
+    fontWeight: l.bold ? '700' : '400', fontStyle: l.italic ? 'italic' : 'normal', color: l.color ?? '#000000', textAlign: l.align ?? 'center', opacity: String(l.opacity)
+  };
+});
+const HANDLES: [Side, Side][] = [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, -1], [0, 1], [-1, 0], [1, 0]];
+const handleStyle = (h: [Side, Side]): Record<string, string> => ({
+  left: h[0] < 0 ? '-11px' : h[0] > 0 ? 'calc(100% - 11px)' : 'calc(50% - 11px)',
+  top: h[1] < 0 ? '-11px' : h[1] > 0 ? 'calc(100% - 11px)' : 'calc(50% - 11px)',
+  cursor: h[0] !== 0 && h[1] !== 0 ? (h[0] * h[1] > 0 ? 'nwse-resize' : 'nesw-resize') : h[0] !== 0 ? 'ew-resize' : 'ns-resize'
+});
 
 // ---- camadas ----
 function addLayer(kind: Exclude<LayerKind, 'image'>): void {
@@ -347,7 +419,7 @@ void nextTick;
 </script>
 
 <template>
-  <EditorShell v-model:tab="tab" app="images" :doc="doc" :tabs="tabs">
+  <EditorShell ref="shell" v-model:tab="tab" app="images" :doc="doc" :tabs="tabs">
     <template #panel="{ tab: current }">
       <div v-if="current === 'camadas'" class="ed-group">
         <div class="ed-row">
@@ -438,21 +510,32 @@ void nextTick;
     </template>
 
     <div class="img-stage">
-      <div ref="stageEl" class="viewport" tabindex="0" role="region" aria-label="Área da imagem. Setas movem a camada selecionada; Delete exclui." data-testid="image-viewport" @keydown="onStageKey" @dragover.prevent @drop.prevent="onDrop">
+      <div ref="stageEl" class="viewport" tabindex="0" role="region" aria-label="Área da imagem. Setas movem a camada selecionada; Delete exclui; Enter edita o texto ou recorta a imagem." data-testid="image-viewport" @keydown="onStageKey" @dragover.prevent @drop.prevent="onDrop">
         <div class="board" :style="{ width: state.width * scale + 'px', height: state.height * scale + 'px' }" :class="{ checker: state.background === 'transparent' }">
-          <canvas ref="canvasEl" class="cv" :style="{ width: state.width * scale + 'px', height: state.height * scale + 'px' }" role="img" :aria-label="'Composição ' + state.width + ' × ' + state.height + ' com ' + state.layers.length + ' camadas'" data-testid="image-canvas" @pointerdown="onCanvasDown"></canvas>
-          <div v-if="frameStyle" class="frame" :style="frameStyle" data-testid="selection-frame">
-            <span v-for="h in ([[-1, -1], [1, -1], [-1, 1], [1, 1]] as [number, number][])" :key="h.join()" class="handle" :style="{ left: h[0] < 0 ? '-11px' : 'calc(100% - 11px)', top: h[1] < 0 ? '-11px' : 'calc(100% - 11px)' }" :data-handle="h.join(',')" @pointerdown="onHandleDown($event, 'resize', h)"></span>
-            <span class="rot" data-handle="rotate" title="Girar" @pointerdown="onHandleDown($event, 'rotate')"></span>
+          <canvas ref="canvasEl" class="cv" :style="{ width: state.width * scale + 'px', height: state.height * scale + 'px' }" role="img" :aria-label="'Composição ' + state.width + ' × ' + state.height + ' com ' + state.layers.length + ' camadas'" data-testid="image-canvas" @pointerdown="onCanvasDown" @click="onCanvasClick"></canvas>
+          <div v-if="editingLayer && textEditStyle" class="text-edit" :style="textEditStyle" data-testid="text-edit">
+            <InlineText :model-value="editingLayer.text ?? ''" :label="'Texto da camada ' + (editingLayer.name || 'sem nome')" multiline :max-length="2000" placeholder="Digite o texto" edit-key="text-edit" described-by="img-edit-help"
+              @update:model-value="onTextInput" @end="onTextEnd" @undo="doc.undo()" @redo="doc.redo()" />
+          </div>
+          <div v-if="frameStyle" class="frame" :class="{ crop: cropId === selectedId }" :style="frameStyle" data-testid="selection-frame">
+            <span v-for="h in HANDLES" :key="h.join()" class="handle" :style="handleStyle(h)" :data-handle="h.join(',')" @pointerdown="cropId === selectedId ? onCropDown($event, h) : onHandleDown($event, 'resize', h)"></span>
+            <span v-if="cropId !== selectedId" class="rot" data-handle="rotate" title="Girar" @pointerdown="onHandleDown($event, 'rotate')"></span>
           </div>
         </div>
       </div>
+      <p id="img-edit-help" class="sr-only">Edite o texto direto na imagem. Ctrl+Enter confirma, Esc cancela e Ctrl+Z desfaz. Em uma imagem, Enter abre o recorte.</p>
       <div class="zoombar">
         <button type="button" class="ib" aria-label="Diminuir zoom" @click="setZoom(scale * 0.8)">−</button>
         <span class="z" data-testid="zoom">{{ zoomText }}</span>
         <button type="button" class="ib" aria-label="Aumentar zoom" @click="setZoom(scale * 1.25)">+</button>
         <button type="button" class="btn small" @click="zoom = 0">Ajustar</button>
         <button type="button" class="btn small" @click="zoom = 1">100%</button>
+        <button v-if="selected?.kind === 'text' && !editingId" type="button" class="btn small act" data-testid="edit-text" @click="startTextEdit(selected.id)">Editar texto</button>
+        <button v-else-if="editingId" type="button" class="btn small act btn-app" data-testid="finish-edit" @click="editingId = null">Concluir edição</button>
+        <template v-if="selected?.kind === 'image'">
+          <button v-if="cropId !== selected.id" type="button" class="btn small act" data-testid="crop-start" @click="enterCrop(selected.id)">Recortar</button>
+          <button v-else type="button" class="btn small act btn-app" data-testid="crop-done" @click="cropId = null">Concluir recorte</button>
+        </template>
         <span class="muted dims">{{ state.width }} × {{ state.height }} px<template v-if="message"> · {{ message }}</template></span>
       </div>
     </div>
@@ -477,6 +560,11 @@ void nextTick;
 .board { position: relative; box-shadow: 0 10px 30px rgb(0 0 0 / 22%); flex: none; }
 .checker { background: repeating-conic-gradient(#d9dde5 0% 25%, #fff 0% 50%) 0 0 / 20px 20px; }
 .cv { display: block; touch-action: none; cursor: default; }
+.text-edit { position: absolute; box-sizing: border-box; transform-origin: center; white-space: pre-wrap; overflow-wrap: normal; cursor: text; }
+.btn.small.act { min-height: 44px; }
+.frame.crop { border-style: dashed; }
+.frame.crop .handle { border-radius: 4px; background: var(--accent); border-color: #fff; }
+.handle::before { content: ""; position: absolute; inset: -11px; } /* área de toque de 44 px */
 .frame { position: absolute; border: 2px solid var(--accent); box-sizing: border-box; pointer-events: none; transform-origin: center; }
 .handle { position: absolute; width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); box-sizing: border-box; pointer-events: auto; touch-action: none; cursor: nwse-resize; }
 .rot { position: absolute; left: calc(50% - 11px); top: -44px; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); pointer-events: auto; touch-action: none; cursor: grab; }

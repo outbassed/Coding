@@ -70,6 +70,16 @@ A folha é desenhada em tamanho real (mm) e reduzida/ampliada por `transform: sc
 4. Destaque no painel o item em edição (`active-id` do `ItemsPanel` no Etiquetas).
 5. Escreva testes de: clique e digitação, Enter/Esc, desfazer, sincronia com o painel e com as cópias, zoom, toque, impressão sem rastros e documento salvo igual ao do painel.
 
+## 8.1 Adoção no Imagens (canvas) — extensão do contrato para elementos arrastáveis
+
+O Imagens desenha tudo num `<canvas>`; por isso o que muda em relação à folha do Etiquetas é só **como o campo aparece**:
+
+- **Texto no lugar.** Dois cliques (ou dois toques) em um texto, Enter com a área da imagem em foco, ou o botão **Editar texto** abrem um `InlineText` por cima do canvas, com a mesma posição, largura, fonte, tamanho, cor, alinhamento e rotação da camada (o zoom é a mesma escala do canvas). Enquanto o campo existe, o canvas **não desenha** o texto daquela camada (`hideTextOf` em `renderComposition`), para não aparecer duplicado; a exportação nunca passa por esse caminho. Durante a edição o campo é mostrado sem espelhamento.
+- **Mesmo modelo, mesma história.** O campo escreve em `layer.text` com a chave de histórico `t<id>`, a mesma do painel Texto e forma: digitar nos dois lugares é um passo só de desfazer. Ctrl+Z/Ctrl+Y vêm do próprio app (`doc.undo()/redo()`).
+- **Celular.** Ao iniciar a edição a gaveta se recolhe (`collapseTools()` da casca) e aparece **Concluir edição** na barra do zoom.
+- **Alças.** As 4 alças de canto ganharam 4 alças de meio de borda (só largura ou só altura), com área de toque de 44 px. A geometria é pura e testada (`apps/images/direct.ts`).
+- **Recorte arrastando.** Dois cliques em uma imagem, Enter ou o botão **Recortar** trocam as alças pelas do recorte; arrastar uma borda mexe em `crop` e na caixa da camada ao mesmo tempo, deixando o conteúdo visível parado. Os campos `crop-*` do painel mostram os mesmos números. Esc ou **Concluir recorte** sai.
+
 ## 9. Pendências deste contrato
 
 - Adicionar pela folha um campo que está vazio (hoje só pelo painel).
