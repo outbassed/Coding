@@ -24,7 +24,7 @@ export function normalizeViewer(raw: unknown): ViewerState {
       ids.add(id);
       files.push({
         id, blobId: isLink ? '' : blobId, kind,
-        ...(isLink ? { sourceUrl } : {}),
+        ...(isLink ? { sourceUrl: sourceUrl! } : {}),
         name: typeof o.name === 'string' && o.name.trim() ? o.name.slice(0, 160) : 'arquivo',
         mime: typeof o.mime === 'string' ? o.mime.slice(0, 100) : '',
         size: isLink ? 0 : (typeof o.size === 'number' && Number.isFinite(o.size) && o.size >= 0 ? Math.floor(o.size) : 0)
