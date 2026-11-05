@@ -1,8 +1,9 @@
 import { KIND_LABELS, type ViewKind } from './kinds';
+import { isLinkedMediaKind, normalizeMediaUrl } from '../../shared/media-links';
 
-export interface ViewerFile { id: string; name: string; kind: ViewKind; mime: string; size: number; blobId: string }
+export interface ViewerFile { id: string; name: string; kind: ViewKind; mime: string; size: number; blobId: string; sourceUrl?: string }
 export interface ViewerState { name: string; files: ViewerFile[]; activeId: string }
-export const MAX_FILES = 30;
+export const MAX_FILES = 100;
 export const MAX_FILE_BYTES = 64 * 1024 * 1024;
 export const emptyViewer = (name = 'Arquivos para visualizar'): ViewerState => ({ name, files: [], activeId: '' });
 
@@ -17,13 +18,16 @@ export function normalizeViewer(raw: unknown): ViewerState {
       const id = typeof o.id === 'string' && /^[\w-]{1,80}$/.test(o.id) ? o.id : '';
       const blobId = typeof o.blobId === 'string' ? o.blobId.slice(0, 80) : '';
       const kind = typeof o.kind === 'string' && Object.hasOwn(KIND_LABELS, o.kind) ? (o.kind as ViewKind) : 'unknown';
-      if (!id || ids.has(id) || !blobId) continue;
+      const sourceUrl = normalizeMediaUrl(o.sourceUrl);
+      const isLink = !!sourceUrl && isLinkedMediaKind(kind);
+      if (!id || ids.has(id) || (!blobId && !isLink)) continue;
       ids.add(id);
       files.push({
-        id, blobId, kind,
+        id, blobId: isLink ? '' : blobId, kind,
+        ...(isLink ? { sourceUrl: sourceUrl! } : {}),
         name: typeof o.name === 'string' && o.name.trim() ? o.name.slice(0, 160) : 'arquivo',
         mime: typeof o.mime === 'string' ? o.mime.slice(0, 100) : '',
-        size: typeof o.size === 'number' && Number.isFinite(o.size) && o.size >= 0 ? Math.floor(o.size) : 0
+        size: isLink ? 0 : (typeof o.size === 'number' && Number.isFinite(o.size) && o.size >= 0 ? Math.floor(o.size) : 0)
       });
     }
   }

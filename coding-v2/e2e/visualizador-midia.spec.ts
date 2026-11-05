@@ -1,7 +1,6 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 /* Visualizador: áudio e vídeo de verdade (arquivos gerados no próprio teste) e aviso honesto para o que o navegador não toca. */
-const tab = (page: Page, name: string) => page.getByTestId('editor-tabs').getByRole('tab', { name, exact: true });
 
 /** WAV PCM 8 bits, mono, 8 kHz, tom de 440 Hz — o navegador lê em qualquer plataforma. */
 function wav(seconds: number): Buffer {
@@ -21,14 +20,14 @@ test.describe('Visualizador · áudio e vídeo', () => {
     await page.goto('/apps/visualizador/');
     await page.getByTestId('viewer-input').setInputFiles({ name: 'tom.wav', mimeType: 'audio/wav', buffer: wav(2) });
     const player = page.getByTestId('media-player');
-    await expect(player).toBeVisible();
+    await expect(player).toBeAttached(); // o <audio> fica oculto: a interface é o player próprio
+    await expect(page.getByTestId('media-play')).toBeVisible();
     await expect(page.getByTestId('viewer-props')).toContainText('Áudio');
     await expect(page.getByTestId('viewer-props')).toContainText('0:02'); // duração lida do arquivo, não inventada
-    await expect(page.getByTestId('viewer-props')).toContainText('bytes');
-    await tab(page, 'Exibição').click();
+    await expect(page.getByTestId('viewer-props')).toContainText(/\d+ (B|KB|MB)/);
     await page.getByTestId('rate').selectOption('1.5');
     expect(await player.evaluate((el) => (el as HTMLMediaElement).playbackRate)).toBe(1.5);
-    await page.getByTestId('loop').check();
+    await page.getByTestId('loop').click();
     expect(await player.evaluate((el) => (el as HTMLMediaElement).loop)).toBe(true);
     await expect(page.getByTestId('viewer-error')).toHaveCount(0);
   });
@@ -55,7 +54,6 @@ test.describe('Visualizador · áudio e vídeo', () => {
     await expect(page.getByTestId('media-player')).toBeVisible();
     await expect(page.getByTestId('viewer-props')).toContainText('Vídeo');
     await expect(page.getByTestId('viewer-props')).toContainText('64 × 48 px');
-    await tab(page, 'Exibição').click();
     await page.getByTestId('rate').selectOption('2');
     expect(await page.getByTestId('media-player').evaluate((el) => (el as HTMLMediaElement).playbackRate)).toBe(2);
   });
@@ -64,7 +62,6 @@ test.describe('Visualizador · áudio e vídeo', () => {
     await page.goto('/apps/visualizador/');
     await page.getByTestId('viewer-input').setInputFiles({ name: 'quebrado.mp4', mimeType: 'video/mp4', buffer: Buffer.from('isto não é um vídeo de verdade'.repeat(40)) });
     await expect(page.getByTestId('viewer-error')).toContainText('não consegue reproduzir');
-    await tab(page, 'Arquivo').click();
     await expect(page.getByTestId('download-original')).toBeEnabled();
   });
 });

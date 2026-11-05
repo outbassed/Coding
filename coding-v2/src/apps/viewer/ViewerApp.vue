@@ -1,47 +1,105 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import EditorShell from '../../editors/EditorShell.vue';
-import FileTab from '../../editors/FileTab.vue';
 import { useDocument } from '../../editors/useDocument';
+import { createDoc } from '../../editors/docs';
 import { downloadBlob } from '../../shared/files/download';
 import { formatBytes } from '../../shared/bytes';
-import { forgetDoc, viewDoc } from '../pdf/engine';
+import { useMediaQuery } from '../../composables/useMediaQuery';
+import { useResizableSidebar } from '../../composables/useResizableSidebar';
+import { parseMediaLink, type MediaLinkChoice } from '../../shared/media-links';
+import { usePrint } from '../../shared/print/usePrint';
+import { requestPrint } from '../../shared/print/print';
+import type { PrintJob } from '../../shared/print/print';
 import type { LegacyImage } from '../../storage/documents';
-import { detectKind, KIND_LABELS, mimeFor, type ViewKind } from './kinds';
-import { countLines, decodeText, hexDump, MAX_FILE_BYTES, MAX_FILES, prettyJson, type ViewerFile } from './model';
-import { boundsOf, defaultCamera, drawMesh, parseModel, type Bounds, type Camera, type Mesh } from './mesh';
-import { sanitizeSvg } from './svg';
-import { viewerKind, viewerTemplates } from './kind';
-import { createDoc } from '../../editors/docs';
+import { forgetDoc, inspectPdf } from '../pdf/engine';
+import { pdfKind } from '../pdf/kind';
+import { MAX_PAGES, pid, type PdfState } from '../pdf/model';
 import { codeKind } from '../code/kind';
 import { cleanPath, isTextPath, normalizeCode } from '../code/model';
-import { usePrint } from '../../shared/print/usePrint';
-import PrintButton from '../../shared/print/PrintButton.vue';
-import type { PrintJob, PrintPage } from '../../shared/print/print';
-import { meshPage, videoFramePage } from './print';
-import { imagePage, pdfPages as printPdfPages, textPage } from '../../shared/print/pages';
+import { detectKind, KIND_LABELS, mimeFor } from './kinds';
+import { decodeText, MAX_FILE_BYTES, MAX_FILES, type ViewerFile } from './model';
+import { viewerKind, viewerTemplates } from './kind';
+import { cleanFileName, filterFiles, kindCounts, neighborAfterRemoval, sortFiles } from './library';
+import { SLIDE_SECONDS, useViewerPrefs } from './prefs';
+import { disposeThumbs } from './thumbs';
+import { createLongPress } from './longpress';
+import { isEditableTarget } from './resources';
+import type { ViewKind } from './kinds';
+import type { Detail, MenuGroup, ViewerAction, ViewerHandle } from './types';
+import VIcon from './VIcon.vue';
+import LibraryPanel from './LibraryPanel.vue';
+import InspectorPanel from './InspectorPanel.vue';
+import ViewerContextMenu from './ViewerContextMenu.vue';
+import ImageViewer from './ImageViewer.vue';
+import VideoPlayer from './VideoPlayer.vue';
+import AudioPlayer from './AudioPlayer.vue';
+import PdfViewer from './PdfViewer.vue';
+import ModelViewer from './ModelViewer.vue';
+import TextViewer from './TextViewer.vue';
+import UnknownViewer from './UnknownViewer.vue';
+import './viewer.css';
 
+/**
+ * Visualizador 2.0. A mídia ocupa o centro; a biblioteca fica à esquerda e as propriedades à direita (gavetas no celular).
+ * Este arquivo cuida do projeto (arquivos, desfazer, salvar), da navegação, dos painéis, da tela cheia e do menu de contexto;
+ * cada formato tem o seu visualizador próprio, que oferece menu, atalhos e impressão pelo mesmo contrato (types.ts).
+ */
 const doc = useDocument({
   kind: viewerKind, templates: viewerTemplates, path: '/apps/visualizador/', withImages: true,
-  imagesFor: (state, images) => { const used = new Set(state.files.map((f) => f.blobId)); return images.filter((i) => used.has(i.id)); }
+  // Trocar de arquivo na tela não é uma alteração: só a lista e os nomes entram no desfazer.
+  historyView: (s) => ({ name: s.name, files: s.files }),
+  // No disco ficam só os arquivos que o projeto usa; na memória, os removidos continuam disponíveis para o desfazer.
+  imagesFor: (s, images) => { const used = new Set(s.files.map((f) => f.blobId)); return images.filter((i) => used.has(i.id)); }
 });
 const { state, images } = doc;
-const tabs = [{ id: 'arquivos', label: 'Arquivos' }, { id: 'exibicao', label: 'Exibição' }, { id: 'arquivo', label: 'Arquivo' }];
-const tab = ref('arquivos');
+const prefs = useViewerPrefs();
+
+// ---------------------------------------------------------------- avisos
 const message = ref('');
+const canUndoToast = ref(false);
 const problem = ref('');
-function ok(text: string): void { message.value = text; problem.value = ''; doc.say(text); }
-function fail(text: string): void { problem.value = text; message.value = ''; doc.say(text); }
+let messageTimer: ReturnType<typeof setTimeout> | undefined;
+function ok(text: string, undo = false): void {
+  message.value = text; canUndoToast.value = undo; problem.value = '';
+  doc.say(text);
+  clearTimeout(messageTimer);
+  messageTimer = setTimeout(() => { message.value = ''; canUndoToast.value = false; }, undo ? 9000 : 5000);
+}
+function notice(text: string): void { message.value = text; canUndoToast.value = false; doc.say(text); clearTimeout(messageTimer); messageTimer = setTimeout(() => { message.value = ''; }, 5000); }
+function fail(text: string): void { notice(text); }
 
 // ---------------------------------------------------------------- arquivos do projeto
-const current = computed<ViewerFile | null>(() => state.value.files.find((f) => f.id === state.value.activeId) ?? null);
-const currentBlob = computed<Blob | null>(() => images.value.find((i) => i.id === current.value?.blobId)?.blob ?? null);
-const fileInput = ref<HTMLInputElement | null>(null);
+const files = computed(() => state.value.files);
+const blobMap = computed(() => new Map(images.value.map((i) => [i.id, i.blob] as const)));
+const blobOf = (f: ViewerFile): Blob | null => blobMap.value.get(f.blobId) ?? null;
+const current = computed<ViewerFile | null>(() => files.value.find((f) => f.id === state.value.activeId) ?? null);
+const currentBlob = computed(() => (current.value ? blobOf(current.value) : null));
+const missingBlob = computed(() => !!current.value && !current.value.sourceUrl && !currentBlob.value);
+
+watch(() => files.value.map((f) => f.id).join('|'), () => {
+  if (files.value.length && !files.value.some((f) => f.id === state.value.activeId)) state.value.activeId = files.value[0]!.id;
+  if (!files.value.length && state.value.activeId) state.value.activeId = '';
+  const ids = new Set(files.value.map((f) => f.id));
+  if (selected.value.some((id) => !ids.has(id))) selected.value = selected.value.filter((id) => ids.has(id));
+});
+
+/** Libera da memória os arquivos removidos mais antigos quando passam do limite (o desfazer deles deixa de existir). */
+const ORPHAN_LIMIT_BYTES = 192 * 1024 * 1024;
+function trimOrphans(): void {
+  const used = new Set(files.value.map((f) => f.blobId));
+  const orphans = images.value.filter((i) => !used.has(i.id));
+  let bytes = orphans.reduce((s, i) => s + (i.blob?.size ?? 0), 0);
+  if (bytes <= ORPHAN_LIMIT_BYTES) return;
+  const drop = new Set<string>();
+  for (const o of orphans) { if (bytes <= ORPHAN_LIMIT_BYTES) break; drop.add(o.id); bytes -= o.blob?.size ?? 0; }
+  if (drop.size) images.value = images.value.filter((i) => !drop.has(i.id));
+}
 
 async function addFiles(list: File[]): Promise<void> {
-  let added = 0;
+  let added = 0, lastId = '';
   for (const file of list) {
-    if (state.value.files.length >= MAX_FILES) { fail('Um projeto aceita até ' + MAX_FILES + ' arquivos. Remova algum para abrir outro.'); break; }
+    if (files.value.length >= MAX_FILES) { fail('Um projeto aceita até ' + MAX_FILES + ' arquivos. Remova algum para abrir outro.'); break; }
     if (file.size > MAX_FILE_BYTES) { fail('“' + file.name + '” passa de ' + Math.round(MAX_FILE_BYTES / 1048576) + ' MB.'); continue; }
     try {
       const head = new Uint8Array(await file.slice(0, 4096).arrayBuffer());
@@ -52,77 +110,184 @@ async function addFiles(list: File[]): Promise<void> {
       images.value = [...images.value, image];
       const entry: ViewerFile = { id: 'f' + crypto.randomUUID().slice(0, 12), name: file.name.slice(0, 160) || 'arquivo', kind, mime, size: file.size, blobId };
       state.value.files.push(entry);
-      state.value.activeId = entry.id;
-      added++;
+      lastId = entry.id; added++;
     } catch { fail('Não foi possível ler “' + file.name + '”.'); }
   }
+  if (lastId) openFile(lastId);
   if (added) ok(added === 1 ? 'Arquivo aberto.' : added + ' arquivos abertos.');
 }
+const fileInput = ref<HTMLInputElement | null>(null);
+function browse(): void { fileInput.value?.click(); }
 async function onPick(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement;
-  const files = Array.from(input.files ?? []); input.value = '';
-  await addFiles(files);
+  const list = Array.from(input.files ?? []); input.value = '';
+  await addFiles(list);
 }
-function removeFile(id: string): void {
-  const i = state.value.files.findIndex((f) => f.id === id); if (i < 0) return;
-  const [gone] = state.value.files.splice(i, 1);
-  if (gone) { images.value = images.value.filter((x) => x.id !== gone.blobId); forgetDoc(gone.blobId); }
-  if (state.value.activeId === id) state.value.activeId = state.value.files[Math.min(i, state.value.files.length - 1)]?.id ?? '';
-  ok('Arquivo removido do projeto. O original no seu aparelho não foi alterado.');
+
+const linkError = ref('');
+/** Links não viram cópias locais: o navegador pede a mídia direto à origem. Nada de contornar login, DRM ou bloqueio de origem. */
+function addUrl(p: { url: string; choice: MediaLinkChoice; done: (ok: boolean) => void }): void {
+  linkError.value = '';
+  if (files.value.length >= MAX_FILES) { linkError.value = 'Um projeto aceita até ' + MAX_FILES + ' mídias.'; p.done(false); return; }
+  try {
+    const media = parseMediaLink(p.url, p.choice);
+    const entry: ViewerFile = { id: 'f' + crypto.randomUUID().slice(0, 12), name: media.name, kind: media.kind, mime: media.mime, size: 0, blobId: '', sourceUrl: media.url };
+    state.value.files.push(entry);
+    openFile(entry.id);
+    ok('Link adicionado ao projeto. A mídia será carregada da internet.');
+    p.done(true);
+  } catch (error) {
+    linkError.value = error instanceof Error ? error.message : 'Não foi possível abrir esse link.';
+    p.done(false);
+  }
 }
-function isTextTarget(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null;
-  if (!el?.tagName) return false;
-  if (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') return true;
-  if (el.tagName === 'INPUT') return !['button', 'checkbox', 'radio', 'range', 'color', 'file', 'submit', 'reset'].includes((el as HTMLInputElement).type);
-  return el.isContentEditable;
+
+function removeFiles(ids: string[]): void {
+  const order = ordered.value.map((f) => f.id);
+  const gone = files.value.filter((f) => ids.includes(f.id));
+  if (!gone.length) return;
+  const wasActive = ids.includes(state.value.activeId);
+  const at = Math.max(0, order.indexOf(state.value.activeId));
+  const keep = order.filter((id) => !ids.includes(id));
+  // Os arquivos (binários) ficam na memória: é isso que permite desfazer a remoção, mesmo depois de salvar.
+  state.value.files = files.value.filter((f) => !ids.includes(f.id));
+  for (const f of gone) if (f.blobId) forgetDoc(f.blobId);
+  if (wasActive) {
+    const next = neighborAfterRemoval(order, at);
+    state.value.activeId = keep.includes(next) ? next : (keep[0] ?? '');
+  }
+  selected.value = selected.value.filter((id) => !ids.includes(id));
+  trimOrphans();
+  ok(gone.length === 1 ? '“' + gone[0]!.name + '” removido do projeto. O original no seu aparelho não foi alterado.' : gone.length + ' arquivos removidos do projeto.', true);
 }
-function onPaste(event: ClipboardEvent): void {
-  if (event.defaultPrevented || isTextTarget(event.target)) return;
-  const files = Array.from(event.clipboardData?.files ?? []);
-  if (!files.length) return;
-  event.preventDefault();
-  void addFiles(files.map((f) => (f.name && f.name !== 'image.png' ? f : new File([f], 'imagem-colada.png', { type: f.type }))));
+function renameFile(id: string, name: string): void {
+  const f = files.value.find((x) => x.id === id);
+  const clean = cleanFileName(name);
+  if (!f || !clean || f.name === clean) return;
+  doc.setChangeKey('rename-' + id);
+  f.name = clean;
+  ok('Nome alterado no projeto.');
 }
-function onDrop(event: DragEvent): void {
-  const files = Array.from(event.dataTransfer?.files ?? []);
-  if (!files.length) { fail('Solte arquivos aqui para abri-los.'); return; }
-  void addFiles(files);
-}
-onMounted(() => window.addEventListener('paste', onPaste));
-onBeforeUnmount(() => window.removeEventListener('paste', onPaste));
-function downloadCurrent(): void {
-  const f = current.value, b = currentBlob.value;
-  if (!f || !b) return;
+function downloadFile(f: ViewerFile | null): void {
+  if (!f) return;
+  const b = blobOf(f);
+  if (!b) { if (f.sourceUrl) notice('Esta mídia vem de um link; abra o endereço original para baixá-la.'); return; }
   downloadBlob(b, f.name);
   ok('“' + f.name + '” baixado como estava.');
 }
-
-// ---------------------------------------------------------------- navegação, filtro, tela cheia e apresentação
-const filter = ref('');
-const shownFiles = computed(() => {
-  const q = filter.value.trim().toLowerCase();
-  return q ? state.value.files.filter((f) => f.name.toLowerCase().includes(q) || KIND_LABELS[f.kind].toLowerCase().includes(q)) : state.value.files;
-});
-const position = computed(() => state.value.files.findIndex((f) => f.id === state.value.activeId));
-function step(delta: number): void {
-  const n = state.value.files.length;
-  if (n < 2) return;
-  state.value.activeId = state.value.files[(((position.value < 0 ? 0 : position.value) + delta) % n + n) % n]!.id;
+async function downloadSelected(): Promise<void> {
+  const list = files.value.filter((f) => selected.value.includes(f.id));
+  const local = list.filter((f) => blobOf(f));
+  for (const f of local) { downloadBlob(blobOf(f)!, f.name); await new Promise((r) => setTimeout(r, 250)); }
+  const skipped = list.length - local.length;
+  ok(local.length + (local.length === 1 ? ' arquivo baixado.' : ' arquivos baixados.') + (skipped ? ' ' + skipped + ' link(s) não têm arquivo para baixar.' : ''));
 }
-const canFullscreen = typeof document !== 'undefined' && document.fullscreenEnabled === true;
+
+function isTextTarget(target: EventTarget | null): boolean { return isEditableTarget(target); }
+function onPaste(event: ClipboardEvent): void {
+  if (event.defaultPrevented || isTextTarget(event.target)) return;
+  const list = Array.from(event.clipboardData?.files ?? []);
+  if (!list.length) return;
+  event.preventDefault();
+  void addFiles(list.map((f) => (f.name && f.name !== 'image.png' ? f : new File([f], 'imagem-colada.png', { type: f.type }))));
+}
+async function pasteFromClipboard(): Promise<void> {
+  try {
+    const items = await navigator.clipboard.read();
+    const out: File[] = [];
+    for (const item of items) {
+      const type = item.types.find((t) => t.startsWith('image/'));
+      if (type) out.push(new File([await item.getType(type)], 'imagem-colada.' + (type.split('/')[1] ?? 'png'), { type }));
+    }
+    if (out.length) await addFiles(out); else notice('Não há imagem na área de transferência. Use Ctrl+V com um arquivo copiado.');
+  } catch { notice('O navegador não permitiu ler a área de transferência. Use Ctrl+V.'); }
+}
+const dropping = ref(false);
+let dragDepth = 0;
+function onDragEnter(e: DragEvent): void { if (e.dataTransfer?.types.includes('Files')) { dragDepth++; dropping.value = true; } }
+function onDragLeave(): void { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) dropping.value = false; }
+function onDrop(event: DragEvent): void {
+  dragDepth = 0; dropping.value = false;
+  const list = Array.from(event.dataTransfer?.files ?? []);
+  if (!list.length) { fail('Solte arquivos aqui para abri-los.'); return; }
+  void addFiles(list);
+}
+
+// ---------------------------------------------------------------- biblioteca: filtro, ordem, seleção, navegação
+const query = ref('');
+const kinds = ref<ViewKind[]>([]);
+const selectMode = ref(false);
+const selected = ref<string[]>([]);
+let anchor = '';
+const ordered = computed(() => sortFiles(files.value, prefs.sortKey, prefs.sortDesc));
+const shown = computed(() => filterFiles(ordered.value, query.value, new Set(kinds.value)));
+const counts = computed(() => kindCounts(files.value));
+const position = computed(() => ordered.value.findIndex((f) => f.id === state.value.activeId));
+function toggleKind(k: ViewKind): void { kinds.value = kinds.value.includes(k) ? kinds.value.filter((x) => x !== k) : [...kinds.value, k]; }
+function clearFilters(): void { query.value = ''; kinds.value = []; }
+watch(counts, (c) => { if (kinds.value.some((k) => !c.some((x) => x.kind === k))) kinds.value = kinds.value.filter((k) => c.some((x) => x.kind === k)); });
+function toggleSelect(id: string): void { anchor = id; selected.value = selected.value.includes(id) ? selected.value.filter((x) => x !== id) : [...selected.value, id]; }
+function selectRange(id: string): void {
+  const ids = shown.value.map((f) => f.id);
+  const a = ids.indexOf(anchor || state.value.activeId), b = ids.indexOf(id);
+  if (!selectMode.value) selectMode.value = true;
+  if (a < 0 || b < 0) { toggleSelect(id); return; }
+  const [from, to] = a < b ? [a, b] : [b, a];
+  selected.value = Array.from(new Set([...selected.value, ...ids.slice(from, to + 1)]));
+}
+watch(selectMode, (on) => { if (!on) { selected.value = []; anchor = ''; } });
+
+function openFile(id: string): void {
+  if (state.value.activeId !== id) state.value.activeId = id;
+  if (!libDocked.value) drawerLib.value = false;
+}
+function step(delta: number): void {
+  const list = shown.value.some((f) => f.id === state.value.activeId) ? shown.value : ordered.value;
+  if (list.length < 2) return;
+  const i = list.findIndex((f) => f.id === state.value.activeId);
+  const at = i < 0 ? (delta > 0 ? -1 : 0) : i;
+  state.value.activeId = list[(((at + delta) % list.length) + list.length) % list.length]!.id;
+}
+
+// ---------------------------------------------------------------- painéis e modos
+const wide = useMediaQuery('(min-width: 1100px)', true);
+const mid = useMediaQuery('(min-width: 700px)', true);
+const libDocked = computed(() => mid.value);
+const insDocked = computed(() => wide.value);
+const drawerLib = ref(false);
+const drawerIns = ref(false);
+const libOpen = computed(() => (libDocked.value ? prefs.libraryOpen : drawerLib.value));
+const insOpen = computed(() => (insDocked.value ? prefs.inspectorOpen : drawerIns.value));
+function toggleLibrary(): void {
+  if (libDocked.value) prefs.libraryOpen = !prefs.libraryOpen;
+  else { drawerLib.value = !drawerLib.value; if (drawerLib.value) drawerIns.value = false; }
+}
+function toggleInspector(): void {
+  if (insDocked.value) prefs.inspectorOpen = !prefs.inspectorOpen;
+  else { drawerIns.value = !drawerIns.value; if (drawerIns.value) drawerLib.value = false; }
+}
+watch([libDocked, insDocked], () => { drawerLib.value = false; drawerIns.value = false; });
+const libSize = useResizableSidebar('viewer-library', 300, 240, 460, 'right');
+const insSize = useResizableSidebar('viewer-inspector', 312, 260, 480, 'left');
+
+const clean = ref(false);
+const rootEl = ref<HTMLElement | null>(null);
 const fullscreenOn = ref(false);
-function onFullscreenChange(): void { fullscreenOn.value = !!document.fullscreenElement && document.fullscreenElement === stage.value; }
-onMounted(() => document.addEventListener('fullscreenchange', onFullscreenChange));
-onBeforeUnmount(() => document.removeEventListener('fullscreenchange', onFullscreenChange));
+const chromeHidden = computed(() => clean.value || fullscreenOn.value);
+const canFullscreen = typeof document !== 'undefined' && document.fullscreenEnabled === true;
+function onFullscreenChange(): void { fullscreenOn.value = !!document.fullscreenElement && document.fullscreenElement === rootEl.value; }
 async function toggleFullscreen(): Promise<void> {
-  const el = stage.value; if (!el) return;
+  const el = rootEl.value;
+  if (!el) return;
+  if (!canFullscreen) { clean.value = !clean.value; if (clean.value) notice('Este navegador não tem tela cheia; usei a visualização limpa. Esc volta.'); return; }
   try { if (document.fullscreenElement) await document.exitFullscreen(); else await el.requestFullscreen(); }
   catch { fail('O navegador não permitiu a tela cheia.'); }
 }
-const slides = computed(() => state.value.files.filter((f) => f.kind === 'image' || f.kind === 'svg'));
+function toggleClean(): void { clean.value = !clean.value; drawerLib.value = false; drawerIns.value = false; }
+
+// ---------------------------------------------------------------- apresentação de imagens
+const slides = computed(() => ordered.value.filter((f) => f.kind === 'image' || f.kind === 'svg'));
 const playing = ref(false);
-const slideSeconds = ref(3);
 let slideTimer: ReturnType<typeof setInterval> | undefined;
 function advanceSlide(): void {
   const list = slides.value;
@@ -134,22 +299,20 @@ function toggleSlideshow(): void {
   if (playing.value) { playing.value = false; ok('Apresentação parada.'); return; }
   if (slides.value.length < 2) { fail('Abra pelo menos duas imagens para fazer uma apresentação.'); return; }
   if (!slides.value.some((f) => f.id === state.value.activeId)) state.value.activeId = slides.value[0]!.id;
-  playing.value = true; ok('Apresentação iniciada: troca de imagem a cada ' + slideSeconds.value + ' s. Esc para parar.');
+  playing.value = true; ok('Apresentação iniciada: troca de imagem a cada ' + prefs.slideSeconds + ' s. Esc para parar.');
 }
-watch([playing, slideSeconds], () => {
+watch([playing, () => prefs.slideSeconds], () => {
   clearInterval(slideTimer);
-  if (playing.value) slideTimer = setInterval(advanceSlide, slideSeconds.value * 1000);
+  if (playing.value) slideTimer = setInterval(advanceSlide, prefs.slideSeconds * 1000);
 });
 watch(() => slides.value.length, (n) => { if (n < 2) playing.value = false; });
-function onEscape(event: KeyboardEvent): void { if (event.key === 'Escape' && playing.value) { playing.value = false; ok('Apresentação parada.'); } }
-onMounted(() => window.addEventListener('keydown', onEscape));
-onBeforeUnmount(() => { window.removeEventListener('keydown', onEscape); clearInterval(slideTimer); });
 
-// ---------------------------------------------------------------- abrir em outro app (cópia; o original continua aqui)
-const codeName = computed(() => (current.value && (current.value.kind === 'text' || current.value.kind === 'svg') ? cleanPath(current.value.name) : null));
-const canOpenInCode = computed(() => !!codeName.value && isTextPath(codeName.value));
-async function openInCode(): Promise<void> {
-  const f = current.value, b = currentBlob.value, path = codeName.value;
+// ---------------------------------------------------------------- abrir uma cópia em outro app (o original continua aqui)
+const codePathOf = (f: ViewerFile | null): string | null => (f && (f.kind === 'text' || f.kind === 'svg') ? cleanPath(f.name) : null);
+const canCodeFile = (f: ViewerFile | null): boolean => { const p = codePathOf(f); return !!f && !!p && isTextPath(p) && !!blobOf(f); };
+const canOpenInCode = computed(() => canCodeFile(current.value));
+async function openInCode(f: ViewerFile | null = current.value): Promise<void> {
+  const b = f ? blobOf(f) : null, path = codePathOf(f);
   if (!f || !b || !path) return;
   try {
     const decoded = decodeText(new Uint8Array(await b.arrayBuffer()));
@@ -160,428 +323,442 @@ async function openInCode(): Promise<void> {
     location.assign('/apps/codigo/?doc=' + encodeURIComponent(created.id));
   } catch { fail('Não foi possível criar o projeto no Código.'); }
 }
-
-// ---------------------------------------------------------------- preparo do arquivo atual
-const url = ref('');           // imagem, vídeo e áudio (objeto) ou SVG saneado
-const textBody = ref('');
-const textInfo = ref({ encoding: '', truncated: false, lines: 0 });
-const hex = ref('');
-const extra = ref('');         // dimensões, duração, páginas, triângulos…
-const loading = ref(false);
-let seq = 0;
-function revoke(): void { if (url.value) { URL.revokeObjectURL(url.value); url.value = ''; } }
-
-// 3D
-const mesh = shallowRef<Mesh | null>(null);
-const bounds = shallowRef<Bounds | null>(null);
-const camera = ref<Camera>(defaultCamera());
-const wire = ref(false);
-const modelColor = ref<'azul' | 'cinza' | 'laranja' | 'verde'>('azul');
-const COLORS: Record<string, [number, number, number]> = { azul: [90, 150, 245], cinza: [190, 195, 205], laranja: [245, 160, 70], verde: [90, 200, 140] };
-const canvas3d = ref<HTMLCanvasElement | null>(null);
-const stage = ref<HTMLElement | null>(null);
-// PDF
-const pdfCanvas = ref<HTMLCanvasElement | null>(null);
-const pdfPage = ref(1);
-const pdfPages = ref(0);
-const pdfZoom = ref(1);
-let pdfTask: { cancel(): void } | null = null;
-// imagem
-const zoom = ref(0);
-const turn = ref(0);
-const backdrop = ref<'xadrez' | 'claro' | 'escuro'>('xadrez');
-const natural = ref({ w: 0, h: 0 });
-// texto
-const wrap = ref(true);
-const gutter = ref(true);
-const fontSize = ref(14);
-// mídia
-const rate = ref(1);
-const loop = ref(false);
-
-function resetView(): void {
-  mesh.value = null; bounds.value = null; camera.value = defaultCamera(); extra.value = ''; textBody.value = ''; hex.value = '';
-  pdfPage.value = 1; pdfPages.value = 0; zoom.value = 0; turn.value = 0; natural.value = { w: 0, h: 0 }; problem.value = '';
-}
-async function prepare(): Promise<void> {
-  const mine = ++seq;
-  revoke(); resetView();
-  const f = current.value, blob = currentBlob.value;
-  if (pdfTask) { pdfTask.cancel(); pdfTask = null; }
-  if (!f || !blob) return;
-  loading.value = true;
+async function openInPdf(f: ViewerFile | null = current.value): Promise<void> {
+  const b = f ? blobOf(f) : null;
+  if (!f || !b || f.kind !== 'pdf') return;
   try {
-    switch (f.kind) {
-      case 'image': case 'video': case 'audio': url.value = URL.createObjectURL(blob); break;
-      case 'svg': {
-        const clean = sanitizeSvg(await blob.text());
-        if (mine !== seq) return;
-        url.value = URL.createObjectURL(new Blob([clean], { type: 'image/svg+xml' }));
-        break;
-      }
-      case 'text': {
-        const r = decodeText(new Uint8Array(await blob.arrayBuffer()));
-        if (mine !== seq) return;
-        textBody.value = r.text; textInfo.value = { encoding: r.encoding, truncated: r.truncated, lines: countLines(r.text) };
-        extra.value = textInfo.value.lines.toLocaleString('pt-BR') + (textInfo.value.lines === 1 ? ' linha · ' : ' linhas · ') + r.encoding;
-        break;
-      }
-      case 'model': {
-        const m = parseModel(f.name, new Uint8Array(await blob.arrayBuffer()));
-        if (mine !== seq) return;
-        mesh.value = m; bounds.value = boundsOf(m);
-        extra.value = m.triangles.toLocaleString('pt-BR') + (m.triangles === 1 ? ' triângulo' : ' triângulos');
-        break;
-      }
-      case 'pdf': {
-        const pdf = await viewDoc(f.blobId, async () => new Uint8Array(await blob.arrayBuffer()));
-        if (mine !== seq) return;
-        pdfPages.value = pdf.numPages;
-        extra.value = pdf.numPages + (pdf.numPages === 1 ? ' página' : ' páginas');
-        break;
-      }
-      default: hex.value = hexDump(new Uint8Array(await blob.slice(0, 256).arrayBuffer()), 256);
-    }
-  } catch (e) {
-    if (mine === seq) problem.value = e instanceof Error && e.message ? e.message : 'Não foi possível abrir este arquivo.';
-  } finally { if (mine === seq) loading.value = false; }
-  if (mine === seq) { await nextTick(); draw3d(); void renderPdf(); }
+    const count = await inspectPdf(new Uint8Array(await b.arrayBuffer()));
+    if (count > MAX_PAGES) { fail('“' + f.name + '” tem ' + count + ' páginas; o Editor PDF aceita até ' + MAX_PAGES + '.'); return; }
+    const id = 'pdf-' + crypto.randomUUID();
+    const name = f.name.slice(0, 160);
+    const project: PdfState = {
+      name: name.replace(/\.pdf$/i, '').slice(0, 200) || 'Documento PDF',
+      sources: [{ id, name, pages: count }],
+      pages: Array.from({ length: count }, (_, i) => ({ id: pid(), src: id, index: i, rotate: 0 as const })),
+      annotations: []
+    };
+    const copy: LegacyImage = { id, docId: '', blob: new Blob([b], { type: 'application/pdf' }), mime: 'application/pdf', name };
+    const created = await createDoc(pdfKind, project, [copy]);
+    await doc.saveNow();
+    location.assign('/apps/pdf/?doc=' + encodeURIComponent(created.id));
+  } catch (e) { fail(e instanceof Error && e.message ? e.message : 'Não foi possível criar o projeto no Editor PDF.'); }
 }
-watch([() => current.value?.id, currentBlob], () => { void prepare(); }, { immediate: true });
-onBeforeUnmount(() => { seq++; revoke(); pdfTask?.cancel(); });
 
-// ---------------------------------------------------------------- 3D
-let dragging: { x: number; y: number } | null = null;
-let frame = 0;
-function draw3d(fast = false): void {
-  cancelAnimationFrame(frame);
-  frame = requestAnimationFrame(() => {
-    const c = canvas3d.value, m = mesh.value, b = bounds.value;
-    if (!c || !m || !b) return;
-    const box = stage.value;
-    const w = Math.max(200, Math.floor(box?.clientWidth ?? 600)), h = Math.max(200, Math.floor((box?.clientHeight ?? 420) - 8));
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    if (c.width !== Math.round(w * dpr)) c.width = Math.round(w * dpr);
-    if (c.height !== Math.round(h * dpr)) c.height = Math.round(h * dpr);
-    c.style.width = w + 'px'; c.style.height = h + 'px';
-    const ctx = c.getContext('2d'); if (!ctx) return;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const dark = document.documentElement.getAttribute('data-theme') === 'dark' || (document.documentElement.getAttribute('data-theme') !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
-    const n = drawMesh(ctx, m, b, camera.value, w, h, { wireframe: wire.value, color: COLORS[modelColor.value] ?? COLORS.azul!, background: dark ? '#0f1319' : '#f3f5f9' }, fast ? 12000 : 250000);
-    c.dataset.drawn = String(n);
-  });
-}
-function onDown(e: PointerEvent): void { dragging = { x: e.clientX, y: e.clientY }; (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); }
-function onMove3d(e: PointerEvent): void {
-  if (!dragging) return;
-  camera.value = { ...camera.value, yaw: camera.value.yaw + (e.clientX - dragging.x) * 0.01, pitch: Math.max(-1.5, Math.min(1.5, camera.value.pitch + (e.clientY - dragging.y) * 0.01)) };
-  dragging = { x: e.clientX, y: e.clientY };
-  draw3d(true);
-}
-function onUp3d(): void { if (dragging) { dragging = null; draw3d(); } }
-function zoom3d(factor: number): void { camera.value = { ...camera.value, zoom: Math.max(0.2, Math.min(8, camera.value.zoom * factor)) }; draw3d(); }
-function onWheel(e: WheelEvent): void { zoom3d(e.deltaY < 0 ? 1.12 : 1 / 1.12); }
-function onKey3d(e: KeyboardEvent): void {
-  const k = e.key;
-  if (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'ArrowUp' || k === 'ArrowDown') {
-    e.preventDefault();
-    camera.value = { ...camera.value, yaw: camera.value.yaw + (k === 'ArrowLeft' ? -0.1 : k === 'ArrowRight' ? 0.1 : 0), pitch: Math.max(-1.5, Math.min(1.5, camera.value.pitch + (k === 'ArrowUp' ? -0.1 : k === 'ArrowDown' ? 0.1 : 0))) };
-    draw3d();
-  } else if (k === '+' || k === '=') { e.preventDefault(); zoom3d(1.15); }
-  else if (k === '-') { e.preventDefault(); zoom3d(1 / 1.15); }
-}
-function reset3d(): void { camera.value = defaultCamera(); draw3d(); }
-watch([wire, modelColor], () => draw3d());
-let ro: ResizeObserver | undefined;
-onMounted(() => {
-  if (typeof ResizeObserver === 'undefined' || !stage.value) return;
-  ro = new ResizeObserver(() => { draw3d(); void renderPdf(); });
-  ro.observe(stage.value);
-});
-onBeforeUnmount(() => { ro?.disconnect(); cancelAnimationFrame(frame); });
-
-// ---------------------------------------------------------------- PDF
-async function renderPdf(): Promise<void> {
-  const f = current.value, c = pdfCanvas.value, blob = currentBlob.value;
-  if (!f || f.kind !== 'pdf' || !c || !blob || !pdfPages.value) return;
-  const mine = seq;
-  try {
-    const pdf = await viewDoc(f.blobId, async () => new Uint8Array(await blob.arrayBuffer()));
-    const page = await pdf.getPage(Math.min(Math.max(1, pdfPage.value), pdf.numPages));
-    if (mine !== seq) return;
-    const base = page.getViewport({ scale: 1 });
-    const avail = Math.max(240, (stage.value?.clientWidth ?? 640) - 32);
-    const scale = (avail / base.width) * pdfZoom.value;
-    const vp = page.getViewport({ scale: scale * Math.min(2, window.devicePixelRatio || 1) });
-    c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
-    c.style.width = Math.floor(vp.width / Math.min(2, window.devicePixelRatio || 1)) + 'px';
-    const ctx = c.getContext('2d'); if (!ctx) return;
-    pdfTask?.cancel();
-    const task = page.render({ canvasContext: ctx, viewport: vp });
-    pdfTask = task;
-    await task.promise;
-    c.dataset.rendered = String(pdfPage.value);
-  } catch (e) {
-    if (e && typeof e === 'object' && 'name' in e && (e as { name: string }).name === 'RenderingCancelledException') return;
-    if (mine === seq) problem.value = e instanceof Error && e.message ? e.message : 'Não foi possível desenhar a página.';
+// ---------------------------------------------------------------- o visualizador do formato aberto
+const viewerRef = ref<ViewerHandle | null>(null);
+const extra = ref('');
+const details = ref<Detail[]>([]);
+watch(() => current.value?.id, () => { extra.value = ''; details.value = []; problem.value = ''; });
+function onMeta(e: string, d: Detail[]): void { extra.value = e; details.value = d; }
+function onError(text: string): void { problem.value = text; }
+const isMediaKind = computed(() => current.value?.kind === 'video' || current.value?.kind === 'audio');
+const audioList = computed(() => ordered.value.filter((f) => f.kind === 'audio'));
+function onAction(action: ViewerAction): void {
+  switch (action) {
+    case 'download': downloadFile(current.value); break;
+    case 'print': void requestPrint(); break;
+    case 'fullscreen': void toggleFullscreen(); break;
+    case 'properties': toggleInspector(); break;
+    case 'open-code': void openInCode(); break;
+    case 'open-pdf': void openInPdf(); break;
+    case 'remove': if (current.value) removeFiles([current.value.id]); break;
+    case 'next': step(1); break;
+    case 'prev': step(-1); break;
   }
 }
-function goPage(n: number): void { pdfPage.value = Math.min(Math.max(1, Math.floor(n) || 1), Math.max(1, pdfPages.value)); void renderPdf(); }
-watch(pdfZoom, () => { void renderPdf(); });
 
-// ---------------------------------------------------------------- imprimir (cada formato do seu jeito; veja print.ts)
-const PRINTABLE: ReadonlySet<ViewKind> = new Set<ViewKind>(['image', 'svg', 'text', 'pdf', 'video', 'model']);
+const title = computed(() => current.value?.name ?? '');
+const metaText = computed(() => {
+  const f = current.value;
+  if (!f) return '';
+  return KIND_LABELS[f.kind] + ' · ' + (f.sourceUrl ? 'Link externo' : formatBytes(f.size)) + (extra.value ? ' · ' + extra.value : '');
+});
+
+// ---------------------------------------------------------------- imprimir (cada formato monta as próprias páginas)
 function printReason(): string {
   const f = current.value;
   if (!f) return 'Abra um arquivo para imprimir.';
-  if (f.kind === 'audio') return 'Áudio não tem conteúdo visual para imprimir.';
-  if (!PRINTABLE.has(f.kind)) return 'Este tipo de arquivo não tem uma visualização para imprimir.';
-  if (loading.value) return 'Espere o arquivo terminar de abrir.';
+  if (doc.loading.value) return 'Espere o projeto terminar de abrir.';
+  if (missingBlob.value) return 'O conteúdo deste arquivo não está disponível neste aparelho.';
+  if (f.sourceUrl && (f.kind === 'video' || f.kind === 'audio')) return 'Para imprimir esta mídia, baixe o arquivo e abra-o pelo aparelho. Links externos podem bloquear a impressão.';
   if (problem.value) return 'Este arquivo não abriu, então não há o que imprimir.';
-  if (f.kind === 'video' && !stage.value?.querySelector('video')?.videoWidth) return 'Reproduza ou avance o vídeo até aparecer um quadro para imprimir.';
-  return '';
+  return viewerRef.value?.printReason() ?? 'Espere o arquivo terminar de abrir.';
 }
 async function viewerPrintJob(): Promise<PrintJob | null> {
-  const f = current.value, blob = currentBlob.value;
-  if (!f || !blob || printReason()) return null;
-  const title = f.name.replace(/\.[^.]+$/, '') || 'Arquivo';
-  let pages: PrintPage[] = [];
-  switch (f.kind) {
-    case 'image': case 'svg': pages = [await imagePage(url.value, turn.value, f.kind === 'svg')]; break;
-    case 'video': { const p = videoFramePage(stage.value!.querySelector('video')!); if (p) pages = [p]; break; }
-    case 'model': {
-      if (!mesh.value || !bounds.value) return null;
-      const c = canvas3d.value;
-      pages = [meshPage(mesh.value, bounds.value, camera.value, COLORS[modelColor.value] ?? COLORS.azul!, wire.value, c ? c.width / c.height : 4 / 3)];
-      break;
-    }
-    case 'text': { const t = textPage(f.name, textBody.value); pages = [t.page]; if (t.truncated) doc.say('Impressão limitada aos primeiros caracteres do arquivo.'); break; }
-    case 'pdf': {
-      const pdf = await viewDoc(f.blobId, async () => new Uint8Array(await blob.arrayBuffer()));
-      if (pdf.numPages > 20) doc.say('Preparando ' + Math.min(pdf.numPages, 150) + ' páginas para imprimir…');
-      const r = await printPdfPages(pdf);
-      pages = r.pages;
-      if (r.skipped) doc.say('A impressão leva as primeiras ' + r.pages.length + ' páginas; o PDF tem ' + (r.pages.length + r.skipped) + '. Imprima o arquivo original para ter todas.');
-      break;
-    }
-    default: return null;
-  }
-  return pages.length ? { title, pages } : null;
+  const f = current.value, h = viewerRef.value;
+  if (!f || !h || printReason()) return null;
+  const pages = await h.printPages();
+  return pages.length ? { title: f.name, pages } : null;
 }
 usePrint({ kind: 'built', build: viewerPrintJob, enabled: () => !printReason(), reason: printReason, notify: ok });
 
-// ---------------------------------------------------------------- imagem, texto e mídia
-const imgScale = computed(() => zoom.value);
-const imgStyle = computed(() => {
-  const z = imgScale.value;
-  const turned = Math.abs(turn.value) % 180 !== 0;
-  const style: Record<string, string> = { transform: 'rotate(' + turn.value + 'deg)' };
-  if (z > 0 && natural.value.w) { style.width = natural.value.w * z + 'px'; style.height = 'auto'; style.maxWidth = 'none'; }
-  else style.maxWidth = turned ? '70vh' : '100%';
-  return style;
+// ---------------------------------------------------------------- menus de contexto (por região e por formato)
+interface OpenMenu { x: number; y: number; groups: MenuGroup[]; title: string; key: number }
+const menu = ref<OpenMenu | null>(null);
+let menuKey = 0;
+const libraryRef = ref<InstanceType<typeof LibraryPanel> | null>(null);
+
+function showLibrary(): void { if (libDocked.value) prefs.libraryOpen = true; else { drawerLib.value = true; drawerIns.value = false; } }
+function openLinkForm(): void { showLibrary(); void nextTick(() => libraryRef.value?.openLink()); }
+function focusRename(id: string): void {
+  openFile(id);
+  if (insDocked.value) prefs.inspectorOpen = true; else { drawerIns.value = true; drawerLib.value = false; }
+  void nextTick(() => document.getElementById('vw-rename')?.focus());
+}
+
+function commonItems(f: ViewerFile): MenuGroup[] {
+  const n = shown.value.length > 1 || ordered.value.length > 1;
+  const groups: MenuGroup[] = [];
+  if (n) groups.push({ title: 'Navegação', items: [
+    { id: 'prev', label: 'Arquivo anterior', icon: 'prev', shortcut: 'Alt+←', run: () => step(-1) },
+    { id: 'next', label: 'Próximo arquivo', icon: 'next', shortcut: 'Alt+→', run: () => step(1) }
+  ] });
+  const items: MenuGroup['items'] = [];
+  if (f.kind === 'image' || f.kind === 'svg') items.push({ id: 'slideshow', label: playing.value ? 'Parar a apresentação' : 'Apresentação de imagens', icon: 'slideshow', disabled: slides.value.length < 2 && !playing.value, run: toggleSlideshow });
+  items.push(
+    { id: 'fullscreen', label: fullscreenOn.value ? 'Sair da tela cheia' : 'Tela cheia', icon: fullscreenOn.value ? 'exitFullscreen' : 'fullscreen', shortcut: 'F', run: () => { void toggleFullscreen(); } },
+    { id: 'clean', label: clean.value ? 'Mostrar os painéis' : 'Visualização limpa', icon: 'eye', shortcut: 'C', checked: clean.value, run: toggleClean },
+    { id: 'properties', label: 'Propriedades', icon: 'info', shortcut: 'I', checked: insOpen.value, run: toggleInspector },
+    { id: 'library', label: 'Biblioteca', icon: 'panelLeft', shortcut: 'B', checked: libOpen.value, run: toggleLibrary }
+  );
+  groups.push({ title: 'Exibição', items });
+  const file: MenuGroup['items'] = [
+    { id: 'print', label: 'Imprimir', icon: 'print', shortcut: 'Ctrl+P', disabled: !!printReason(), run: () => { void requestPrint(); } }
+  ];
+  if (f.sourceUrl) file.push({ id: 'open-link', label: 'Abrir endereço original', icon: 'external', run: () => { window.open(f.sourceUrl, '_blank', 'noopener,noreferrer'); } });
+  else file.push({ id: 'download', label: 'Baixar o original', icon: 'download', disabled: !currentBlob.value, run: () => downloadFile(f) });
+  if (f.kind === 'pdf') file.push({ id: 'open-pdf', label: 'Abrir uma cópia no Editor PDF', icon: 'pdf', disabled: !currentBlob.value, run: () => { void openInPdf(f); } });
+  if (canCodeFile(f)) file.push({ id: 'open-code', label: 'Abrir uma cópia no Código', icon: 'code', run: () => { void openInCode(f); } });
+  file.push({ id: 'rename', label: 'Renomear…', icon: 'edit', run: () => focusRename(f.id) });
+  file.push({ id: 'remove', label: 'Remover do projeto', icon: 'trash', danger: true, run: () => removeFiles([f.id]) });
+  groups.push({ title: 'Arquivo', items: file });
+  return groups;
+}
+function mediaMenu(): MenuGroup[] {
+  const f = current.value;
+  if (!f) return libraryMenu();
+  return [...(viewerRef.value?.menu() ?? []), ...commonItems(f)];
+}
+function fileMenu(f: ViewerFile): MenuGroup[] {
+  const picked = selected.value.includes(f.id);
+  const batch = selectMode.value && picked && selected.value.length > 1;
+  const items: MenuGroup['items'] = [];
+  if (batch) {
+    items.push(
+      { id: 'batch-download', label: 'Baixar ' + selected.value.length + ' selecionados', icon: 'download', run: () => { void downloadSelected(); } },
+      { id: 'batch-remove', label: 'Remover ' + selected.value.length + ' selecionados', icon: 'trash', danger: true, run: () => removeFiles(selected.value.slice()) }
+    );
+    return [{ title: selected.value.length + ' selecionados', items }, { items: [{ id: 'select-none', label: 'Limpar a seleção', icon: 'close', run: () => { selected.value = []; } }] }];
+  }
+  items.push({ id: 'open', label: f.id === state.value.activeId ? 'Aberto agora' : 'Abrir', icon: 'eye', disabled: f.id === state.value.activeId, run: () => openFile(f.id) });
+  items.push({ id: 'select', label: picked ? 'Desmarcar' : 'Selecionar', icon: 'select', run: () => { selectMode.value = true; toggleSelect(f.id); } });
+  items.push({ id: 'rename', label: 'Renomear…', icon: 'edit', run: () => focusRename(f.id) });
+  const out: MenuGroup['items'] = [];
+  if (f.sourceUrl) out.push({ id: 'open-link', label: 'Abrir endereço original', icon: 'external', run: () => { window.open(f.sourceUrl, '_blank', 'noopener,noreferrer'); } });
+  else out.push({ id: 'download', label: 'Baixar o original', icon: 'download', disabled: !blobOf(f), run: () => downloadFile(f) });
+  if (f.kind === 'pdf') out.push({ id: 'open-pdf', label: 'Abrir uma cópia no Editor PDF', icon: 'pdf', disabled: !blobOf(f), run: () => { void openInPdf(f); } });
+  if (canCodeFile(f)) out.push({ id: 'open-code', label: 'Abrir uma cópia no Código', icon: 'code', run: () => { void openInCode(f); } });
+  out.push({ id: 'remove', label: 'Remover do projeto', icon: 'trash', danger: true, run: () => removeFiles([f.id]) });
+  return [{ items }, { title: KIND_LABELS[f.kind], items: out }];
+}
+function libraryMenu(): MenuGroup[] {
+  const sorts: [typeof prefs.sortKey, string][] = [['ordem', 'Ordem de abertura'], ['nome', 'Nome'], ['formato', 'Formato'], ['tamanho', 'Tamanho']];
+  const groups: MenuGroup[] = [
+    { title: 'Adicionar', items: [
+      { id: 'open-files', label: 'Abrir arquivos…', icon: 'plus', shortcut: 'Ctrl+O', run: browse },
+      { id: 'open-link', label: 'Abrir mídia por link…', icon: 'link', run: openLinkForm },
+      { id: 'paste', label: 'Colar imagem', icon: 'paste', shortcut: 'Ctrl+V', run: () => { void pasteFromClipboard(); } }
+    ] },
+    { title: 'Exibição', items: [
+      { id: 'view-grid', label: 'Miniaturas', icon: 'grid', checked: prefs.libraryView === 'grade', run: () => { prefs.libraryView = 'grade'; } },
+      { id: 'view-list', label: 'Lista', icon: 'list', checked: prefs.libraryView === 'lista', run: () => { prefs.libraryView = 'lista'; } }
+    ] }
+  ];
+  if (files.value.length) {
+    groups.push({ title: 'Ordenar por', items: [
+      ...sorts.map(([id, label]) => ({ id: 'sort-' + id, label, icon: 'sort' as const, checked: prefs.sortKey === id, run: () => { prefs.sortKey = id; } })),
+      { id: 'sort-desc', label: 'Ordem inversa', icon: 'sort', checked: prefs.sortDesc, run: () => { prefs.sortDesc = !prefs.sortDesc; } }
+    ] });
+    const sel: MenuGroup['items'] = [
+      { id: 'select-mode', label: 'Selecionar vários', icon: 'select', checked: selectMode.value, run: () => { selectMode.value = !selectMode.value; } },
+      { id: 'select-all', label: 'Selecionar todos', icon: 'check', run: () => { selectMode.value = true; selected.value = shown.value.map((f) => f.id); } }
+    ];
+    if (query.value.trim() || kinds.value.length) sel.push({ id: 'clear-filters', label: 'Limpar pesquisa e filtros', icon: 'close', run: clearFilters });
+    groups.push({ items: sel });
+  }
+  return groups;
+}
+
+function openMenu(x: number, y: number, groups: MenuGroup[], title = ''): void {
+  menu.value = null;
+  void nextTick(() => { menu.value = { x, y, groups, title, key: ++menuKey }; });
+}
+/** Escolhe o menu pela região tocada: arquivo da biblioteca, mídia aberta ou área vazia. */
+function menuFor(target: Element | null): { groups: MenuGroup[]; title: string } | null {
+  if (!target) return null;
+  const item = target.closest<HTMLElement>('[data-ctx-file]');
+  if (item) {
+    const f = files.value.find((x) => x.id === item.dataset.ctxFile);
+    if (f) return { groups: fileMenu(f), title: f.name };
+  }
+  if (target.closest('[data-ctx="stage"]')) return current.value ? { groups: mediaMenu(), title: current.value.name } : { groups: libraryMenu(), title: 'Visualizador' };
+  if (target.closest('[data-ctx="library"]')) return { groups: libraryMenu(), title: 'Biblioteca' };
+  return null;
+}
+function openMenuFor(x: number, y: number, target: Element | null): boolean {
+  const m = menuFor(target);
+  if (!m) return false;
+  openMenu(x, y, m.groups, m.title);
+  return true;
+}
+const press = createLongPress({
+  onOpen: (x, y, target) => { openMenuFor(x, y, target); },
+  onFired: () => { swallowUntil = Date.now() + 700; }
 });
-function onImgLoad(event: Event): void {
-  const img = event.target as HTMLImageElement;
-  natural.value = { w: img.naturalWidth, h: img.naturalHeight };
-  extra.value = img.naturalWidth + ' × ' + img.naturalHeight + ' px';
+let swallowUntil = 0;
+function onContextMenu(e: MouseEvent): void {
+  const t = e.target as Element | null;
+  if (!t || isEditableTarget(t) || t.closest('.vm') || e.shiftKey) return;
+  if (press.recentlyOpened()) { e.preventDefault(); return; }
+  if (openMenuFor(e.clientX, e.clientY, t)) e.preventDefault();
 }
-function onMedia(event: Event): void {
-  const m = event.target as HTMLVideoElement | HTMLAudioElement;
-  const sec = Number.isFinite(m.duration) ? Math.round(m.duration) : 0;
-  const t = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
-  m.playbackRate = rate.value;
-  extra.value = (m instanceof HTMLVideoElement && m.videoWidth ? m.videoWidth + ' × ' + m.videoHeight + ' px · ' : '') + t;
+function onPointerDown(e: PointerEvent): void {
+  const t = e.target as Element | null;
+  if (!t || isEditableTarget(t) || t.closest('.vm,[data-testid="text-body"]')) return; // campos e texto mantêm o toque nativo (seleção)
+  press.down(e);
 }
-function onMediaError(): void { problem.value = 'O navegador não consegue reproduzir este arquivo (formato ou codec sem suporte). Você ainda pode baixá-lo.'; }
-watch(rate, (r) => { for (const el of document.querySelectorAll<HTMLMediaElement>('[data-testid="media-player"]')) el.playbackRate = r; });
-function formatJson(): void {
-  const pretty = prettyJson(textBody.value);
-  if (pretty === null) { fail('O conteúdo não é um JSON válido.'); return; }
-  textBody.value = pretty; textInfo.value = { ...textInfo.value, lines: countLines(pretty) };
-  extra.value = textInfo.value.lines.toLocaleString('pt-BR') + ' linhas · ' + textInfo.value.encoding;
-  ok('JSON formatado só na tela; o arquivo original não foi alterado.');
+function onClickCapture(e: MouseEvent): void {
+  if (Date.now() < swallowUntil) { e.stopPropagation(); e.preventDefault(); swallowUntil = 0; }
 }
-const isJson = computed(() => current.value?.kind === 'text' && textBody.value.trim().length > 0 && prettyJson(textBody.value) !== null);
-const numbered = computed(() => (gutter.value ? Array.from({ length: Math.min(textInfo.value.lines, 100000) }, (_, i) => i + 1).join('\n') : ''));
-const title = computed(() => current.value ? current.value.name : '');
+/** Botão "mais" da barra do formato e do topo: abre o menu da mídia ancorado no próprio botão. */
+function openMenuAtButton(event: MouseEvent): void {
+  const el = event.currentTarget as HTMLElement | null;
+  const r = el?.getBoundingClientRect();
+  const groups = current.value ? mediaMenu() : libraryMenu();
+  openMenu(r ? r.right : 8, r ? r.bottom : 8, groups, current.value?.name ?? 'Visualizador');
+}
+function openMenuFromKeyboard(): void {
+  const active = document.activeElement as HTMLElement | null;
+  const base = active && rootEl.value?.contains(active) ? active : rootEl.value?.querySelector<HTMLElement>('[data-ctx="stage"]') ?? null;
+  if (!base) return;
+  const r = base.getBoundingClientRect();
+  const x = r.left + Math.min(r.width / 2, 160), y = r.top + Math.min(r.height / 2, 120);
+  if (!openMenuFor(x, y, base)) openMenuFor(x, y, rootEl.value?.querySelector('[data-ctx="stage"]') ?? null);
+}
+
+// ---------------------------------------------------------------- teclado
+/** Shift+F10 e a tecla de menu: escuta na captura da janela, antes da infraestrutura compartilhada (que também reage a essas teclas). */
+function onMenuKey(e: KeyboardEvent): void {
+  if (e.key !== 'ContextMenu' && !(e.shiftKey && e.key === 'F10')) return;
+  const t = e.target as HTMLElement | null;
+  if (menu.value || !rootEl.value || !t || !rootEl.value.contains(t) || isEditableTarget(t)) return;
+  e.preventDefault(); e.stopPropagation();
+  openMenuFromKeyboard();
+}
+function onKeydown(e: KeyboardEvent): void {
+  if (e.defaultPrevented) return;
+  const t = e.target as HTMLElement | null;
+  if (menu.value) return;
+  if (!rootEl.value || (t && !rootEl.value.contains(t) && t !== document.body)) return;
+  if (e.key === 'Escape') {
+    if (playing.value) { playing.value = false; ok('Apresentação parada.'); e.preventDefault(); return; }
+    if (clean.value && !fullscreenOn.value) { clean.value = false; e.preventDefault(); return; }
+    if (!libDocked.value && drawerLib.value) { drawerLib.value = false; return; }
+    if (!insDocked.value && drawerIns.value) { drawerIns.value = false; return; }
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'o') { e.preventDefault(); browse(); return; }
+  if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); step(e.key === 'ArrowRight' ? 1 : -1); return; }
+  if (isEditableTarget(t)) return;
+  const interactive = !!t && (t.tagName === 'BUTTON' || t.tagName === 'A' || t.tagName === 'SUMMARY' || t.getAttribute('role') === 'button');
+  if (interactive && (e.key === ' ' || e.key === 'Enter')) return;
+  if (viewerRef.value?.key(e)) { e.preventDefault(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  switch (e.key) {
+    case 'f': case 'F': e.preventDefault(); void toggleFullscreen(); return;
+    case 'i': case 'I': e.preventDefault(); toggleInspector(); return;
+    case 'b': case 'B': e.preventDefault(); toggleLibrary(); return;
+    case 'c': case 'C': e.preventDefault(); toggleClean(); return;
+    case 'Delete': if (current.value && !t?.closest('[data-testid="viewer-menu"]')) { e.preventDefault(); removeFiles(selectMode.value && selected.value.length ? selected.value.slice() : [current.value.id]); } return;
+    case 'ArrowLeft': case 'ArrowRight': {
+      const k = current.value?.kind;
+      if (!k || k === 'image' || k === 'svg' || k === 'unknown') { e.preventDefault(); step(e.key === 'ArrowRight' ? 1 : -1); }
+      return;
+    }
+    default:
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('paste', onPaste);
+  window.addEventListener('keydown', onKeydown);
+  window.addEventListener('keydown', onMenuKey, true);
+  document.addEventListener('fullscreenchange', onFullscreenChange);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener('paste', onPaste);
+  window.removeEventListener('keydown', onKeydown);
+  window.removeEventListener('keydown', onMenuKey, true);
+  document.removeEventListener('fullscreenchange', onFullscreenChange);
+  clearInterval(slideTimer); clearTimeout(messageTimer); press.cancel();
+  disposeThumbs();
+});
+const slideOptions = SLIDE_SECONDS;
+const hasMany = computed(() => ordered.value.length > 1);
+const canSlide = computed(() => !!current.value && (current.value.kind === 'image' || current.value.kind === 'svg'));
 </script>
 
 <template>
-  <EditorShell v-model:tab="tab" app="viewer" :doc="doc" :tabs="tabs">
-    <template #panel="{ tab: now }">
-      <div v-if="now === 'arquivos'" class="ed-group">
-        <div class="ed-row">
-          <button type="button" class="btn btn-app" data-testid="open-files" @click="fileInput?.click()">Abrir arquivos</button>
-          <input ref="fileInput" type="file" class="sr-only" multiple aria-label="Escolher arquivos para visualizar" data-testid="viewer-input" @change="onPick" />
-        </div>
-        <p class="ed-hint">Também dá para arrastar arquivos para a área de visualização ou colar uma imagem com Ctrl+V. Os arquivos ficam só neste aparelho e podem ser guardados no projeto (até {{ MAX_FILES }} arquivos de {{ Math.round(MAX_FILE_BYTES / 1048576) }} MB).</p>
-        <label v-if="state.files.length > 1" class="ed-field"><span class="ed-label">Buscar na lista (nome ou tipo)</span>
-          <input v-model="filter" type="search" class="inp" autocomplete="off" data-testid="viewer-filter" /></label>
-        <p v-if="filter.trim()" class="ed-hint" role="status" data-testid="viewer-filter-count">{{ shownFiles.length }} de {{ state.files.length }} arquivos.</p>
-        <ul v-if="state.files.length" class="files" data-testid="viewer-files" aria-label="Arquivos do projeto">
-          <li v-for="f in shownFiles" :key="f.id" :class="{ on: f.id === state.activeId }">
-            <button type="button" class="pick" :aria-pressed="f.id === state.activeId" :data-file="f.name" @click="state.activeId = f.id">
-              <span class="nm">{{ f.name }}</span><small class="muted">{{ KIND_LABELS[f.kind] }} · {{ formatBytes(f.size) }}</small>
-            </button>
-            <button type="button" class="ib" :aria-label="'Remover ' + f.name + ' do projeto'" @click="removeFile(f.id)">×</button>
-          </li>
-        </ul>
-        <p v-else class="ed-hint" data-testid="viewer-empty-hint">Nenhum arquivo aberto ainda.</p>
-        <div v-if="slides.length > 1" class="ed-row">
-          <label class="ed-field"><span class="ed-label">Apresentação: trocar a cada</span>
-            <select v-model.number="slideSeconds" class="inp" data-testid="slide-interval"><option :value="1">1 s</option><option :value="3">3 s</option><option :value="5">5 s</option><option :value="10">10 s</option></select></label>
-          <button type="button" class="btn" :aria-pressed="playing" data-testid="slideshow" @click="toggleSlideshow">{{ playing ? 'Parar apresentação' : 'Iniciar apresentação' }}</button>
-        </div>
-        <dl v-if="current" class="props" data-testid="viewer-props">
-          <dt>Nome</dt><dd>{{ current.name }}</dd>
-          <dt>Tipo detectado</dt><dd>{{ KIND_LABELS[current.kind] }}</dd>
-          <dt>Tipo MIME</dt><dd>{{ current.mime || 'não informado' }}</dd>
-          <dt>Tamanho</dt><dd>{{ current.size.toLocaleString('pt-BR') }} bytes ({{ formatBytes(current.size) }})</dd>
-          <template v-if="extra"><dt>Detalhes</dt><dd>{{ extra }}</dd></template>
-        </dl>
-      </div>
-      <div v-else-if="now === 'exibicao'" class="ed-row">
-        <p v-if="!current" class="ed-hint">Abra um arquivo para ver as opções de exibição.</p>
-        <template v-else-if="current.kind === 'image' || current.kind === 'svg'">
-          <button type="button" class="btn" aria-label="Diminuir zoom" @click="zoom = Math.max(0.05, (zoom || 1) * 0.8)">−</button>
-          <span class="z" data-testid="zoom-text">{{ zoom ? Math.round(zoom * 100) + '%' : 'Ajustado' }}</span>
-          <button type="button" class="btn" aria-label="Aumentar zoom" @click="zoom = Math.min(8, (zoom || 1) * 1.25)">+</button>
-          <button type="button" class="btn" data-testid="zoom-fit" @click="zoom = 0">Ajustar</button>
-          <button type="button" class="btn" data-testid="zoom-100" @click="zoom = 1">100%</button>
-          <button type="button" class="btn" data-testid="turn-left" @click="turn = (turn - 90) % 360">Girar −90°</button>
-          <button type="button" class="btn" data-testid="turn-right" @click="turn = (turn + 90) % 360">Girar +90°</button>
-          <label class="ed-field"><span class="ed-label">Fundo</span>
-            <select v-model="backdrop" class="inp" data-testid="backdrop"><option value="xadrez">Xadrez</option><option value="claro">Claro</option><option value="escuro">Escuro</option></select></label>
-        </template>
-        <template v-else-if="current.kind === 'text'">
-          <label class="check"><input v-model="wrap" type="checkbox" data-testid="wrap" /> Quebrar linhas longas</label>
-          <label class="check"><input v-model="gutter" type="checkbox" data-testid="gutter" /> Números de linha</label>
-          <label class="ed-field"><span class="ed-label">Tamanho da letra</span>
-            <select v-model.number="fontSize" class="inp"><option :value="12">12</option><option :value="14">14</option><option :value="16">16</option><option :value="20">20</option></select></label>
-          <button v-if="isJson" type="button" class="btn" data-testid="format-json" @click="formatJson">Formatar JSON</button>
-        </template>
-        <template v-else-if="current.kind === 'model'">
-          <label class="check"><input v-model="wire" type="checkbox" data-testid="wireframe" /> Só as arestas</label>
-          <label class="ed-field"><span class="ed-label">Cor</span>
-            <select v-model="modelColor" class="inp"><option value="azul">Azul</option><option value="cinza">Cinza</option><option value="laranja">Laranja</option><option value="verde">Verde</option></select></label>
-          <button type="button" class="btn" aria-label="Aproximar" data-testid="zoom-in-3d" @click="zoom3d(1.25)">+</button>
-          <button type="button" class="btn" aria-label="Afastar" @click="zoom3d(0.8)">−</button>
-          <button type="button" class="btn" data-testid="reset-3d" @click="reset3d">Redefinir vista</button>
-          <p class="ed-hint">Arraste para girar, use a roda do mouse (ou + e −) para aproximar e as setas do teclado com o modelo focado.</p>
-        </template>
-        <template v-else-if="current.kind === 'pdf'">
-          <button type="button" class="btn" data-testid="pdf-prev" :disabled="pdfPage <= 1" @click="goPage(pdfPage - 1)">Página anterior</button>
-          <label class="ed-field"><span class="ed-label">Página (de {{ pdfPages }})</span>
-            <input class="inp inp-num" type="number" min="1" :max="pdfPages" :value="pdfPage" data-testid="pdf-page" @change="goPage(Number(($event.target as HTMLInputElement).value))" /></label>
-          <button type="button" class="btn" data-testid="pdf-next" :disabled="pdfPage >= pdfPages" @click="goPage(pdfPage + 1)">Próxima página</button>
-          <label class="ed-field"><span class="ed-label">Zoom</span>
-            <select v-model.number="pdfZoom" class="inp" data-testid="pdf-zoom"><option :value="0.75">75%</option><option :value="1">100%</option><option :value="1.5">150%</option><option :value="2">200%</option></select></label>
-        </template>
-        <template v-else-if="current.kind === 'video' || current.kind === 'audio'">
-          <label class="ed-field"><span class="ed-label">Velocidade</span>
-            <select v-model.number="rate" class="inp" data-testid="rate"><option :value="0.5">0,5×</option><option :value="1">1×</option><option :value="1.5">1,5×</option><option :value="2">2×</option></select></label>
-          <label class="check"><input v-model="loop" type="checkbox" data-testid="loop" /> Repetir</label>
-        </template>
-        <p v-else class="ed-hint">Este tipo de arquivo não tem opções de exibição.</p>
-      </div>
-      <FileTab v-else :templates="viewerTemplates" @new="doc.newFrom">
-        <button type="button" class="btn" :disabled="!current" data-testid="download-original" @click="downloadCurrent">Baixar o arquivo atual</button>
-        <PrintButton label="Imprimir o arquivo atual" />
-        <button v-if="canOpenInCode" type="button" class="btn" data-testid="open-in-code" @click="openInCode">Abrir uma cópia no Código</button>
-        <template #after><p v-if="message" class="ed-hint" role="status" data-testid="viewer-message">{{ message }}</p></template>
-      </FileTab>
-    </template>
+  <EditorShell app="viewer" :doc="doc" layout="free">
+    <div ref="rootEl" class="vw" :class="{ 'is-clean': chromeHidden, 'is-fs': fullscreenOn }" data-context-native data-testid="viewer-root"
+      @contextmenu="onContextMenu" @click.capture="onClickCapture" @pointerdown="onPointerDown" @pointermove="press.move" @pointerup="press.up" @pointercancel="press.cancel"
+      @dragover.prevent @dragenter="onDragEnter" @dragleave="onDragLeave" @drop.prevent="onDrop">
+      <input ref="fileInput" type="file" class="sr-only" multiple tabindex="-1" aria-label="Escolher arquivos para visualizar" data-testid="viewer-input" @change="onPick" />
 
-    <div class="viewer" @dragover.prevent @drop.prevent="onDrop">
-      <div class="bar" data-testid="viewer-bar">
-        <strong class="name" data-testid="viewer-name">{{ title || 'Nenhum arquivo aberto' }}</strong>
-        <span v-if="current" class="muted meta" data-testid="viewer-meta">{{ KIND_LABELS[current.kind] }} · {{ formatBytes(current.size) }}<template v-if="extra"> · {{ extra }}</template></span>
-        <span v-if="state.files.length > 1" class="nav">
-          <button type="button" class="ib" aria-label="Arquivo anterior" data-testid="viewer-prev" @click="step(-1)">‹</button>
-          <span class="muted" data-testid="viewer-position">{{ position + 1 }} de {{ state.files.length }}</span>
-          <button type="button" class="ib" aria-label="Próximo arquivo" data-testid="viewer-next" @click="step(1)">›</button>
-        </span>
-        <button v-if="current && canFullscreen" type="button" class="btn small" data-testid="viewer-fullscreen" @click="toggleFullscreen">Tela cheia</button>
+      <div v-if="!chromeHidden" class="vwt" role="toolbar" aria-label="Arquivo aberto" data-testid="viewer-bar">
+        <button type="button" class="vw-btn" :aria-pressed="libOpen" aria-label="Biblioteca" title="Biblioteca (B)" data-testid="toggle-library" @click="toggleLibrary"><VIcon name="panelLeft" /></button>
+        <div class="vwt-title">
+          <strong class="vwt-name" data-testid="viewer-name">{{ title || 'Nenhum arquivo aberto' }}</strong>
+          <span v-if="current" class="vwt-meta" data-testid="viewer-meta">{{ metaText }}</span>
+        </div>
+        <div v-if="hasMany" class="vw-group">
+          <button type="button" class="vw-btn" aria-label="Arquivo anterior" title="Arquivo anterior (Alt+←)" data-testid="viewer-prev" @click="step(-1)"><VIcon name="chevronLeft" /></button>
+          <span class="vwt-pos vw-hide-sm" data-testid="viewer-position">{{ position + 1 }} de {{ ordered.length }}</span>
+          <button type="button" class="vw-btn" aria-label="Próximo arquivo" title="Próximo arquivo (Alt+→)" data-testid="viewer-next" @click="step(1)"><VIcon name="chevronRight" /></button>
+        </div>
+        <div v-if="canSlide" class="vw-group vw-hide-sm">
+          <button type="button" class="vw-btn" :aria-pressed="playing" :aria-label="playing ? 'Parar a apresentação' : 'Apresentação de imagens'" title="Apresentação de imagens" data-testid="slideshow" @click="toggleSlideshow"><VIcon name="slideshow" /></button>
+          <label class="sr-only" for="vw-slide">Segundos por imagem</label>
+          <select id="vw-slide" v-model.number="prefs.slideSeconds" class="vw-sel" data-testid="slide-interval">
+            <option v-for="s in slideOptions" :key="s" :value="s">{{ s }} s</option>
+          </select>
+        </div>
+        <div class="vw-group vw-hide-sm">
+          <button type="button" class="vw-btn" aria-label="Imprimir" title="Imprimir (Ctrl+P)" data-testid="print-app" @click="requestPrint()"><VIcon name="print" /></button>
+          <button type="button" class="vw-btn" aria-label="Tela cheia" title="Tela cheia (F)" data-testid="viewer-fullscreen" :disabled="!current" @click="toggleFullscreen"><VIcon name="fullscreen" /></button>
+          <button type="button" class="vw-btn" aria-label="Visualização limpa" title="Visualização limpa (C)" data-testid="clean-mode" @click="toggleClean"><VIcon name="eye" /></button>
+          <button type="button" class="vw-btn" :aria-pressed="insOpen" aria-label="Propriedades" title="Propriedades (I)" data-testid="toggle-properties" @click="toggleInspector"><VIcon name="panelRight" /></button>
+        </div>
+        <button type="button" class="vw-btn vw-only-sm" aria-label="Mais opções" data-testid="top-more" @click="openMenuAtButton"><VIcon name="more" /></button>
       </div>
-      <p v-if="problem" class="ed-error err" role="alert" data-testid="viewer-error">{{ problem }}</p>
-      <div ref="stage" class="stage" :class="'bd-' + backdrop" data-testid="viewer-stage">
-        <div v-if="fullscreenOn" class="fsbar" role="group" aria-label="Controles da tela cheia">
-          <button v-if="state.files.length > 1" type="button" class="btn" data-testid="fs-prev" @click="step(-1)">‹ Anterior</button>
-          <button v-if="state.files.length > 1" type="button" class="btn" data-testid="fs-next" @click="step(1)">Próximo ›</button>
-          <button type="button" class="btn btn-app" data-testid="viewer-exit-fullscreen" @click="toggleFullscreen">Sair da tela cheia</button>
+
+      <div class="vww">
+        <div v-if="!chromeHidden && libOpen" class="vwl" :class="{ drawer: !libDocked }" :style="libDocked ? { width: libSize.width.value + 'px' } : undefined" data-testid="viewer-library-pane">
+          <LibraryPanel ref="libraryRef" :files="shown" :total="files.length" :counts="counts" :active-id="state.activeId" :selected="selected" :prefs="prefs" :blob-of="blobOf"
+            v-model:query="query" :kinds="kinds" v-model:selectMode="selectMode" :link-error="linkError" :drawer="!libDocked"
+            @toggle-kind="toggleKind" @clear-filters="clearFilters" @open="openFile" @toggle-select="toggleSelect" @select-range="selectRange"
+            @select-all="selected = shown.map((f) => f.id)" @select-none="selected = []" @browse="browse" @add-url="addUrl"
+            @remove-selected="removeFiles(selected.slice())" @download-selected="downloadSelected" @close="drawerLib = false" />
+          <div v-if="libDocked" class="vwr right" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Ajustar a largura da biblioteca" :aria-valuenow="libSize.width.value"
+            :aria-valuemin="libSize.min" :aria-valuemax="libSize.max" :class="{ active: libSize.dragging.value }"
+            @pointerdown="libSize.start" @pointermove="libSize.move" @pointerup="libSize.end" @pointercancel="libSize.end" @dblclick="libSize.reset" @keydown="libSize.keys"></div>
         </div>
-        <div v-if="!current" class="empty" data-testid="viewer-empty">
-          <p><strong>Visualizador</strong></p>
-          <p>Abra imagens, SVG, vídeos, áudios, modelos 3D (STL, OBJ, GLB), PDFs e arquivos de texto. Tudo é aberto neste aparelho, nada é enviado para a internet.</p>
-          <button type="button" class="btn btn-app" @click="fileInput?.click(); tab = 'arquivos'">Abrir arquivos</button>
+        <div v-if="!chromeHidden && !libDocked && drawerLib" class="vw-scrim" aria-hidden="true" @click="drawerLib = false"></div>
+
+        <div class="vws" role="region" data-ctx="stage" data-testid="viewer-stage" :class="{ drop: dropping }" aria-label="Mídia aberta">
+          <div v-if="doc.loading.value" class="vw-empty"><p class="vw-spin" role="status">Abrindo o projeto…</p></div>
+          <div v-else-if="!current" class="vw-empty" data-testid="viewer-empty">
+            <VIcon name="image" :size="48" />
+            <h2>Visualizador</h2>
+            <p data-testid="viewer-empty-hint">Abra imagens, SVG, vídeos, áudios, PDFs, modelos 3D e textos. Arraste arquivos para cá, cole com Ctrl+V ou cole o endereço direto de uma mídia. Arquivos locais não saem do aparelho; links acessam o servidor de origem.</p>
+            <div class="vw-empty-actions">
+              <button type="button" class="vw-btn primary" data-testid="empty-open-files" @click="browse"><VIcon name="plus" /> Abrir arquivos</button>
+              <button type="button" class="vw-btn" data-testid="empty-open-link" @click="openLinkForm"><VIcon name="link" /> Abrir por link</button>
+            </div>
+          </div>
+          <div v-else-if="missingBlob" class="vw-empty" data-testid="viewer-error" role="alert">
+            <VIcon name="file" :size="44" />
+            <h2>Conteúdo indisponível</h2>
+            <p>Os dados de “{{ current.name }}” não estão salvos neste aparelho (podem ter sido apagados pelo navegador). Remova o item e abra o arquivo de novo.</p>
+            <button type="button" class="vw-btn" @click="removeFiles([current.id])"><VIcon name="trash" /> Remover do projeto</button>
+          </div>
+          <template v-else>
+            <p v-if="problem" class="vw-problem" role="alert" data-testid="viewer-error">
+              <VIcon name="info" :size="18" /><span>{{ problem }}</span>
+              <button v-if="!current.sourceUrl" type="button" class="vw-btn" data-testid="error-download" @click="downloadFile(current)"><VIcon name="download" /> Baixar</button>
+              <a v-else class="vw-btn" :href="current.sourceUrl" target="_blank" rel="noopener noreferrer"><VIcon name="external" /> Abrir o endereço</a>
+            </p>
+            <p v-if="current.sourceUrl && !problem" class="vw-linkbar" data-testid="viewer-link-note"><VIcon name="link" :size="14" /> Mídia de um link: precisa de internet.</p>
+            <template v-if="!problem || isMediaKind">
+              <ImageViewer v-if="current.kind === 'image' || current.kind === 'svg'" :key="current.id" ref="viewerRef" :file="current" :blob="currentBlob" :prefs="prefs" @meta="onMeta" @error="onError" @notice="notice" @action="onAction" @open-menu="openMenuAtButton" />
+              <VideoPlayer v-else-if="current.kind === 'video'" :key="current.id" ref="viewerRef" :file="current" :blob="currentBlob" :prefs="prefs" @meta="onMeta" @error="onError" @notice="notice" @action="onAction" @open-menu="openMenuAtButton" />
+              <AudioPlayer v-else-if="current.kind === 'audio'" :key="current.id" ref="viewerRef" :file="current" :blob="currentBlob" :prefs="prefs" :playlist="audioList" @meta="onMeta" @error="onError" @notice="notice" @action="onAction" @open-menu="openMenuAtButton" @select="openFile" />
+              <PdfViewer v-else-if="current.kind === 'pdf'" :key="current.id" ref="viewerRef" :file="current" :blob="currentBlob" :prefs="prefs" @meta="onMeta" @error="onError" @notice="notice" @action="onAction" @open-menu="openMenuAtButton" />
+              <ModelViewer v-else-if="current.kind === 'model'" :key="current.id" ref="viewerRef" :file="current" :blob="currentBlob" :prefs="prefs" @meta="onMeta" @error="onError" @notice="notice" @action="onAction" @open-menu="openMenuAtButton" />
+              <TextViewer v-else-if="current.kind === 'text'" :key="current.id" ref="viewerRef" :file="current" :blob="currentBlob" :prefs="prefs" :can-open-in-code="canOpenInCode" @meta="onMeta" @error="onError" @notice="notice" @action="onAction" @open-menu="openMenuAtButton" />
+              <UnknownViewer v-else :key="current.id" ref="viewerRef" :file="current" :blob="currentBlob" @meta="onMeta" @error="onError" @notice="notice" @action="onAction" @open-menu="openMenuAtButton" />
+            </template>
+          </template>
+          <div v-if="dropping" class="vw-drop" aria-hidden="true"><VIcon name="plus" :size="40" /><p>Solte para abrir</p></div>
+          <p v-if="message" class="vw-toast" role="status" data-testid="viewer-message">
+            <span>{{ message }}</span>
+            <button v-if="canUndoToast && doc.canUndo.value" type="button" class="vw-toast-btn" data-testid="toast-undo" @click="doc.undo(); message = ''">Desfazer</button>
+          </p>
         </div>
-        <p v-else-if="loading" class="muted" role="status">Abrindo…</p>
-        <template v-else-if="!problem || current.kind === 'video' || current.kind === 'audio'">
-          <div v-if="(current.kind === 'image' || current.kind === 'svg') && url" class="imgbox"><img :src="url" :alt="'Visualização de ' + current.name" class="pic" :style="imgStyle" data-testid="viewer-image" @load="onImgLoad" @error="problem = 'O navegador não conseguiu abrir esta imagem.'" /></div>
-          <video v-else-if="current.kind === 'video' && url" :key="url" class="media" controls :loop="loop" preload="metadata" :src="url" :aria-label="'Vídeo ' + current.name" data-testid="media-player" @loadedmetadata="onMedia" @error="onMediaError"></video>
-          <div v-else-if="current.kind === 'audio' && url" class="audiobox"><audio :key="url" controls :loop="loop" preload="metadata" :src="url" :aria-label="'Áudio ' + current.name" data-testid="media-player" @loadedmetadata="onMedia" @error="onMediaError"></audio></div>
-          <canvas v-else-if="current.kind === 'model' && mesh" ref="canvas3d" class="c3d" tabindex="0" role="img" :aria-label="'Modelo 3D ' + current.name + '. Arraste para girar; setas giram; + e − aproximam.'" data-testid="model-canvas"
-            @pointerdown="onDown" @pointermove="onMove3d" @pointerup="onUp3d" @pointercancel="onUp3d" @wheel.prevent="onWheel" @keydown="onKey3d"></canvas>
-          <div v-else-if="current.kind === 'pdf'" class="pdfbox"><canvas ref="pdfCanvas" class="pdfc" role="img" :aria-label="'Página ' + pdfPage + ' de ' + pdfPages + ' de ' + current.name" data-testid="pdf-canvas"></canvas></div>
-          <div v-else-if="current.kind === 'text'" class="textbox" :style="{ fontSize: fontSize + 'px' }">
-            <pre v-if="gutter" class="gut" aria-hidden="true">{{ numbered }}</pre>
-            <pre class="body" :class="{ nowrap: !wrap }" tabindex="0" :aria-label="'Conteúdo de ' + current.name" data-testid="text-body">{{ textBody }}</pre>
-            <p v-if="textInfo.truncated" class="ed-hint cut">Arquivo grande: mostrando só os primeiros 4 MB.</p>
-          </div>
-          <div v-else-if="current.kind === 'unknown'" class="unknown" data-testid="viewer-unknown">
-            <p><strong>Não há visualização para este tipo de arquivo.</strong></p>
-            <p class="muted">Veja os primeiros bytes abaixo ou baixe o arquivo como ele está.</p>
-            <pre class="hexdump" tabindex="0" aria-label="Primeiros bytes do arquivo em hexadecimal">{{ hex }}</pre>
-          </div>
+
+        <div v-if="!chromeHidden && !insDocked && drawerIns" class="vw-scrim" aria-hidden="true" @click="drawerIns = false"></div>
+        <div v-if="!chromeHidden && insOpen" class="vwi" :class="{ drawer: !insDocked }" :style="insDocked ? { width: insSize.width.value + 'px' } : undefined" data-testid="viewer-inspector">
+          <div v-if="insDocked" class="vwr left" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Ajustar a largura das propriedades" :aria-valuenow="insSize.width.value"
+            :aria-valuemin="insSize.min" :aria-valuemax="insSize.max" :class="{ active: insSize.dragging.value }"
+            @pointerdown="insSize.start" @pointermove="insSize.move" @pointerup="insSize.end" @pointercancel="insSize.end" @dblclick="insSize.reset" @keydown="insSize.keys"></div>
+          <InspectorPanel :file="current" :details="details" :position="position" :total="ordered.length" :can-open-in-code="canOpenInCode" :can-print="!printReason()" :drawer="!insDocked"
+            @rename="(n) => current && renameFile(current.id, n)" @action="onAction" @close="insDocked ? (prefs.inspectorOpen = false) : (drawerIns = false)" />
+        </div>
+      </div>
+
+      <div v-if="chromeHidden" class="vwf" role="group" aria-label="Controles da visualização limpa">
+        <template v-if="hasMany">
+          <button type="button" class="vw-btn" aria-label="Arquivo anterior" data-testid="fs-prev" @click="step(-1)"><VIcon name="chevronLeft" /></button>
+          <button type="button" class="vw-btn" aria-label="Próximo arquivo" data-testid="fs-next" @click="step(1)"><VIcon name="chevronRight" /></button>
         </template>
+        <button v-if="canSlide" type="button" class="vw-btn" :aria-pressed="playing" :aria-label="playing ? 'Parar a apresentação' : 'Apresentação de imagens'" data-testid="fs-slideshow" @click="toggleSlideshow"><VIcon name="slideshow" /></button>
+        <button v-if="fullscreenOn" type="button" class="vw-btn primary" data-testid="viewer-exit-fullscreen" @click="toggleFullscreen"><VIcon name="exitFullscreen" /> <span class="vw-hide-sm">Sair da tela cheia</span></button>
+        <button v-else type="button" class="vw-btn primary" data-testid="exit-clean" @click="clean = false"><VIcon name="exitFullscreen" /> <span class="vw-hide-sm">Mostrar painéis</span></button>
       </div>
+
+      <ViewerContextMenu v-if="menu" :key="menu.key" :groups="menu.groups" :x="menu.x" :y="menu.y" :title="menu.title" @close="menu = null" />
     </div>
   </EditorShell>
 </template>
 
 <style scoped>
-.check { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; font-weight: 600; }
-.check input { width: 20px; height: 20px; }
-.z { min-width: 64px; text-align: center; font-weight: 700; }
-.files { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-.files li { display: flex; align-items: center; gap: 2px; border: 1px solid var(--border); border-radius: 10px; padding: 2px; background: var(--surface); }
-.files li.on { border-color: var(--app); box-shadow: inset 0 0 0 1px var(--app); }
-.pick { flex: 1; min-width: 0; min-height: 44px; display: grid; text-align: left; border: 0; background: transparent; padding: 2px 8px; }
-.nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nav { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
-.nav .ib { min-width: 44px; min-height: 44px; font-size: 22px; }
-.small { min-height: 44px; }
-.props { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 8px 0 0; padding: 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); font-size: 13px; }
-.props dt { color: var(--muted); }
-.props dd { margin: 0; overflow-wrap: anywhere; }
-.stage:fullscreen { background: var(--raised); }
-.fsbar { position: fixed; top: 10px; right: 10px; z-index: 5; display: flex; gap: 6px; padding: 6px; border-radius: 12px; background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--border); }
-.viewer { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--raised); }
-.bar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 8px 14px; background: var(--surface); border-bottom: 1px solid var(--border); }
-.name { overflow-wrap: anywhere; }
-.meta { font-size: 12.5px; }
-.err { margin: 0; padding: 8px 14px; }
-.stage { flex: 1; min-height: 0; overflow: auto; display: grid; place-items: center; padding: 16px; position: relative; }
-.stage:has(.textbox), .stage:has(.pdfbox) { place-items: start center; }
-.empty, .unknown { max-width: 560px; text-align: center; display: grid; gap: 8px; justify-items: center; }
-.imgbox { max-width: 100%; max-height: 100%; display: grid; place-items: center; }
-.pic { max-height: 100%; object-fit: contain; image-rendering: auto; background: transparent; transform-origin: center; }
-.bd-xadrez .imgbox { background: repeating-conic-gradient(#d9dde5 0% 25%, #fff 0% 50%) 0 0 / 20px 20px; }
-.bd-claro .imgbox { background: #fff; }
-.bd-escuro .imgbox { background: #10141b; }
-.media { max-width: 100%; max-height: 100%; background: #000; border-radius: 8px; }
-.audiobox { width: min(560px, 100%); padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
-.audiobox audio { width: 100%; }
-.c3d { display: block; touch-action: none; cursor: grab; border-radius: 10px; outline: none; max-width: 100%; }
-.c3d:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
-.pdfbox { width: 100%; display: grid; place-items: start center; }
-.pdfc { max-width: none; box-shadow: 0 6px 22px rgb(0 0 0 / 25%); background: #fff; }
-.textbox { display: flex; align-items: flex-start; gap: 0; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: auto; align-self: stretch; }
-.textbox pre { margin: 0; padding: 12px; font: inherit; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; line-height: 1.55; }
-.gut { flex: none; text-align: right; color: var(--muted); border-right: 1px solid var(--border); user-select: none; }
-.body { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; outline: none; }
-.body.nowrap { white-space: pre; overflow-wrap: normal; overflow-x: auto; }
-.body:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
-.cut { padding: 0 12px; }
-.hexdump { text-align: left; max-width: 100%; overflow: auto; padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; font: 12.5px/1.5 ui-monospace, Consolas, monospace; }
+.vw { flex: 1 1 0; min-height: 0; min-width: 0; display: flex; flex-direction: column; position: relative; overflow: hidden; background: var(--st-bg); color: var(--st-fg); }
+.vw.is-fs { height: 100%; width: 100%; }
+.vwt { flex: none; display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: var(--st-bar); border-bottom: 1px solid var(--st-line); min-width: 0; }
+.vwt-title { flex: 1 1 auto; min-width: 0; display: grid; padding: 0 6px; }
+.vwt-name { font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vwt-meta { font-size: 12px; color: var(--st-mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vwt-pos { font-size: 12.5px; color: var(--st-mut); font-variant-numeric: tabular-nums; padding: 0 4px; white-space: nowrap; }
+.vww { flex: 1 1 0; min-height: 0; display: flex; position: relative; }
+.vwl, .vwi { flex: none; position: relative; min-height: 0; display: flex; flex-direction: column; }
+.vwl > :first-child, .vwi > :last-child { flex: 1 1 0; min-width: 0; min-height: 0; }
+.vwl.drawer, .vwi.drawer { position: absolute; z-index: 30; top: 0; bottom: 0; width: min(350px, 90vw) !important; box-shadow: 0 0 40px rgb(0 0 0 / 55%); }
+.vwl.drawer { left: 0; }
+.vwi.drawer { right: 0; }
+.vw-scrim { position: absolute; inset: 0; z-index: 25; background: rgb(0 0 0 / 45%); }
+.vwr { position: absolute; top: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 5; touch-action: none; }
+.vwr.right { right: -4px; }
+.vwr.left { left: -4px; }
+.vwr:hover, .vwr.active, .vwr:focus-visible { background: color-mix(in srgb, var(--app) 45%, transparent); outline: none; }
+.vws { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; position: relative; background: var(--st-bg); }
+.vws.drop { outline: 3px dashed var(--app); outline-offset: -8px; }
+.vw-empty { margin: auto; max-width: 520px; padding: 24px 18px; display: grid; justify-items: center; gap: 10px; text-align: center; color: var(--st-mut); }
+.vw-empty h2 { margin: 4px 0 0; color: var(--st-fg); font-size: 22px; }
+.vw-empty p { margin: 0; font-size: 14px; line-height: 1.55; }
+.vw-empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 8px; }
+.vw-problem { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 0; padding: 8px 14px; background: rgb(255 120 120 / 14%); border-bottom: 1px solid rgb(255 120 120 / 40%); color: var(--st-bad); font-size: 13.5px; }
+.vw-problem span { flex: 1 1 240px; min-width: 0; }
+.vw-linkbar { flex: none; display: flex; align-items: center; gap: 6px; margin: 0; padding: 4px 14px; font-size: 12px; color: var(--st-mut); background: var(--st-bg2); border-bottom: 1px solid var(--st-line); }
+.vw-drop { position: absolute; inset: 0; z-index: 20; display: grid; place-content: center; justify-items: center; gap: 6px; background: rgb(13 17 23 / 78%); color: var(--st-fg); font-size: 18px; font-weight: 800; pointer-events: none; }
+.vw-drop p { margin: 0; }
+.vw-toast { position: absolute; left: 50%; bottom: calc(76px + var(--sa-b)); transform: translateX(-50%); z-index: 22; max-width: min(92%, 560px); margin: 0; padding: 8px 8px 8px 16px; display: flex; align-items: center; gap: 10px;
+  background: #232c3d; color: var(--st-fg); border: 1px solid var(--st-line); border-radius: 14px; box-shadow: 0 10px 34px rgb(0 0 0 / 50%); font-size: 13.5px; }
+.vw-toast-btn { flex: none; min-height: 40px; padding: 0 12px; border: 0; border-radius: 10px; background: var(--app); color: var(--ink); font: inherit; font-weight: 800; cursor: pointer; }
+.vwf { position: absolute; z-index: 40; top: calc(8px + var(--sa-t, 0px)); right: 8px; display: flex; gap: 4px; padding: 4px; background: rgb(13 17 23 / 72%); border: 1px solid var(--st-line); border-radius: 14px; backdrop-filter: blur(6px); }
+.vws :deep(.vw-body) { flex: 1 1 0; }
+@media (max-width: 599px) {
+  .vwt { padding: 2px 4px; }
+  .vwt-meta { display: none; }
+  .vw-toast { bottom: calc(120px + var(--sa-b)); }
+}
 </style>

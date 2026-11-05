@@ -101,12 +101,12 @@ const APP_ACTIONS: Record<ToolId, Action[]> = {
     { label: 'Exportar WebP', selector: '[data-testid="export-webp"]', tab: 'Arquivo' }
   ],
   viewer: [
-    { label: 'Abrir arquivos', selector: '[data-testid="open-files"]', tab: 'Arquivos', shortcut: 'Alt+Shift+N' },
-    { label: 'Baixar o arquivo atual', selector: '[data-testid="download-original"]', tab: 'Arquivo', shortcut: 'Alt+Shift+E' },
-    { label: 'Redefinir vista 3D', selector: '[data-testid="reset-3d"]', tab: 'Exibição' },
+    { label: 'Abrir arquivos', selector: '[data-testid="open-files"]', shortcut: 'Alt+Shift+N' },
+    { label: 'Baixar o arquivo atual', selector: '[data-testid="download-original"]', shortcut: 'Alt+Shift+E' },
+    { label: 'Redefinir vista 3D', selector: '[data-testid="reset-3d"]' },
     { label: 'Arquivo anterior', selector: '[data-testid="viewer-prev"]' },
     { label: 'Próximo arquivo', selector: '[data-testid="viewer-next"]' },
-    { label: 'Apresentação de imagens', selector: '[data-testid="slideshow"]', tab: 'Arquivos' },
+    { label: 'Apresentação de imagens', selector: '[data-testid="slideshow"]' },
     { label: 'Tela cheia', selector: '[data-testid="viewer-fullscreen"]' }
   ],
   versos: [

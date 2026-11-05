@@ -8,7 +8,7 @@ const APPS = [
 /** Etiquetas e Texto têm editor próprio, sem o painel padrão: só a página inteira é verificada. */
 const OWN_LAYOUT = new Set(['/apps/etiquetas/', '/apps/texto/']);
 /** Lotes 1 e 2 (layout livre): cada app organiza a própria tela, sem barra de abas fixa; o layout é conferido em layouts-lote1.spec.ts e layouts-lote2.spec.ts. */
-const FREE_LAYOUT = new Set(['/apps/calculadora/', '/apps/cores/', '/apps/zip/', '/apps/comparador/', '/apps/sorteio/', '/apps/racha-conta/']);
+const FREE_LAYOUT = new Set(['/apps/calculadora/', '/apps/cores/', '/apps/zip/', '/apps/comparador/', '/apps/sorteio/', '/apps/racha-conta/', '/apps/visualizador/']);
 const WIDTHS = [320, 375, 390, 430, 600, 768, 1024, 1280];
 
 /** Controles visíveis que escapam da tela sem estarem dentro de uma área com rolagem própria. */

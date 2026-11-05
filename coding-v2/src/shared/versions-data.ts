@@ -15,6 +15,48 @@ import type { VersionRecord } from './versions';
  */
 export const versionRecords: readonly VersionRecord[] = [
   {
+    target: 'viewer', version: '2.0.0', build: '05.11.26.101617', releaseDate: '2026-11-05', releaseTime: '10:16:17',
+    novidades: [
+      'Interface nova e própria: a mídia ocupa o centro, a biblioteca fica à esquerda e as propriedades à direita (ambas com largura ajustável); no celular viram gavetas, e há visualização limpa e tela cheia.',
+      'Biblioteca com miniaturas reais (imagem, SVG, vídeo, PDF, modelo 3D e texto), modo lista, pesquisa sem diferenciar acentos, filtros por tipo, ordenação, seleção em lote, arrastar e soltar e colar com Ctrl+V.',
+      'Menus de contexto inteligentes, diferentes para imagem, vídeo, áudio, PDF, texto e modelo 3D, para arquivos da biblioteca e para áreas vazias; no celular abrem com toque prolongado e no teclado com Shift+F10.',
+      'Player de vídeo próprio (avançar e voltar 10 s, progresso interativo, volume, velocidade, repetição, captura de quadro) e player de áudio próprio com capa do arquivo, lista de faixas e passagem automática.',
+      'PDF com miniaturas, zoom por largura, página inteira ou porcentagem, giro, pesquisa de texto com destaque e opção de abrir uma cópia no Editor PDF.',
+      'Imagens com zoom suave por roda ou pinça, arrastar para mover, giro, espelhamento, fundos, cópia da imagem e apresentação com intervalo; modelos 3D com vistas prontas, giro automático, cor, arestas e captura; textos com pesquisa, números de linha, quebra, zoom da letra e JSON formatado.',
+      'Preferências próprias do Visualizador, atalhos de teclado (F tela cheia, I propriedades, B biblioteca, C visualização limpa, Alt+setas para trocar de arquivo) e indicadores de carregamento.'
+    ],
+    melhorias: [
+      'Mídias por link (do PR anterior) integradas à biblioteca, com aviso claro de dependência da internet e de bloqueios do servidor.',
+      'Até 100 arquivos por projeto (antes eram 30).',
+      'Recursos de vídeo, áudio, modelos e miniaturas são liberados ao fechar um arquivo ou o aplicativo.'
+    ],
+    correcoes: [
+      'Desfazer uma remoção agora devolve também o conteúdo do arquivo (imagens, vídeos, PDFs e outros dados binários), inclusive depois de o projeto ter sido salvo.',
+      'Trocar de arquivo deixou de ocupar passos do histórico de desfazer.',
+      'Shift+F10 e a tecla de menu agora abrem o menu de contexto do Visualizador pelo teclado.',
+      'Impressão nativa mantida para imagem, SVG, vídeo (quadro atual), PDF, modelo 3D e texto, agora a partir do visualizador de cada formato.'
+    ],
+    alteracoesTecnicas: [
+      'Projetos salvos continuam compatíveis: o formato dos dados não mudou e os binários seguem no mesmo armazenamento.',
+      'Componentes por formato com contrato comum (menu, atalhos e impressão), biblioteca e propriedades separadas, e módulos testados para preferências, ordenação, pesquisa, capas de áudio e pesquisa em PDF.'
+    ],
+    problemasConhecidos: [
+      'Mídias por link dependem de conexão e das permissões do servidor de origem; páginas de sites, como as do YouTube, não são links diretos.',
+      'Copiar, capturar ou imprimir uma imagem ou vídeo de link externo depende de o servidor permitir o acesso (CORS).'
+    ]
+  },
+  {
+    target: 'viewer', version: '1.1.0', build: '04.11.26.212342', releaseDate: '2026-11-04', releaseTime: '21:23:42',
+    novidades: [
+      'Abrir imagens, SVG, vídeos e áudios por link HTTPS direto, com campo de endereço e tipo de mídia na aba Arquivos.',
+      'Os links ficam salvos no projeto e podem ser reabertos no Visualizador sem copiar ou enviar o arquivo ao Coding.'
+    ],
+    problemasConhecidos: [
+      'Mídias por link dependem de conexão e das permissões do servidor de origem; páginas de sites, como páginas do YouTube, não são links diretos.',
+      'Para imprimir um link externo, primeiro abra o arquivo localmente; os aplicativos podem ampliar o suporte a links em versões futuras.'
+    ]
+  },
+  {
     target: 'versos', version: '1.0.2', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
     melhorias: [
       'Imprimir cena atual ou todas as cenas, uma cena por página, com a composição final e sem a interface (Arquivo → Imprimir, Ctrl+P).',

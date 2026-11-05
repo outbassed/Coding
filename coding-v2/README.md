@@ -39,7 +39,7 @@ npm run dev
 | `/apps/zip/` | Compactador ZIP |
 | `/apps/comparador/` | Comparador de Arquivos |
 | `/apps/codigo/` | Código (HTML, CSS e JavaScript em página isolada; exporta ZIP) |
-| `/apps/visualizador/` | Visualizador (imagem, SVG saneado, vídeo, áudio, 3D STL/OBJ/GLB, PDF e texto) |
+| `/apps/visualizador/` | Visualizador 2.0 (imagem, SVG saneado, vídeo, áudio, 3D STL/OBJ/GLB, PDF e texto; biblioteca, menus de contexto e mídia por link — ver `VISUALIZADOR.md`) |
 | `/apps/pintar/` | Pintar (desenho em camadas, balde, formas; exporta PNG, JPG e WebP) |
 | `/apps/versos/` (alias `/versos/`) | Versos (letras, frases e citações em imagens: cenas, textos, fundos; exporta PNG, texto transparente e ZIP). Veja `VERSOS.md` |
 

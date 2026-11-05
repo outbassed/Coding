@@ -175,13 +175,18 @@ const CUBE = 'v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nv 0 0 1\nv 1 0 1\nv 1 1 1\nv 0
 
 test.describe('Impressão · Visualizador (cada formato)', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
+  /** O Visualizador tem o botão Imprimir sempre à vista na barra superior. */
+  const printNow = async (page: Page, expected = 1): Promise<void> => {
+    await page.getByTestId('print-app').first().click();
+    await expect.poll(() => printed(page)).toBe(expected);
+  };
   const open = (page: Page, files: { name: string; mimeType: string; buffer: Buffer }[]) => page.getByTestId('viewer-input').setInputFiles(files);
 
   test('imagem larga: uma página A4 paisagem, só a imagem', async ({ page }) => {
     await openApp(page, '/apps/visualizador/');
     await open(page, [{ name: 'larga.png', mimeType: 'image/png', buffer: await pngBuffer(page, 400, 200) }]);
     await expect(page.getByTestId('viewer-image')).toBeVisible();
-    await printFromFileTab(page);
+    await printNow(page);
     const pages = await analyze(page, await printPdf(page));
     expect(pages).toHaveLength(1);
     near(pages[0]!.w, A4.h); near(pages[0]!.h, A4.w);
@@ -194,9 +199,8 @@ test.describe('Impressão · Visualizador (cada formato)', () => {
   test('imagem girada na tela sai girada no papel', async ({ page }) => {
     await openApp(page, '/apps/visualizador/');
     await open(page, [{ name: 'larga.png', mimeType: 'image/png', buffer: await pngBuffer(page, 400, 200) }]);
-    await tab(page, 'Exibição').click();
     await page.getByTestId('turn-right').click();
-    await printFromFileTab(page);
+    await printNow(page);
     const pages = await analyze(page, await printPdf(page));
     near(pages[0]!.w, A4.w); near(pages[0]!.h, A4.h); // virou retrato
     const [x0, y0, x1, y1] = pages[0]!.ink!;
@@ -208,7 +212,7 @@ test.describe('Impressão · Visualizador (cada formato)', () => {
     const body = Array.from({ length: 140 }, (_, i) => 'linha ' + (i + 1) + ' de teste').join('\n');
     await open(page, [{ name: 'notas.txt', mimeType: 'text/plain', buffer: Buffer.from(body) }]);
     await expect(page.getByTestId('viewer-name')).toHaveText('notas.txt');
-    await printFromFileTab(page);
+    await printNow(page);
     const pages = await analyze(page, await printPdf(page));
     expect(pages.length).toBeGreaterThanOrEqual(2); // 140 linhas não cabem numa folha
     pages.forEach((p) => { near(p.w, A4.w); near(p.h, A4.h); });
@@ -223,7 +227,7 @@ test.describe('Impressão · Visualizador (cada formato)', () => {
     await openApp(page, '/apps/visualizador/');
     await open(page, [{ name: 'dois.pdf', mimeType: 'application/pdf', buffer: makePdf(['Pagina um', 'Pagina dois']) }]);
     await expect(page.getByTestId('viewer-meta')).toContainText('2 páginas', { timeout: 15000 });
-    await printFromFileTab(page);
+    await printNow(page);
     const pages = await analyze(page, await printPdf(page));
     expect(pages).toHaveLength(2);
     for (const p of pages) { near(p.w, A4.w); near(p.h, A4.h); expect(p.ink).not.toBeNull(); insideMargins(p, 5); }
@@ -233,8 +237,8 @@ test.describe('Impressão · Visualizador (cada formato)', () => {
   test('modelo 3D: imprime a vista atual, sem controles', async ({ page }) => {
     await openApp(page, '/apps/visualizador/');
     await open(page, [{ name: 'cubo.obj', mimeType: 'text/plain', buffer: Buffer.from(CUBE) }]);
-    await expect(page.locator('canvas.c3d')).toBeVisible();
-    await printFromFileTab(page);
+    await expect(page.locator('[data-testid="model-canvas"]')).toBeVisible();
+    await printNow(page);
     const pages = await analyze(page, await printPdf(page));
     expect(pages).toHaveLength(1);
     expect(pages[0]!.ink).not.toBeNull();
@@ -246,7 +250,6 @@ test.describe('Impressão · Visualizador (cada formato)', () => {
     const wav = Buffer.concat([Buffer.from('RIFF'), Buffer.from([36, 0, 0, 0]), Buffer.from('WAVEfmt '), Buffer.from([16, 0, 0, 0, 1, 0, 1, 0, 0x40, 0x1f, 0, 0, 0x40, 0x1f, 0, 0, 1, 0, 8, 0]), Buffer.from('data'), Buffer.from([0, 0, 0, 0])]);
     await open(page, [{ name: 'som.wav', mimeType: 'audio/wav', buffer: wav }]);
     await expect(page.getByTestId('viewer-name')).toHaveText('som.wav');
-    await tab(page, 'Arquivo').click();
     await page.getByTestId('print-app').click();
     await expect(page.getByTestId('viewer-message')).toContainText('Áudio não tem conteúdo visual');
     expect(await printed(page)).toBe(0);

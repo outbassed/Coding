@@ -1,0 +1,41 @@
+/* Visualizador: cores e controles comuns a todos os formatos. Classes com prefixo vw- para não colidir com outros apps. */
+.vw {
+  --st-bg: #0d1117; --st-bg2: #151b25; --st-fg: #eef1f6; --st-mut: #aeb8c8; --st-line: #2c3646; --st-bar: rgb(21 27 37 / 94%); --st-hover: #2a3447;
+  --st-ok: #7be0a8; --st-warn: #ffd27a; --st-bad: #ff9a9a;
+}
+.vw-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 0 8px;
+  border: 1px solid transparent; border-radius: 12px; background: transparent; color: var(--st-fg);
+  font: inherit; font-size: 13px; font-weight: 700; line-height: 1.1; cursor: pointer; text-decoration: none; white-space: nowrap;
+}
+.vw-btn:hover:not(:disabled) { background: var(--st-hover); }
+.vw-btn:focus-visible { outline: 2px solid var(--app); outline-offset: 1px; }
+.vw-btn:disabled { opacity: .4; cursor: default; }
+.vw-btn[aria-pressed="true"], .vw-btn[aria-checked="true"] { background: color-mix(in srgb, var(--app) 30%, transparent); border-color: var(--app); }
+.vw-btn.primary { background: var(--app); border-color: var(--app); color: var(--ink); }
+.vw-btn.primary:hover:not(:disabled) { background: var(--app); filter: brightness(1.08); }
+.vw-sel {
+  min-height: 44px; max-width: 100%; padding: 0 8px; border: 1px solid var(--st-line); border-radius: 10px;
+  background: var(--st-bg2); color: var(--st-fg); font: inherit; font-size: 13px; font-weight: 600;
+}
+.vw-sel:focus-visible { outline: 2px solid var(--app); outline-offset: 1px; }
+.vw-range { flex: 1 1 120px; min-width: 70px; height: 44px; margin: 0; background: transparent; accent-color: var(--app); cursor: pointer; }
+.vw-range:focus-visible { outline: 2px solid var(--app); outline-offset: 1px; border-radius: 6px; }
+.vw-bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px 6px; padding: 4px 10px calc(4px + var(--sa-b));
+  background: var(--st-bar); border-top: 1px solid var(--st-line); color: var(--st-fg); min-width: 0; flex: none;
+}
+.vw-group { display: inline-flex; align-items: center; gap: 2px; flex: none; min-width: 0; }
+.vw-sep { width: 1px; height: 24px; margin: 0 4px; background: var(--st-line); flex: none; }
+.vw-time { font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--st-mut); white-space: nowrap; }
+.vw-readout { min-width: 64px; text-align: center; font-size: 13px; font-weight: 700; color: var(--st-fg); font-variant-numeric: tabular-nums; }
+.vw-note { margin: 0; padding: 6px 12px; font-size: 12.5px; color: var(--st-mut); }
+.vw-body { position: relative; flex: 1 1 0; min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--st-bg); color: var(--st-fg); overflow: hidden; }
+.vw-spin { margin: auto; color: var(--st-mut); font-size: 14px; }
+.vw-only-sm { display: none; }
+@media (max-width: 599px) {
+  .vw-hide-sm { display: none !important; }
+  .vw-only-sm { display: inline-flex; }
+  .vw-bar { gap: 0 2px; padding-inline: 6px; }
+}
+@media (prefers-reduced-motion: reduce) { .vw *, .vw *::before, .vw *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; } }
