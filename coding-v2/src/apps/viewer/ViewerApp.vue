@@ -19,6 +19,7 @@ import { usePrint } from '../../shared/print/usePrint';
 import PrintButton from '../../shared/print/PrintButton.vue';
 import type { PrintJob, PrintPage } from '../../shared/print/print';
 import { meshPage, videoFramePage } from './print';
+import { isLinkedMediaKind, parseMediaLink, type MediaLinkChoice } from '../../shared/media-links';
 import { imagePage, pdfPages as printPdfPages, textPage } from '../../shared/print/pages';
 
 const doc = useDocument({
@@ -37,6 +38,26 @@ function fail(text: string): void { problem.value = text; message.value = ''; do
 const current = computed<ViewerFile | null>(() => state.value.files.find((f) => f.id === state.value.activeId) ?? null);
 const currentBlob = computed<Blob | null>(() => images.value.find((i) => i.id === current.value?.blobId)?.blob ?? null);
 const fileInput = ref<HTMLInputElement | null>(null);
+const mediaLink = ref('');
+const mediaLinkType = ref<MediaLinkChoice>('auto');
+
+/** Links não viram uploads nem cópias locais; o navegador pede a mídia diretamente à origem. */
+function addMediaFromUrl(): void {
+  if (state.value.files.length >= MAX_FILES) { fail('Um projeto aceita até ' + MAX_FILES + ' mídias.'); return; }
+  try {
+    const media = parseMediaLink(mediaLink.value, mediaLinkType.value);
+    const entry: ViewerFile = {
+      id: 'f' + crypto.randomUUID().slice(0, 12), name: media.name, kind: media.kind,
+      mime: media.mime, size: 0, blobId: '', sourceUrl: media.url
+    };
+    state.value.files.push(entry);
+    state.value.activeId = entry.id;
+    mediaLink.value = '';
+    ok('Link adicionado ao projeto. A mídia será carregada da internet.');
+  } catch (error) {
+    fail(error instanceof Error ? error.message : 'Não foi possível abrir esse link.');
+  }
+}
 
 async function addFiles(list: File[]): Promise<void> {
   let added = 0;
@@ -169,7 +190,7 @@ const hex = ref('');
 const extra = ref('');         // dimensões, duração, páginas, triângulos…
 const loading = ref(false);
 let seq = 0;
-function revoke(): void { if (url.value) { URL.revokeObjectURL(url.value); url.value = ''; } }
+function revoke(): void { if (url.value.startsWith('blob:')) URL.revokeObjectURL(url.value); url.value = ''; }
 
 // 3D
 const mesh = shallowRef<Mesh | null>(null);
@@ -200,6 +221,7 @@ const rate = ref(1);
 const loop = ref(false);
 
 function resetView(): void {
+  loading.value = false;
   mesh.value = null; bounds.value = null; camera.value = defaultCamera(); extra.value = ''; textBody.value = ''; hex.value = '';
   pdfPage.value = 1; pdfPages.value = 0; zoom.value = 0; turn.value = 0; natural.value = { w: 0, h: 0 }; problem.value = '';
 }
@@ -208,7 +230,12 @@ async function prepare(): Promise<void> {
   revoke(); resetView();
   const f = current.value, blob = currentBlob.value;
   if (pdfTask) { pdfTask.cancel(); pdfTask = null; }
-  if (!f || !blob) return;
+  if (!f) return;
+  if (f.sourceUrl && isLinkedMediaKind(f.kind)) {
+    url.value = f.sourceUrl;
+    return;
+  }
+  if (!blob) return;
   loading.value = true;
   try {
     switch (f.kind) {
@@ -334,6 +361,7 @@ const PRINTABLE: ReadonlySet<ViewKind> = new Set<ViewKind>(['image', 'svg', 'tex
 function printReason(): string {
   const f = current.value;
   if (!f) return 'Abra um arquivo para imprimir.';
+  if (f.sourceUrl) return 'Para imprimir esta mídia, baixe o arquivo e abra-o pelo aparelho. Links externos podem bloquear a impressão.';
   if (f.kind === 'audio') return 'Áudio não tem conteúdo visual para imprimir.';
   if (!PRINTABLE.has(f.kind)) return 'Este tipo de arquivo não tem uma visualização para imprimir.';
   if (loading.value) return 'Espere o arquivo terminar de abrir.';
@@ -392,7 +420,12 @@ function onMedia(event: Event): void {
   m.playbackRate = rate.value;
   extra.value = (m instanceof HTMLVideoElement && m.videoWidth ? m.videoWidth + ' × ' + m.videoHeight + ' px · ' : '') + t;
 }
-function onMediaError(): void { problem.value = 'O navegador não consegue reproduzir este arquivo (formato ou codec sem suporte). Você ainda pode baixá-lo.'; }
+function onMediaError(): void { problem.value = current.value?.sourceUrl
+  ? 'Não foi possível reproduzir este link. Confira se aponta diretamente para um arquivo público de mídia e se o formato é aceito pelo navegador.'
+  : 'O navegador não consegue reproduzir este arquivo (formato ou codec sem suporte). Você ainda pode baixá-lo.'; }
+function onImgError(): void { problem.value = current.value?.sourceUrl
+  ? 'Não foi possível carregar esta imagem pelo link. Confira o endereço e as permissões do servidor.'
+  : 'O navegador não conseguiu abrir esta imagem.'; }
 watch(rate, (r) => { for (const el of document.querySelectorAll<HTMLMediaElement>('[data-testid="media-player"]')) el.playbackRate = r; });
 function formatJson(): void {
   const pretty = prettyJson(textBody.value);
@@ -414,14 +447,24 @@ const title = computed(() => current.value ? current.value.name : '');
           <button type="button" class="btn btn-app" data-testid="open-files" @click="fileInput?.click()">Abrir arquivos</button>
           <input ref="fileInput" type="file" class="sr-only" multiple aria-label="Escolher arquivos para visualizar" data-testid="viewer-input" @change="onPick" />
         </div>
-        <p class="ed-hint">Também dá para arrastar arquivos para a área de visualização ou colar uma imagem com Ctrl+V. Os arquivos ficam só neste aparelho e podem ser guardados no projeto (até {{ MAX_FILES }} arquivos de {{ Math.round(MAX_FILE_BYTES / 1048576) }} MB).</p>
+        <form class="media-link" data-testid="viewer-link-form" @submit.prevent="addMediaFromUrl">
+          <label class="ed-field"><span class="ed-label">Abrir mídia por link</span>
+            <input v-model="mediaLink" class="inp" type="url" inputmode="url" autocomplete="url" placeholder="https://exemplo.com/foto.png" aria-label="Endereço da mídia" data-testid="viewer-media-url" /></label>
+          <div class="ed-row link-row">
+            <label class="ed-field"><span class="ed-label">Tipo da mídia</span>
+              <select v-model="mediaLinkType" class="inp" data-testid="viewer-media-kind"><option value="auto">Automático</option><option value="image">Imagem</option><option value="video">Vídeo</option><option value="audio">Áudio</option></select></label>
+            <button type="submit" class="btn btn-app" data-testid="viewer-open-url" :disabled="!mediaLink.trim()">Abrir link</button>
+          </div>
+          <p class="ed-hint">Cole o endereço HTTPS direto de uma imagem, SVG, vídeo ou áudio. Não serve o endereço de uma página do YouTube. O link fica salvo no projeto, mas a mídia precisa de internet; outros sites podem impedir a reprodução.</p>
+        </form>
+        <p class="ed-hint">Também dá para arrastar arquivos para a visualização ou colar imagem com Ctrl+V. Arquivos do aparelho não são enviados à internet (até {{ MAX_FILES }} entradas, {{ Math.round(MAX_FILE_BYTES / 1048576) }} MB por arquivo local).</p>
         <label v-if="state.files.length > 1" class="ed-field"><span class="ed-label">Buscar na lista (nome ou tipo)</span>
           <input v-model="filter" type="search" class="inp" autocomplete="off" data-testid="viewer-filter" /></label>
         <p v-if="filter.trim()" class="ed-hint" role="status" data-testid="viewer-filter-count">{{ shownFiles.length }} de {{ state.files.length }} arquivos.</p>
         <ul v-if="state.files.length" class="files" data-testid="viewer-files" aria-label="Arquivos do projeto">
           <li v-for="f in shownFiles" :key="f.id" :class="{ on: f.id === state.activeId }">
             <button type="button" class="pick" :aria-pressed="f.id === state.activeId" :data-file="f.name" @click="state.activeId = f.id">
-              <span class="nm">{{ f.name }}</span><small class="muted">{{ KIND_LABELS[f.kind] }} · {{ formatBytes(f.size) }}</small>
+              <span class="nm">{{ f.name }}</span><small class="muted">{{ KIND_LABELS[f.kind] }} · {{ f.sourceUrl ? 'Link externo' : formatBytes(f.size) }}</small>
             </button>
             <button type="button" class="ib" :aria-label="'Remover ' + f.name + ' do projeto'" @click="removeFile(f.id)">×</button>
           </li>
@@ -436,7 +479,8 @@ const title = computed(() => current.value ? current.value.name : '');
           <dt>Nome</dt><dd>{{ current.name }}</dd>
           <dt>Tipo detectado</dt><dd>{{ KIND_LABELS[current.kind] }}</dd>
           <dt>Tipo MIME</dt><dd>{{ current.mime || 'não informado' }}</dd>
-          <dt>Tamanho</dt><dd>{{ current.size.toLocaleString('pt-BR') }} bytes ({{ formatBytes(current.size) }})</dd>
+          <template v-if="current.sourceUrl"><dt>Origem</dt><dd><a :href="current.sourceUrl" target="_blank" rel="noopener noreferrer">Link externo (abrir origem)</a></dd><dt>Disponibilidade</dt><dd>Precisa de internet</dd></template>
+          <template v-else><dt>Tamanho</dt><dd>{{ current.size.toLocaleString('pt-BR') }} bytes ({{ formatBytes(current.size) }})</dd></template>
           <template v-if="extra"><dt>Detalhes</dt><dd>{{ extra }}</dd></template>
         </dl>
       </div>
@@ -485,7 +529,8 @@ const title = computed(() => current.value ? current.value.name : '');
         <p v-else class="ed-hint">Este tipo de arquivo não tem opções de exibição.</p>
       </div>
       <FileTab v-else :templates="viewerTemplates" @new="doc.newFrom">
-        <button type="button" class="btn" :disabled="!current" data-testid="download-original" @click="downloadCurrent">Baixar o arquivo atual</button>
+        <button type="button" class="btn" :disabled="!currentBlob" data-testid="download-original" @click="downloadCurrent">Baixar o arquivo atual</button>
+        <a v-if="current?.sourceUrl" class="btn" :href="current.sourceUrl" rel="noopener noreferrer" target="_blank" data-testid="viewer-open-original-link">Abrir endereço original</a>
         <PrintButton label="Imprimir o arquivo atual" />
         <button v-if="canOpenInCode" type="button" class="btn" data-testid="open-in-code" @click="openInCode">Abrir uma cópia no Código</button>
         <template #after><p v-if="message" class="ed-hint" role="status" data-testid="viewer-message">{{ message }}</p></template>
@@ -495,7 +540,7 @@ const title = computed(() => current.value ? current.value.name : '');
     <div class="viewer" @dragover.prevent @drop.prevent="onDrop">
       <div class="bar" data-testid="viewer-bar">
         <strong class="name" data-testid="viewer-name">{{ title || 'Nenhum arquivo aberto' }}</strong>
-        <span v-if="current" class="muted meta" data-testid="viewer-meta">{{ KIND_LABELS[current.kind] }} · {{ formatBytes(current.size) }}<template v-if="extra"> · {{ extra }}</template></span>
+        <span v-if="current" class="muted meta" data-testid="viewer-meta">{{ KIND_LABELS[current.kind] }} · {{ current.sourceUrl ? 'Link externo' : formatBytes(current.size) }}<template v-if="extra"> · {{ extra }}</template></span>
         <span v-if="state.files.length > 1" class="nav">
           <button type="button" class="ib" aria-label="Arquivo anterior" data-testid="viewer-prev" @click="step(-1)">‹</button>
           <span class="muted" data-testid="viewer-position">{{ position + 1 }} de {{ state.files.length }}</span>
@@ -512,12 +557,12 @@ const title = computed(() => current.value ? current.value.name : '');
         </div>
         <div v-if="!current" class="empty" data-testid="viewer-empty">
           <p><strong>Visualizador</strong></p>
-          <p>Abra imagens, SVG, vídeos, áudios, modelos 3D (STL, OBJ, GLB), PDFs e arquivos de texto. Tudo é aberto neste aparelho, nada é enviado para a internet.</p>
+          <p>Abra arquivos do aparelho (imagens, SVG, vídeos, áudios, 3D, PDF e texto) ou cole o endereço direto de uma imagem, vídeo ou áudio na aba Arquivos. Arquivos locais não saem do aparelho; links acessam o servidor de origem.</p>
           <button type="button" class="btn btn-app" @click="fileInput?.click(); tab = 'arquivos'">Abrir arquivos</button>
         </div>
         <p v-else-if="loading" class="muted" role="status">Abrindo…</p>
         <template v-else-if="!problem || current.kind === 'video' || current.kind === 'audio'">
-          <div v-if="(current.kind === 'image' || current.kind === 'svg') && url" class="imgbox"><img :src="url" :alt="'Visualização de ' + current.name" class="pic" :style="imgStyle" data-testid="viewer-image" @load="onImgLoad" @error="problem = 'O navegador não conseguiu abrir esta imagem.'" /></div>
+          <div v-if="(current.kind === 'image' || current.kind === 'svg') && url" class="imgbox"><img :src="url" :alt="'Visualização de ' + current.name" class="pic" :style="imgStyle" data-testid="viewer-image" @load="onImgLoad" @error="onImgError" /></div>
           <video v-else-if="current.kind === 'video' && url" :key="url" class="media" controls :loop="loop" preload="metadata" :src="url" :aria-label="'Vídeo ' + current.name" data-testid="media-player" @loadedmetadata="onMedia" @error="onMediaError"></video>
           <div v-else-if="current.kind === 'audio' && url" class="audiobox"><audio :key="url" controls :loop="loop" preload="metadata" :src="url" :aria-label="'Áudio ' + current.name" data-testid="media-player" @loadedmetadata="onMedia" @error="onMediaError"></audio></div>
           <canvas v-else-if="current.kind === 'model' && mesh" ref="canvas3d" class="c3d" tabindex="0" role="img" :aria-label="'Modelo 3D ' + current.name + '. Arraste para girar; setas giram; + e − aproximam.'" data-testid="model-canvas"
@@ -540,6 +585,10 @@ const title = computed(() => current.value ? current.value.name : '');
 </template>
 
 <style scoped>
+.media-link { display: grid; gap: 8px; margin-top: 8px; padding: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+.media-link .link-row { align-items: end; }
+.media-link .link-row .ed-field { min-width: 0; flex: 1; }
+.media-link .link-row button { flex: none; }
 .check { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; font-weight: 600; }
 .check input { width: 20px; height: 20px; }
 .z { min-width: 64px; text-align: center; font-weight: 700; }
