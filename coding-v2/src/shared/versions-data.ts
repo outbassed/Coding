@@ -15,6 +15,13 @@ import type { VersionRecord } from './versions';
  */
 export const versionRecords: readonly VersionRecord[] = [
   {
+    target: 'launcher', version: '2.2.1', build: '04.11.26.215223', releaseDate: '2026-11-04', releaseTime: '21:52:23',
+    melhorias: [
+      'Na página de detalhes do Visualizador, o olho da logo olha para os lados e volta ao centro uma vez ao abrir a tela.',
+      'A animação é exclusiva dos detalhes desse aplicativo, não aparece no catálogo nem no editor e respeita a preferência de reduzir movimento.'
+    ]
+  },
+  {
     target: 'versos', version: '1.0.2', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
     melhorias: [
       'Imprimir cena atual ou todas as cenas, uma cena por página, com a composição final e sem a interface (Arquivo → Imprimir, Ctrl+P).',
