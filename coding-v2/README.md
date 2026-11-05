@@ -1,6 +1,6 @@
-# Coding 2.0 · Prévia completa
+# Coding · aplicação atual
 
-Esta pasta contém o **Coding 2.0**, em Vue 3 + TypeScript + Vite multipágina + Pinia + Tailwind CSS 4. **A aplicação do Coding 1.0, na raiz do repositório, está preservada** e o banco `coding-db` do 1.0 nunca é alterado por esta base.
+Esta pasta contém a **única aplicação atual do Coding**, publicada em `https://codingtxt.vercel.app`, em Vue 3 + TypeScript + Vite multipágina + Pinia + Tailwind CSS 4. Os arquivos soltos do Coding 1.0 foram removidos da árvore atual do repositório e continuam disponíveis no histórico Git. Isso não remove nem migra automaticamente dados guardados no navegador, inclusive o banco legado `coding-db`.
 
 Lista de funcionalidades por app: [PREVIEW-COMPLETA.md](./PREVIEW-COMPLETA.md) · Pendências conhecidas: [POST-PREVIEW-BUGFIX.md](./POST-PREVIEW-BUGFIX.md) · Notas da grande atualização (novidades, limitações, migração): [ATUALIZACAO-2.0.md](./ATUALIZACAO-2.0.md)
 
@@ -62,7 +62,7 @@ Todo app aceita `?doc=<id>` (abre um documento salvo) e `?modelo=<id>` (começa 
 
 ## Offline / PWA (Preview isolado, opt-in)
 
-Há uma implementação **experimental** de cache estático offline, desativada por padrão para proteger a versão 1.0. Não afeta o IndexedDB nem armazena documentos, backups ou respostas de API em cache.
+Há uma implementação **experimental** de cache estático offline, desativada por padrão nos domínios de produção para evitar alterações inesperadas na instalação e nos caches dos usuários. Não afeta o IndexedDB nem armazena documentos, backups ou respostas de API em cache.
 
 Para testar exclusivamente num domínio HTTPS separado do Coding 1.0:
 
@@ -93,7 +93,7 @@ No Launcher, vá a **Ajustes → Offline** ou à página de **Detalhes** do app 
 - Branch: `feature/coding-v2-unified-editor-layout-gpt` (não a `main`).
 - Diretório raiz: `coding-v2`; build: `npm run build`; saída: `dist`.
 - Apenas commits da branch configurada geram deploys, sem previews de outras branches.
-- O projeto Vercel e o Coding 1.0 não são modificados.
+- O domínio oficial de produção não é modificado por esse ambiente de preview.
 
 ### Menu de contexto e atalhos
 
