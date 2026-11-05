@@ -128,8 +128,8 @@ test.describe('Retomada no celular', () => {
     const first = await visit(context, '/launcher/#/catalogo');
     await expect.poll(async () => (await record(first))?.here).toBe('/launcher/#/catalogo'); // o Launcher já está acompanhando
     await context.clock.fastForward(15 * MIN);
-    await first.evaluate(() => window.dispatchEvent(new Event('pointerdown'))); // toque real aos 15 min
-    await expect.poll(async () => (await record(first))!.at - new Date(T0).getTime()).toBeGreaterThanOrEqual(14 * MIN);
+    await first.mouse.wheel(0, 40); // atividade real (rolagem) aos 15 min
+    await expect.poll(async () => (await record(first))!.at - new Date(T0).getTime(), { message: JSON.stringify(await first.evaluate(() => ({ now: Date.now(), raw: localStorage.getItem('coding-v2-session') }))) }).toBeGreaterThanOrEqual(14 * MIN);
     await leave(first);
     await context.clock.fastForward(19 * MIN); // 34 min desde a abertura, 19 desde a última atividade
     const second = await context.newPage();
@@ -139,8 +139,9 @@ test.describe('Retomada no celular', () => {
 
     const other = await phone(browser, true);
     const a = await visit(other, '/launcher/#/catalogo');
+    await expect.poll(async () => (await record(a))?.here).toBe('/launcher/#/catalogo');
     await other.clock.fastForward(15 * MIN);
-    await a.evaluate(() => window.dispatchEvent(new Event('pointerdown')));
+    await a.mouse.wheel(0, 40);
     await expect.poll(async () => (await record(a))!.at - new Date(T0).getTime()).toBeGreaterThanOrEqual(14 * MIN);
     await leave(a);
     await other.clock.fastForward(20 * MIN);

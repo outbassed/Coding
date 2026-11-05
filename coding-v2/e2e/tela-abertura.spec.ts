@@ -4,19 +4,23 @@ import { test, expect, type Page } from '@playwright/test';
 /* Tela de abertura (/): aparece na hora, não depende do Vue, respeita tema e movimento reduzido e funciona sem JavaScript. */
 const DARK = 'rgb(23, 28, 36)';
 const LIGHT = 'rgb(243, 245, 249)';
-/** Responde "204 sem conteúdo" ao Launcher: o navegador continua na tela de abertura (para podermos olhá-la) e o pedido fica registrado. */
-async function holdLauncher(page: Page): Promise<{ asked: Promise<unknown> }> {
-  const asked = page.waitForRequest((r) => new URL(r.url()).pathname === '/launcher/', { timeout: 10000 });
-  asked.catch(() => undefined); // só falha de verdade se o teste esperar por ele
-  await page.route('**/launcher/**', (route) => route.fulfill({ status: 204 }));
-  return { asked };
+/**
+ * Entrega a tela de abertura sem o redirecionamento (script e `<noscript>` retirados) para podermos olhá-la com calma.
+ * O redirecionamento em si é testado à parte, com o servidor real.
+ */
+async function staticSplash(page: Page): Promise<void> {
+  await page.route((url) => url.pathname === '/', async (route) => {
+    const response = await route.fetch();
+    const body = (await response.text()).replace(/<script>[^<]*location\.replace[^<]*<\/script>/, '').replace(/<noscript>[\s\S]*?<\/noscript>/, '');
+    await route.fulfill({ response, body, headers: { ...response.headers(), 'content-length': String(Buffer.byteLength(body)) } });
+  });
 }
 const bg = (page: Page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 
 test.describe('Tela de abertura', () => {
   test('mostra logo, nome, mensagem e indicador de carregamento enquanto o Launcher abre', async ({ page }) => {
-    const { asked } = await holdLauncher(page);
-    await page.goto('/', { waitUntil: 'commit' });
+    await staticSplash(page);
+    await page.goto('/');
     const splash = page.getByTestId('splash');
     await expect(splash).toBeVisible();
     await expect(splash.getByRole('heading', { name: 'Coding Launcher' })).toBeVisible();
@@ -24,7 +28,6 @@ test.describe('Tela de abertura', () => {
     await expect(splash.locator('img')).toBeVisible();
     await expect(splash.locator('.bar')).toBeVisible();
     await expect(page.getByTestId('splash-open')).toHaveAttribute('href', '/launcher/');
-    await asked; // e pede o Launcher sozinha, sem ninguém clicar
   });
 
   test('segue sozinha para o Launcher de verdade', async ({ page }) => {
@@ -42,15 +45,17 @@ test.describe('Tela de abertura', () => {
     expect(html).toContain('<noscript><meta http-equiv="refresh" content="0;url=/launcher/"></noscript>');
   });
 
-  test('sem JavaScript: a tela de abertura existe e o navegador segue para o Launcher', async ({ browser }) => {
+  test('sem JavaScript: o navegador segue para o Launcher pelo meta refresh', async ({ browser }) => {
     const context = await browser.newContext({ javaScriptEnabled: false, baseURL: test.info().project.use.baseURL });
     const page = await context.newPage();
-    const { asked } = await holdLauncher(page);
-    await page.goto('/', { waitUntil: 'commit' });
-    await expect(page.getByTestId('splash')).toBeVisible();
-    await expect(page.getByTestId('splash-open')).toBeVisible(); // alternativa acessível
-    await asked; // meta refresh em <noscript>
+    await page.goto('/');
+    await page.waitForURL(/\/launcher\//, { timeout: 15000 });
     await context.close();
+  });
+
+  test('sem JavaScript: a tela de abertura traz o link para abrir o Launcher', async ({ request }) => {
+    const html = await (await request.get('/')).text();
+    expect(html).toMatch(/<a class="open" href="\/launcher\/"[^>]*>Abrir o Coding Launcher<\/a>/);
   });
 
   test('temas: claro e escuro, sem flash branco no escuro', async ({ browser }) => {
@@ -58,8 +63,8 @@ test.describe('Tela de abertura', () => {
       const context = await browser.newContext({ colorScheme: scheme, baseURL: test.info().project.use.baseURL });
       if (saved) await context.addInitScript((value) => localStorage.setItem('coding-v2-theme', value), saved);
       const page = await context.newPage();
-      await holdLauncher(page);
-      await page.goto('/', { waitUntil: 'commit' });
+      await staticSplash(page);
+      await page.goto('/');
       await expect(page.getByTestId('splash')).toBeVisible();
       expect(await bg(page), 'sistema ' + scheme + ', salvo ' + saved).toBe(expected);
       expect(await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor)).toBe(expected);
@@ -69,26 +74,26 @@ test.describe('Tela de abertura', () => {
 
   test('movimento reduzido: o indicador não anima', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await holdLauncher(page);
-    await page.goto('/', { waitUntil: 'commit' });
+    await staticSplash(page);
+    await page.goto('/');
     await expect(page.getByTestId('splash')).toBeVisible();
     await expect(page.locator('.bar i')).toHaveCSS('animation-name', 'none');
   });
 
   test('movimento normal: o indicador anima', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' });
-    await holdLauncher(page);
-    await page.goto('/', { waitUntil: 'commit' });
+    await staticSplash(page);
+    await page.goto('/');
     await expect(page.locator('.bar i')).not.toHaveCSS('animation-name', 'none');
   });
 
   for (const [width, height] of [[320, 640], [390, 844], [1280, 800]] as const) {
     test(`sem rolagem horizontal e sem violações de acessibilidade em ${width}px`, async ({ browser }) => {
       for (const scheme of ['light', 'dark'] as const) {
-        const context = await browser.newContext({ viewport: { width, height }, colorScheme: scheme, javaScriptEnabled: false, baseURL: test.info().project.use.baseURL });
+        const context = await browser.newContext({ viewport: { width, height }, colorScheme: scheme, baseURL: test.info().project.use.baseURL });
         const page = await context.newPage();
-        await holdLauncher(page);
-        await page.goto('/', { waitUntil: 'commit' });
+        await staticSplash(page);
+        await page.goto('/');
         await expect(page.getByTestId('splash')).toBeVisible();
         expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
         const open = await page.getByTestId('splash-open').boundingBox();

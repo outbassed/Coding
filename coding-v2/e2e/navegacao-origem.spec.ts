@@ -54,6 +54,7 @@ test.describe('Voltar à origem', () => {
 
   test('histórico real: o botão Voltar do navegador continua funcionando e a origem não cria ciclo', async ({ page }) => {
     await openFrom(page, '/catalogo', 'Calculadora');
+    await expect(back(page)).toHaveAttribute('title', 'Voltar para Catálogo');
     await page.goBack(); // histórico nativo: volta ao Catálogo
     await expect(page).toHaveURL(/\/launcher\/#\/catalogo$/);
     await page.goForward();

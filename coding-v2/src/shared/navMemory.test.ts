@@ -146,6 +146,10 @@ describe('resolveOrigin · voltar à tela de origem', () => {
     expect(resolveOrigin({ ...base, referrerPath: '', record: rec('/apps/texto/', '/launcher/#/catalogo'), sessionOrigin: '/launcher/#/catalogo' })).toBeNull();
     expect(resolveOrigin({ ...base, referrerPath: '/outra-pagina/', record: rec(null, '/launcher/#/catalogo') })).toBeNull();
   });
+  it('voltar no histórico até um app aberto às pressas (origem ainda não guardada) usa a tela do Launcher de onde veio', () => {
+    expect(resolveOrigin({ ...base, record: rec('/launcher/#/catalogo'), navType: 'back_forward' })).toBe('/launcher/#/catalogo');
+    expect(resolveOrigin({ ...base, record: rec('/apps/texto/'), navType: 'back_forward' })).toBeNull(); // o app já estava registrado e não há origem: não inventa
+  });
   it('recarregar, voltar no histórico e passar de um app a outro mantêm a origem', () => {
     const kept = { record: rec('/apps/texto/', '/launcher/#/meus-apps') };
     expect(resolveOrigin({ ...base, ...kept, navType: 'reload', referrerPath: '' })).toBe('/launcher/#/meus-apps');

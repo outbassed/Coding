@@ -160,11 +160,11 @@ function isOriginRoute(url: string): boolean {
  */
 export function resolveOrigin(c: OriginContext): string | null {
   const kept = launcherTarget(c.sessionOrigin) ?? c.record?.origin ?? null;
-  if (c.navType === 'reload' || c.navType === 'back_forward') return kept;
+  if ((c.navType === 'reload' || c.navType === 'back_forward') && kept) return kept;
   if (c.referrerPath === LAUNCHER_PATH) {
     const here = c.record?.here ? normalizeTarget(c.record.here) : null;
     if (here && here.kind === 'launcher') return isOriginRoute(here.url) ? here.url : null; // Documentos/Ajustes: segue o comportamento antigo (Início)
-    return kept; // retomada: a origem original continua valendo
+    return kept; // retomada (ou recarga sem origem guardada): a origem original continua valendo
   }
   if (APP_PATHS.has(c.referrerPath)) return kept; // de um app para outro (ex.: Visualizador → Código)
   return null;
