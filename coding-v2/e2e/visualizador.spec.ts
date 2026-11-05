@@ -223,3 +223,56 @@ test.describe('Visualizador', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 });
+
+
+test.describe('Visualizador: mídia por link HTTPS', () => {
+  test('imagem direta aparece, fica salva e pode ser reaberta sem Blob', async ({ page }) => {
+    await page.goto('/apps/visualizador/');
+    const png = await pngBuffer(page, 42, 21);
+    await page.route('https://cdn.example.test/fotos/rosa.png?rev=2', (route) =>
+      route.fulfill({ status: 200, contentType: 'image/png', body: png }));
+    await page.getByTestId('viewer-media-url').fill('https://cdn.example.test/fotos/rosa.png?rev=2');
+    await page.getByTestId('viewer-open-url').click();
+    await expect(page.getByTestId('viewer-image')).toBeVisible();
+    await expect(page.getByTestId('viewer-image')).toHaveAttribute('src', 'https://cdn.example.test/fotos/rosa.png?rev=2');
+    await expect(page.getByTestId('viewer-meta')).toContainText('42 × 21 px');
+    await expect(page.getByTestId('viewer-meta')).toContainText('Link externo');
+    await saved(page);
+    await page.reload();
+    await expect(page.getByTestId('viewer-image')).toBeVisible();
+    await expect(page.getByTestId('viewer-files').locator('li')).toHaveCount(1);
+    await tab(page, 'Arquivo').click();
+    await expect(page.getByTestId('download-original')).toBeDisabled();
+    await expect(page.getByTestId('viewer-open-original-link')).toHaveAttribute('href', 'https://cdn.example.test/fotos/rosa.png?rev=2');
+    await tab(page, 'Arquivos').click();
+    await page.getByRole('button', { name: 'Remover rosa.png do projeto' }).click();
+    await expect(page.getByTestId('viewer-empty')).toBeVisible();
+  });
+
+  test('permite vídeo e áudio por URL direta, inclusive sem extensão com seleção manual', async ({ page }) => {
+    await page.goto('/apps/visualizador/');
+    await page.getByTestId('viewer-media-url').fill('https://cdn.example.test/filme.mp4');
+    await page.getByTestId('viewer-open-url').click();
+    await expect(page.getByTestId('media-player')).toHaveAttribute('src', 'https://cdn.example.test/filme.mp4');
+    await expect(page.getByTestId('viewer-meta')).toContainText('Vídeo');
+    await page.getByTestId('viewer-media-url').fill('https://cdn.example.test/arquivo?id=1');
+    await page.getByTestId('viewer-media-kind').selectOption('audio');
+    await page.getByTestId('viewer-open-url').click();
+    await expect(page.getByTestId('media-player')).toHaveAttribute('src', 'https://cdn.example.test/arquivo?id=1');
+    await expect(page.getByTestId('viewer-meta')).toContainText('Áudio');
+    await expect(page.getByTestId('viewer-files').locator('li')).toHaveCount(2);
+  });
+
+  test('rejeita links inseguros e páginas HTML sem criar arquivos', async ({ page }) => {
+    await page.goto('/apps/visualizador/');
+    await page.getByTestId('viewer-media-url').fill('http://cdn.example.test/arte.png');
+    await page.getByTestId('viewer-open-url').click();
+    await expect(page.getByTestId('viewer-error')).toContainText('HTTPS');
+    await expect(page.getByTestId('viewer-files').locator('li')).toHaveCount(0);
+    await page.getByTestId('viewer-media-url').fill('https://cdn.example.test/watch.html');
+    await page.getByTestId('viewer-media-kind').selectOption('video');
+    await page.getByTestId('viewer-open-url').click();
+    await expect(page.getByTestId('viewer-error')).toContainText('página');
+    await expect(page.getByTestId('viewer-files').locator('li')).toHaveCount(0);
+  });
+});
