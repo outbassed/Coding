@@ -57,6 +57,24 @@ export const versionRecords: readonly VersionRecord[] = [
     ]
   },
   {
+    target: 'launcher', version: '2.2.1', build: '05.11.26.130256', releaseDate: '2026-11-05', releaseTime: '13:02:56',
+    novidades: [
+      'Olho interativo do Visualizador: na página de detalhes do aplicativo, clique (ou use Enter/Espaço) na logo e o olho passa a acompanhar o cursor; um segundo clique desliga e centraliza. A íris, a pupila e o reflexo andam juntos e nunca saem da parte branca.',
+      'Retomada inteligente no celular: se o navegador ou o aplicativo instalado for fechado e reaberto em até 20 minutos da última atividade, o Coding volta para a tela ou o aplicativo em que você estava, no mesmo documento. Passados 20 minutos, abre normalmente no Início.',
+      'Voltar à tela de origem: ao abrir um aplicativo pelo Início, Meus apps, Catálogo ou Detalhes, o botão Início do aplicativo leva de volta à tela de onde você veio.',
+      'Nova tela de abertura em codingtxt.vercel.app: logo, nome, mensagem e indicador de carregamento, que aparece na hora, acompanha o tema claro ou escuro e também funciona sem JavaScript.'
+    ],
+    melhorias: [
+      'Na página de detalhes do Visualizador, o olho da logo olha para a esquerda, para a direita e volta ao centro uma vez ao abrir a tela; o movimento é exclusivo dessa página e respeita a preferência de reduzir movimento.',
+      'Links diretos e endereços digitados têm prioridade sobre a retomada, que nunca restaura tela de erro, aplicativo indisponível ou documento apagado.'
+    ],
+    alteracoesTecnicas: [
+      'A memória de navegação usa um único registro local (coding-v2-session) com a última atividade, a tela atual e a origem; não envia nada a servidores, não guarda o conteúdo dos documentos e não altera documentos, favoritos, histórico nem configurações.',
+      'A retomada só vale em celulares, na abertura do navegador ou do aplicativo, e é avaliada uma vez por aba, o que evita laços de redirecionamento. Os endereços restaurados passam por uma lista fechada de rotas e aplicativos.',
+      'O Visualizador permanece na versão 2.0.0; as alterações desta versão pertencem ao Launcher e à navegação compartilhada.'
+    ]
+  },
+  {
     target: 'versos', version: '1.0.2', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
     melhorias: [
       'Imprimir cena atual ou todas as cenas, uma cena por página, com a composição final e sem a interface (Arquivo → Imprimir, Ctrl+P).',
