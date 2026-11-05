@@ -557,7 +557,7 @@ const title = computed(() => current.value ? current.value.name : '');
         </div>
         <div v-if="!current" class="empty" data-testid="viewer-empty">
           <p><strong>Visualizador</strong></p>
-          <p>Abra arquivos do aparelho (imagens, SVG, vídeos, áudios, 3D, PDF e texto) ou cole o endereço direto de uma imagem, vídeo ou áudio na aba Arquivos. Arquivos locais não saem do aparelho; links acessam o servidor de origem.</p>
+          <p>Abra arquivos do aparelho (imagens, SVG, vídeos, áudios, modelos 3D, PDF e texto) ou cole o endereço direto de uma imagem, vídeo ou áudio na aba Arquivos. Arquivos locais não saem do aparelho; links acessam o servidor de origem.</p>
           <button type="button" class="btn btn-app" @click="fileInput?.click(); tab = 'arquivos'">Abrir arquivos</button>
         </div>
         <p v-else-if="loading" class="muted" role="status">Abrindo…</p>
