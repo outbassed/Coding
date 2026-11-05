@@ -28,3 +28,6 @@ Tudo em SVG é vetorial, feito de formas e caminhos, sem imagem embutida e sem f
 
 ## Onde a marca entra no código
 `TopBar.vue` (cabeçalho), `HomeView.vue` (Início), `AboutPanel.vue` (Sobre), `VersionsApp.vue` (Central de Versões), `index.html` (tela de abertura), os `<link rel="icon">` de `index.html`, `launcher/index.html` e `versoes/index.html`, e `manifest.webmanifest`. As demais páginas usam o `/favicon.ico` padrão do navegador.
+
+## Versionamento dos ícones
+Os ícones da PWA, o favicon e o ícone de toque são publicados com endereço por hash de conteúdo e declarados em todas as páginas pelo build. Veja `PWA-ICONES.md`. Ao trocar a logo, substitua todos os arquivos de `public/brand/` e `public/favicon.ico` (os PNG e o `.ico` não são regenerados a partir do SVG).

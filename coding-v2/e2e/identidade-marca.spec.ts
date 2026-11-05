@@ -103,13 +103,13 @@ test.describe('A marca nova nos pontos globais', () => {
   test('favicon e ícone de toque declarados no Launcher, na abertura e na Central de Versões', async ({ page }) => {
     for (const url of ['/launcher/', '/versoes/']) {
       await page.goto(url);
-      await expect(page.locator('link[rel="icon"][href="/brand/favicon.svg"]')).toHaveCount(1);
-      await expect(page.locator('link[rel="icon"][href="/favicon.ico"]')).toHaveCount(1);
-      await expect(page.locator('link[rel="apple-touch-icon"][href="/brand/apple-touch-icon.png"]')).toHaveCount(1);
+      await expect(page.locator('link[rel="icon"][href^="/brand/h/"][href$="/favicon.svg"]')).toHaveCount(1);
+      await expect(page.locator('link[rel="icon"][href^="/brand/h/"][href$="/favicon.ico"]')).toHaveCount(1);
+      await expect(page.locator('link[rel="apple-touch-icon"][href^="/brand/h/"][href$="/apple-touch-icon.png"]')).toHaveCount(1);
     }
     const html = await (await page.request.get('/')).text();
-    expect(html).toContain('href="/brand/favicon.svg"');
-    expect(html).toContain('href="/brand/apple-touch-icon.png"');
+    expect(html).toMatch(/href="\/brand\/h\/[0-9a-f]{10}\/favicon\.svg"/);
+    expect(html).toMatch(/href="\/brand\/h\/[0-9a-f]{10}\/apple-touch-icon\.png"/);
   });
 
   test('Central de Versões usa a marca nova no cabeçalho e no menu', async ({ page }) => {
