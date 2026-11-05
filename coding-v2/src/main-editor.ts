@@ -1,5 +1,6 @@
 import { exposePreviewManifest } from './pwa';
 import { installContextMenu } from './shared/contextMenu';
+import { installAppNavMemory } from './shared/navSession';
 import './shared/contextMenu.css';
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
@@ -13,8 +14,8 @@ const root = document.getElementById('app');
 const appId = document.body.dataset.app;
 if (root) {
   const pinia = createPinia();
-  if (appId === 'texts') { createApp(TextApp).use(pinia).mount(root); installContextMenu('texts'); }
-  else if (isEditorToolId(appId)) { createApp(EditorApp, { appId }).use(pinia).mount(root); installContextMenu(appId); }
+  if (appId === 'texts') { createApp(TextApp).use(pinia).mount(root); installContextMenu('texts'); installAppNavMemory(); }
+  else if (isEditorToolId(appId)) { createApp(EditorApp, { appId }).use(pinia).mount(root); installContextMenu(appId); installAppNavMemory(); }
   else if (appId !== 'texts' && !isEditorToolId(appId)) root.textContent = 'Este editor não existe. Volte ao Launcher em /launcher/.';
 }
 

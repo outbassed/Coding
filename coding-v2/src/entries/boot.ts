@@ -1,6 +1,7 @@
 import { exposePreviewManifest } from '../pwa';
 import { refreshRecommendation } from '../workspace/prefs';
 import { installContextMenu } from '../shared/contextMenu';
+import { installAppNavMemory } from '../shared/navSession';
 import '../shared/contextMenu.css';
 import { createApp, type Component } from 'vue';
 import { createPinia } from 'pinia';
@@ -20,6 +21,7 @@ export function bootApp(id: ToolId, component: Component): void {
   const pinia = createPinia();
   createApp(component).use(pinia).mount(root);
   installContextMenu(id);
+  installAppNavMemory();
   // O manifesto só é publicado em builds opt-in de Preview isolado.
   exposePreviewManifest();
 }
