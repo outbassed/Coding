@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { existsSync, readFileSync } from 'node:fs';
 import { tools } from '../src/shared/catalog';
-import { allSlugs, formatRelease, historyPath, recordsFor, TARGET_ORDER, targetName } from '../src/shared/versions';
+import { allSlugs, formatRelease, historyPath, NOTE_SECTIONS, recordsFor, TARGET_ORDER, targetName } from '../src/shared/versions';
 import { versionRecords } from '../src/shared/versions-data';
 
 const MENU_NAMES = ['Coding Launcher', 'Etiquetas', 'Texto', 'Planilhas', 'Imagens', 'Editor PDF', 'QR / Barras', 'Sorteio', 'Racha-conta', 'Calculadora', 'Estúdio de Cores', 'Compactador ZIP', 'Comparador de Arquivos', 'Código', 'Pintar', 'Visualizador', 'Versos'];
@@ -156,11 +156,17 @@ test.describe('Central de Versões · modal', () => {
     await expect(page.getByTestId('modal-version')).toHaveText(launcherLatest.version);
     await expect(page.getByTestId('modal-build')).toHaveText(launcherLatest.build);
     await expect(page.getByTestId('modal-release')).toHaveText(formatRelease(launcherLatest));
-    await expect(page.getByTestId('modal-sec-novidades')).toBeVisible();
-    await expect(page.getByTestId('modal-sec-melhorias')).toBeVisible();
-    await expect(page.getByTestId('modal-sec-alteracoesTecnicas')).toBeVisible();
-    await expect(page.getByTestId('modal-sec-correcoes')).toHaveCount(0);
-    await expect(page.getByTestId('modal-sec-problemasConhecidos')).toHaveCount(0);
+    // Cada versão publica só as seções preenchidas. Não pressupor que todo release
+    // tenha Novidades ou Alterações técnicas: uma versão pequena pode ter apenas Melhorias.
+    for (const section of NOTE_SECTIONS) {
+      const notes = launcherLatest[section.key] ?? [];
+      const block = page.getByTestId('modal-sec-' + section.key);
+      if (!notes.length) await expect(block).toHaveCount(0);
+      else {
+        await expect(block).toBeVisible();
+        for (const note of notes) await expect(block).toContainText(note);
+      }
+    }
     expect(await page.evaluate(() => document.documentElement.classList.contains('scroll-lock'))).toBe(true);
   });
 
