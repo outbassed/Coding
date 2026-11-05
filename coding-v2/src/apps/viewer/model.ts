@@ -3,7 +3,7 @@ import { isLinkedMediaKind, normalizeMediaUrl } from '../../shared/media-links';
 
 export interface ViewerFile { id: string; name: string; kind: ViewKind; mime: string; size: number; blobId: string; sourceUrl?: string }
 export interface ViewerState { name: string; files: ViewerFile[]; activeId: string }
-export const MAX_FILES = 30;
+export const MAX_FILES = 100;
 export const MAX_FILE_BYTES = 64 * 1024 * 1024;
 export const emptyViewer = (name = 'Arquivos para visualizar'): ViewerState => ({ name, files: [], activeId: '' });
 

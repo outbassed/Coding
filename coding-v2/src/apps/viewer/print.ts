@@ -31,3 +31,43 @@ export function meshPage(mesh: Mesh, bounds: Bounds, camera: Camera, color: [num
   drawMesh(g, mesh, bounds, camera, w, h, { wireframe, color, background: '#ffffff' }, 250000);
   return canvasPage(c);
 }
+
+export interface ViewCanvasOptions {
+  /** Giro (múltiplo de 90°) e espelhos que a pessoa aplicou na tela. */
+  turn: number;
+  flipX: boolean;
+  flipY: boolean;
+  /** SVG sem tamanho próprio sai nítido. */
+  vector?: boolean;
+  maxSide?: number;
+  /** Cor de fundo (impressão = branco). Sem cor, o PNG mantém a transparência. */
+  background?: string;
+  /** Pede a imagem com CORS: necessário para ler os pixels de um link externo (o servidor precisa permitir). */
+  cors?: boolean;
+}
+
+/** Imagem ou SVG como a pessoa a vê (giro e espelho incluídos), num canvas sem nenhum elemento da interface. */
+export async function renderViewCanvas(src: string, o: ViewCanvasOptions): Promise<HTMLCanvasElement> {
+  const img = new Image();
+  img.decoding = 'async';
+  if (o.cors) img.crossOrigin = 'anonymous';
+  img.src = src;
+  await img.decode();
+  let w = img.naturalWidth || 1, h = img.naturalHeight || 1;
+  if (o.vector) { const k = 2400 / Math.max(w, h); w = Math.round(w * k); h = Math.round(h * k); }
+  const quarter = ((Math.round(o.turn / 90) % 4) + 4) % 4;
+  const swap = quarter % 2 === 1;
+  const size = fitSize(swap ? h : w, swap ? w : h, o.maxSide);
+  const c = paper();
+  c.width = size.w; c.height = size.h;
+  const g = c.getContext('2d');
+  if (!g) throw new Error('O navegador não conseguiu preparar a imagem.');
+  if (o.background) { g.fillStyle = o.background; g.fillRect(0, 0, c.width, c.height); }
+  g.imageSmoothingQuality = 'high';
+  g.translate(c.width / 2, c.height / 2);
+  g.scale(o.flipX ? -1 : 1, o.flipY ? -1 : 1);
+  g.rotate((quarter * Math.PI) / 2);
+  const dw = swap ? c.height : c.width, dh = swap ? c.width : c.height;
+  g.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+  return c;
+}
