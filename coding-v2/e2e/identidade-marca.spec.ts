@@ -89,7 +89,7 @@ test.describe('A marca nova nos pontos globais', () => {
   for (const scheme of ['light', 'dark'] as const) {
     test(`cabeçalho e Início do Launcher (${scheme})`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme });
-      await page.goto('/launcher/#/inicio');
+      await page.goto('/launcher/#/');
       const mark = page.locator('header.top img.mark');
       await expect(mark).toHaveAttribute('src', '/brand/icon.svg');
       await expect.poll(() => loaded(page, 'header.top img.mark')).toBe(true);
