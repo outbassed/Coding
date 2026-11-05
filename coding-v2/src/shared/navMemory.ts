@@ -146,6 +146,12 @@ export interface OriginContext {
   sessionOrigin: string | null;
 }
 
+/** Telas do Launcher que contam como "origem": Início, Meus apps, Catálogo e Detalhes de um app. */
+function isOriginRoute(url: string): boolean {
+  const route = url.replace(LAUNCHER_PATH + '#', '');
+  return route === '/' || route === '/meus-apps' || route === '/catalogo' || /^\/app\/[^/]+$/.test(route);
+}
+
 /**
  * Decide a origem ao carregar um aplicativo:
  *  - veio do Launcher: a tela do Launcher em uso (guardada em `here`);
@@ -157,7 +163,7 @@ export function resolveOrigin(c: OriginContext): string | null {
   if (c.navType === 'reload' || c.navType === 'back_forward') return kept;
   if (c.referrerPath === LAUNCHER_PATH) {
     const here = c.record?.here ? normalizeTarget(c.record.here) : null;
-    if (here && here.kind === 'launcher') return here.url;
+    if (here && here.kind === 'launcher') return isOriginRoute(here.url) ? here.url : null; // Documentos/Ajustes: segue o comportamento antigo (Início)
     return kept; // retomada: a origem original continua valendo
   }
   if (APP_PATHS.has(c.referrerPath)) return kept; // de um app para outro (ex.: Visualizador → Código)

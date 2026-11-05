@@ -136,9 +136,11 @@ describe('resolveOrigin · voltar à tela de origem', () => {
   const rec = (here: string | null, origin: string | null = null): NavRecord => ({ at: T0, here, origin });
   const base = { navType: 'navigate' as string | undefined, referrerPath: '/launcher/', record: null as NavRecord | null, sessionOrigin: null as string | null };
   it('abrir pelo Launcher guarda a tela em que a pessoa estava', () => {
-    for (const where of ['/launcher/#/meus-apps', '/launcher/#/catalogo', '/launcher/#/app/viewer', '/launcher/#/', '/launcher/#/documentos']) {
+    for (const where of ['/launcher/#/meus-apps', '/launcher/#/catalogo', '/launcher/#/app/viewer', '/launcher/#/']) {
       expect(resolveOrigin({ ...base, record: rec(where) })).toBe(where);
     }
+    // Documentos e Ajustes não são origens: o link de voltar segue para o Início, como antes
+    for (const where of ['/launcher/#/documentos', '/launcher/#/ajustes']) expect(resolveOrigin({ ...base, record: rec(where) })).toBeNull();
   });
   it('acesso direto não inventa origem, mesmo havendo uma antiga guardada', () => {
     expect(resolveOrigin({ ...base, referrerPath: '', record: rec('/apps/texto/', '/launcher/#/catalogo'), sessionOrigin: '/launcher/#/catalogo' })).toBeNull();

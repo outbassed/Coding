@@ -4,15 +4,18 @@ import { test, expect, type Page } from '@playwright/test';
 /* Tela de abertura (/): aparece na hora, não depende do Vue, respeita tema e movimento reduzido e funciona sem JavaScript. */
 const DARK = 'rgb(23, 28, 36)';
 const LIGHT = 'rgb(243, 245, 249)';
-/** Segura a navegação para o Launcher para dar tempo de olhar a tela de abertura. */
-async function slowLauncher(page: Page, ms = 2500): Promise<void> {
-  await page.route('**/launcher/**', async (route) => { await new Promise((r) => setTimeout(r, ms)); await route.continue().catch(() => undefined); });
+/** Responde "204 sem conteúdo" ao Launcher: o navegador continua na tela de abertura (para podermos olhá-la) e o pedido fica registrado. */
+async function holdLauncher(page: Page): Promise<{ asked: Promise<unknown> }> {
+  const asked = page.waitForRequest((r) => new URL(r.url()).pathname === '/launcher/', { timeout: 10000 });
+  asked.catch(() => undefined); // só falha de verdade se o teste esperar por ele
+  await page.route('**/launcher/**', (route) => route.fulfill({ status: 204 }));
+  return { asked };
 }
 const bg = (page: Page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 
 test.describe('Tela de abertura', () => {
   test('mostra logo, nome, mensagem e indicador de carregamento enquanto o Launcher abre', async ({ page }) => {
-    await slowLauncher(page);
+    const { asked } = await holdLauncher(page);
     await page.goto('/', { waitUntil: 'commit' });
     const splash = page.getByTestId('splash');
     await expect(splash).toBeVisible();
@@ -21,7 +24,12 @@ test.describe('Tela de abertura', () => {
     await expect(splash.locator('img')).toBeVisible();
     await expect(splash.locator('.bar')).toBeVisible();
     await expect(page.getByTestId('splash-open')).toHaveAttribute('href', '/launcher/');
-    await expect(page).toHaveURL(/\/launcher\//, { timeout: 15000 }); // e segue sozinho para o Launcher
+    await asked; // e pede o Launcher sozinha, sem ninguém clicar
+  });
+
+  test('segue sozinha para o Launcher de verdade', async ({ page }) => {
+    await page.goto('/');
+    await expect(page).toHaveURL(/\/launcher\/#\/$/);
     await expect(page.locator('h1').first()).toBeVisible();
   });
 
@@ -37,11 +45,11 @@ test.describe('Tela de abertura', () => {
   test('sem JavaScript: a tela de abertura existe e o navegador segue para o Launcher', async ({ browser }) => {
     const context = await browser.newContext({ javaScriptEnabled: false, baseURL: test.info().project.use.baseURL });
     const page = await context.newPage();
-    await slowLauncher(page);
+    const { asked } = await holdLauncher(page);
     await page.goto('/', { waitUntil: 'commit' });
     await expect(page.getByTestId('splash')).toBeVisible();
     await expect(page.getByTestId('splash-open')).toBeVisible(); // alternativa acessível
-    await expect(page).toHaveURL(/\/launcher\//, { timeout: 15000 }); // meta refresh em <noscript>
+    await asked; // meta refresh em <noscript>
     await context.close();
   });
 
@@ -50,7 +58,7 @@ test.describe('Tela de abertura', () => {
       const context = await browser.newContext({ colorScheme: scheme, baseURL: test.info().project.use.baseURL });
       if (saved) await context.addInitScript((value) => localStorage.setItem('coding-v2-theme', value), saved);
       const page = await context.newPage();
-      await slowLauncher(page);
+      await holdLauncher(page);
       await page.goto('/', { waitUntil: 'commit' });
       await expect(page.getByTestId('splash')).toBeVisible();
       expect(await bg(page), 'sistema ' + scheme + ', salvo ' + saved).toBe(expected);
@@ -61,7 +69,7 @@ test.describe('Tela de abertura', () => {
 
   test('movimento reduzido: o indicador não anima', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await slowLauncher(page);
+    await holdLauncher(page);
     await page.goto('/', { waitUntil: 'commit' });
     await expect(page.getByTestId('splash')).toBeVisible();
     await expect(page.locator('.bar i')).toHaveCSS('animation-name', 'none');
@@ -69,7 +77,7 @@ test.describe('Tela de abertura', () => {
 
   test('movimento normal: o indicador anima', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' });
-    await slowLauncher(page);
+    await holdLauncher(page);
     await page.goto('/', { waitUntil: 'commit' });
     await expect(page.locator('.bar i')).not.toHaveCSS('animation-name', 'none');
   });
@@ -79,7 +87,7 @@ test.describe('Tela de abertura', () => {
       for (const scheme of ['light', 'dark'] as const) {
         const context = await browser.newContext({ viewport: { width, height }, colorScheme: scheme, javaScriptEnabled: false, baseURL: test.info().project.use.baseURL });
         const page = await context.newPage();
-        await slowLauncher(page, 20000); // a navegação para o Launcher fica pendente: a tela de abertura permanece
+        await holdLauncher(page);
         await page.goto('/', { waitUntil: 'commit' });
         await expect(page.getByTestId('splash')).toBeVisible();
         expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);

@@ -85,7 +85,7 @@ test.describe('Retomada no celular', () => {
     const second = await context.newPage();
     await second.goto('/');
     await expect(second).toHaveURL(url);
-    await expect(second.getByTestId('viewer-files').locator('li')).toHaveCount(1); // é o mesmo documento, com o arquivo dele
+    await expect(second.locator('body')).toContainText('meu documento em edição'); // é o mesmo documento, com o conteúdo dele
     expect(await countCopies(second)).toBe(before);
     await context.close();
   });
@@ -126,6 +126,7 @@ test.describe('Retomada no celular', () => {
   test('o prazo conta a partir da última atividade, não da abertura', async ({ browser }) => {
     const context = await phone(browser, true);
     const first = await visit(context, '/launcher/#/catalogo');
+    await expect.poll(async () => (await record(first))?.here).toBe('/launcher/#/catalogo'); // o Launcher já está acompanhando
     await context.clock.fastForward(15 * MIN);
     await first.evaluate(() => window.dispatchEvent(new Event('pointerdown'))); // toque real aos 15 min
     await expect.poll(async () => (await record(first))!.at - new Date(T0).getTime()).toBeGreaterThanOrEqual(14 * MIN);

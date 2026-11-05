@@ -1,11 +1,14 @@
 import { test, expect, type Page } from '@playwright/test';
 import { tools } from '../src/shared/catalog';
+import { seedInstalledApps } from './helpers';
 
 /* Voltar à tela de origem: o link "Início" do aplicativo leva de volta à tela do Launcher de onde ele foi aberto. */
 const BACK = 'a[href^="/launcher/"]';
 const openFrom = async (page: Page, route: string, name: string) => {
+  if (route === '/meus-apps') await seedInstalledApps(page); // o Meus apps só lista apps instalados offline
   await page.goto('/launcher/#' + route);
   await expect(page.locator('h1').first()).toBeVisible();
+  if (route === '/') await page.locator('#home-search').fill(name); // no Início o app aparece pela busca
   await page.getByRole('link', { name: 'Abrir o editor de ' + name }).first().click();
 };
 const back = (page: Page) => page.locator(BACK).first();
@@ -34,10 +37,9 @@ test.describe('Voltar à origem', () => {
   });
 
   test('aberto pelo Início: voltar leva ao Início (sem rótulo diferente)', async ({ page }) => {
-    await page.goto('/launcher/#/');
-    await expect(page.locator('h1').first()).toBeVisible();
-    await page.getByRole('link', { name: /^Abrir o editor de / }).first().click();
-    await expect(page).toHaveURL(/\/apps\//);
+    await openFrom(page, '/', 'Calculadora');
+    await expect(page).toHaveURL(/\/apps\/calculadora\//);
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem('coding-v2-origin'))).toBe('/launcher/#/'); // a origem já foi registrada
     await expect(back(page)).not.toHaveAttribute('title', /Voltar para/); // Início é o destino normal do botão
     await back(page).click();
     await expect(page).toHaveURL(/\/launcher\/#\/$/);
@@ -56,6 +58,7 @@ test.describe('Voltar à origem', () => {
     await expect(page).toHaveURL(/\/launcher\/#\/catalogo$/);
     await page.goForward();
     await expect(page).toHaveURL(/\/apps\/calculadora\/$/);
+    await expect(back(page)).toHaveAttribute('title', 'Voltar para Catálogo'); // o aplicativo já montou e guardou a origem
     await back(page).click();
     await expect(page).toHaveURL(/\/launcher\/#\/catalogo$/);
     await page.goBack(); // o app de novo (uma entrada, não um ciclo)
@@ -73,11 +76,14 @@ test.describe('Voltar à origem', () => {
   });
 
   test('cada abertura atualiza a origem (Catálogo e depois Meus apps)', async ({ page }) => {
+    await seedInstalledApps(page);
     await openFrom(page, '/catalogo', 'Calculadora');
+    await expect(back(page)).toHaveAttribute('title', 'Voltar para Catálogo');
     await back(page).click();
     await expect(page).toHaveURL(/\/launcher\/#\/catalogo$/);
     await page.goto('/launcher/#/meus-apps');
     await page.getByRole('link', { name: 'Abrir o editor de Estúdio de Cores' }).first().click();
+    await expect(back(page)).toHaveAttribute('title', 'Voltar para Meus apps');
     await back(page).click();
     await expect(page).toHaveURL(/\/launcher\/#\/meus-apps$/);
   });

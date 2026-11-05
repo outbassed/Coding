@@ -2,7 +2,7 @@ import type { Router } from 'vue-router';
 import { copyExists } from './copyExists';
 import { LAUNCHER_PATH } from './links';
 import {
-  NAV_DONE_KEY, NAV_ORIGIN_KEY, WRITE_EVERY_MS, decideResume, isBackToLauncher, isColdEntry, isPhone, launcherTarget,
+  NAV_DONE_KEY, NAV_ORIGIN_KEY, SESSION_TTL_MS, WRITE_EVERY_MS, decideResume, isBackToLauncher, isColdEntry, isPhone, launcherTarget,
   normalizeTarget, originLabel, readFresh, readRecord, resolveOrigin, sessionStore, touch
 } from './navMemory';
 
@@ -14,7 +14,7 @@ const navType = (): string | undefined => (performance.getEntriesByType?.('navig
  * Registra a atividade real (toque, tecla, rolagem, volta ao app) sem gravar a cada movimento: no máximo uma gravação
  * a cada 15 s, mais uma ao esconder ou fechar a página. `getHere` devolve a tela atual (ou undefined para não trocar).
  */
-export function trackActivity(getHere: () => string | null | undefined, now: () => number = Date.now): () => void {
+export function trackActivity(getHere: () => string | null | undefined, now: () => number = Date.now, onExpired?: () => void): () => void {
   let latest = now();
   let lastWrite = 0;
   let pending = 0;
@@ -26,7 +26,10 @@ export function trackActivity(getHere: () => string | null | undefined, now: () 
     touch(latest, { here });
   };
   const mark = (): void => {
+    const previous = latest;
     latest = now();
+    // A pessoa voltou depois de 20 min parada: a sessão anterior venceu, então nada dela (origem) pode valer na nova atividade.
+    if (onExpired && latest - previous >= SESSION_TTL_MS) onExpired();
     const wait = WRITE_EVERY_MS - (latest - lastWrite);
     if (wait <= 0) write();
     else if (!pending) pending = window.setTimeout(write, wait);
@@ -140,7 +143,10 @@ export function installAppNavMemory(): void {
   touch(now, { here: normalizeTarget(location.pathname + location.search)?.url, origin });
   try { if (origin) session?.setItem(NAV_ORIGIN_KEY, origin); else session?.removeItem(NAV_ORIGIN_KEY); } catch { /* ignora */ }
 
-  trackActivity(() => normalizeTarget(location.pathname + location.search)?.url);
+  trackActivity(() => normalizeTarget(location.pathname + location.search)?.url, Date.now, () => {
+    try { session?.removeItem(NAV_ORIGIN_KEY); } catch { /* ignora */ }
+    touch(Date.now(), { origin: null });
+  });
   document.addEventListener('click', onBackClick, true);
 
   labelBackLinks();

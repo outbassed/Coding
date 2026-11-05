@@ -44,6 +44,19 @@ describe('trackActivity · não grava a cada movimento', () => {
     expect(rec()?.at).toBe(1_800_000_000_000 + 5_000);
     stop();
   });
+  it('voltar à atividade depois de 20 min avisa que a sessão anterior venceu (e antes disso não)', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_800_000_000_000);
+    const expired = vi.fn();
+    const stop = trackActivity(() => '/launcher/#/catalogo', Date.now, expired);
+    vi.setSystemTime(1_800_000_000_000 + 19 * 60_000);
+    window.dispatchEvent(new Event('pointerdown'));
+    expect(expired).not.toHaveBeenCalled(); // 19 min: ainda vale
+    vi.setSystemTime(1_800_000_000_000 + 19 * 60_000 + 20 * 60_000);
+    window.dispatchEvent(new Event('pointerdown'));
+    expect(expired).toHaveBeenCalledTimes(1); // 20 min parado: venceu
+    stop();
+  });
   it('acompanha o endereço que o app troca sozinho (?doc=) sem esperar atividade', () => {
     vi.useFakeTimers();
     vi.setSystemTime(1_800_000_000_000);
