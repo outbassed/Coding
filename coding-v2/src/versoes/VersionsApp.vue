@@ -94,7 +94,7 @@ onBeforeUnmount(() => { window.removeEventListener('popstate', onPop); media?.re
       <button ref="hamburger" type="button" class="burger" aria-controls="versoes-menu" :aria-expanded="drawer" aria-label="Abrir menu de versões" data-testid="menu-toggle" @click="drawer ? closeDrawer() : openDrawer()">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" /></svg>
       </button>
-      <img class="mark" src="/legacy-icons/coding.svg" alt="" width="30" height="30" draggable="false" />
+      <img class="mark" src="/brand/icon.svg" alt="" width="30" height="30" draggable="false" />
       <p class="brand"><strong>Coding</strong><span class="sep" aria-hidden="true"> · </span><span class="sub">Central de Versões</span></p>
     </header>
 
@@ -112,7 +112,7 @@ onBeforeUnmount(() => { window.removeEventListener('popstate', onPop); media?.re
             <li v-for="item in menuItems" :key="item.target">
               <a :href="item.href" class="link" :aria-current="target === item.target ? 'page' : undefined" :data-testid="'menu-' + item.target" @click="onMenuClick($event, item.target)">
                 <AppIcon v-if="item.tool" :id="item.tool.id" size="sm" />
-                <img v-else class="lmark" src="/legacy-icons/coding.svg" alt="" width="32" height="32" draggable="false" />
+                <img v-else class="lmark" src="/brand/icon.svg" alt="" width="32" height="32" draggable="false" />
                 <span class="lname">{{ item.name }}</span>
               </a>
             </li>

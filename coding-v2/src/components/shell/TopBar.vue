@@ -5,7 +5,7 @@
 <template>
   <header class="top">
     <RouterLink :to="{ name: 'home' }" class="brand" aria-label="Coding Launcher, ir para o início">
-      <img class="mark" src="/legacy-icons/coding.svg" alt="" width="34" height="34" aria-hidden="true" draggable="false" />
+      <img class="mark" src="/brand/icon.svg" alt="" width="34" height="34" aria-hidden="true" draggable="false" />
       <span class="name"><strong>Coding</strong> Launcher</span>
     </RouterLink>
   </header>

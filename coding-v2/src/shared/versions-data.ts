@@ -15,6 +15,21 @@ import type { VersionRecord } from './versions';
  */
 export const versionRecords: readonly VersionRecord[] = [
   {
+    target: 'launcher', version: '2.3.0', build: '05.11.26.175210', releaseDate: '2026-11-05', releaseTime: '17:52:10',
+    novidades: [
+      'Nova identidade visual do Coding: o monograma CD · Negativo (um D branco com o C vazado no meio e um canto cortado em azul-gelo) passa a ser a marca única do Coding e do Coding Launcher, no lugar do ícone de documento.',
+      'A nova marca aparece no cabeçalho do Launcher, na página Início, em Ajustes → Sobre, na Central de Versões, na tela de abertura, no favicon e no ícone de instalação do aplicativo (inclusive a versão adaptável do Android e o ícone do iPhone).'
+    ],
+    melhorias: [
+      'O favicon tem um desenho próprio para 16 px (C vazado mais grosso), e o conjunto inclui símbolo isolado, logotipo horizontal "Coding", versões clara, escura e transparente, tudo em SVG vetorial.',
+      'Todas as páginas do Coding agora têm favicon, inclusive as dos aplicativos, que passam a mostrar a marca da plataforma na aba do navegador.'
+    ],
+    alteracoesTecnicas: [
+      'Os arquivos da marca ficam em /brand/ (SVG e PNG) e entram no pacote offline junto com os demais ícones. O manifesto de instalação aponta para eles.',
+      'Os ícones individuais dos aplicativos, o olho interativo do Visualizador, a retomada de sessão e a lógica do Launcher não foram alterados; nenhum aplicativo mudou de versão.'
+    ]
+  },
+  {
     target: 'viewer', version: '2.0.0', build: '05.11.26.101617', releaseDate: '2026-11-05', releaseTime: '10:16:17',
     novidades: [
       'Interface nova e própria: a mídia ocupa o centro, a biblioteca fica à esquerda e as propriedades à direita (ambas com largura ajustável); no celular viram gavetas, e há visualização limpa e tela cheia.',

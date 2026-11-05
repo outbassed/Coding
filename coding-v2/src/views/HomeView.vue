@@ -51,7 +51,7 @@ const launcherVersion = computed(() => latestOf('launcher', versionRecords)?.ver
 </script>
 
 <template>
-  <PageHeader compact title="Coding Launcher" logo="/legacy-icons/coding.svg" lead="Seu resumo do Coding: continue de onde parou ou abra um aplicativo." />
+  <PageHeader compact title="Coding Launcher" logo="/brand/icon.svg" lead="Seu resumo do Coding: continue de onde parou ou abra um aplicativo." />
 
   <div class="bar">
     <PageSearch v-model="query" input-id="home-search" label="Buscar aplicativos" placeholder="Buscar aplicativos…" />

@@ -3,7 +3,7 @@ import { APP_COUNT } from './helpers';
 
 const originals = [
   'labels', 'texts', 'calc', 'images', 'pdf', 'codes',
-  'sheet', 'draw', 'split', 'home', 'tools', 'coding', 'my-apps', 'catalog', 'documents'
+  'sheet', 'draw', 'split', 'home', 'tools', 'my-apps', 'catalog', 'documents'
 ];
 
 test('Os SVGs restaurados são servidos pelo build sem alterar os desenhos originais', async ({ request }) => {
@@ -35,7 +35,7 @@ test('Navegação e marca restauradas funcionam também no celular', async ({ pa
   await page.setViewportSize({ width: 320, height: 700 });
   await page.goto('/launcher/#/inicio');
   const logo = page.locator('header.top img.mark');
-  await expect(logo).toHaveAttribute('src', '/legacy-icons/coding.svg');
+  await expect(logo).toHaveAttribute('src', '/brand/icon.svg');
   await expect(page.locator('nav[aria-label="Navegação móvel"] img[src="/legacy-icons/home.svg"]')).toBeVisible();
   const nav = page.locator('nav[aria-label="Navegação móvel"]');
   for (const name of ['home', 'my-apps', 'catalog', 'documents', 'tools']) {

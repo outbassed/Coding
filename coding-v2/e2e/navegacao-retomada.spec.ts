@@ -10,7 +10,7 @@ const record = (page: Page) => page.evaluate((key) => { const raw = localStorage
 /** Grava um registro de navegação em um documento neutro do mesmo endereço (não passa pelo Launcher nem por aplicativos). */
 async function seed(context: BrowserContext, value: unknown): Promise<void> {
   const page = await context.newPage();
-  await page.goto('/legacy-icons/coding.svg');
+  await page.goto('/brand/icon.svg');
   await page.evaluate(([key, raw]) => localStorage.setItem(key as string, raw as string), [KEY, typeof value === 'string' ? value : JSON.stringify(value)]);
   await page.close();
 }
@@ -43,7 +43,7 @@ async function leave(page: Page): Promise<void> {
   await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
   const written = await page.evaluate((key) => localStorage.getItem(key), KEY);
   const probe = await page.context().newPage();
-  await probe.goto('/legacy-icons/coding.svg');
+  await probe.goto('/brand/icon.svg');
   await expect.poll(() => probe.evaluate((key) => localStorage.getItem(key), KEY)).toBe(written);
   await probe.close();
   await page.close();
@@ -116,7 +116,7 @@ test.describe('Retomada no celular', () => {
   test('aos 20 min expira: abre no Início e não apaga nada', async ({ browser }) => {
     const context = await phone(browser, true);
     const marker = await context.newPage();
-    await marker.goto('/legacy-icons/coding.svg');
+    await marker.goto('/brand/icon.svg');
     await marker.evaluate(() => { localStorage.setItem('coding-v2-theme', 'dark'); localStorage.setItem('coding-v2-marcador', 'fica'); localStorage.setItem('coding-v2-marcador-2', '{"a":[1,2]}'); });
     await marker.close();
     const first = await visit(context, '/launcher/#/catalogo');
