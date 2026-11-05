@@ -20,7 +20,8 @@ test.describe('Visualizador · áudio e vídeo', () => {
     await page.goto('/apps/visualizador/');
     await page.getByTestId('viewer-input').setInputFiles({ name: 'tom.wav', mimeType: 'audio/wav', buffer: wav(2) });
     const player = page.getByTestId('media-player');
-    await expect(player).toBeVisible();
+    await expect(player).toBeAttached(); // o <audio> fica oculto: a interface é o player próprio
+    await expect(page.getByTestId('media-play')).toBeVisible();
     await expect(page.getByTestId('viewer-props')).toContainText('Áudio');
     await expect(page.getByTestId('viewer-props')).toContainText('0:02'); // duração lida do arquivo, não inventada
     await expect(page.getByTestId('viewer-props')).toContainText(/\d+ (B|KB|MB)/);

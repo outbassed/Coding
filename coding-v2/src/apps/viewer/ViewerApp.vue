@@ -606,7 +606,7 @@ const canSlide = computed(() => !!current.value && (current.value.kind === 'imag
       @dragover.prevent @dragenter="onDragEnter" @dragleave="onDragLeave" @drop.prevent="onDrop">
       <input ref="fileInput" type="file" class="sr-only" multiple tabindex="-1" aria-label="Escolher arquivos para visualizar" data-testid="viewer-input" @change="onPick" />
 
-      <header v-if="!chromeHidden" class="vwt" role="toolbar" aria-label="Arquivo aberto" data-testid="viewer-bar">
+      <div v-if="!chromeHidden" class="vwt" role="toolbar" aria-label="Arquivo aberto" data-testid="viewer-bar">
         <button type="button" class="vw-btn" :aria-pressed="libOpen" aria-label="Biblioteca" title="Biblioteca (B)" data-testid="toggle-library" @click="toggleLibrary"><VIcon name="panelLeft" /></button>
         <div class="vwt-title">
           <strong class="vwt-name" data-testid="viewer-name">{{ title || 'Nenhum arquivo aberto' }}</strong>
@@ -631,7 +631,7 @@ const canSlide = computed(() => !!current.value && (current.value.kind === 'imag
           <button type="button" class="vw-btn" :aria-pressed="insOpen" aria-label="Propriedades" title="Propriedades (I)" data-testid="toggle-properties" @click="toggleInspector"><VIcon name="panelRight" /></button>
         </div>
         <button type="button" class="vw-btn vw-only-sm" aria-label="Mais opções" data-testid="top-more" @click="openMenuAtButton"><VIcon name="more" /></button>
-      </header>
+      </div>
 
       <div class="vww">
         <div v-if="!chromeHidden && libOpen" class="vwl" :class="{ drawer: !libDocked }" :style="libDocked ? { width: libSize.width.value + 'px' } : undefined" data-testid="viewer-library-pane">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import VIcon from './VIcon.vue';
 import { viewDoc } from '../pdf/engine';
 import { pdfPages as printPdfPages } from '../../shared/print/pages';
@@ -30,7 +30,7 @@ interface Page {
 interface Doc { numPages: number; getPage(n: number): Promise<unknown> }
 
 const PAD = 16;
-const doc = ref<Doc | null>(null);
+const doc = shallowRef<Doc | null>(null);
 const total = ref(0);
 const pageNo = ref(1);
 const turn = ref(0);

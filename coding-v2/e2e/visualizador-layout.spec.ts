@@ -72,7 +72,8 @@ test.describe('Visualizador · layout', () => {
     await page.getByTestId('viewer-files').getByRole('button', { name: /a\.png/ }).click();
     await expect(page.getByTestId('viewer-library')).toBeHidden();
     await expect(page.getByTestId('viewer-image')).toBeVisible();
-    await page.getByTestId('toggle-properties').click();
+    await page.getByTestId('top-more').click(); // no celular, as ações secundárias ficam no menu "Mais"
+    await page.getByTestId('menu-properties').click();
     await expect(page.getByTestId('viewer-props')).toBeVisible();
     await page.getByTestId('hide-properties').click();
     await expect(page.getByTestId('viewer-props')).toBeHidden();

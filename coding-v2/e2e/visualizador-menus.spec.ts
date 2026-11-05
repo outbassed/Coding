@@ -66,7 +66,8 @@ test.describe('Visualizador · menus de contexto', () => {
 
     await page.getByTestId('viewer-library').click({ button: 'right', position: { x: 20, y: 500 } });
     await expect(page.getByTestId('menu-open-files')).toBeVisible();
-    await expect(page.getByTestId('menu-view-list').or(page.getByTestId('menu-view-grid'))).toBeVisible();
+    await expect(page.getByTestId('menu-view-grid')).toBeVisible();
+    await expect(page.getByTestId('menu-view-list')).toBeVisible();
     await page.keyboard.press('Escape');
   });
 
@@ -75,7 +76,7 @@ test.describe('Visualizador · menus de contexto', () => {
     await open(page, [{ name: 'a.txt', mimeType: 'text/plain', buffer: Buffer.from('a') }]);
     const item = page.getByTestId('viewer-files').getByRole('button', { name: /a\.txt/ });
     await item.focus();
-    await page.keyboard.press('Shift+F10');
+    await item.dispatchEvent('keydown', { key: 'F10', shiftKey: true, bubbles: true, cancelable: true });
     await expect(menu(page)).toBeVisible();
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('Escape');
