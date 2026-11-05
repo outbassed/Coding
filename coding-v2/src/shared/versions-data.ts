@@ -57,7 +57,7 @@ export const versionRecords: readonly VersionRecord[] = [
     ]
   },
   {
-    target: 'launcher', version: '2.2.1', build: '05.11.26.114825', releaseDate: '2026-11-05', releaseTime: '11:48:25',
+    target: 'launcher', version: '2.2.1', build: '05.11.26.130256', releaseDate: '2026-11-05', releaseTime: '13:02:56',
     novidades: [
       'Olho interativo do Visualizador: na página de detalhes do aplicativo, clique (ou use Enter/Espaço) na logo e o olho passa a acompanhar o cursor; um segundo clique desliga e centraliza. A íris, a pupila e o reflexo andam juntos e nunca saem da parte branca.',
       'Retomada inteligente no celular: se o navegador ou o aplicativo instalado for fechado e reaberto em até 20 minutos da última atividade, o Coding volta para a tela ou o aplicativo em que você estava, no mesmo documento. Passados 20 minutos, abre normalmente no Início.',
