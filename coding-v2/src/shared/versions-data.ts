@@ -15,6 +15,17 @@ import type { VersionRecord } from './versions';
  */
 export const versionRecords: readonly VersionRecord[] = [
   {
+    target: 'viewer', version: '1.1.0', build: '04.11.26.212342', releaseDate: '2026-11-04', releaseTime: '21:23:42',
+    novidades: [
+      'Abrir imagens, SVG, vídeos e áudios por link HTTPS direto, com campo de endereço e tipo de mídia na aba Arquivos.',
+      'Os links ficam salvos no projeto e podem ser reabertos no Visualizador sem copiar ou enviar o arquivo ao Coding.'
+    ],
+    problemasConhecidos: [
+      'Mídias por link dependem de conexão e das permissões do servidor de origem; páginas de sites, como páginas do YouTube, não são links diretos.',
+      'Para imprimir um link externo, primeiro abra o arquivo localmente; os aplicativos podem ampliar o suporte a links em versões futuras.'
+    ]
+  },
+  {
     target: 'versos', version: '1.0.2', build: '03.11.26.110835', releaseDate: '2026-11-03', releaseTime: '11:08:35',
     melhorias: [
       'Imprimir cena atual ou todas as cenas, uma cena por página, com a composição final e sem a interface (Arquivo → Imprimir, Ctrl+P).',
