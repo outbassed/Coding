@@ -34,9 +34,18 @@ async function visit(context: BrowserContext, route: string): Promise<Page> {
   await page.goto(route);
   return page;
 }
-/** Fecha a página como o celular faz ao esconder o app: o navegador avisa e a página grava o último estado. */
+/**
+ * Fecha a página como o celular faz ao esconder o app: o navegador avisa (pagehide) e a página grava o último estado.
+ * Antes de fechar, espera o registro chegar a outra aba do mesmo contexto, para que o teste não dependa de o navegador
+ * descarregar a escrita no instante em que a aba é destruída.
+ */
 async function leave(page: Page): Promise<void> {
   await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  const written = await page.evaluate((key) => localStorage.getItem(key), KEY);
+  const probe = await page.context().newPage();
+  await probe.goto('/legacy-icons/coding.svg');
+  await expect.poll(() => probe.evaluate((key) => localStorage.getItem(key), KEY)).toBe(written);
+  await probe.close();
   await page.close();
 }
 
