@@ -15,7 +15,7 @@ import type { VersionRecord } from './versions';
  */
 export const versionRecords: readonly VersionRecord[] = [
   {
-    target: 'viewer', version: '2.0.0', build: '05.11.26.093119', releaseDate: '2026-11-05', releaseTime: '09:31:19',
+    target: 'viewer', version: '2.0.0', build: '05.11.26.101617', releaseDate: '2026-11-05', releaseTime: '10:16:17',
     novidades: [
       'Interface nova e própria: a mídia ocupa o centro, a biblioteca fica à esquerda e as propriedades à direita (ambas com largura ajustável); no celular viram gavetas, e há visualização limpa e tela cheia.',
       'Biblioteca com miniaturas reais (imagem, SVG, vídeo, PDF, modelo 3D e texto), modo lista, pesquisa sem diferenciar acentos, filtros por tipo, ordenação, seleção em lote, arrastar e soltar e colar com Ctrl+V.',
@@ -33,6 +33,7 @@ export const versionRecords: readonly VersionRecord[] = [
     correcoes: [
       'Desfazer uma remoção agora devolve também o conteúdo do arquivo (imagens, vídeos, PDFs e outros dados binários), inclusive depois de o projeto ter sido salvo.',
       'Trocar de arquivo deixou de ocupar passos do histórico de desfazer.',
+      'Shift+F10 e a tecla de menu agora abrem o menu de contexto do Visualizador pelo teclado.',
       'Impressão nativa mantida para imagem, SVG, vídeo (quadro atual), PDF, modelo 3D e texto, agora a partir do visualizador de cada formato.'
     ],
     alteracoesTecnicas: [

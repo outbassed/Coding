@@ -1,8 +1,8 @@
-# Mídias por link (Visualizador 1.1.0)
+# Mídias por link (Visualizador 1.1.0; interface atual na 2.0 — ver VISUALIZADOR.md)
 
 ## O que faz
 
-Na aba **Arquivos** do Visualizador, a pessoa cola um endereço HTTPS direto de uma mídia e clica em **Abrir link**. O tipo é identificado pela extensão, inclusive com parâmetros de URL; quando não há extensão, a pessoa escolhe **Imagem**, **Vídeo** ou **Áudio**.
+Na **biblioteca** do Visualizador (botão de corrente), a pessoa cola um endereço HTTPS direto de uma mídia e clica em **Abrir link**. O tipo é identificado pela extensão, inclusive com parâmetros de URL; quando não há extensão, a pessoa escolhe **Imagem**, **Vídeo** ou **Áudio**.
 
 - Imagens: PNG, JPG, GIF, WebP, AVIF, BMP, ICO e SVG; vídeos: MP4, WebM, MOV, M4V e OGV; áudios: MP3, WAV, OGG, M4A, AAC, FLAC e OPUS, respeitando o suporte do navegador.
 - O link aparece ao lado dos arquivos locais, participa da navegação e da apresentação e fica salvo no documento.
@@ -23,4 +23,4 @@ Na aba **Arquivos** do Visualizador, a pessoa cola um endereço HTTPS direto de 
 
 O validador em src/shared/media-links.ts é separado do Visualizador para permitir a integração posterior em Imagens, Pintar, Versos e outros editores. Editar ou exportar mídia remota pode exigir importação explícita com permissões adequadas, diferentemente de apenas visualizar.
 
-Testes: src/shared/media-links.test.ts, src/apps/viewer/model-link.test.ts e a seção mídia por link em e2e/visualizador.spec.ts.
+Testes: src/shared/media-links.test.ts, src/apps/viewer/model-link.test.ts e a seção mídia por link em e2e/visualizador.spec.ts (na 2.0 o formulário fica na biblioteca).
