@@ -8,6 +8,7 @@ import { useOfflineStore } from '../stores/offline';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import PageHeader from '../components/ui/PageHeader.vue';
 import AppIcon from '../components/ui/AppIcon.vue';
+import ViewerEyeAnimatedIcon from '../components/ui/ViewerEyeAnimatedIcon.vue';
 import NavIcon from '../components/ui/NavIcon.vue';
 import EmptyState from '../components/ui/EmptyState.vue';
 import RecentDocs from '../components/ui/RecentDocs.vue';
@@ -27,7 +28,8 @@ const release = computed(() => (tool.value ? latestOf(tool.value.id, versionReco
   <template v-if="tool">
     <p class="crumb"><RouterLink :to="{ name: 'catalog' }" class="back"><NavIcon name="back" />Catálogo</RouterLink></p>
     <header class="hero" :style="{ '--app': tool.color, '--app-cx-l': tool.textLight, '--app-cx-d': tool.textDark }">
-      <AppIcon :id="tool.id" size="xl" />
+      <ViewerEyeAnimatedIcon v-if="tool.id === 'viewer'" />
+      <AppIcon v-else :id="tool.id" size="xl" />
       <div class="hero-details">
         <PageHeader :title="tool.name" :lead="tool.description" />
         <p class="developer">Coding</p>
