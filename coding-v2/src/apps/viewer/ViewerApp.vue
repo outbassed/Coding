@@ -634,7 +634,7 @@ const canSlide = computed(() => !!current.value && (current.value.kind === 'imag
       </header>
 
       <div class="vww">
-        <aside v-if="!chromeHidden && libOpen" class="vwl" :class="{ drawer: !libDocked }" :style="libDocked ? { width: libSize.width.value + 'px' } : undefined" data-testid="viewer-library-pane">
+        <div v-if="!chromeHidden && libOpen" class="vwl" :class="{ drawer: !libDocked }" :style="libDocked ? { width: libSize.width.value + 'px' } : undefined" data-testid="viewer-library-pane">
           <LibraryPanel ref="libraryRef" :files="shown" :total="files.length" :counts="counts" :active-id="state.activeId" :selected="selected" :prefs="prefs" :blob-of="blobOf"
             v-model:query="query" :kinds="kinds" v-model:selectMode="selectMode" :link-error="linkError" :drawer="!libDocked"
             @toggle-kind="toggleKind" @clear-filters="clearFilters" @open="openFile" @toggle-select="toggleSelect" @select-range="selectRange"
@@ -643,10 +643,10 @@ const canSlide = computed(() => !!current.value && (current.value.kind === 'imag
           <div v-if="libDocked" class="vwr right" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Ajustar a largura da biblioteca" :aria-valuenow="libSize.width.value"
             :aria-valuemin="libSize.min" :aria-valuemax="libSize.max" :class="{ active: libSize.dragging.value }"
             @pointerdown="libSize.start" @pointermove="libSize.move" @pointerup="libSize.end" @pointercancel="libSize.end" @dblclick="libSize.reset" @keydown="libSize.keys"></div>
-        </aside>
+        </div>
         <div v-if="!chromeHidden && !libDocked && drawerLib" class="vw-scrim" aria-hidden="true" @click="drawerLib = false"></div>
 
-        <main class="vws" data-ctx="stage" data-testid="viewer-stage" :class="{ drop: dropping }" aria-label="Mídia aberta">
+        <div class="vws" role="region" data-ctx="stage" data-testid="viewer-stage" :class="{ drop: dropping }" aria-label="Mídia aberta">
           <div v-if="doc.loading.value" class="vw-empty"><p class="vw-spin" role="status">Abrindo o projeto…</p></div>
           <div v-else-if="!current" class="vw-empty" data-testid="viewer-empty">
             <VIcon name="image" :size="48" />
@@ -685,16 +685,16 @@ const canSlide = computed(() => !!current.value && (current.value.kind === 'imag
             <span>{{ message }}</span>
             <button v-if="canUndoToast && doc.canUndo.value" type="button" class="vw-toast-btn" data-testid="toast-undo" @click="doc.undo(); message = ''">Desfazer</button>
           </p>
-        </main>
+        </div>
 
         <div v-if="!chromeHidden && !insDocked && drawerIns" class="vw-scrim" aria-hidden="true" @click="drawerIns = false"></div>
-        <aside v-if="!chromeHidden && insOpen" class="vwi" :class="{ drawer: !insDocked }" :style="insDocked ? { width: insSize.width.value + 'px' } : undefined" data-testid="viewer-inspector">
+        <div v-if="!chromeHidden && insOpen" class="vwi" :class="{ drawer: !insDocked }" :style="insDocked ? { width: insSize.width.value + 'px' } : undefined" data-testid="viewer-inspector">
           <div v-if="insDocked" class="vwr left" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Ajustar a largura das propriedades" :aria-valuenow="insSize.width.value"
             :aria-valuemin="insSize.min" :aria-valuemax="insSize.max" :class="{ active: insSize.dragging.value }"
             @pointerdown="insSize.start" @pointermove="insSize.move" @pointerup="insSize.end" @pointercancel="insSize.end" @dblclick="insSize.reset" @keydown="insSize.keys"></div>
           <InspectorPanel :file="current" :details="details" :position="position" :total="ordered.length" :can-open-in-code="canOpenInCode" :can-print="!printReason()" :drawer="!insDocked"
             @rename="(n) => current && renameFile(current.id, n)" @action="onAction" @close="insDocked ? (prefs.inspectorOpen = false) : (drawerIns = false)" />
-        </aside>
+        </div>
       </div>
 
       <div v-if="chromeHidden" class="vwf" role="group" aria-label="Controles da visualização limpa">

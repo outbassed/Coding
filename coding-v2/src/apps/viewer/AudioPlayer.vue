@@ -55,7 +55,7 @@ const onVolume = (e: Event): void => m.setVolume(Number((e.target as HTMLInputEl
 const onRate = (e: Event): void => m.setRate(Number((e.target as HTMLSelectElement).value));
 const pick = (id: string): void => { if (id !== props.file.id) emit('select', id); };
 
-const printReason = (): string => 'Áudio não tem o que imprimir. Use a aba Propriedades para ver os dados do arquivo.';
+const printReason = (): string => 'Áudio não tem conteúdo visual para imprimir.';
 async function printPages(): Promise<PrintPage[]> { throw new Error(printReason()); }
 
 function menu(): MenuGroup[] {

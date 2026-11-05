@@ -64,7 +64,7 @@ describe('Visualizador · modelo e texto', () => {
     expect(s.activeId).toBe('a');
     expect(s.name).toBe('Arquivos para visualizar');
     expect(normalizeViewer(emptyViewer())).toEqual(emptyViewer());
-    expect(normalizeViewer({ files: Array.from({ length: 50 }, (_, i) => ({ id: 'f' + i, blobId: 'b' + i, kind: 'text' })) }).files).toHaveLength(MAX_FILES);
+    expect(normalizeViewer({ files: Array.from({ length: 150 }, (_, i) => ({ id: 'f' + i, blobId: 'b' + i, kind: 'text' })) }).files).toHaveLength(MAX_FILES);
   });
   it('decodifica UTF-8, BOM e cai para Latin-1', () => {
     expect(decodeText(ascii('olá')).text).toBe('olá');

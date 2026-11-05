@@ -24,6 +24,7 @@ const original = ref('');
 const shown = ref(CHUNK);
 const loading = ref(true);
 const truncated = ref(false);
+const encoding = ref('UTF-8');
 const pretty = ref(false);
 const prettyText = ref('');
 const scroller = ref<HTMLElement | null>(null);
@@ -38,18 +39,22 @@ onMounted(async () => {
   try {
     if (!props.blob) throw new Error('Não foi possível abrir este arquivo.');
     const d = decodeText(new Uint8Array(await props.blob.arrayBuffer()));
-    original.value = d.text; truncated.value = d.truncated;
-    const n = lines.value.length;
-    emit('meta', n.toLocaleString('pt-BR') + (n === 1 ? ' linha' : ' linhas'), [
-      { label: 'Linhas', value: n.toLocaleString('pt-BR') }, { label: 'Codificação', value: d.encoding },
-      ...(d.truncated ? [{ label: 'Aviso', value: 'Mostrando só os primeiros 4 MB' }] : [])
-    ]);
+    original.value = d.text; truncated.value = d.truncated; encoding.value = d.encoding;
+    emitMeta();
     if (d.truncated) emit('notice', 'Arquivo grande: o início (4 MB) está sendo mostrado.');
   } catch (e) {
     emit('error', e instanceof Error && e.message ? e.message : 'Não foi possível abrir este arquivo de texto.');
   } finally { loading.value = false; }
 });
 
+function emitMeta(): void {
+  const n = lines.value.length;
+  const nonStandard = encoding.value !== 'UTF-8';
+  emit('meta', n.toLocaleString('pt-BR') + (n === 1 ? ' linha' : ' linhas') + (nonStandard ? ' · ' + encoding.value : ''), [
+    { label: 'Linhas', value: n.toLocaleString('pt-BR') }, { label: 'Codificação', value: encoding.value },
+    ...(truncated.value ? [{ label: 'Aviso', value: 'Mostrando só os primeiros 4 MB' }] : [])
+  ]);
+}
 function onScroll(): void {
   const s = scroller.value;
   if (s && shown.value < lines.value.length && s.scrollTop + s.clientHeight > s.scrollHeight - 800) shown.value = Math.min(lines.value.length, shown.value + CHUNK);
@@ -94,10 +99,10 @@ async function copyText(): Promise<void> {
   catch { emit('notice', 'O navegador não permitiu copiar. Selecione o texto e use Ctrl+C.'); }
 }
 function toggleJson(): void {
-  if (pretty.value) { pretty.value = false; return; }
+  if (pretty.value) { pretty.value = false; emitMeta(); return; }
   const p = prettyJson(original.value);
   if (!p) { emit('notice', 'Este conteúdo não é um JSON válido.'); return; }
-  prettyText.value = p; pretty.value = true; shown.value = CHUNK;
+  prettyText.value = p; pretty.value = true; shown.value = CHUNK; emitMeta();
 }
 const setFont = (n: number): void => { props.prefs.fontSize = clamp(Math.round(n), FONT_MIN, FONT_MAX); };
 
