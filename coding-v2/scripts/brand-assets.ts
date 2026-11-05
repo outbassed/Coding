@@ -59,13 +59,19 @@ export function rewriteHtml(html: string, map: IconMap): string {
   return clean.replace(/<\/head>/i, headLinks(map) + '</head>');
 }
 
+/** `/brand/h/<hash>/icon-192.png` → `/brand/icon-192.png`: assim processar de novo uma saída já processada acompanha a logo nova. */
+export function canonicalUrl(src: string): string {
+  const m = new RegExp('^/' + VERSIONED_DIR + '/[0-9a-f]+/([^/]+)$').exec(src);
+  return (m && VERSIONED_ICONS.find((u) => u.endsWith('/' + m[1]))) || src;
+}
+
 interface IconEntry { src: string; [key: string]: unknown }
 interface ManifestShape { icons?: IconEntry[]; shortcuts?: { icons?: IconEntry[]; [key: string]: unknown }[]; [key: string]: unknown }
 /** Troca os `src` dos ícones (e dos ícones dos atalhos). Um `/brand/…` que não existe falha o build em vez de virar 404 em produção. */
 export function rewriteManifest(source: string, map: IconMap): string {
   const manifest = JSON.parse(source) as ManifestShape;
   const swap = (icons: IconEntry[] | undefined): IconEntry[] | undefined => icons?.map((icon) => {
-    const next = map[icon.src];
+    const next = map[canonicalUrl(icon.src)];
     if (next) return { ...icon, src: next };
     if (icon.src.startsWith('/brand/') && !icon.src.startsWith('/' + VERSIONED_DIR + '/')) throw new Error('O manifesto aponta para um ícone fora do conjunto versionado: ' + icon.src);
     return icon;
