@@ -42,6 +42,11 @@ self.addEventListener('fetch', (event) => {
         return hit || new Response(FALLBACK, { status: 503, headers: { 'content-type': 'text/html; charset=utf-8' } });
       }
     }
+    // O manifesto da PWA (nome, cores e endereços dos ícones) vai sempre à rede primeiro: com cache na frente, uma logo nova
+    // nunca chegaria ao navegador. Sem rede, usa a cópia instalada. Os ícones têm endereço com hash, então cache-first é seguro.
+    if (path === '/manifest.webmanifest') {
+      try { return await fetch(request); } catch { const cached = await cache.match(path); if (cached) return cached; throw new Error('manifesto indisponível'); }
+    }
     const hit = await cache.match(path);
     if (hit) return hit;
     return fetch(request);

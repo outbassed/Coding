@@ -32,6 +32,14 @@ for (const file of ['public/manifest.webmanifest', 'src/pwa.ts', 'public/sw.js',
 const pwa = readFileSync('src/pwa.ts', 'utf8');
 assert.ok(pwa.includes('VITE_CODING_PREVIEW_PWA') && pwa.includes('codingtxt.vercel.app'), 'A PWA deve exigir opt-in e proteger produção.');
 
+// Ícones da PWA com hash de conteúdo: plugin ligado, manifesto com o mesmo id do Coding 1.0 e cabeçalhos de cache nas duas hospedagens.
+assert.ok(readFileSync('vite.config.ts', 'utf8').includes('brandAssets()'), 'O plugin de ícones versionados (brand-assets) deve estar no vite.config.');
+const webManifest = JSON.parse(readFileSync('public/manifest.webmanifest', 'utf8'));
+assert.equal(webManifest.id, '/', 'O id do manifesto precisa continuar "/" (o mesmo do Coding 1.0); mudar o id faz o navegador tratar como outro aplicativo.');
+for (const icon of webManifest.icons) assert.ok(existsSync('public' + icon.src), 'Ícone do manifesto ausente: ' + icon.src);
+assert.ok(existsSync('public/_headers') && existsSync('../vercel.json'), 'Faltam os cabeçalhos de cache (public/_headers e vercel.json).');
+for (const page of ['index.html', 'launcher/index.html', 'versoes/index.html']) assert.ok(!/<link[^>]+rel="(?:icon|apple-touch-icon|manifest)"/.test(readFileSync(page, 'utf8')), 'Os <link> de ícone e manifesto são colocados pelo build (scripts/brand-assets.ts); não repita em ' + page);
+
 // O banco legado nunca é aberto por esta base.
 const sources = ['src/stores/settings.ts', 'src/EditorApp.vue', 'src/main-editor.ts', 'src/main-launcher.ts', 'src/entries/boot.ts', 'src/editors/docs.ts', 'src/editors/useDocument.ts'];
 for (const file of sources) assert.ok(!/indexedDB\.open|coding-db/.test(readFileSync(file, 'utf8')), 'Acesso ao coding-db proibido em ' + file);

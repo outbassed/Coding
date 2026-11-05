@@ -4,10 +4,11 @@ import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'node:path';
 import { versionsRoutes } from './scripts/versions-routes-plugin';
 import { appAliases } from './scripts/app-aliases-plugin';
+import { brandAssets } from './scripts/brand-assets';
 
 // Entradas HTML independentes. Nunca aponta para o index.html antigo da raiz do repo.
 export default defineConfig({
-  plugins: [vue(), tailwindcss(), versionsRoutes(), appAliases()],
+  plugins: [vue(), tailwindcss(), versionsRoutes(), appAliases(), brandAssets()],
   build: {
     outDir: 'dist',
     emptyOutDir: true,

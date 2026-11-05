@@ -15,6 +15,19 @@ import type { VersionRecord } from './versions';
  */
 export const versionRecords: readonly VersionRecord[] = [
   {
+    target: 'launcher', version: '2.3.1', build: '05.11.26.182539', releaseDate: '2026-11-05', releaseTime: '18:25:39',
+    correcoes: [
+      'Ícone do aplicativo instalado: as páginas do Coding agora declaram o manifesto de instalação, e o manifesto voltou a usar o mesmo identificador (id) do Coding anterior. Assim o navegador consegue reconhecer o app já instalado e atualizar o nome e o ícone para a nova logo, no ritmo que o próprio navegador decide.'
+    ],
+    melhorias: [
+      'Os ícones (do aplicativo instalado, das abas e do iPhone) ganham endereço com código do conteúdo, gerado sozinho a cada build: se a logo muda, o endereço muda; se não muda, continua igual.'
+    ],
+    alteracoesTecnicas: [
+      'O service worker passa a buscar o manifesto na rede primeiro (com a cópia instalada só como reserva sem conexão), e o manifesto, o service worker e o favicon são sempre revalidados. Ícones com código no endereço podem ficar em cache por um ano.',
+      'Nenhum dado local foi alterado, e a interface, as rotas, os aplicativos e o funcionamento offline não mudaram. Navegadores não permitem forçar a troca do ícone de um app já instalado; no iPhone é preciso adicionar o aplicativo de novo à tela de início.'
+    ]
+  },
+  {
     target: 'launcher', version: '2.3.0', build: '05.11.26.175210', releaseDate: '2026-11-05', releaseTime: '17:52:10',
     novidades: [
       'Nova identidade visual do Coding: o monograma CD · Negativo (um D branco com o C vazado no meio e um canto cortado em azul-gelo) passa a ser a marca única do Coding e do Coding Launcher, no lugar do ícone de documento.',
