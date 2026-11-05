@@ -547,12 +547,19 @@ function openMenuFromKeyboard(): void {
 }
 
 // ---------------------------------------------------------------- teclado
+/** Shift+F10 e a tecla de menu: escuta na captura da janela, antes da infraestrutura compartilhada (que também reage a essas teclas). */
+function onMenuKey(e: KeyboardEvent): void {
+  if (e.key !== 'ContextMenu' && !(e.shiftKey && e.key === 'F10')) return;
+  const t = e.target as HTMLElement | null;
+  if (menu.value || !rootEl.value || !t || !rootEl.value.contains(t) || isEditableTarget(t)) return;
+  e.preventDefault(); e.stopPropagation();
+  openMenuFromKeyboard();
+}
 function onKeydown(e: KeyboardEvent): void {
   if (e.defaultPrevented) return;
   const t = e.target as HTMLElement | null;
   if (menu.value) return;
   if (!rootEl.value || (t && !rootEl.value.contains(t) && t !== document.body)) return;
-  if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); openMenuFromKeyboard(); return; }
   if (e.key === 'Escape') {
     if (playing.value) { playing.value = false; ok('Apresentação parada.'); e.preventDefault(); return; }
     if (clean.value && !fullscreenOn.value) { clean.value = false; e.preventDefault(); return; }
@@ -585,11 +592,13 @@ function onKeydown(e: KeyboardEvent): void {
 onMounted(() => {
   window.addEventListener('paste', onPaste);
   window.addEventListener('keydown', onKeydown);
+  window.addEventListener('keydown', onMenuKey, true);
   document.addEventListener('fullscreenchange', onFullscreenChange);
 });
 onBeforeUnmount(() => {
   window.removeEventListener('paste', onPaste);
   window.removeEventListener('keydown', onKeydown);
+  window.removeEventListener('keydown', onMenuKey, true);
   document.removeEventListener('fullscreenchange', onFullscreenChange);
   clearInterval(slideTimer); clearTimeout(messageTimer); press.cancel();
   disposeThumbs();
