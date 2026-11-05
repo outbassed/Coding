@@ -18,7 +18,7 @@ const credits = [
   <section class="card" aria-labelledby="sobre-h" data-testid="about-panel">
     <h2 id="sobre-h">Sobre</h2>
     <div class="id">
-      <img src="/legacy-icons/coding.svg" alt="" width="56" height="56" draggable="false" />
+      <img src="/brand/icon.svg" alt="" width="56" height="56" draggable="false" />
       <div>
         <p class="name" data-testid="about-name">Coding</p>
         <p v-if="release" class="ver" data-testid="about-version">Versão {{ release.version }}</p>

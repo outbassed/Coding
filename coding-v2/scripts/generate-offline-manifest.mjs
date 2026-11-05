@@ -77,7 +77,7 @@ async function describe(paths) {
 const sum = (files) => files.reduce((n, f) => n + f.bytes, 0);
 
 // Núcleo do Launcher: páginas, scripts, estilos, TODOS os ícones, manifesto da PWA e a página de entrada.
-const iconPaths = [...all.keys()].filter((p) => p.startsWith('/legacy-icons/'));
+const iconPaths = [...all.keys()].filter((p) => p.startsWith('/legacy-icons/') || p.startsWith('/brand/'));
 const corePaths = [...new Set([...(await graph('/launcher/index.html', iconPaths)), ...(await graph('/index.html')), ...(all.has('/manifest.webmanifest') ? ['/manifest.webmanifest'] : [])])].sort();
 const coreFiles = await describe(corePaths);
 const coreSet = new Set(corePaths);
