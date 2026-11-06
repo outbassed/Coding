@@ -99,7 +99,7 @@ test.describe('Etiquetas · Identificação de Caixas', () => {
 
   test('data e hora são opcionais e não aparecem na impressão quando desligadas', async ({ page }) => {
     await expect(page.getByTestId('box-show-time')).not.toBeChecked();
-    await expect(page.getByTestId('print-sheet').first()).not.toContainText(/\\d{2}\\/\\d{2}\\/\\d{4} \\d{2}:\\d{2}/);
+    await expect(page.getByTestId('print-sheet').first()).not.toContainText(/\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/);
     await page.getByTestId('box-show-time').check();
     await page.getByRole('button', { name: 'Manual', exact: true }).click();
     await page.getByTestId('box-date').fill('2026-11-06');
