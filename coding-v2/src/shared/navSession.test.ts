@@ -5,11 +5,10 @@ vi.mock('./copyExists', () => ({ copyExists: vi.fn(async (id: string) => id === 
 const { installAppNavMemory, resumeAtStartup, trackActivity } = await import('./navSession');
 
 const rec = () => parseRecord(localStorage.getItem(NAV_KEY));
-const phoneMedia = (coarse: boolean) => { window.matchMedia = ((q: string) => ({ matches: coarse && q.includes('coarse'), media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia; };
 const seed = (value: object) => localStorage.setItem(NAV_KEY, JSON.stringify({ v: 1, ...value }));
 const setReferrer = (value: string) => Object.defineProperty(document, 'referrer', { value, configurable: true });
 
-beforeEach(() => { localStorage.clear(); sessionStorage.clear(); history.replaceState(null, '', '/'); setReferrer(''); document.body.innerHTML = ''; phoneMedia(true); });
+beforeEach(() => { localStorage.clear(); sessionStorage.clear(); history.replaceState(null, '', '/'); setReferrer(''); document.body.innerHTML = ''; });
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe('trackActivity · não grava a cada movimento', () => {
@@ -110,8 +109,8 @@ describe('installAppNavMemory', () => {
 });
 
 describe('resumeAtStartup', () => {
-  it('celular, entrada fria e sessão recente: volta para a tela do Launcher guardada', async () => {
-    seed({ at: Date.now() - 5 * 60_000, here: '/launcher/#/catalogo', origin: null });
+  it('qualquer dispositivo, entrada fria e sessão antiga: volta para a tela guardada', async () => {
+    seed({ at: Date.now() - 90 * 24 * 60_000, here: '/launcher/#/catalogo', origin: null });
     expect(await resumeAtStartup()).toBe(false); // continua montando o Launcher, já na rota certa
     expect(location.hash).toBe('#/catalogo');
     expect(sessionStorage.getItem(NAV_DONE_KEY)).toBe('1');
@@ -122,21 +121,15 @@ describe('resumeAtStartup', () => {
     await resumeAtStartup();
     expect(location.hash).toBe('');
   });
-  it('não retoma em computador, com endereço pedido ou com sessão vencida', async () => {
-    seed({ at: Date.now(), here: '/launcher/#/catalogo', origin: null });
-    phoneMedia(false);
+  it('computador retoma depois de meses, mas o link explícito prevalece', async () => {
+    seed({ at: Date.now() - 90 * 24 * 60_000, here: '/launcher/#/catalogo', origin: null });
     await resumeAtStartup();
-    expect(location.hash).toBe('');
+    expect(location.hash).toBe('#/catalogo');
 
-    sessionStorage.clear(); phoneMedia(true);
+    sessionStorage.clear();
     history.replaceState(null, '', '/launcher/#/ajustes');
     await resumeAtStartup();
     expect(location.hash).toBe('#/ajustes');
-
-    sessionStorage.clear(); history.replaceState(null, '', '/');
-    seed({ at: Date.now() - 20 * 60_000, here: '/launcher/#/catalogo', origin: null });
-    await resumeAtStartup();
-    expect(location.hash).toBe('');
   });
   it('não retoma vindo de um aplicativo (clique em "Início") nem recarregando', async () => {
     seed({ at: Date.now(), here: '/launcher/#/catalogo', origin: null });

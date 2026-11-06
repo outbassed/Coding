@@ -2,7 +2,7 @@ import type { Router } from 'vue-router';
 import { copyExists } from './copyExists';
 import { LAUNCHER_PATH } from './links';
 import {
-  NAV_DONE_KEY, NAV_ORIGIN_KEY, SESSION_TTL_MS, WRITE_EVERY_MS, decideResume, isBackToLauncher, isColdEntry, isPhone, launcherTarget,
+  NAV_DONE_KEY, NAV_ORIGIN_KEY, SESSION_TTL_MS, WRITE_EVERY_MS, decideResume, isBackToLauncher, isColdEntry, launcherTarget,
   normalizeTarget, originLabel, readFresh, readRecord, resolveOrigin, sessionStore, touch
 } from './navMemory';
 
@@ -60,17 +60,14 @@ export function trackActivity(getHere: () => string | null | undefined, now: () 
 
 // --------------------------------------------------------------------------------------------- Launcher
 /**
- * Antes de montar o Launcher: no celular, entrada fria e sem endereço pedido, volta à tela ou ao aplicativo (com o
- * documento) da última sessão com menos de 20 min. Devolve `true` se saiu para outra página (não montar o Launcher).
+ * Antes de montar o Launcher: em qualquer dispositivo, entrada fria e sem endereço pedido volta à última tela ou
+ * aplicativo (inclusive documento), independentemente do tempo. Devolve `true` se saiu para outra página.
  * Avaliada uma única vez por aba, o que impede qualquer laço de redirecionamento.
  */
 export async function resumeAtStartup(): Promise<boolean> {
   const session = sessionStore();
   try { if (session?.getItem(NAV_DONE_KEY)) return false; session?.setItem(NAV_DONE_KEY, '1'); } catch { /* sem sessionStorage: segue */ }
-  const now = Date.now();
   const target = decideResume(readRecord(), {
-    now,
-    phone: isPhone(),
     coldEntry: isColdEntry(navType(), document.referrer),
     explicit: (location.hash !== '' && location.hash !== '#') || location.search !== ''
   });
