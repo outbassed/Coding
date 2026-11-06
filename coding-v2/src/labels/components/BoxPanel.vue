@@ -154,6 +154,9 @@ function timeMode(mode: 'auto' | 'manual'): void {
 
     <section class="bx-group">
       <h2>Data e hora da impressão</h2>
+      <label class="bx-check"><input data-testid="box-show-time" type="checkbox" :checked="boxes.showDateTime" @change="update({ showDateTime: ($event.target as HTMLInputElement).checked })" /> Mostrar data e hora na etiqueta</label>
+      <p v-if="!boxes.showDateTime" class="bx-muted">Opcional e desativado por padrão. Não aparecerá na prévia, impressão nem no PDF.</p>
+      <template v-if="boxes.showDateTime">
       <div class="bx-modes" role="group" aria-label="Modo de data e hora">
         <button type="button" :aria-pressed="boxes.timeMode === 'auto'" @click="timeMode('auto')">Automático</button>
         <button type="button" :aria-pressed="boxes.timeMode === 'manual'" @click="timeMode('manual')">Manual</button>
@@ -166,6 +169,7 @@ function timeMode(mode: 'auto' | 'manual'): void {
         <label class="bx-field">Hora da impressão
           <input data-testid="box-time" type="time" :value="boxes.manualTime" @input="update({ manualTime: ($event.target as HTMLInputElement).value })" />
         </label>
+      </template>
       </template>
     </section>
   </div>

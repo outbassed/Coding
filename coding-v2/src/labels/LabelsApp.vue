@@ -26,12 +26,15 @@ import PrintSheets from './components/PrintSheets.vue';
 import BoxPanel from './components/BoxPanel.vue';
 import BoxPreview from './components/BoxPreview.vue';
 import BoxPrintSheets from './components/BoxPrintSheets.vue';
+import BoxProperties from './components/BoxProperties.vue';
+import BoxModels from './components/BoxModels.vue';
+import type { BoxEditField } from './components/BoxSheet.vue';
 import { boxPages, boxWarning, manualStamp, readShops, saveShops, stampForPrint, validManual } from './boxes';
 import { downloadBytes, exportSheetsToPdf, pdfFileName } from './raster';
 import type { BulkRow } from './bulk';
 import { useLabelsEditor } from './useLabelsEditor';
 import { usePrint } from '../shared/print/usePrint';
-import { MAX_COPIES, PAPER, toInt, type BoxShop, type LabelMode, type LabelItem, type LabelsState } from './model';
+import { MAX_COPIES, MAX_BLOCKS, PAPER, uid, toInt, type BoxShop, type BoxData, type LabelMode, type LabelItem, type LabelsState } from './model';
 
 useSettingsStore();
 const tool = getTool('labels');
@@ -40,7 +43,6 @@ const roomy = useMediaQuery('(min-width: 600px)', true);
 const desktopSide = useResizableSidebar('labels', 380);
 const desktopProperties = useResizableSidebar('labels-properties', 276, 240, 380, 'left');
 const propertiesDocked = useMediaQuery('(min-width: 1180px)', true);
-const propertiesOpen = ref(true);
 
 const live = ref('');
 const announce = (text: string): void => { live.value = ''; void nextTick(() => { live.value = text; }); };
@@ -59,7 +61,12 @@ const codeTabs: EditorTab[] = [
   { id: 'exportar', label: 'Exportar', blurb: '', groups: [] }
 ];
 const tabs = computed<EditorTab[]>(() => state.value.mode === 'boxes'
-  ? [{ id: 'caixas', label: 'Caixas', blurb: '', groups: [] }, { id: 'exportar', label: 'Exportar', blurb: '', groups: [] }]
+  ? [
+      { id: 'caixas', label: 'Caixas', blurb: '', groups: [] },
+      { id: 'modelos', label: 'Modelos', blurb: '', groups: [] },
+      ...(!showSide.value ? [{ id: 'propriedades', label: 'Propriedades', blurb: '', groups: [] }] : []),
+      { id: 'exportar', label: 'Exportar', blurb: '', groups: [] }
+    ]
   : codeTabs);
 const tab = ref('itens');
 watch(() => state.value.mode, (mode) => { tab.value = mode === 'boxes' ? 'caixas' : 'itens'; }, { immediate: true });
@@ -84,28 +91,63 @@ const busy = ref(false);
 const progress = ref('');
 const exportMessage = ref('');
 const exportError = ref('');
-const boxPageList = computed(() => boxPages(state.value.boxes.total));
+const boxPageList = computed(() => boxPages(state.value.boxes.total, state.value.boxes.layout));
+const boxPage = ref(0);
+watch(() => boxPageList.value.length, (length) => { boxPage.value = Math.min(boxPage.value, Math.max(0, length - 1)); });
 const boxLayout = computed<LayoutInfo>(() => ({
   pageCount: boxPageList.value.length,
   labelCount: state.value.boxes.total,
   itemCount: 1,
-  rowsOnFirstPage: Math.min(4, Math.ceil(state.value.boxes.total / 2)),
+  rowsOnFirstPage: Math.min(state.value.boxes.layout.rows, Math.ceil(state.value.boxes.total / state.value.boxes.layout.cols)),
   warning: boxWarning(state.value.boxes)
 }));
 const activeLayout = computed(() => state.value.mode === 'boxes' ? boxLayout.value : layout.value);
 const blocked = computed(() => Boolean(activeLayout.value.warning) || activeLayout.value.labelCount === 0);
 const stamped = ref('Data e hora na impressão');
-const boxStamp = computed(() => state.value.boxes.timeMode === 'manual'
+const boxStamp = computed(() => !state.value.boxes.showDateTime ? '' : state.value.boxes.timeMode === 'manual'
   ? (validManual(state.value.boxes) ? manualStamp(state.value.boxes) : 'Data/hora inválida')
   : stamped.value);
 async function prepareBoxStamp(): Promise<void> {
-  if (state.value.mode !== 'boxes') return;
+  if (state.value.mode !== 'boxes' || !state.value.boxes.showDateTime) return;
   const value = await stampForPrint(state.value.boxes);
   stamped.value = value.text;
   if (value.source === 'device') announce('Horário online indisponível. Utilizei a data e a hora do dispositivo.');
 }
 
 const itemsRef = ref<InstanceType<typeof ItemsPanel>[] | InstanceType<typeof ItemsPanel> | null>(null);
+const codePreviewRef = ref<InstanceType<typeof LabelsPreview> | null>(null);
+const codePage = ref(0);
+function boxEdit(fieldName: BoxEditField, value: string): void {
+  const data = state.value.boxes;
+  const patch: Partial<BoxData> = {};
+  if (fieldName === 'destination') {
+    const parts = value.split('/').map((v) => v.trim()).filter(Boolean).slice(0, 30);
+    if (!parts.length) { announce('Informe pelo menos um destino.'); return; }
+    patch.stores = parts.map((short) => {
+      const normalized = short.toUpperCase();
+      const existing = data.stores.find((shop) => shop.short.toUpperCase() === normalized)
+        ?? shops.value.find((shop) => shop.short.toUpperCase() === normalized || shop.name.toUpperCase() === normalized);
+      return existing ? { ...existing } : { id: 'loja-' + uid(), name: short, short: normalized };
+    });
+  } else if (fieldName === 'nf') patch.nf = value.replace(/[^0-9]/g, '').slice(0, 24);
+  else if (fieldName === 'total') {
+    const quantity = Number(value);
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_BLOCKS) {
+      announce('Informe de 1 a ' + MAX_BLOCKS + ' caixas.'); return;
+    }
+    patch.total = quantity;
+  } else if (fieldName === 'person') patch.person = value.slice(0, 120);
+  else {
+    const match = /^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}:\d{2})$/.exec(value.trim());
+    if (!match) { announce('Use DD/MM/AAAA HH:MM para editar a data e hora.'); return; }
+    patch.timeMode = 'manual';
+    patch.showDateTime = true;
+    patch.manualDate = match[3] + '-' + match[2] + '-' + match[1];
+    patch.manualTime = match[4]!;
+    if (!validManual({ ...data, ...patch })) { announce('Data ou hora inválida.'); return; }
+  }
+  editor.setField('boxes', { ...data, ...patch });
+}
 const showSide = computed(() => roomy.value && wide.value);
 const showSheet = computed(() => !showSide.value && sheetOpen.value);
 
@@ -216,7 +258,7 @@ async function downloadPdf(): Promise<void> {
     if (state.value.mode === 'boxes') await prepareBoxStamp();
     await settled();
     const sheets = Array.from(document.querySelectorAll<HTMLElement>('[data-testid="print-sheet"]'));
-    const paper = PAPER[state.value.mode === 'boxes' ? 'portrait' : state.value.orientation];
+    const paper = PAPER[state.value.mode === 'boxes' ? state.value.boxes.layout.orientation : state.value.orientation];
     const result = await exportSheetsToPdf(sheets, paper.w, paper.h, state.value.name.trim() || 'Etiquetas', (done, total) => { progress.value = done < total ? 'Gerando folha ' + (done + 1) + ' de ' + total + '…' : ''; });
     downloadBytes(result.bytes, pdfFileName(state.value.name));
     exportMessage.value = 'PDF gerado com ' + result.pages + (result.pages === 1 ? ' folha.' : ' folhas.');
@@ -266,7 +308,6 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
         <button type="button" class="ib" aria-label="Desfazer" title="Desfazer (Ctrl+Z)" :disabled="!editor.canUndo.value" data-testid="undo" @click="editor.undo()"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
         <button type="button" class="ib" aria-label="Refazer" title="Refazer (Ctrl+Shift+Z)" :disabled="!editor.canRedo.value" data-testid="redo" @click="editor.redo()"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
       </div>
-      <button v-if="showSide && state.mode === 'code' && !propertiesOpen" type="button" class="btn" data-testid="show-properties" @click="propertiesOpen = true">Propriedades</button>
       <SaveStatus :state="saveState" class="status" />
     </header>
     <div v-if="!editor.loadError.value" class="project-ribbon">
@@ -297,13 +338,14 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
       <p v-if="editor.loadError.value" class="problem load" role="alert" data-testid="load-error">
         {{ editor.loadError.value }} <a :href="LAUNCHER_PATH + '#/documentos'">Voltar à biblioteca</a>
       </p>
-      <section v-if="showSide && !editor.loadError.value" class="side" aria-label="Editor de etiquetas" :style="wide ? { width: desktopSide.width.value + 'px' } : {}">
+      <section v-if="showSide && !editor.loadError.value" class="side" aria-label="Editor de etiquetas" :style="wide ? { width: (propertiesDocked ? desktopSide.width.value : 290) + 'px' } : {}">
         <div class="tabs" role="tablist" aria-label="Seções do editor" @keydown="onTabKey">
           <button v-for="t in tabs" :id="'tab-' + t.id" :key="t.id" type="button" role="tab" class="tabbtn" :aria-selected="tab === t.id" :aria-controls="'tabpanel'" :tabindex="tab === t.id ? 0 : -1" @click="tab = t.id">{{ t.label }}</button>
         </div>
         <div id="tabpanel" class="panel" role="tabpanel" :aria-labelledby="'tab-' + tab">
           <BoxPanel v-if="state.mode === 'boxes' && tab === 'caixas'" :boxes="state.boxes" :shops="shops" :document-name="state.name"
             @boxes="field('boxes', $event)" @shops="updateShops" @name="field('name', $event)" />
+          <BoxModels v-else-if="state.mode === 'boxes' && tab === 'modelos'" :boxes="state.boxes" @boxes="field('boxes', $event)" />
           <ItemsPanel v-else-if="tab === 'itens'" ref="itemsRef" :items="state.items" :active-id="surfaceItem" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @bulk="bulkOpen = true" @import="tableOpen = true" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
           <FormatPanel v-else-if="tab === 'formato'" :state="state" @field="field" />
           <PagePanel v-else-if="tab === 'pagina'" :state="state" :layout="layout" @field="field" />
@@ -319,8 +361,9 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
       </section>
 
       <div v-if="!editor.loadError.value" class="stage">
-        <LabelsPreview v-if="state.mode === 'code'" :state="state" :roomy="roomy" @layout="layout = $event" @pages="pages = $event" @edit="onSurfaceEdit" @editing="onSurfaceEditing" @undo="editor.undo()" @redo="editor.redo()" />
-        <BoxPreview v-else :boxes="state.boxes" :pages="boxPageList" :stamp="boxStamp" />
+        <LabelsPreview v-if="state.mode === 'code'" ref="codePreviewRef" :state="state" :roomy="roomy" :show-pager="!showSide" @page-change="codePage = $event"
+          @layout="layout = $event" @pages="pages = $event" @edit="onSurfaceEdit" @editing="onSurfaceEditing" @undo="editor.undo()" @redo="editor.redo()" />
+        <BoxPreview v-else :boxes="state.boxes" :pages="boxPageList" :stamp="boxStamp" :page="boxPage" @page="boxPage = $event" @edit="boxEdit" />
         <p v-if="roomy" class="summary" data-testid="summary">
           <template v-if="state.mode === 'code'">{{ layout.labelCount }} {{ layout.labelCount === 1 ? 'etiqueta' : 'etiquetas' }} · {{ layout.itemCount }} {{ layout.itemCount === 1 ? 'item' : 'itens' }}</template>
           <template v-else>{{ boxLayout.labelCount }} {{ boxLayout.labelCount === 1 ? 'caixa' : 'caixas' }} · {{ boxLayout.pageCount }} {{ boxLayout.pageCount === 1 ? 'folha' : 'folhas' }}</template>
@@ -328,10 +371,18 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
         </p>
         <p v-if="activeLayout.warning" class="warn" role="status" data-testid="layout-warning">{{ activeLayout.warning }}</p>
       </div>
-      <aside v-if="showSide && state.mode === 'code' && propertiesOpen && !editor.loadError.value" class="properties" :class="{ floating: !propertiesDocked }"
-        :style="{ width: desktopProperties.width.value + 'px' }" aria-label="Propriedades das etiquetas" data-testid="editor-inspector">
-        <div class="properties-title"><strong>Propriedades</strong><button type="button" class="ib" aria-label="Recolher propriedades" data-testid="hide-properties" @click="propertiesOpen = false"><NavIcon name="close" /></button></div>
+      <aside v-if="showSide && !editor.loadError.value" class="properties"
+        :style="{ width: (propertiesDocked ? desktopProperties.width.value : 240) + 'px' }" aria-label="Propriedades das etiquetas" data-testid="editor-inspector">
+        <div class="properties-title"><strong>Propriedades</strong></div>
         <div class="properties-body">
+          <BoxProperties v-if="state.mode === 'boxes'" :boxes="state.boxes" :page="boxPage" :page-count="boxPageList.length"
+            @page="boxPage = $event" @boxes="field('boxes', $event)" />
+          <template v-else>
+          <div class="properties-code-pager" role="group" aria-label="Folhas">
+            <button type="button" aria-label="Folha anterior" :disabled="codePage === 0" @click="codePreviewRef?.go(-1)">‹</button>
+            <span data-testid="page-indicator">Folha {{ codePage + 1 }} de {{ layout.pageCount }}</span>
+            <button type="button" aria-label="Próxima folha" :disabled="codePage + 1 >= layout.pageCount" @click="codePreviewRef?.go(1)">›</button>
+          </div>
           <p class="properties-note">{{ layout.labelCount }} etiqueta(s) · {{ layout.pageCount }} folha(s)</p>
           <label class="properties-field">Prefixo do código
             <input type="text" maxlength="30" :value="state.prefix" @input="field('prefix', ($event.target as HTMLInputElement).value)" />
@@ -356,6 +407,7 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
             <input type="number" min="0" max="25" step="1" :value="state.gap" @change="field('gap', toInt(($event.target as HTMLInputElement).value, state.gap, 0, 25))" />
           </label>
           <label class="properties-check"><input type="checkbox" :checked="state.border" @change="field('border', ($event.target as HTMLInputElement).checked)" /> Linha de corte</label>
+          </template>
         </div>
         <div v-if="propertiesDocked" class="properties-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Ajustar largura das propriedades"
           :aria-valuenow="desktopProperties.width.value" :aria-valuemin="desktopProperties.min" :aria-valuemax="desktopProperties.max" :class="{ active: desktopProperties.dragging.value }"
@@ -372,6 +424,9 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
       <BottomSheet v-if="showSheet" v-model:snap="snap" :title="tabs.find((t) => t.id === tab)?.label ?? 'Editor'" :style="{ '--chrome': '233px', ...(snap === 'full' ? { maxHeight: '85dvh' } : {}) }" @close="sheetOpen = false">
         <BoxPanel v-if="state.mode === 'boxes' && tab === 'caixas'" :boxes="state.boxes" :shops="shops" :document-name="state.name"
           @boxes="field('boxes', $event)" @shops="updateShops" @name="field('name', $event)" />
+        <BoxModels v-else-if="state.mode === 'boxes' && tab === 'modelos'" :boxes="state.boxes" @boxes="field('boxes', $event)" />
+        <BoxProperties v-else-if="state.mode === 'boxes' && tab === 'propriedades'" :boxes="state.boxes" :page="boxPage" :page-count="boxPageList.length"
+          @page="boxPage = $event" @boxes="field('boxes', $event)" />
         <ItemsPanel v-else-if="tab === 'itens'" ref="itemsRef" :items="state.items" :active-id="surfaceItem" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @bulk="bulkOpen = true" @import="tableOpen = true" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
         <FormatPanel v-else-if="tab === 'formato'" :state="state" @field="field" />
         <PagePanel v-else-if="tab === 'pagina'" :state="state" :layout="layout" @field="field" />
@@ -421,10 +476,13 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
 .cf-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .main { flex: 1; min-height: 0; display: flex; position: relative; }
 .properties { position: relative; flex: none; display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-left: 1px solid var(--border); }
-.properties.floating { position: absolute; right: 0; top: 0; bottom: 0; width: min(300px, 42vw) !important; z-index: 11; box-shadow: -12px 0 24px #0002; }
 .properties-title { display:flex; align-items:center; justify-content:space-between; min-height:48px; border-bottom:1px solid var(--border); padding:0 12px; font-size:13px; }
 .properties-body { flex:1; min-height:0; overflow-y:auto; padding:14px 12px 24px; display:grid; align-content:start; gap:14px; }
 .properties-note { font-size:12px; color:var(--muted); margin:0; }
+.properties-code-pager { display:flex; align-items:center; justify-content:space-between; gap:4px; }
+.properties-code-pager button { width:44px; height:44px; background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:9px; font-size:24px; }
+.properties-code-pager button:disabled { opacity:.35; }
+.properties-code-pager span { font-size:13px; font-weight:700; text-align:center; }
 .properties-field { display:grid; gap:6px; font-size:12px; font-weight:700; }
 .properties-field input,.properties-field select { min-width:0; width:100%; min-height:40px; border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:9px; padding:6px 10px; font-size:14px; }
 .properties-check { display:flex; align-items:center; gap:10px; font-size:13px; }

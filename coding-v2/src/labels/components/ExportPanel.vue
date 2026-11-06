@@ -7,13 +7,13 @@ const props = defineProps<{ state: LabelsState; layout: LayoutInfo; busy: boolea
 const emit = defineEmits<{ print: []; pdf: [] }>();
 const blocked = computed(() => Boolean(props.layout.warning) || props.layout.labelCount === 0);
 const sheets = computed(() => props.layout.pageCount + (props.layout.pageCount === 1 ? ' folha' : ' folhas'));
-const paper = computed(() => 'A4 ' + (props.state.mode === 'boxes' || props.state.orientation === 'portrait' ? 'retrato' : 'paisagem'));
+const paper = computed(() => 'A4 ' + ((props.state.mode === 'boxes' ? props.state.boxes.layout.orientation : props.state.orientation) === 'portrait' ? 'retrato' : 'paisagem'));
 </script>
 
 <template>
   <div class="ex" data-testid="export-panel">
     <section class="grp">
-      <h2>Saída</h2>
+      <h2>Impressão e exportação</h2>
       <p class="info" data-testid="export-info"><span class="muted">Resultado</span> <strong>{{ blocked ? 'indisponível' : sheets + ' · ' + paper }}</strong></p>
       <p v-if="blocked" class="warn" data-testid="export-blocked">{{ layout.warning || 'Preencha ao menos um item para imprimir.' }}</p>
       <div class="buttons">

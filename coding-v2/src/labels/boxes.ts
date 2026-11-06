@@ -1,6 +1,6 @@
 import {
   DEFAULT_BOX_SHOPS, MAX_BLOCKS, normalizeShop,
-  type BoxData, type BoxShop
+  type BoxData, type BoxPrintLayout, type BoxShop
 } from './model';
 
 /** O cadastro das lojas é local. Os documentos preservam cópias das lojas selecionadas. */
@@ -27,11 +27,12 @@ export function saveShops(shops: readonly BoxShop[], store: Pick<Storage, 'setIt
   catch { return false; }
 }
 export function shopHeading(boxes: BoxData): string { return boxes.stores.map((s) => s.short.toUpperCase()).join(' / '); }
-export function boxPages(total: number): number[][] {
+export function boxPages(total: number, layout?: Pick<BoxPrintLayout, 'cols' | 'rows'>): number[][] {
+  const perPage = layout ? Math.max(1, Math.min(24, Math.floor(layout.cols) * Math.floor(layout.rows))) : BOXES_PER_SHEET;
   const count = Math.max(1, Math.min(MAX_BLOCKS, Math.floor(total)));
-  return Array.from({ length: Math.ceil(count / BOXES_PER_SHEET) }, (_, page) => {
-    const start = page * BOXES_PER_SHEET + 1;
-    return Array.from({ length: Math.min(BOXES_PER_SHEET, count - start + 1) }, (_, i) => start + i);
+  return Array.from({ length: Math.ceil(count / perPage) }, (_, page) => {
+    const start = page * perPage + 1;
+    return Array.from({ length: Math.min(perPage, count - start + 1) }, (_, i) => start + i);
   });
 }
 export function validManual(boxes: BoxData): boolean {
@@ -45,7 +46,7 @@ export function boxWarning(boxes: BoxData): string {
   if (!/^\d{1,24}$/.test(boxes.nf)) return 'A NF deve conter somente números.';
   if (!boxes.person.trim()) return 'Informe o nome.';
   if (!Number.isInteger(boxes.total) || boxes.total < 1 || boxes.total > MAX_BLOCKS) return 'Informe entre 1 e ' + MAX_BLOCKS + ' caixas.';
-  if (boxes.timeMode === 'manual' && !validManual(boxes)) return 'Informe uma data e hora manuais válidas.';
+  if (boxes.showDateTime && boxes.timeMode === 'manual' && !validManual(boxes)) return 'Informe uma data e hora manuais válidas.';
   return '';
 }
 export function brasiliaStamp(date: Date): string {

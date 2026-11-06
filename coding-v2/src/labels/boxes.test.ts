@@ -30,9 +30,13 @@ describe('Caixas · cadastro, páginas e validação', () => {
     expect(boxPages(2)).toEqual([[1, 2]]);
     expect(boxPages(9)).toEqual([[1,2,3,4,5,6,7,8], [9]]);
     expect(boxPages(17)).toHaveLength(3);
+    expect(boxPages(5, { cols: 1, rows: 1 })).toEqual([[1], [2], [3], [4], [5]]);
+    expect(boxPages(12, { cols: 2, rows: 3 })).toHaveLength(2);
   });
   it('bloqueia dados incompletos e aceita modo manual válido', () => {
     expect(boxWarning(defaultBoxes())).toBe('');
+    expect(defaultBoxes().showDateTime).toBe(false);
+    expect(defaultBoxes().layout).toMatchObject({ cols: 2, rows: 4, cutLines: true, orientation: 'portrait' });
     expect(boxWarning({ ...defaultBoxes(), nf: '123X' })).toContain('somente números');
     expect(boxWarning({ ...defaultBoxes(), stores: [] })).toContain('loja');
     const manual = { ...defaultBoxes(), timeMode: 'manual' as const, manualDate: '2026-11-06', manualTime: '19:00' };

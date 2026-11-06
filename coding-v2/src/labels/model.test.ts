@@ -42,7 +42,7 @@ describe('modelo de Etiquetas (Código compatível e Caixas)', () => {
   });
   it('modo Caixas começa com Cariacica / Vila Velha, NF 10000 e 2 caixas', () => {
     const data = defaults();
-    expect(data).toMatchObject({ mode: 'code', boxes: { nf: '10000', total: 2, person: 'Seu Nome', timeMode: 'auto' } });
+    expect(data).toMatchObject({ mode: 'code', boxes: { nf: '10000', total: 2, person: 'Seu Nome', showDateTime: false, timeMode: 'auto' } });
     expect(data.boxes.stores.map((s) => s.short)).toEqual(['CARIACICA', 'VILA VELHA']);
   });
   it('normaliza dados de caixas sem aceitar letras na NF', () => {
@@ -51,6 +51,8 @@ describe('modelo de Etiquetas (Código compatível e Caixas)', () => {
     expect(n.boxes.nf).toBe('1029');
     expect(n.boxes.total).toBe(5);
     expect(n.boxes.timeMode).toBe('manual');
+    expect(n.boxes.showDateTime).toBe(true); // documento anterior à configuração opcional
+    expect(n.boxes.layout).toMatchObject({ cols: 2, rows: 4, cutLines: true });
   });
   it('é idempotente', () => {
     const once = normalize({ name: 'N', items: [{ code: 'x', copies: 2 }], cols: 2 });

@@ -7,14 +7,14 @@ import { MARGIN_X_MM, MARGIN_Y_MM, MAX_BLOCKS, PAPER, activeItems, hasContent, t
 import { paginate, type Pagination } from '../paginate';
 import { leftOnPurpose, markIntentionalLeave, placeCaret } from '../../editors/surface/text';
 
-const props = defineProps<{ state: LabelsState; roomy: boolean }>();
+const props = defineProps<{ state: LabelsState; roomy: boolean; showPager?: boolean }>();
 const emit = defineEmits<{
   layout: [info: LayoutInfo]; pages: [pages: number[][][]];
   /** Edição direta: o campo do item mudou na folha. O app guarda, desfaz e salva como se fosse digitado no painel. */
   edit: [id: string, field: 'code' | 'description', value: string];
   /** Item cujo campo está em edição na folha (`null` quando a edição termina). */
   editing: [id: string | null];
-  undo: []; redo: [];
+  undo: []; redo: []; pageChange: [page: number];
 }>();
 export interface LayoutInfo { pageCount: number; labelCount: number; itemCount: number; rowsOnFirstPage: number; warning: string }
 
@@ -161,7 +161,7 @@ function updateScale(): void {
   areaSize.value = { w: el.clientWidth, h: el.clientHeight };
   const fitW = Math.max(180, el.clientWidth - pad * 2) / nw;
   const fitH = Math.max(180, el.clientHeight - pad * 2) / nh;
-  scale.value = Math.min(1.8, props.roomy ? Math.min(fitW, fitH) : fitW) * zoom.value;
+  scale.value = Math.min(1.8, Math.min(fitW, fitH)) * zoom.value;
   naturalSize.value = { w: nw, h: nh };
 }
 const naturalSize = ref({ w: 210 * FALLBACK_PX_PER_MM, h: 297 * FALLBACK_PX_PER_MM });
@@ -175,6 +175,7 @@ onMounted(() => {
 });
 onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(raf); });
 
+watch(currentPage, (page) => emit('pageChange', page));
 const wideStack = computed(() => props.roomy);
 const visiblePages = computed(() => view.value.filter((p) => wideStack.value || p.index === currentPage.value));
 function go(delta: number): void {
@@ -206,13 +207,14 @@ defineExpose({ go });
       </div>
     </div>
     <div class="bar">
-      <div class="pager" role="group" aria-label="Folhas">
+      <div v-if="showPager !== false" class="pager" role="group" aria-label="Folhas">
         <button type="button" class="pb" aria-label="Folha anterior" :disabled="currentPage === 0" @click="go(-1)"><NavIcon name="chevron-up" /></button>
         <span class="pi" data-testid="page-indicator">Folha {{ currentPage + 1 }} de {{ pageCount }}</span>
         <button type="button" class="pb" aria-label="Próxima folha" :disabled="currentPage >= pageCount - 1" @click="go(1)"><NavIcon name="chevron-down" /></button>
       </div>
       <button v-if="editing" type="button" class="done" data-testid="finish-edit" @pointerdown.prevent @click="finishEdit">Concluir edição</button>
       <ZoomControl v-model="zoom" />
+      <button type="button" class="done" aria-label="Ajustar folha inteira" data-testid="code-fit" @click="zoom = 1">Ajustar</button>
     </div>
     <p :id="HELP_ID" class="sr-only">Você pode editar o código e a descrição direto na etiqueta. Em campos de uma linha, Enter confirma; na descrição, Enter quebra a linha e Ctrl+Enter confirma. Esc cancela a edição. Ctrl+Z desfaz.</p>
     <!-- Área de medição: fora da tela, com a largura real de uma coluna. -->

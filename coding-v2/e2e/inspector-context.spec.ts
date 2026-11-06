@@ -43,9 +43,12 @@ test.describe('Painéis de propriedades e menu contextual', () => {
     await input.fill('28');
     await input.blur();
     await expect(input).toHaveValue('28');
-    await page.getByTestId('hide-properties').click();
-    await expect(inspector).toHaveCount(0);
-    await page.getByTestId('show-properties').click();
+    await expect(page.getByTestId('hide-properties')).toHaveCount(0);
+    await expect(page.getByTestId('show-properties')).toHaveCount(0);
+    await page.getByTestId('mode-boxes').click();
+    await expect(inspector).toBeVisible();
+    await expect(inspector.getByTestId('box-cut-lines')).toBeChecked();
+    await page.getByTestId('mode-code').click();
     await expect(inspector).toBeVisible();
   });
 
