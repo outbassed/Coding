@@ -15,6 +15,21 @@ import type { VersionRecord } from './versions';
  */
 export const versionRecords: readonly VersionRecord[] = [
   {
+    target: 'labels', version: '1.3.0', build: '06.11.26.193700', releaseDate: '2026-11-06', releaseTime: '19:37:00',
+    novidades: [
+      'Data e hora em Caixas agora são opcionais e vêm desativadas por padrão; ao ativar, começa em Automático e permite mudar para Manual.',
+      'Novos modelos de Caixas: etiqueta gigante, uma coluna, quatro, seis e oito por folha, além de colunas e linhas personalizadas.',
+      'Propriedades de Caixas: tamanho individual de destino, NF, quantidade, nome e data/hora, fontes, negrito, alinhamento, margens, espaçamento e linha de corte opcional.',
+      'Edição direta na prévia do destino, NF, quantidade, nome e data/hora, com numeração do lote preservada e salvamento automático.',
+      'Propriedades fixas à direita no computador, sem botão X. Paginação movida para Propriedades, prévia ampliada e zoom com ajuste à folha.'
+    ],
+    melhorias: [
+      'PDF e impressão usam exatamente o mesmo modelo, orientação A4 e configurações de texto da prévia.',
+      'O modo Código preserva seu editor e ganha navegação de folhas pelas Propriedades no computador.',
+      'Documentos anteriores preservam a presença de data/hora ao serem reabertos; novos documentos começam com a informação oculta.'
+    ]
+  },
+  {
     target: 'labels', version: '1.2.0', build: '06.11.26.190020', releaseDate: '2026-11-06', releaseTime: '19:00:20',
     novidades: [
       'Novo seletor Código / Caixas dentro do Etiquetas, mantendo o modo Código original e permitindo salvar e reabrir documentos em ambos os modos.',

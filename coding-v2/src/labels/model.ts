@@ -25,9 +25,48 @@ export const MARGIN_Y_MM = 15;
 export interface LabelItem { id: string; code: string; description: string; copies: number }
 export type LabelMode = 'code' | 'boxes';
 export interface BoxShop { id: string; name: string; short: string }
+export interface BoxPrintLayout {
+  cols: number; rows: number; orientation: Orientation;
+  gapMm: number; marginMm: number; cutLines: boolean;
+  font: string; destSize: number; nfSize: number; boxesSize: number; nameSize: number; dateSize: number;
+  destAlign: Align; infoAlign: Align; dateAlign: Align;
+  destBold: boolean; infoBold: boolean;
+}
+export function defaultBoxLayout(): BoxPrintLayout {
+  return {
+    cols: 2, rows: 4, orientation: 'portrait', gapMm: 2.5, marginMm: 7, cutLines: true,
+    font: 'Arial', destSize: 17, nfSize: 12, boxesSize: 12, nameSize: 12, dateSize: 9,
+    destAlign: 'center', infoAlign: 'left', dateAlign: 'center', destBold: true, infoBold: true
+  };
+}
+export function normalizeBoxLayout(raw: unknown): BoxPrintLayout {
+  const base = defaultBoxLayout();
+  const s = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
+  return {
+    cols: toInt(s.cols, base.cols, 1, 3), rows: toInt(s.rows, base.rows, 1, 8),
+    orientation: s.orientation === 'landscape' ? 'landscape' : 'portrait',
+    gapMm: toInt(s.gapMm, base.gapMm, 0, 25),
+    marginMm: toInt(s.marginMm, base.marginMm, 0, 20),
+    cutLines: toBool(s.cutLines, base.cutLines),
+    font: toFont(s.font, base.font),
+    destSize: toInt(s.destSize, base.destSize, 8, 96),
+    nfSize: toInt(s.nfSize, base.nfSize, 8, 96),
+    boxesSize: toInt(s.boxesSize, base.boxesSize, 8, 96),
+    nameSize: toInt(s.nameSize, base.nameSize, 8, 96),
+    dateSize: toInt(s.dateSize, base.dateSize, 8, 96),
+    destAlign: toAlign(s.destAlign, base.destAlign),
+    infoAlign: toAlign(s.infoAlign, base.infoAlign),
+    dateAlign: toAlign(s.dateAlign, base.dateAlign),
+    destBold: toBool(s.destBold, base.destBold),
+    infoBold: toBool(s.infoBold, base.infoBold)
+  };
+}
 export interface BoxData {
   stores: BoxShop[]; nf: string; total: number; person: string;
+  /** Opcional: em novos documentos começa oculto; documentos antigos preservam a exibição. */
+  showDateTime: boolean;
   timeMode: 'auto' | 'manual'; manualDate: string; manualTime: string;
+  layout: BoxPrintLayout;
 }
 export const DEFAULT_BOX_SHOPS: readonly BoxShop[] = [
   { id: 'vila-velha', name: 'Vila Velha', short: 'VILA VELHA' },
@@ -41,7 +80,7 @@ export function defaultBoxes(): BoxData {
   return {
     stores: [DEFAULT_BOX_SHOPS[1]!, DEFAULT_BOX_SHOPS[0]!].map((shop) => ({ ...shop })),
     nf: '10000', total: 2, person: 'Seu Nome',
-    timeMode: 'auto', manualDate: '', manualTime: ''
+    showDateTime: false, timeMode: 'auto', manualDate: '', manualTime: '', layout: defaultBoxLayout()
   };
 }
 export function normalizeShop(input: unknown): BoxShop | null {
@@ -65,6 +104,8 @@ export function normalizeBoxes(raw: unknown): BoxData {
     nf: toText(s.nf, base.nf, 24).replace(/[^0-9]/g, ''),
     total: toInt(s.total, base.total, 1, MAX_BLOCKS),
     person: toText(s.person, base.person, 120),
+    showDateTime: typeof s.showDateTime === 'boolean' ? s.showDateTime : ('nf' in s ? true : base.showDateTime),
+    layout: normalizeBoxLayout(s.layout),
     timeMode: s.timeMode === 'manual' ? 'manual' : 'auto',
     manualDate: toText(s.manualDate, '', 10),
     manualTime: toText(s.manualTime, '', 5)
