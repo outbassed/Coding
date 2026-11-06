@@ -1,6 +1,6 @@
 import { test, expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
 
-/* Retomada inteligente no celular: 20 minutos desde a última atividade real, só em celulares, sem passar por cima de links diretos. */
+/* Retomada da última tela, sem prazo, em qualquer aparelho; links explícitos têm prioridade. */
 const PHONE = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } as const;
 const MIN = 60_000;
 const T0 = new Date('2026-11-05T12:00:00-03:00');
@@ -49,7 +49,7 @@ async function leave(page: Page): Promise<void> {
   await page.close();
 }
 
-test.describe('Retomada no celular', () => {
+test.describe('Retomada no celular sem prazo', () => {
   for (const [route, hash, title] of [
     ['/launcher/#/catalogo', '#/catalogo', 'Catálogo'],
     ['/launcher/#/meus-apps', '#/meus-apps', 'Meus apps'],
@@ -99,8 +99,8 @@ test.describe('Retomada no celular', () => {
     await context.close();
   });
 
-  for (const minutes of [1, 5, 19]) {
-    test('retoma ' + minutes + ' min depois da última atividade', async ({ browser }) => {
+  for (const minutes of [1, 20, 24 * 60, 60 * 24 * 60]) {
+    test('retoma após ' + minutes + ' minutos sem atividade', async ({ browser }) => {
       const context = await phone(browser, true);
       const first = await visit(context, '/launcher/#/catalogo');
       await expect.poll(async () => (await record(first))?.here).toBe('/launcher/#/catalogo');
@@ -113,50 +113,41 @@ test.describe('Retomada no celular', () => {
     });
   }
 
-  test('aos 20 min expira: abre no Início e não apaga nada', async ({ browser }) => {
+  test('meses depois ainda abre a última tela e mantém as preferências', async ({ browser }) => {
     const context = await phone(browser, true);
     const marker = await context.newPage();
     await marker.goto('/brand/icon.svg');
-    await marker.evaluate(() => { localStorage.setItem('coding-v2-theme', 'dark'); localStorage.setItem('coding-v2-marcador', 'fica'); localStorage.setItem('coding-v2-marcador-2', '{"a":[1,2]}'); });
+    await marker.evaluate(() => {
+      localStorage.setItem('coding-v2-theme', 'dark');
+      localStorage.setItem('coding-v2-marcador', 'fica');
+      localStorage.setItem('coding-v2-marcador-2', '{"a":[1,2]}');
+    });
     await marker.close();
     const first = await visit(context, '/launcher/#/catalogo');
     await expect.poll(async () => (await record(first))?.here).toBe('/launcher/#/catalogo');
     await leave(first);
-    await context.clock.fastForward(20 * MIN);
+    await context.clock.fastForward(60 * 24 * 60 * MIN);
     const second = await context.newPage();
     await second.goto('/');
-    await expect(second).toHaveURL(/\/launcher\/#\/$/);
-    expect(await second.evaluate(() => [localStorage.getItem('coding-v2-theme'), localStorage.getItem('coding-v2-marcador'), localStorage.getItem('coding-v2-marcador-2')])).toEqual(['dark', 'fica', '{"a":[1,2]}']);
-    // a sessão vencida não deixa origem antiga para trás
-    expect((await record(second))?.origin).toBeNull();
+    await expect(second).toHaveURL(/\/launcher\/#\/catalogo$/);
+    expect(await second.evaluate(() => [
+      localStorage.getItem('coding-v2-theme'),
+      localStorage.getItem('coding-v2-marcador'),
+      localStorage.getItem('coding-v2-marcador-2')
+    ])).toEqual(['dark', 'fica', '{"a":[1,2]}']);
     await context.close();
   });
 
-  test('o prazo conta a partir da última atividade, não da abertura', async ({ browser }) => {
+  test('mesmo sem qualquer interação recente, a última tela permanece salva', async ({ browser }) => {
     const context = await phone(browser, true);
     const first = await visit(context, '/launcher/#/catalogo');
-    await expect.poll(async () => (await record(first))?.here).toBe('/launcher/#/catalogo'); // o Launcher já está acompanhando
-    await context.clock.fastForward(15 * MIN);
-    await first.mouse.wheel(0, 40); // atividade real (rolagem) aos 15 min
-    // A gravação pode esperar até 15 s (controle de escrita), mas o fechamento sempre grava a última atividade real.
+    await expect.poll(async () => (await record(first))?.here).toBe('/launcher/#/catalogo');
     await leave(first);
-    await context.clock.fastForward(19 * MIN); // 34 min desde a abertura, 19 desde a última atividade
+    await context.clock.fastForward(45 * 24 * 60 * MIN);
     const second = await context.newPage();
     await second.goto('/');
     await expect(second).toHaveURL(/\/launcher\/#\/catalogo$/);
     await context.close();
-
-    const other = await phone(browser, true);
-    const a = await visit(other, '/launcher/#/catalogo');
-    await expect.poll(async () => (await record(a))?.here).toBe('/launcher/#/catalogo');
-    await other.clock.fastForward(15 * MIN);
-    await a.mouse.wheel(0, 40);
-    await leave(a);
-    await other.clock.fastForward(20 * MIN);
-    const b = await other.newPage();
-    await b.goto('/');
-    await expect(b).toHaveURL(/\/launcher\/#\/$/);
-    await other.close();
   });
 
   test('links diretos mandam: a retomada não passa por cima deles', async ({ browser }) => {
@@ -232,7 +223,7 @@ test.describe('Retomada no celular', () => {
     await context.close();
   });
 
-  test('a origem sobrevive à retomada dentro dos 20 min', async ({ browser }) => {
+  test('a origem recente também sobrevive à retomada', async ({ browser }) => {
     const context = await phone(browser);
     await seed(context, { v: 1, at: Date.now(), here: '/apps/zip/', origin: '/launcher/#/catalogo' });
     const page = await context.newPage();
@@ -244,21 +235,41 @@ test.describe('Retomada no celular', () => {
   });
 });
 
-test.describe('Fora do celular não há retomada automática', () => {
-  test('computador (desktop)', async ({ browser }) => {
+test.describe('Retomada no computador e tablet', () => {
+  test('computador (desktop) retoma o Catálogo', async ({ browser }) => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, baseURL: test.info().project.use.baseURL });
     await seed(context, { v: 1, at: Date.now(), here: '/launcher/#/catalogo', origin: null });
     const page = await context.newPage();
     await page.goto('/');
-    await expect(page).toHaveURL(/\/launcher\/#\/$/);
+    await expect(page).toHaveURL(/\/launcher\/#\/catalogo$/);
     await context.close();
   });
-  test('tablet com toque', async ({ browser }) => {
+  test('tablet com toque retoma o Catálogo', async ({ browser }) => {
     const context = await browser.newContext({ viewport: { width: 820, height: 1180 }, isMobile: true, hasTouch: true, baseURL: test.info().project.use.baseURL });
     await seed(context, { v: 1, at: Date.now(), here: '/launcher/#/catalogo', origin: null });
     const page = await context.newPage();
     await page.goto('/');
-    await expect(page).toHaveURL(/\/launcher\/#\/$/);
+    await expect(page).toHaveURL(/\/launcher\/#\/catalogo$/);
     await context.close();
   });
+  test('computador: após semanas retoma o mesmo documento sem duplicar', async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, baseURL: test.info().project.use.baseURL });
+    await context.clock.install({ time: T0 });
+    const first = await visit(context, '/apps/visualizador/');
+    await first.getByTestId('viewer-input').setInputFiles({ name: 'nota.txt', mimeType: 'text/plain', buffer: Buffer.from('arquivo desktop') });
+    await expect(first.getByTestId('save-status')).toHaveText('Salvo neste aparelho', { timeout: 10000 });
+    await expect(first).toHaveURL(/\?doc=/);
+    const url = first.url();
+    const before = await countCopies(first);
+    await expect.poll(async () => (await record(first))?.here).toContain('?doc=');
+    await leave(first);
+    await context.clock.fastForward(30 * 24 * 60 * MIN);
+    const second = await context.newPage();
+    await second.goto('/');
+    await expect(second).toHaveURL(url);
+    await expect(second.locator('body')).toContainText('arquivo desktop');
+    expect(await countCopies(second)).toBe(before);
+    await context.close();
+  });
+
 });

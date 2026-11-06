@@ -15,6 +15,17 @@ import type { VersionRecord } from './versions';
  */
 export const versionRecords: readonly VersionRecord[] = [
   {
+    target: 'launcher', version: '2.3.2', build: '06.11.26.140700', releaseDate: '2026-11-06', releaseTime: '14:07:00',
+    melhorias: [
+      'Ao abrir o Coding pela entrada principal, volta automaticamente à última tela ou aplicativo acessado, tanto no computador quanto no celular e tablet, sem limite de tempo.',
+      'Se havia um documento aberto, tenta reabrir exatamente o mesmo documento, sem criar cópias. Links diretos e navegação intencional continuam tendo prioridade.'
+    ],
+    alteracoesTecnicas: [
+      'A retomada reaproveita o registro local existente, sem alterar dados de documentos ou preferências. O limite de 20 minutos permanece somente para a origem do botão Voltar; não afeta a tela retomada.',
+      'A memória é local de cada navegador e dispositivo, sem sincronização entre PC e celular.'
+    ]
+  },
+  {
     target: 'launcher', version: '2.3.1', build: '05.11.26.182539', releaseDate: '2026-11-05', releaseTime: '18:25:39',
     correcoes: [
       'Ícone do aplicativo instalado: as páginas do Coding agora declaram o manifesto de instalação, e o manifesto voltou a usar o mesmo identificador (id) do Coding anterior. Assim o navegador consegue reconhecer o app já instalado e atualizar o nome e o ícone para a nova logo, no ritmo que o próprio navegador decide.'

@@ -12,7 +12,7 @@ import './styles/tokens.css';
 import './styles/base.css';
 
 async function start(): Promise<void> {
-  // No celular, reabrir em até 20 min da última atividade volta para onde a pessoa estava (veja shared/navMemory.ts).
+  // Em PC e celular, abrir sem rota explícita retoma a última tela sem prazo (veja shared/navMemory.ts).
   if (await resumeAtStartup()) return;
   const pinia = createPinia();
   void refreshRecommendation();

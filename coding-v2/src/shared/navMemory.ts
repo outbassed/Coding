@@ -7,8 +7,8 @@ import { LAUNCHER_PATH } from './links';
  * Guarda, em UM registro pequeno no localStorage, três coisas: `at` (a última atividade real), `here` (a tela ou o
  * aplicativo em uso, com o id do documento) e `origin` (a tela do Launcher de onde um aplicativo foi aberto).
  * Serve a duas funções:
- *  - Retomada (só celular): se o navegador ou o PWA for fechado e reaberto em menos de 20 min da última atividade,
- *    o Launcher volta para `here`; passado esse tempo abre normalmente no Início.
+ *  - Retomada (computador, tablet e celular): ao reabrir pela entrada principal sem rota explícita, o Launcher
+ *    volta para `here` independentemente do tempo decorrido (enquanto o armazenamento local existir).
  *  - Voltar à origem: o link "Início" dos aplicativos leva de volta à tela do Launcher de onde vieram.
  *
  * Nunca guarda conteúdo, nunca apaga documentos, favoritos, histórico nem configurações, e só aceita endereços internos
@@ -81,7 +81,7 @@ export const sessionStore = (): Store | null => safe(() => sessionStorage);
 export function readRecord(store: Store | null = localStore()): NavRecord | null {
   try { return parseRecord(store?.getItem(NAV_KEY) ?? null); } catch { return null; }
 }
-/** Registro só se ainda estiver dentro dos 20 min. */
+/** Registro recente usado SOMENTE para recuperar a origem do botão Voltar (não limita a retomada). */
 export function readFresh(now: number, store: Store | null = localStore()): NavRecord | null {
   const rec = readRecord(store);
   return rec && isFresh(rec.at, now) ? rec : null;
@@ -89,41 +89,30 @@ export function readFresh(now: number, store: Store | null = localStore()): NavR
 
 /**
  * Registra atividade em `now` e, se pedido, troca `here` e/ou `origin`. Se o registro anterior já tinha vencido, ele é
- * descartado por inteiro (inclusive a origem antiga) e recomeça agora.
+ * mantém `here` mesmo após longa inatividade; somente a origem de navegação antiga vence em 20 min.
  */
 export function touch(now: number, patch: { here?: string | null; origin?: string | null } = {}, store: Store | null = localStore()): void {
   if (!store) return;
   try {
     const cur = readRecord(store);
-    const base: NavRecord = cur && isFresh(cur.at, now) ? cur : { at: now, here: null, origin: null };
+    const base: NavRecord = cur ? { ...cur, origin: isFresh(cur.at, now) ? cur.origin : null } : { at: now, here: null, origin: null };
     const here = patch.here !== undefined ? (patch.here === null ? null : normalizeTarget(patch.here)?.url ?? base.here) : base.here;
     const origin = patch.origin !== undefined ? launcherTarget(patch.origin) : base.origin;
     store.setItem(NAV_KEY, JSON.stringify({ v: 1, at: now, here, origin }));
   } catch { /* armazenamento indisponível ou cheio: a navegação segue sem memória */ }
 }
 
-// --------------------------------------------------------------------------------------------- retomada (celular)
-/** Celular: toque como ponteiro principal e tela pequena. Tablets e computadores não retomam. */
-export function isPhone(win: { matchMedia?: Window['matchMedia']; screen?: { width: number; height: number } } = window): boolean {
-  try {
-    const coarse = !!win.matchMedia?.('(pointer: coarse)').matches;
-    const small = !!win.screen && Math.min(win.screen.width, win.screen.height) < 768;
-    return coarse && small;
-  } catch { return false; }
-}
-
+// --------------------------------------------------------------------------------------------- retomada (todos os dispositivos)
 export interface ResumeContext {
-  now: number;
-  phone: boolean;
-  /** Entrada "fria": o navegador/PWA acabou de abrir, sem link, recarga nem navegação interna. */
+  /** Entrada fria: navegador/PWA aberto pela entrada principal, não recarga ou navegação interna. */
   coldEntry: boolean;
-  /** O endereço aberto foi pedido explicitamente (tem rota no hash ou parâmetros)? Então ele manda. */
+  /** Hash ou parâmetros pedidos explicitamente têm prioridade sobre a memória. */
   explicit: boolean;
 }
 
-/** Para onde retomar, ou `null` para abrir normalmente no Início. */
+/** Retoma a última tela sem prazo, apenas na entrada principal não explícita. */
 export function decideResume(rec: NavRecord | null, ctx: ResumeContext): string | null {
-  if (!ctx.phone || !ctx.coldEntry || ctx.explicit || !rec || !isFresh(rec.at, ctx.now) || !rec.here) return null;
+  if (!ctx.coldEntry || ctx.explicit || !rec?.here) return null;
   const t = normalizeTarget(rec.here);
   if (!t) return null;
   if (t.kind === 'launcher' && t.url === LAUNCHER_PATH + '#/') return null; // já é onde abre

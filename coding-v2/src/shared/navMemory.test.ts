@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  NAV_KEY, SESSION_TTL_MS, decideResume, isBackToLauncher, isColdEntry, isFresh, isPhone, launcherTarget, normalizeTarget, originLabel,
+  NAV_KEY, decideResume, isBackToLauncher, isColdEntry, isFresh, launcherTarget, normalizeTarget, originLabel,
   parseRecord, readFresh, resolveOrigin, touch, type NavRecord
 } from './navMemory';
 import { tools } from './catalog';
@@ -39,7 +39,7 @@ describe('normalizeTarget · lista fechada de endereços internos', () => {
   });
 });
 
-describe('registro · 20 minutos de inatividade', () => {
+describe('registro · retomada permanente e validade da origem', () => {
   it('vale em 1, 5 e 19 minutos e vence aos 20', () => {
     for (const m of [0, 1, 5, 19]) expect(isFresh(T0, T0 + m * MIN), m + ' min').toBe(true);
     expect(isFresh(T0, T0 + 19 * MIN + 59_999)).toBe(true);
@@ -71,11 +71,17 @@ describe('registro · 20 minutos de inatividade', () => {
     expect(readFresh(T0 + 30 * MIN, store)).not.toBeNull(); // 15 min depois da última atividade
     expect(readFresh(T0 + 36 * MIN, store)).toBeNull();
   });
-  it('registro vencido é descartado por inteiro, inclusive a origem antiga', () => {
+  it('passados 20 min só a origem antiga vence, não a última tela', () => {
     const store = new MemoryStore();
     touch(T0, { here: '/apps/texto/', origin: '/launcher/#/catalogo' }, store);
     touch(T0 + 25 * MIN, { here: '/launcher/#/' }, store);
     expect(readFresh(T0 + 25 * MIN, store)).toEqual({ at: T0 + 25 * MIN, here: '/launcher/#/', origin: null });
+  });
+  it('preserva a última tela depois de meses mesmo sem patch de endereço', () => {
+    const store = new MemoryStore();
+    touch(T0, { here: '/apps/texto/?doc=d1', origin: '/launcher/#/catalogo' }, store);
+    touch(T0 + 90 * 24 * 60 * MIN, {}, store);
+    expect(parseRecord(store.getItem(NAV_KEY))).toEqual({ at: T0 + 90 * 24 * 60 * MIN, here: '/apps/texto/?doc=d1', origin: null });
   });
   it('endereço inválido nunca é gravado e armazenamento quebrado não derruba nada', () => {
     const store = new MemoryStore();
@@ -88,47 +94,37 @@ describe('registro · 20 minutos de inatividade', () => {
   });
 });
 
-describe('decideResume · retomada no celular', () => {
+describe('decideResume · última tela em qualquer dispositivo e sem prazo', () => {
   const rec = (here: string | null, at = T0): NavRecord => ({ at, here, origin: null });
-  const ctx = (extra: Partial<Parameters<typeof decideResume>[1]> = {}) => ({ now: T0 + 5 * MIN, phone: true, coldEntry: true, explicit: false, ...extra });
-  it('volta ao aplicativo, ao documento e às telas do Launcher', () => {
-    expect(decideResume(rec('/apps/etiquetas/?doc=d1'), ctx())).toBe('/apps/etiquetas/?doc=d1');
-    expect(decideResume(rec('/launcher/#/catalogo'), ctx())).toBe('/launcher/#/catalogo');
-    expect(decideResume(rec('/launcher/#/meus-apps'), ctx())).toBe('/launcher/#/meus-apps');
-    expect(decideResume(rec('/launcher/#/app/viewer'), ctx())).toBe('/launcher/#/app/viewer');
+  const ctx = (extra: Partial<Parameters<typeof decideResume>[1]> = {}) => ({ coldEntry: true, explicit: false, ...extra });
+  it('volta ao app, ao documento e às telas do Launcher', () => {
+    for (const here of ['/apps/etiquetas/?doc=d1', '/launcher/#/catalogo', '/launcher/#/meus-apps', '/launcher/#/app/viewer']) {
+      expect(decideResume(rec(here), ctx())).toBe(here);
+    }
   });
-  it('só em celular, entrada fria e sem endereço pedido', () => {
+  it('não há limite de tempo nem dependência de detecção de celular', () => {
+    expect(decideResume(rec('/apps/zip/', T0 - 365 * 24 * 60 * MIN), ctx())).toBe('/apps/zip/');
+    expect(decideResume(rec('/launcher/#/catalogo', T0 + 30 * 24 * 60 * MIN), ctx())).toBe('/launcher/#/catalogo');
+  });
+  it('só retoma em entrada fria sem link explícito', () => {
     const r = rec('/apps/etiquetas/?doc=d1');
-    expect(decideResume(r, ctx({ phone: false }))).toBeNull();
     expect(decideResume(r, ctx({ coldEntry: false }))).toBeNull();
     expect(decideResume(r, ctx({ explicit: true }))).toBeNull();
   });
-  it('1, 5 e 19 minutos retomam; 20 não', () => {
-    for (const m of [1, 5, 19]) expect(decideResume(rec('/apps/zip/'), ctx({ now: T0 + m * MIN })), m + ' min').toBe('/apps/zip/');
-    expect(decideResume(rec('/apps/zip/'), ctx({ now: T0 + SESSION_TTL_MS }))).toBeNull();
-  });
-  it('sem registro, sem tela, no Início ou com endereço inválido abre normalmente', () => {
+  it('sem registro, no Início ou com endereço inválido abre normalmente', () => {
     expect(decideResume(null, ctx())).toBeNull();
     expect(decideResume(rec(null), ctx())).toBeNull();
     expect(decideResume(rec('/launcher/#/'), ctx())).toBeNull();
     expect(decideResume({ at: T0, here: 'https://evil.example/', origin: null }, ctx())).toBeNull();
   });
-  it('isColdEntry: só navegação nova, sem página anterior (ou vinda da tela de abertura)', () => {
+  it('isColdEntry: navegação nova sem origem (ou vinda da tela de abertura)', () => {
     expect(isColdEntry('navigate', '')).toBe(true);
     expect(isColdEntry(undefined, '')).toBe(true);
     expect(isColdEntry('navigate', location.origin + '/')).toBe(true);
     expect(isColdEntry('reload', '')).toBe(false);
     expect(isColdEntry('back_forward', '')).toBe(false);
-    expect(isColdEntry('navigate', location.origin + '/apps/texto/')).toBe(false); // clicou em "Início" dentro de um app
+    expect(isColdEntry('navigate', location.origin + '/apps/texto/')).toBe(false);
     expect(isColdEntry('navigate', 'https://outro.site/')).toBe(false);
-  });
-  it('isPhone exige toque e tela pequena', () => {
-    const win = (coarse: boolean, w: number, h: number) => ({ matchMedia: ((q: string) => ({ matches: coarse && q.includes('coarse') })) as unknown as Window['matchMedia'], screen: { width: w, height: h } });
-    expect(isPhone(win(true, 390, 844))).toBe(true);
-    expect(isPhone(win(true, 844, 390))).toBe(true);
-    expect(isPhone(win(true, 820, 1180))).toBe(false); // tablet
-    expect(isPhone(win(false, 390, 844))).toBe(false); // janela pequena num computador
-    expect(isPhone({})).toBe(false);
   });
 });
 
