@@ -45,7 +45,7 @@ export function normalizeBoxLayout(raw: unknown): BoxPrintLayout {
   return {
     cols: toInt(s.cols, base.cols, 1, 3), rows: toInt(s.rows, base.rows, 1, 8),
     orientation: s.orientation === 'landscape' ? 'landscape' : 'portrait',
-    gapMm: toInt(s.gapMm, base.gapMm, 0, 25),
+    gapMm: Number.isFinite(Number(s.gapMm)) && s.gapMm !== null && s.gapMm !== '' ? clamp(Math.round(Number(s.gapMm) * 2) / 2, 0, 25) : base.gapMm,
     marginMm: toInt(s.marginMm, base.marginMm, 0, 20),
     cutLines: toBool(s.cutLines, base.cutLines),
     font: toFont(s.font, base.font),
