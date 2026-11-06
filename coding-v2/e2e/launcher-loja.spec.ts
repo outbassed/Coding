@@ -38,7 +38,8 @@ test.describe('Launcher · loja no computador', () => {
     await page.getByRole('tab', { name: 'Página' }).click();
     await page.getByLabel('Nome do documento').fill('Prateleira 7');
     await expect(page.getByTestId('save-status')).toHaveText('Salvo neste aparelho', { timeout: 8000 });
-    await page.goto('/launcher/');
+    // O endereço simples retoma o último app; a hash explícita solicita o Início.
+    await page.goto('/launcher/#/');
     const recent = page.getByTestId('recent-docs');
     await expect(recent).toContainText('Prateleira 7');
     await expect(recent).toContainText('Etiquetas');

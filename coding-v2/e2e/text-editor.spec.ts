@@ -34,7 +34,8 @@ test('Texto cria documento real, salva automaticamente e abre pela biblioteca', 
   await page.reload();
   await expect(page.getByRole('textbox',{name:'Conteúdo do documento'})).toContainText('Uma mensagem realmente editável');
   await expect(page.getByLabel('Nome do documento')).toHaveValue('Carta da empresa');
-  await page.goto('/launcher/');
+  // A nova retomada só cede a um destino explícito, portanto solicite o Início pela hash.
+  await page.goto('/launcher/#/');
   const recent=page.getByTestId('recent-docs');
   await expect(recent).toContainText('Carta da empresa');
   await recent.getByRole('link',{name:'Abrir Carta da empresa no editor'}).click();
