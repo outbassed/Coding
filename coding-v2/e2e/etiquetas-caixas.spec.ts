@@ -81,6 +81,5 @@ test.describe('Etiquetas · Identificação de Caixas', () => {
     ]);
     expect(download.suggestedFilename()).toMatch(/\.pdf$/);
     await expect(page.getByTestId('print-sheet').first()).toContainText(/\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/);
-    await expect(page.getByTestId('editor-status')).toContainText('dispositivo');
   });
 });

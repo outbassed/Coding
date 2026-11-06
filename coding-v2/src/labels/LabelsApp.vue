@@ -177,8 +177,8 @@ function onTabKey(event: KeyboardEvent): void {
   const delta = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
   if (!delta) return;
   event.preventDefault();
-  const index = tabs.findIndex((t) => t.id === tab.value);
-  const next = tabs[(index + delta + tabs.length) % tabs.length];
+  const index = tabs.value.findIndex((t) => t.id === tab.value);
+  const next = tabs.value[(index + delta + tabs.value.length) % tabs.value.length];
   if (!next) return;
   tab.value = next.id;
   requestAnimationFrame(() => document.getElementById('tab-' + next.id)?.focus());
