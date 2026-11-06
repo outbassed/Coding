@@ -269,11 +269,13 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
       <button v-if="showSide && state.mode === 'code' && !propertiesOpen" type="button" class="btn" data-testid="show-properties" @click="propertiesOpen = true">Propriedades</button>
       <SaveStatus :state="saveState" class="status" />
     </header>
-    <ProjectTabs v-if="!editor.loadError.value" :projects="projects" :wide="roomy" />
-    <div v-if="!editor.loadError.value" class="mode-switch" role="group" aria-label="Tipo de etiqueta">
-      <span class="mode-label">Tipo de etiqueta</span>
-      <button type="button" data-testid="mode-code" :aria-pressed="state.mode === 'code'" @click="switchMode('code')">Código</button>
-      <button type="button" data-testid="mode-boxes" :aria-pressed="state.mode === 'boxes'" @click="switchMode('boxes')">Caixas</button>
+    <div v-if="!editor.loadError.value" class="project-ribbon">
+      <ProjectTabs :projects="projects" :wide="roomy" />
+      <nav class="mode-switch" aria-label="Tipo de etiqueta">
+        <span class="mode-label">Tipo de etiqueta</span>
+        <button type="button" data-testid="mode-code" :aria-pressed="state.mode === 'code'" @click="switchMode('code')">Código</button>
+        <button type="button" data-testid="mode-boxes" :aria-pressed="state.mode === 'boxes'" @click="switchMode('boxes')">Caixas</button>
+      </nav>
     </div>
 
     <div class="live sr-only" role="status" aria-live="polite" data-testid="editor-status">{{ live }}</div>
@@ -319,7 +321,11 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
       <div v-if="!editor.loadError.value" class="stage">
         <LabelsPreview v-if="state.mode === 'code'" :state="state" :roomy="roomy" @layout="layout = $event" @pages="pages = $event" @edit="onSurfaceEdit" @editing="onSurfaceEditing" @undo="editor.undo()" @redo="editor.redo()" />
         <BoxPreview v-else :boxes="state.boxes" :pages="boxPageList" :stamp="boxStamp" />
-        <p v-if="roomy" class="summary" data-testid="summary">{{ activeLayout.labelCount }} {{ state.mode === 'boxes' ? 'caixa(s)' : 'etiqueta(s)' }} · {{ activeLayout.pageCount }} folha(s)<template v-if="statusDetail"> · {{ statusDetail }}</template></p>
+        <p v-if="roomy" class="summary" data-testid="summary">
+          <template v-if="state.mode === 'code'">{{ layout.labelCount }} {{ layout.labelCount === 1 ? 'etiqueta' : 'etiquetas' }} · {{ layout.itemCount }} {{ layout.itemCount === 1 ? 'item' : 'itens' }}</template>
+          <template v-else>{{ boxLayout.labelCount }} {{ boxLayout.labelCount === 1 ? 'caixa' : 'caixas' }} · {{ boxLayout.pageCount }} {{ boxLayout.pageCount === 1 ? 'folha' : 'folhas' }}</template>
+          <template v-if="statusDetail"> · {{ statusDetail }}</template>
+        </p>
         <p v-if="activeLayout.warning" class="warn" role="status" data-testid="layout-warning">{{ activeLayout.warning }}</p>
       </div>
       <aside v-if="showSide && state.mode === 'code' && propertiesOpen && !editor.loadError.value" class="properties" :class="{ floating: !propertiesDocked }"
@@ -384,11 +390,18 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
 
 <style scoped>
 .ed { height: 100dvh; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; overflow: clip; }
-.mode-switch { display: flex; gap: 6px; align-items: center; justify-content: center; min-height: 54px; padding: 5px 12px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.project-ribbon { display: flex; min-width: 0; flex: none; align-items: stretch; background: var(--panel); }
+.project-ribbon :deep(.pt) { flex: 1; min-width: 0; }
+.mode-switch { display: flex; flex: none; gap: 5px; align-items: center; justify-content: center; padding: 3px 10px; border-bottom: 1px solid var(--border); background: var(--surface); }
 .mode-label { font-size: 12px; font-weight: 700; color: var(--muted); margin-right: 6px; }
-.mode-switch button { min-width: 94px; min-height: 42px; border-radius: 11px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font-weight: 700; }
+.mode-switch button { min-width: 75px; min-height: 40px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font-weight: 700; }
 .mode-switch button[aria-pressed="true"] { background: var(--app); border-color: var(--app); color: var(--ink); }
-@media (max-width: 420px) { .mode-label { font-size: 11px; } .mode-switch button { min-width: 84px; } }
+@media (max-width: 599px) {
+  .mode-label { display: none; }
+  .mode-switch { padding: 3px 4px; gap: 3px; }
+  .mode-switch button { min-width: 70px; min-height: 44px; font-size: 12px; }
+}
+@media (max-width: 360px) { .mode-switch button { min-width: 61px; } }
 .bar { display: flex; align-items: center; gap: 10px; min-height: calc(56px + var(--sa-t)); padding: var(--sa-t) max(12px, var(--sa-r)) 0 max(8px, var(--sa-l)); background: var(--surface); border-bottom: 3px solid var(--app); }
 .back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; min-width: 44px; justify-content: center; padding: 0 8px; border-radius: 12px; color: var(--accent); font-weight: 700; text-decoration: none; }
 .back:hover { background: var(--panel); }
