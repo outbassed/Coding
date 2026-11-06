@@ -89,6 +89,11 @@ test.describe('Etiquetas · Identificação de Caixas', () => {
     await page.getByRole('textbox', { name: 'Editar NF' }).press('Enter');
     await expect(page.getByTestId('box-nf')).toHaveValue('120001');
     await expect(page.getByTestId('print-sheet')).toContainText('NF: 120001');
+    await page.getByTestId('box-edit-destination').first().click();
+    await page.getByRole('textbox', { name: 'Editar destino' }).fill('SERRA');
+    await page.getByRole('textbox', { name: 'Editar destino' }).press('Enter');
+    await expect(page.getByTestId('boxes-heading')).toHaveText('SERRA');
+    await expect(page.getByRole('group', { name: 'Selecionar lojas' }).getByRole('checkbox', { name: 'Serra' })).toBeChecked();
     await page.getByRole('tab', { name: 'Modelos' }).click();
     await page.getByTestId('box-model-1').click();
     await expect(page.getByTestId('print-sheet')).toHaveCount(2);

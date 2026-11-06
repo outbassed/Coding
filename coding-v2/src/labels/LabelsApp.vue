@@ -123,9 +123,11 @@ function boxEdit(fieldName: BoxEditField, value: string): void {
   if (fieldName === 'destination') {
     const parts = value.split('/').map((v) => v.trim()).filter(Boolean).slice(0, 30);
     if (!parts.length) { announce('Informe pelo menos um destino.'); return; }
-    patch.stores = parts.map((short, i) => {
-      const previous = data.stores[i];
-      return previous ? { ...previous, short: short.toUpperCase() } : { id: 'loja-' + uid(), name: short, short: short.toUpperCase() };
+    patch.stores = parts.map((short) => {
+      const normalized = short.toUpperCase();
+      const existing = data.stores.find((shop) => shop.short.toUpperCase() === normalized)
+        ?? shops.value.find((shop) => shop.short.toUpperCase() === normalized || shop.name.toUpperCase() === normalized);
+      return existing ? { ...existing } : { id: 'loja-' + uid(), name: short, short: normalized };
     });
   } else if (fieldName === 'nf') patch.nf = value.replace(/[^0-9]/g, '').slice(0, 24);
   else if (fieldName === 'total') {
