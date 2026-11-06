@@ -7,7 +7,7 @@ const props = defineProps<{ state: LabelsState; layout: LayoutInfo; busy: boolea
 const emit = defineEmits<{ print: []; pdf: [] }>();
 const blocked = computed(() => Boolean(props.layout.warning) || props.layout.labelCount === 0);
 const sheets = computed(() => props.layout.pageCount + (props.layout.pageCount === 1 ? ' folha' : ' folhas'));
-const paper = computed(() => 'A4 ' + (props.state.orientation === 'portrait' ? 'retrato' : 'paisagem'));
+const paper = computed(() => 'A4 ' + (props.state.mode === 'boxes' || props.state.orientation === 'portrait' ? 'retrato' : 'paisagem'));
 </script>
 
 <template>

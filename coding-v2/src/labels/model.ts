@@ -23,8 +23,57 @@ export const MARGIN_X_MM = 14;
 export const MARGIN_Y_MM = 15;
 
 export interface LabelItem { id: string; code: string; description: string; copies: number }
+export type LabelMode = 'code' | 'boxes';
+export interface BoxShop { id: string; name: string; short: string }
+export interface BoxData {
+  stores: BoxShop[]; nf: string; total: number; person: string;
+  timeMode: 'auto' | 'manual'; manualDate: string; manualTime: string;
+}
+export const DEFAULT_BOX_SHOPS: readonly BoxShop[] = [
+  { id: 'vila-velha', name: 'Vila Velha', short: 'VILA VELHA' },
+  { id: 'cariacica', name: 'Cariacica', short: 'CARIACICA' },
+  { id: 'serra', name: 'Serra', short: 'SERRA' },
+  { id: 'guarapari', name: 'Guarapari', short: 'GUARAPARI' },
+  { id: 'barra', name: 'Barra do Jucu', short: 'BARRA' },
+  { id: 'cachoeiro', name: 'Cachoeiro de Itapemirim', short: 'CACHOEIRO' }
+];
+export function defaultBoxes(): BoxData {
+  return {
+    stores: [DEFAULT_BOX_SHOPS[1]!, DEFAULT_BOX_SHOPS[0]!].map((shop) => ({ ...shop })),
+    nf: '10000', total: 2, person: 'Seu Nome',
+    timeMode: 'auto', manualDate: '', manualTime: ''
+  };
+}
+export function normalizeShop(input: unknown): BoxShop | null {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+  const s = input as Record<string, unknown>;
+  const id = toText(s.id, '', 80).trim();
+  const name = toText(s.name, '', 100).trim();
+  const short = toText(s.short, '', 100).trim();
+  return id && name && short ? { id, name, short } : null;
+}
+export function normalizeBoxes(raw: unknown): BoxData {
+  const base = defaultBoxes();
+  const s = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
+  const stores: BoxShop[] = [];
+  if (Array.isArray(s.stores)) for (const entry of s.stores.slice(0, 200)) {
+    const shop = normalizeShop(entry);
+    if (shop && !stores.some((old) => old.id === shop.id)) stores.push(shop);
+  }
+  return {
+    stores: Array.isArray(s.stores) ? stores : base.stores,
+    nf: toText(s.nf, base.nf, 24).replace(/[^0-9]/g, ''),
+    total: toInt(s.total, base.total, 1, MAX_BLOCKS),
+    person: toText(s.person, base.person, 120),
+    timeMode: s.timeMode === 'manual' ? 'manual' : 'auto',
+    manualDate: toText(s.manualDate, '', 10),
+    manualTime: toText(s.manualTime, '', 5)
+  };
+}
 export interface LabelsState {
   name: string;
+  mode: LabelMode;
+  boxes: BoxData;
   items: LabelItem[];
   prefix: string;
   orientation: Orientation;
@@ -50,6 +99,7 @@ const toAlign = (value: unknown, fallback: Align): Align => (value === 'left' ||
 export function defaults(): LabelsState {
   return {
     name: 'Documento sem título',
+    mode: 'code', boxes: defaultBoxes(),
     items: [{ id: uid(), code: '123', description: 'Sua descrição aqui', copies: 3 }],
     prefix: 'COD: ',
     orientation: 'portrait',
@@ -84,6 +134,7 @@ export function normalize(source: unknown): LabelsState {
   if (!items.length) items = [normalizeItem({})];
   return {
     name: toText(o.name, base.name, 80),
+    mode: o.mode === 'boxes' ? 'boxes' : 'code', boxes: normalizeBoxes(o.boxes),
     items,
     prefix: toText(o.prefix, base.prefix, 30),
     orientation: o.orientation === 'landscape' ? 'landscape' : 'portrait',

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_COPIES, MAX_ITEMS, activeItems, countLabels, defaults, normalize } from './model';
 
-describe('modelo de Etiquetas (idêntico ao Coding atual)', () => {
+describe('modelo de Etiquetas (Código compatível e Caixas)', () => {
   it('modelo inicial: um item de exemplo pronto para editar', () => {
     const d = defaults();
     expect(d).toMatchObject({ name: 'Documento sem título', prefix: 'COD: ', orientation: 'portrait', cols: 1, gap: 1, border: true, codeSize: 40, descSize: 34, codeBold: true, codeAlign: 'center' });
@@ -34,6 +34,23 @@ describe('modelo de Etiquetas (idêntico ao Coding atual)', () => {
     const n = normalize({ items: [{ code: '', description: '  ', copies: 9 }, { code: 'A', copies: 2 }, { description: 'B', copies: 3 }] });
     expect(activeItems(n)).toHaveLength(2);
     expect(countLabels(n)).toBe(5);
+  });
+  it('documentos antigos abrem no modo Código, sem perda de itens', () => {
+    const old = normalize({ items: [{ id: 'abc', code: 'XYZ', description: 'Item', copies: 10 }] });
+    expect(old.mode).toBe('code');
+    expect(old.items[0]?.code).toBe('XYZ');
+  });
+  it('modo Caixas começa com Cariacica / Vila Velha, NF 10000 e 2 caixas', () => {
+    const data = defaults();
+    expect(data).toMatchObject({ mode: 'code', boxes: { nf: '10000', total: 2, person: 'Seu Nome', timeMode: 'auto' } });
+    expect(data.boxes.stores.map((s) => s.short)).toEqual(['CARIACICA', 'VILA VELHA']);
+  });
+  it('normaliza dados de caixas sem aceitar letras na NF', () => {
+    const n = normalize({ mode: 'boxes', boxes: { nf: '10A B-29', total: 5, person: 'Teste', timeMode: 'manual', manualDate: '2026-11-06', manualTime: '18:45' } });
+    expect(n.mode).toBe('boxes');
+    expect(n.boxes.nf).toBe('1029');
+    expect(n.boxes.total).toBe(5);
+    expect(n.boxes.timeMode).toBe('manual');
   });
   it('é idempotente', () => {
     const once = normalize({ name: 'N', items: [{ code: 'x', copies: 2 }], cols: 2 });

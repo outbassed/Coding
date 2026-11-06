@@ -58,6 +58,19 @@ describe('Etiquetas · editor real', () => {
     expect(w.find('section.side').exists()).toBe(false);
     w.unmount();
   });
+  it('alterna Código e Caixas preservando o editor tradicional', async () => {
+    const w = await open();
+    await w.get('[data-testid="mode-boxes"]').trigger('click');
+    await flushPromises();
+    expect(w.find('[data-testid="boxes-panel"]').exists()).toBe(true);
+    expect(w.get('[data-testid="sheet"]').text()).toContain('CARIACICA / VILA VELHA');
+    expect(w.get('[data-testid="sheet"]').text()).toContain('CAIXAS: 2/2');
+    expect(w.get('[data-testid="box-nf"]').element).toHaveProperty('value', '10000');
+    await w.get('[data-testid="mode-code"]').trigger('click');
+    await flushPromises();
+    expect(w.get('[data-testid="sheet"]').text()).toContain('COD: 123');
+    w.unmount();
+  });
   it('sem violações de acessibilidade (computador e celular)', async () => {
     for (const width of [1280, 390]) {
       const w = await open(width);

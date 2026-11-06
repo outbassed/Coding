@@ -23,11 +23,15 @@ import BulkDialog from './components/BulkDialog.vue';
 import TableImportDialog from './components/TableImportDialog.vue';
 import { LABEL_TEMPLATES, stateFromTemplate } from './templates';
 import PrintSheets from './components/PrintSheets.vue';
+import BoxPanel from './components/BoxPanel.vue';
+import BoxPreview from './components/BoxPreview.vue';
+import BoxPrintSheets from './components/BoxPrintSheets.vue';
+import { boxPages, boxWarning, manualStamp, readShops, saveShops, stampForPrint, validManual } from './boxes';
 import { downloadBytes, exportSheetsToPdf, pdfFileName } from './raster';
 import type { BulkRow } from './bulk';
 import { useLabelsEditor } from './useLabelsEditor';
 import { usePrint } from '../shared/print/usePrint';
-import { MAX_COPIES, PAPER, toInt, type LabelItem, type LabelsState } from './model';
+import { MAX_COPIES, PAPER, toInt, type BoxShop, type LabelMode, type LabelItem, type LabelsState } from './model';
 
 useSettingsStore();
 const tool = getTool('labels');
@@ -47,14 +51,29 @@ const editor = useLabelsEditor({
 });
 const { state } = editor;
 
-const tabs: EditorTab[] = [
+const codeTabs: EditorTab[] = [
   { id: 'itens', label: 'Itens', blurb: '', groups: [] },
   { id: 'formato', label: 'Formato', blurb: '', groups: [] },
   { id: 'pagina', label: 'Página', blurb: '', groups: [] },
   { id: 'modelos', label: 'Modelos', blurb: '', groups: [] },
   { id: 'exportar', label: 'Exportar', blurb: '', groups: [] }
 ];
+const tabs = computed<EditorTab[]>(() => state.value.mode === 'boxes'
+  ? [{ id: 'caixas', label: 'Caixas', blurb: '', groups: [] }, { id: 'exportar', label: 'Exportar', blurb: '', groups: [] }]
+  : codeTabs);
 const tab = ref('itens');
+watch(() => state.value.mode, (mode) => { tab.value = mode === 'boxes' ? 'caixas' : 'itens'; }, { immediate: true });
+const shops = ref<BoxShop[]>(readShops());
+function updateShops(next: BoxShop[]): void {
+  if (!saveShops(next)) announce('Não foi possível guardar as lojas neste navegador.');
+  shops.value = next;
+}
+function switchMode(mode: LabelMode): void {
+  if (state.value.mode === mode) return;
+  editor.setField('mode', mode);
+  tab.value = mode === 'boxes' ? 'caixas' : 'itens';
+  sheetOpen.value = true;
+}
 const sheetOpen = ref(true);
 const snap = ref<SheetSnap>('half');
 const layout = ref<LayoutInfo>({ pageCount: 1, labelCount: 0, itemCount: 0, rowsOnFirstPage: 0, warning: '' });
@@ -65,7 +84,27 @@ const busy = ref(false);
 const progress = ref('');
 const exportMessage = ref('');
 const exportError = ref('');
-const blocked = computed(() => Boolean(layout.value.warning) || layout.value.labelCount === 0);
+const boxPageList = computed(() => boxPages(state.value.boxes.total));
+const boxLayout = computed<LayoutInfo>(() => ({
+  pageCount: boxPageList.value.length,
+  labelCount: state.value.boxes.total,
+  itemCount: 1,
+  rowsOnFirstPage: Math.min(4, Math.ceil(state.value.boxes.total / 2)),
+  warning: boxWarning(state.value.boxes)
+}));
+const activeLayout = computed(() => state.value.mode === 'boxes' ? boxLayout.value : layout.value);
+const blocked = computed(() => Boolean(activeLayout.value.warning) || activeLayout.value.labelCount === 0);
+const stamped = ref('Data e hora na impressão');
+const boxStamp = computed(() => state.value.boxes.timeMode === 'manual'
+  ? (validManual(state.value.boxes) ? manualStamp(state.value.boxes) : 'Data/hora inválida')
+  : stamped.value);
+async function prepareBoxStamp(): Promise<void> {
+  if (state.value.mode !== 'boxes') return;
+  const value = await stampForPrint(state.value.boxes);
+  stamped.value = value.text;
+  if (value.source === 'device') announce('Horário online indisponível. Utilizei a data e a hora do dispositivo.');
+}
+
 const itemsRef = ref<InstanceType<typeof ItemsPanel>[] | InstanceType<typeof ItemsPanel> | null>(null);
 const showSide = computed(() => roomy.value && wide.value);
 const showSheet = computed(() => !showSide.value && sheetOpen.value);
@@ -162,20 +201,22 @@ async function settled(): Promise<void> {
 }
 async function printSheets(): Promise<void> {
   exportError.value = ''; exportMessage.value = '';
-  if (blocked.value) { announce(layout.value.warning || 'Preencha ao menos um item para imprimir.'); return; }
+  if (blocked.value) { announce(activeLayout.value.warning || 'Preencha os dados para imprimir.'); return; }
+  if (state.value.mode === 'boxes') await prepareBoxStamp();
   await settled();
   window.print();
 }
 // Imprimir pelo menu do app e por Ctrl+P (a infraestrutura compartilhada cuida do atalho): a folha da tela tem CSS de impressão próprio (PrintSheets).
-usePrint({ kind: 'dom', print: printSheets, enabled: () => !blocked.value, reason: () => layout.value.warning || 'Preencha ao menos um item para imprimir.', notify: (m) => announce(m) });
+usePrint({ kind: 'dom', print: printSheets, enabled: () => !blocked.value, reason: () => activeLayout.value.warning || 'Preencha os dados para imprimir.', notify: (m) => announce(m) });
 async function downloadPdf(): Promise<void> {
   exportError.value = ''; exportMessage.value = '';
-  if (blocked.value) { announce(layout.value.warning || 'Preencha ao menos um item para exportar.'); return; }
+  if (blocked.value) { announce(activeLayout.value.warning || 'Preencha os dados para exportar.'); return; }
   busy.value = true;
   try {
+    if (state.value.mode === 'boxes') await prepareBoxStamp();
     await settled();
     const sheets = Array.from(document.querySelectorAll<HTMLElement>('[data-testid="print-sheet"]'));
-    const paper = PAPER[state.value.orientation];
+    const paper = PAPER[state.value.mode === 'boxes' ? 'portrait' : state.value.orientation];
     const result = await exportSheetsToPdf(sheets, paper.w, paper.h, state.value.name.trim() || 'Etiquetas', (done, total) => { progress.value = done < total ? 'Gerando folha ' + (done + 1) + ' de ' + total + '…' : ''; });
     downloadBytes(result.bytes, pdfFileName(state.value.name));
     exportMessage.value = 'PDF gerado com ' + result.pages + (result.pages === 1 ? ' folha.' : ' folhas.');
@@ -225,10 +266,15 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
         <button type="button" class="ib" aria-label="Desfazer" title="Desfazer (Ctrl+Z)" :disabled="!editor.canUndo.value" data-testid="undo" @click="editor.undo()"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
         <button type="button" class="ib" aria-label="Refazer" title="Refazer (Ctrl+Shift+Z)" :disabled="!editor.canRedo.value" data-testid="redo" @click="editor.redo()"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
       </div>
-      <button v-if="showSide && !propertiesOpen" type="button" class="btn" data-testid="show-properties" @click="propertiesOpen = true">Propriedades</button>
+      <button v-if="showSide && state.mode === 'code' && !propertiesOpen" type="button" class="btn" data-testid="show-properties" @click="propertiesOpen = true">Propriedades</button>
       <SaveStatus :state="saveState" class="status" />
     </header>
     <ProjectTabs v-if="!editor.loadError.value" :projects="projects" :wide="roomy" />
+    <div v-if="!editor.loadError.value" class="mode-switch" role="group" aria-label="Tipo de etiqueta">
+      <span class="mode-label">Tipo de etiqueta</span>
+      <button type="button" data-testid="mode-code" :aria-pressed="state.mode === 'code'" @click="switchMode('code')">Código</button>
+      <button type="button" data-testid="mode-boxes" :aria-pressed="state.mode === 'boxes'" @click="switchMode('boxes')">Caixas</button>
+    </div>
 
     <div class="live sr-only" role="status" aria-live="polite" data-testid="editor-status">{{ live }}</div>
 
@@ -254,7 +300,9 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
           <button v-for="t in tabs" :id="'tab-' + t.id" :key="t.id" type="button" role="tab" class="tabbtn" :aria-selected="tab === t.id" :aria-controls="'tabpanel'" :tabindex="tab === t.id ? 0 : -1" @click="tab = t.id">{{ t.label }}</button>
         </div>
         <div id="tabpanel" class="panel" role="tabpanel" :aria-labelledby="'tab-' + tab">
-          <ItemsPanel v-if="tab === 'itens'" ref="itemsRef" :items="state.items" :active-id="surfaceItem" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @bulk="bulkOpen = true" @import="tableOpen = true" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
+          <BoxPanel v-if="state.mode === 'boxes' && tab === 'caixas'" :boxes="state.boxes" :shops="shops" :document-name="state.name"
+            @boxes="field('boxes', $event)" @shops="updateShops" @name="field('name', $event)" />
+          <ItemsPanel v-else-if="tab === 'itens'" ref="itemsRef" :items="state.items" :active-id="surfaceItem" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @bulk="bulkOpen = true" @import="tableOpen = true" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
           <FormatPanel v-else-if="tab === 'formato'" :state="state" @field="field" />
           <PagePanel v-else-if="tab === 'pagina'" :state="state" :layout="layout" @field="field" />
           <div v-else-if="tab === 'modelos'" class="tpls" data-testid="templates-panel">
@@ -263,17 +311,18 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
             <h2 class="tpl-h">Novo documento a partir de um modelo</h2>
             <ul class="tpl-list"><li v-for="t in LABEL_TEMPLATES" :key="t.id"><a class="tpl-btn" :href="'/apps/etiquetas/?modelo=' + t.id" :data-template="t.id"><strong>{{ t.name }}</strong><span>Com itens de exemplo editáveis</span></a></li></ul>
           </div>
-          <ExportPanel v-else :state="state" :layout="layout" :busy="busy" :progress="progress" :message="exportMessage" :error="exportError" @print="printSheets" @pdf="downloadPdf" />
+          <ExportPanel v-else :state="state" :layout="activeLayout" :busy="busy" :progress="progress" :message="exportMessage" :error="exportError" @print="printSheets" @pdf="downloadPdf" />
         </div>
         <div v-if="wide" class="desktop-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Ajustar largura do painel de ferramentas" title="Arraste para ajustar; dois cliques para restaurar" :aria-valuenow="desktopSide.width.value" :aria-valuemin="desktopSide.min" :aria-valuemax="desktopSide.max" :class="{ active: desktopSide.dragging.value }" @pointerdown="desktopSide.start" @pointermove="desktopSide.move" @pointerup="desktopSide.end" @pointercancel="desktopSide.end" @dblclick="desktopSide.reset" @keydown="desktopSide.keys" />
       </section>
 
       <div v-if="!editor.loadError.value" class="stage">
-        <LabelsPreview :state="state" :roomy="roomy" @layout="layout = $event" @pages="pages = $event" @edit="onSurfaceEdit" @editing="onSurfaceEditing" @undo="editor.undo()" @redo="editor.redo()" />
-        <p v-if="roomy" class="summary" data-testid="summary">{{ layout.labelCount }} {{ layout.labelCount === 1 ? 'etiqueta' : 'etiquetas' }} · {{ layout.itemCount }} {{ layout.itemCount === 1 ? 'item' : 'itens' }}<template v-if="statusDetail"> · {{ statusDetail }}</template></p>
-        <p v-if="layout.warning" class="warn" role="status" data-testid="layout-warning">{{ layout.warning }}</p>
+        <LabelsPreview v-if="state.mode === 'code'" :state="state" :roomy="roomy" @layout="layout = $event" @pages="pages = $event" @edit="onSurfaceEdit" @editing="onSurfaceEditing" @undo="editor.undo()" @redo="editor.redo()" />
+        <BoxPreview v-else :boxes="state.boxes" :pages="boxPageList" :stamp="boxStamp" />
+        <p v-if="roomy" class="summary" data-testid="summary">{{ activeLayout.labelCount }} {{ state.mode === 'boxes' ? 'caixa(s)' : 'etiqueta(s)' }} · {{ activeLayout.pageCount }} folha(s)<template v-if="statusDetail"> · {{ statusDetail }}</template></p>
+        <p v-if="activeLayout.warning" class="warn" role="status" data-testid="layout-warning">{{ activeLayout.warning }}</p>
       </div>
-      <aside v-if="showSide && propertiesOpen && !editor.loadError.value" class="properties" :class="{ floating: !propertiesDocked }"
+      <aside v-if="showSide && state.mode === 'code' && propertiesOpen && !editor.loadError.value" class="properties" :class="{ floating: !propertiesDocked }"
         :style="{ width: desktopProperties.width.value + 'px' }" aria-label="Propriedades das etiquetas" data-testid="editor-inspector">
         <div class="properties-title"><strong>Propriedades</strong><button type="button" class="ib" aria-label="Recolher propriedades" data-testid="hide-properties" @click="propertiesOpen = false"><NavIcon name="close" /></button></div>
         <div class="properties-body">
@@ -310,11 +359,14 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
 
     <TableImportDialog :open="tableOpen" :current-items="state.items.filter((i) => i.code.trim() || i.description.trim()).length" @close="tableOpen = false" @apply="applyTable" />
     <BulkDialog :open="bulkOpen" :current-items="state.items.filter((i) => i.code.trim() || i.description.trim()).length" @close="bulkOpen = false" @apply="applyBulk" />
-    <PrintSheets v-if="!editor.loadError.value" :state="state" :pages="pages" />
+    <PrintSheets v-if="!editor.loadError.value && state.mode === 'code'" :state="state" :pages="pages" />
+    <BoxPrintSheets v-else-if="!editor.loadError.value && state.mode === 'boxes'" :boxes="state.boxes" :stamp="boxStamp" />
 
     <template v-if="!showSide && !editor.loadError.value">
       <BottomSheet v-if="showSheet" v-model:snap="snap" :title="tabs.find((t) => t.id === tab)?.label ?? 'Editor'" :style="{ '--chrome': '233px', ...(snap === 'full' ? { maxHeight: '85dvh' } : {}) }" @close="sheetOpen = false">
-        <ItemsPanel v-if="tab === 'itens'" ref="itemsRef" :items="state.items" :active-id="surfaceItem" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @bulk="bulkOpen = true" @import="tableOpen = true" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
+        <BoxPanel v-if="state.mode === 'boxes' && tab === 'caixas'" :boxes="state.boxes" :shops="shops" :document-name="state.name"
+          @boxes="field('boxes', $event)" @shops="updateShops" @name="field('name', $event)" />
+        <ItemsPanel v-else-if="tab === 'itens'" ref="itemsRef" :items="state.items" :active-id="surfaceItem" @code="(id, v) => editor.setItem(id, { code: v })" @description="(id, v) => editor.setItem(id, { description: v })" @copies="copiesChange" @step="editor.stepCopies" @add="focusNew(editor.addItem())" @bulk="bulkOpen = true" @import="tableOpen = true" @duplicate="(id) => focusNew(editor.duplicateItem(id))" @move="editor.moveItem" @remove="editor.removeItem" />
         <FormatPanel v-else-if="tab === 'formato'" :state="state" @field="field" />
         <PagePanel v-else-if="tab === 'pagina'" :state="state" :layout="layout" @field="field" />
         <div v-else-if="tab === 'modelos'" class="tpls" data-testid="templates-panel">
@@ -323,7 +375,7 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
           <h2 class="tpl-h">Novo documento a partir de um modelo</h2>
           <ul class="tpl-list"><li v-for="t in LABEL_TEMPLATES" :key="t.id"><a class="tpl-btn" :href="'/apps/etiquetas/?modelo=' + t.id" :data-template="t.id"><strong>{{ t.name }}</strong><span>Com itens de exemplo editáveis</span></a></li></ul>
         </div>
-          <ExportPanel v-else :state="state" :layout="layout" :busy="busy" :progress="progress" :message="exportMessage" :error="exportError" @print="printSheets" @pdf="downloadPdf" />
+          <ExportPanel v-else :state="state" :layout="activeLayout" :busy="busy" :progress="progress" :message="exportMessage" :error="exportError" @print="printSheets" @pdf="downloadPdf" />
       </BottomSheet>
       <ToolStrip :tabs="tabs" :active="sheetOpen ? tab : null" @select="pickTab" />
     </template>
@@ -332,6 +384,11 @@ const title = computed(() => state.value.name.trim() || 'Documento sem título')
 
 <style scoped>
 .ed { height: 100dvh; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; overflow: clip; }
+.mode-switch { display: flex; gap: 6px; align-items: center; justify-content: center; min-height: 54px; padding: 5px 12px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.mode-label { font-size: 12px; font-weight: 700; color: var(--muted); margin-right: 6px; }
+.mode-switch button { min-width: 94px; min-height: 42px; border-radius: 11px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font-weight: 700; }
+.mode-switch button[aria-pressed="true"] { background: var(--app); border-color: var(--app); color: var(--ink); }
+@media (max-width: 420px) { .mode-label { font-size: 11px; } .mode-switch button { min-width: 84px; } }
 .bar { display: flex; align-items: center; gap: 10px; min-height: calc(56px + var(--sa-t)); padding: var(--sa-t) max(12px, var(--sa-r)) 0 max(8px, var(--sa-l)); background: var(--surface); border-bottom: 3px solid var(--app); }
 .back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; min-width: 44px; justify-content: center; padding: 0 8px; border-radius: 12px; color: var(--accent); font-weight: 700; text-decoration: none; }
 .back:hover { background: var(--panel); }
