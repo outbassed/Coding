@@ -15,6 +15,23 @@ import type { VersionRecord } from './versions';
  */
 export const versionRecords: readonly VersionRecord[] = [
   {
+    target: 'labels', version: '1.2.0', build: '06.11.26.190020', releaseDate: '2026-11-06', releaseTime: '19:00:20',
+    novidades: [
+      'Novo seletor Código / Caixas dentro do Etiquetas, mantendo o modo Código original e permitindo salvar e reabrir documentos em ambos os modos.',
+      'Gerador de identificação de caixas: lojas selecionáveis, NF numérica, nome e numeração automática de 1/N até N/N; padrão Cariacica / Vila Velha, NF 10000, duas caixas e nome Seu Nome.',
+      'Cadastro local de lojas sem lista fixa: adicionar, editar, excluir e ordenar a apresentação no cabeçalho, inclusive selecionando várias lojas.',
+      'Data e hora na etiqueta: modo Automático por padrão, consultando primeiro o horário online e usando o relógio do dispositivo quando necessário, ou modo Manual com data e hora editáveis.'
+    ],
+    melhorias: [
+      'Prévia e impressão em A4 com até oito identificações de caixas por folha, além de exportação PDF, com a mesma data e hora para todo o lote.',
+      'Documentos anteriores do modo Código permanecem compatíveis; o cadastro de lojas é reutilizável e os documentos guardam uma cópia das lojas selecionadas.'
+    ],
+    alteracoesTecnicas: [
+      'Horário online obtido do cabeçalho HTTP Date da própria hospedagem, sem enviar informações das notas fiscais a serviços externos; consulta com limite de 2,5 segundos e fallback local.',
+      'A data e a hora automática são atualizadas quando a impressão ou exportação é solicitada. Não é possível detectar se a impressora concluiu a impressão.'
+    ]
+  },
+  {
     target: 'launcher', version: '2.3.2', build: '06.11.26.140700', releaseDate: '2026-11-06', releaseTime: '14:07:00',
     melhorias: [
       'Ao abrir o Coding pela entrada principal, volta automaticamente à última tela ou aplicativo acessado, tanto no computador quanto no celular e tablet, sem limite de tempo.',
